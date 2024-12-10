@@ -10,8 +10,10 @@ import {
     assertUnreachable,
     CacheMetadata,
     CalculateTotalFromQuery,
+    ChartSourceType,
     ChartSummary,
     CompiledDimension,
+    ContentType,
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
@@ -37,6 +39,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FieldValueSearchResult,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -134,6 +137,7 @@ import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -177,6 +181,11 @@ type RunQueryTags = {
     dashboard_uuid?: string;
 };
 
+const cachedUniqueSearchResults: Record<
+    string,
+    FieldValueSearchResult<string>
+> = {};
+
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -200,6 +209,7 @@ type ProjectServiceArguments = {
     groupsModel: GroupsModel;
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
+    contentModel: ContentModel;
 };
 
 export class ProjectService extends BaseService {
@@ -249,6 +259,8 @@ export class ProjectService extends BaseService {
 
     catalogModel: CatalogModel;
 
+    contentModel: ContentModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -272,6 +284,7 @@ export class ProjectService extends BaseService {
         groupsModel,
         tagsModel,
         catalogModel,
+        contentModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -297,6 +310,7 @@ export class ProjectService extends BaseService {
         this.groupsModel = groupsModel;
         this.tagsModel = tagsModel;
         this.catalogModel = catalogModel;
+        this.contentModel = contentModel;
     }
 
     private async validateProjectCreationPermissions(
@@ -2468,7 +2482,8 @@ export class ProjectService extends BaseService {
         search: string,
         limit: number,
         filters: AndFilterGroup | undefined,
-    ): Promise<Array<unknown>> {
+        forceRefresh: boolean = false,
+    ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2480,6 +2495,18 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        const cachekey = `${projectUuid}-${table}-${initialFieldId}-${search}-${JSON.stringify(
+            filters,
+        )}`;
+        const cacheEnabled = this.lightdashConfig.cacheAutocompleResults;
+        if (
+            !forceRefresh &&
+            cachedUniqueSearchResults[cachekey] !== undefined &&
+            cacheEnabled
+        ) {
+            return cachedUniqueSearchResults[cachekey];
         }
 
         if (limit > this.lightdashConfig.query.maxLimit) {
@@ -2609,7 +2636,25 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return rows.map((row) => row[getItemId(field)]);
+        const searchResults = {
+            search,
+            results: rows.map((row) => row[getItemId(field)]),
+            refreshedAt: new Date(),
+        };
+        if (
+            cacheEnabled &&
+            (forceRefresh || cachedUniqueSearchResults[cachekey] === undefined)
+        ) {
+            cachedUniqueSearchResults[cachekey] = {
+                ...searchResults,
+                cached: true,
+            };
+        }
+
+        return {
+            ...searchResults,
+            cached: false,
+        };
     }
 
     private async refreshAllTables(
@@ -3627,8 +3672,20 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         try {
-            const charts = await this.savedChartModel.find({ projectUuid });
-            return charts.length > 0;
+            const charts = await this.contentModel.findSummaryContents(
+                {
+                    projectUuids: [projectUuid],
+                    contentTypes: [ContentType.CHART],
+                    chart: {
+                        sources: [ChartSourceType.DBT_EXPLORE],
+                    },
+                },
+                {
+                    pageSize: 1,
+                    page: 1,
+                },
+            );
+            return charts.data.length > 0;
         } catch (e: any) {
             return false;
         }

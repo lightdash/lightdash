@@ -1,11 +1,14 @@
 import {
     assertUnreachable,
     getDefaultDateRangeFromInterval,
+    getItemId,
     isDimension,
     MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type MetricWithAssociatedTimeDimension,
     type TimeDimensionConfig,
+    type TimeFrames,
 } from '@lightdash/common';
 import {
     Box,
@@ -16,7 +19,7 @@ import {
     Modal,
     Paper,
     Radio,
-    Skeleton,
+    Select,
     Stack,
     Text,
     Tooltip,
@@ -27,12 +30,10 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
-import { MetricPeekDatePicker } from './MetricPeekDatePicker';
-import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import MetricsVisualization from './visualization/MetricsVisualization';
-import { TimeDimensionPicker } from './visualization/TimeDimensionPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -61,6 +62,67 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         null,
     );
 
+    const [timeDimensionOverride, setTimeDimensionOverride] = useState<
+        TimeDimensionConfig | undefined
+    >();
+
+    const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
+        projectUuid,
+        options: {
+            enabled:
+                comparisonType === MetricExplorerComparison.DIFFERENT_METRIC,
+        },
+    });
+
+    const [selectedMetric, setSelectedMetric] =
+        useState<MetricWithAssociatedTimeDimension | null>(null);
+
+    const handleMetricChange = useCallback(
+        (metricId: string | null) => {
+            if (!metricsWithTimeDimensionsQuery.isSuccess) return;
+
+            if (!metricId) {
+                setSelectedMetric(null);
+                return;
+            }
+
+            const metric = metricsWithTimeDimensionsQuery.data.find(
+                (m) => getItemId(m) === metricId,
+            );
+
+            setSelectedMetric(metric ?? null);
+        },
+        [
+            metricsWithTimeDimensionsQuery.data,
+            metricsWithTimeDimensionsQuery.isSuccess,
+        ],
+    );
+
+    const handleComparisonTypeChange = useCallback(
+        (value: MetricExplorerComparison) => {
+            setComparisonType(value);
+
+            if (
+                value === MetricExplorerComparison.NONE ||
+                value === MetricExplorerComparison.PREVIOUS_PERIOD
+            ) {
+                setSelectedMetric(null);
+            }
+
+            if (value === MetricExplorerComparison.NONE) {
+                setDateRange(null);
+                setTimeDimensionOverride(undefined);
+            } else if (timeDimensionOverride) {
+                setDateRange(
+                    getDefaultDateRangeFromInterval(
+                        timeDimensionOverride.interval,
+                    ),
+                );
+            }
+        },
+        [timeDimensionOverride],
+    );
+
     const comparisonParams = useMemo((): MetricExplorerComparisonType => {
         switch (comparisonType) {
             case MetricExplorerComparison.NONE:
@@ -72,11 +134,16 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     type: MetricExplorerComparison.PREVIOUS_PERIOD,
                 };
             case MetricExplorerComparison.DIFFERENT_METRIC:
+                if (!selectedMetric) {
+                    return {
+                        type: MetricExplorerComparison.NONE,
+                    };
+                }
+
                 return {
                     type: MetricExplorerComparison.DIFFERENT_METRIC,
-                    // TODO: this is hardcoded for now, should be a dropdown in the UI
-                    metricTable: 'orders',
-                    metricName: 'total_non_completed_order_amount',
+                    metricTable: selectedMetric.table,
+                    metricName: selectedMetric.name,
                 };
             default:
                 return assertUnreachable(
@@ -84,12 +151,23 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     `Unknown comparison type: ${comparisonType}`,
                 );
         }
-    }, [comparisonType]);
+    }, [comparisonType, selectedMetric]);
 
-    const [timeDimensionOverride, setTimeDimensionOverride] = useState<
-        TimeDimensionConfig | undefined
-    >();
-
+    const metricExplorerQueryOptions = {
+        enabled:
+            !!projectUuid &&
+            !!tableName &&
+            !!metricName &&
+            !!comparisonParams &&
+            !!dateRange &&
+            (comparisonParams.type !==
+                MetricExplorerComparison.DIFFERENT_METRIC ||
+                (comparisonParams.type ===
+                    MetricExplorerComparison.DIFFERENT_METRIC &&
+                    !!comparisonParams.metricName &&
+                    !!comparisonParams.metricTable)),
+        keepPreviousData: true,
+    };
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
@@ -97,6 +175,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         dateRange: dateRange ?? undefined,
         comparison: comparisonParams,
         timeDimensionOverride,
+        options: metricExplorerQueryOptions,
     });
 
     const timeDimensionBaseField: TimeDimensionConfig | undefined =
@@ -121,28 +200,59 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             };
         }, [metricResultsQuery.data?.fields]);
 
-    useEffect(() => {
-        const timeDimension =
-            timeDimensionOverride ?? metricQuery.data?.timeDimension;
+    useEffect(
+        function setInitialDateRange() {
+            if (metricQuery.isSuccess && !dateRange) {
+                const timeDimension = metricQuery.data?.timeDimension;
+                if (timeDimension) {
+                    setDateRange(
+                        getDefaultDateRangeFromInterval(timeDimension.interval),
+                    );
+                }
+            }
+        },
+        [metricQuery.isSuccess, metricQuery.data, dateRange],
+    );
 
-        if (!timeDimension) return;
+    useEffect(
+        function handleTimeDimensionChange() {
+            if (
+                timeDimensionOverride &&
+                timeDimensionOverride.interval !==
+                    timeDimensionBaseField?.interval &&
+                !dateRange
+            ) {
+                setDateRange(
+                    getDefaultDateRangeFromInterval(
+                        timeDimensionOverride.interval,
+                    ),
+                );
+            }
+        },
+        [timeDimensionOverride, timeDimensionBaseField, dateRange],
+    );
 
-        if (timeDimension.interval !== timeDimensionBaseField?.interval) {
-            setDateRange(
-                getDefaultDateRangeFromInterval(timeDimension.interval),
-            );
-        }
-    }, [timeDimensionOverride, metricQuery.data, timeDimensionBaseField]);
+    const handleTimeIntervalChange = useCallback(
+        function handleTimeIntervalChange(timeInterval: TimeFrames) {
+            // Always reset the date range to the default range for the new interval
+            setDateRange(getDefaultDateRangeFromInterval(timeInterval));
 
-    const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
-    const doesNotHaveData =
-        hasData && metricResultsQuery.data.rows.length === 0;
+            if (timeDimensionBaseField) {
+                setTimeDimensionOverride({
+                    ...timeDimensionBaseField,
+                    interval: timeInterval,
+                });
+            }
+        },
+        [timeDimensionBaseField],
+    );
 
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
         setComparisonType(MetricExplorerComparison.NONE);
         setDateRange(null);
         setTimeDimensionOverride(undefined);
+        setSelectedMetric(null);
         onClose();
     }, [history, onClose, projectUuid]);
 
@@ -193,69 +303,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 >
                     <Stack p="xl" bg="offWhite.0" miw={360}>
                         <Stack spacing="xl">
-                            {metricQuery.data?.availableTimeDimensions && (
-                                <Stack
-                                    w="100%"
-                                    spacing="xs"
-                                    align="flex-start"
-                                    sx={{ flexGrow: 1 }}
-                                >
-                                    <Text fw={500} c="gray.7">
-                                        X-axis
-                                    </Text>
-                                    {metricQuery.isSuccess &&
-                                    timeDimensionBaseField ? (
-                                        <TimeDimensionPicker
-                                            fields={
-                                                metricQuery.data
-                                                    .availableTimeDimensions
-                                            }
-                                            dimension={timeDimensionBaseField}
-                                            onChange={setTimeDimensionOverride}
-                                        />
-                                    ) : (
-                                        <Skeleton w="100%" h={40} />
-                                    )}
-                                </Stack>
-                            )}
-
-                            <Divider
-                                display={
-                                    metricQuery.data?.availableTimeDimensions
-                                        ? 'block'
-                                        : 'none'
-                                }
-                                color="gray.2"
-                            />
-
-                            <Stack
-                                w="100%"
-                                spacing="xs"
-                                align="flex-start"
-                                sx={{ flexGrow: 1 }}
-                            >
-                                <Text fw={500} c="gray.7">
-                                    Time filter
-                                </Text>
-                                {metricQuery.isSuccess && dateRange && (
-                                    <MetricPeekDatePicker
-                                        dateRange={dateRange}
-                                        onChange={setDateRange}
-                                        showTimeDimensionIntervalPicker={
-                                            !!timeDimensionBaseField
-                                        }
-                                        timeDimensionBaseField={
-                                            timeDimensionBaseField
-                                        }
-                                        setTimeDimensionOverride={
-                                            setTimeDimensionOverride
-                                        }
-                                    />
-                                )}
-                            </Stack>
-
-                            <Divider color="gray.2" />
-
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">
@@ -287,33 +334,25 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                                 <Radio.Group
                                     value={comparisonType}
-                                    onChange={(
-                                        value: MetricExplorerComparison,
-                                    ) => setComparisonType(value)}
+                                    onChange={handleComparisonTypeChange}
                                 >
                                     <Stack spacing="sm">
                                         {[
                                             {
                                                 type: MetricExplorerComparison.PREVIOUS_PERIOD,
                                                 icon: IconCalendar,
-                                                label: 'Compare to previous period', // TODO: should have a label relative to the time granularity
-                                                description:
-                                                    'Show data from the same period in the previous cycle', // TODO: should have a description relative to the time granularity
+                                                label: 'Compare to previous year',
                                             },
                                             {
                                                 type: MetricExplorerComparison.DIFFERENT_METRIC,
                                                 icon: IconStack,
                                                 label: 'Compare to another metric',
-                                                description: `Compare ${
-                                                    metricQuery.data?.label
-                                                        ? `"${metricQuery.data?.label}"`
-                                                        : 'this metric'
-                                                } to another metric`,
                                             },
                                         ].map((comparison) => (
                                             <Paper
                                                 key={comparison.type}
-                                                p="md"
+                                                px="md"
+                                                py="sm"
                                                 sx={(theme) => ({
                                                     cursor: 'pointer',
                                                     '&[data-with-border="true"]':
@@ -331,36 +370,81 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                                     )
                                                 }
                                             >
-                                                <Group align="start" noWrap>
-                                                    <Paper p="xs">
-                                                        <MantineIcon
-                                                            icon={
-                                                                comparison.icon
-                                                            }
-                                                        />
-                                                    </Paper>
+                                                <Stack>
+                                                    <Group
+                                                        align="center"
+                                                        noWrap
+                                                    >
+                                                        <Paper p="xs">
+                                                            <MantineIcon
+                                                                icon={
+                                                                    comparison.icon
+                                                                }
+                                                            />
+                                                        </Paper>
 
-                                                    <Stack spacing={4}>
-                                                        <Text
-                                                            color="dark.8"
-                                                            fw={500}
+                                                        <Stack
+                                                            spacing={4}
+                                                            style={{
+                                                                flexGrow: 1,
+                                                            }}
                                                         >
-                                                            {comparison.label}
-                                                        </Text>
+                                                            <Text
+                                                                color="dark.8"
+                                                                fw={500}
+                                                            >
+                                                                {
+                                                                    comparison.label
+                                                                }
+                                                            </Text>
+                                                        </Stack>
 
-                                                        <Text color="gray.6">
-                                                            {
-                                                                comparison.description
+                                                        <Radio
+                                                            value={
+                                                                comparison.type
                                                             }
-                                                        </Text>
-                                                    </Stack>
+                                                            size="xs"
+                                                            color="indigo"
+                                                        />
+                                                    </Group>
 
-                                                    <Radio
-                                                        value={comparison.type}
-                                                        size="xs"
-                                                        color="indigo"
-                                                    />
-                                                </Group>
+                                                    {metricsWithTimeDimensionsQuery.isSuccess &&
+                                                        comparison.type ===
+                                                            MetricExplorerComparison.DIFFERENT_METRIC &&
+                                                        comparisonType ===
+                                                            MetricExplorerComparison.DIFFERENT_METRIC && (
+                                                            <Select
+                                                                placeholder="Select metric"
+                                                                radius="md"
+                                                                size="xs"
+                                                                data={
+                                                                    metricsWithTimeDimensionsQuery.data?.map(
+                                                                        (
+                                                                            metric,
+                                                                        ) => ({
+                                                                            value: getItemId(
+                                                                                metric,
+                                                                            ),
+                                                                            label: metric.label,
+                                                                        }),
+                                                                    ) ?? []
+                                                                }
+                                                                value={
+                                                                    selectedMetric
+                                                                        ? getItemId(
+                                                                              selectedMetric,
+                                                                          )
+                                                                        : null
+                                                                }
+                                                                onChange={
+                                                                    handleMetricChange
+                                                                }
+                                                                disabled={
+                                                                    !metricsWithTimeDimensionsQuery.isSuccess
+                                                                }
+                                                            />
+                                                        )}
+                                                </Stack>
                                             </Paper>
                                         ))}
                                     </Stack>
@@ -371,24 +455,23 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box
-                        mih={500}
-                        w="100%"
-                        pt="sm"
-                        pb={doesNotHaveData ? 'md' : undefined}
-                        px="md"
-                    >
-                        {doesNotHaveData ? (
-                            <MetricsVisualizationEmptyState />
-                        ) : (
-                            hasData && (
-                                <MetricsVisualization
-                                    comparison={comparisonParams}
-                                    dateRange={dateRange ?? undefined}
-                                    data={metricResultsQuery.data}
-                                />
-                            )
-                        )}
+                    <Box w="100%" pt="sm" px="md">
+                        <MetricsVisualization
+                            comparison={comparisonParams}
+                            dateRange={dateRange ?? undefined}
+                            results={metricResultsQuery.data}
+                            onDateRangeChange={setDateRange}
+                            showTimeDimensionIntervalPicker={
+                                !!timeDimensionBaseField
+                            }
+                            timeDimensionBaseField={
+                                timeDimensionBaseField ??
+                                ({} as TimeDimensionConfig)
+                            }
+                            setTimeDimensionOverride={setTimeDimensionOverride}
+                            onTimeIntervalChange={handleTimeIntervalChange}
+                            isFetching={metricResultsQuery.isFetching}
+                        />
                     </Box>
                 </Modal.Body>
             </Modal.Content>

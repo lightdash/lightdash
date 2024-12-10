@@ -271,7 +271,7 @@ export class CatalogModel {
                                                 SELECT jsonb_array_elements_text(?::jsonb -> key)
                                             )
                                         )
-                                    
+
                                     -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
                                     ELSE
                                         -- Extract the single value and check if it exists in user's attributes array

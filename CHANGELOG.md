@@ -1,3 +1,107 @@
+# [0.1405.0](https://github.com/lightdash/lightdash/compare/0.1404.4...0.1405.0) (2024-12-09)
+
+
+### Features
+
+* cache results in filters ([#12780](https://github.com/lightdash/lightdash/issues/12780)) ([f959286](https://github.com/lightdash/lightdash/commit/f95928608327295bdc6b24935f280dd8d2ac3386))
+
+## [0.1404.4](https://github.com/lightdash/lightdash/compare/0.1404.3...0.1404.4) (2024-12-09)
+
+
+### Bug Fixes
+
+* get paginated summaries for space modal ([#12770](https://github.com/lightdash/lightdash/issues/12770)) ([f8afbd7](https://github.com/lightdash/lightdash/commit/f8afbd7c223d3ec8c828cadba3bfe600a521027b))
+
+## [0.1404.3](https://github.com/lightdash/lightdash/compare/0.1404.2...0.1404.3) (2024-12-09)
+
+
+### Bug Fixes
+
+* upgrade express from 4.21.0 to 4.21.2 ([#12757](https://github.com/lightdash/lightdash/issues/12757)) ([5ce05a4](https://github.com/lightdash/lightdash/commit/5ce05a437f7b977ccc2e68ae6b5abea9b3cc21e7))
+
+## [0.1404.2](https://github.com/lightdash/lightdash/compare/0.1404.1...0.1404.2) (2024-12-06)
+
+
+### Bug Fixes
+
+* address time interval overrride on comparison of metrics ([#12765](https://github.com/lightdash/lightdash/issues/12765)) ([4fe874a](https://github.com/lightdash/lightdash/commit/4fe874ad48154b006e65bd5aff90b9eab7757f16))
+
+## [0.1404.1](https://github.com/lightdash/lightdash/compare/0.1404.0...0.1404.1) (2024-12-06)
+
+
+### Bug Fixes
+
+* disable tree for viewer when invalid edge count ([#12761](https://github.com/lightdash/lightdash/issues/12761)) ([937da88](https://github.com/lightdash/lightdash/commit/937da884011a36524411ba4bcfa25ccdb45a238f))
+* paginate charts in dashboard modals ([#12764](https://github.com/lightdash/lightdash/issues/12764)) ([4ad3799](https://github.com/lightdash/lightdash/commit/4ad3799c3f9483eb0b9a4856409bbeacbe52fa20))
+
+# [0.1404.0](https://github.com/lightdash/lightdash/compare/0.1403.1...0.1404.0) (2024-12-06)
+
+
+### Features
+
+* change layout of date picker, granularity and data zoom ([#12748](https://github.com/lightdash/lightdash/issues/12748)) ([bcc7cc7](https://github.com/lightdash/lightdash/commit/bcc7cc75e49e4d8d1fa2526e76a0b35d95c8f8bf))
+
+## [0.1403.1](https://github.com/lightdash/lightdash/compare/0.1403.0...0.1403.1) (2024-12-06)
+
+
+### Bug Fixes
+
+* check if project has saved charts ([#12758](https://github.com/lightdash/lightdash/issues/12758)) ([483281e](https://github.com/lightdash/lightdash/commit/483281e236d639b047a44483b6c60522145334ea))
+
+# [0.1403.0](https://github.com/lightdash/lightdash/compare/0.1402.0...0.1403.0) (2024-12-06)
+
+
+### Features
+
+* metrics explorer compare with other metric part 2 ([#12745](https://github.com/lightdash/lightdash/issues/12745)) ([cf98681](https://github.com/lightdash/lightdash/commit/cf98681d24941a44dc3476aa8c8b0cf881d4646d))
+
+# [0.1402.0](https://github.com/lightdash/lightdash/compare/0.1401.0...0.1402.0) (2024-12-05)
+
+
+### Features
+
+* tune date zoom when metric-exploring ([#12728](https://github.com/lightdash/lightdash/issues/12728)) ([df21153](https://github.com/lightdash/lightdash/commit/df21153e86f98d1291eb0b2c54c35da03dc2619f))
+
+# [0.1401.0](https://github.com/lightdash/lightdash/compare/0.1400.1...0.1401.0) (2024-12-05)
+
+
+### Features
+
+* add view mode ([#12749](https://github.com/lightdash/lightdash/issues/12749)) ([84b79ca](https://github.com/lightdash/lightdash/commit/84b79ca76398e577a76317aaa05628852a082b1d))
+
+## [0.1400.1](https://github.com/lightdash/lightdash/compare/0.1400.0...0.1400.1) (2024-12-05)
+
+
+### Bug Fixes
+
+* dont open url if shouldFetch is falsy ([#12750](https://github.com/lightdash/lightdash/issues/12750)) ([68c80e0](https://github.com/lightdash/lightdash/commit/68c80e0184a4794455c43cd1a9fef746ab768460))
+
+# [0.1400.0](https://github.com/lightdash/lightdash/compare/0.1399.3...0.1400.0) (2024-12-05)
+
+
+### Bug Fixes
+
+* track node and edge changes ([#12727](https://github.com/lightdash/lightdash/issues/12727)) ([21c4d4d](https://github.com/lightdash/lightdash/commit/21c4d4db8bd41df3f87687a214c30d9f38ed74fd))
+
+
+### Features
+
+* add permission checks and validation for trees backend ([#12747](https://github.com/lightdash/lightdash/issues/12747)) ([a15c2df](https://github.com/lightdash/lightdash/commit/a15c2df4ccd39b53d0ac1c0054a0f0affab90d7c))
+
+## [0.1399.3](https://github.com/lightdash/lightdash/compare/0.1399.2...0.1399.3) (2024-12-05)
+
+
+### Bug Fixes
+
+* stringify BigInt in scheduler worker ([#12738](https://github.com/lightdash/lightdash/issues/12738)) ([7ad97f4](https://github.com/lightdash/lightdash/commit/7ad97f42e866d4d28e9c0dd4f07d2089e3ae3623))
+
+## [0.1399.2](https://github.com/lightdash/lightdash/compare/0.1399.1...0.1399.2) (2024-12-05)
+
+
+### Bug Fixes
+
+* only enable metric query on click of explore ([#12732](https://github.com/lightdash/lightdash/issues/12732)) ([65a8913](https://github.com/lightdash/lightdash/commit/65a8913f9eeed02d5329d9d1ee3b782c14c86771))
+
 ## [0.1399.1](https://github.com/lightdash/lightdash/compare/0.1399.0...0.1399.1) (2024-12-04)
 
 

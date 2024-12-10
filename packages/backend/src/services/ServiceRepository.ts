@@ -446,6 +446,7 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     tagsModel: this.models.getTagsModel(),
                     catalogModel: this.models.getCatalogModel(),
+                    contentModel: this.models.getContentModel(),
                 }),
         );
     }

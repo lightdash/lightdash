@@ -1,17 +1,26 @@
 import { subject } from '@casl/ability';
+import type {
+    Dimension,
+    ItemsMap,
+    MetricExploreDataPoint,
+    MetricsExplorerQueryResults,
+} from '@lightdash/common';
 import {
     assertUnreachable,
     ForbiddenError,
     getFieldIdForDateDimension,
     getGrainForDateRange,
     getItemId,
+    getMetricExplorerDataPoints,
+    getMetricExplorerDataPointsWithCompare,
     getMetricExplorerDateRangeFilters,
+    isDimension,
     MetricExplorerComparison,
     MetricExplorerComparisonType,
     oneYearBack,
     type MetricExplorerDateRange,
     type MetricQuery,
-    type MetricsExplorerQueryResults,
+    type MetricWithAssociatedTimeDimension,
     type ResultRow,
     type SessionUser,
     type TimeDimensionConfig,
@@ -60,13 +69,148 @@ export class MetricsExplorerService<
         this.projectService = projectService;
     }
 
+    private async runComparePreviousPeriodMetricQuery(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        timeDimensionConfig: TimeDimensionConfig,
+        dateRange: MetricExplorerDateRange,
+    ): Promise<{
+        rows: ResultRow[];
+        fields: ItemsMap;
+        dimension: Dimension;
+    }> {
+        const forwardBackDateRange: MetricExplorerDateRange = [
+            oneYearBack(dateRange[0]),
+            oneYearBack(dateRange[1]),
+        ];
+
+        const adjustedMetricQuery: MetricQuery = {
+            ...metricQuery,
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    and: getMetricExplorerDateRangeFilters(
+                        timeDimensionConfig.table,
+                        timeDimensionConfig.field,
+                        forwardBackDateRange,
+                    ),
+                },
+            },
+        };
+
+        const { rows, fields } = await this.projectService.runExploreQuery(
+            user,
+            adjustedMetricQuery,
+            projectUuid,
+            exploreName,
+            null,
+        );
+
+        // Comparison uses the same dimension as the base metric
+        const compareDimension = fields[adjustedMetricQuery.dimensions[0]];
+        if (!compareDimension || !isDimension(compareDimension)) {
+            throw new Error('Compare dimension not found or invalid');
+        }
+
+        return {
+            rows,
+            fields,
+            dimension: compareDimension,
+        };
+    }
+
+    private async runCompareDifferentMetricQuery(
+        user: SessionUser,
+        projectUuid: string,
+        compare: Extract<
+            MetricExplorerComparisonType,
+            { type: MetricExplorerComparison.DIFFERENT_METRIC }
+        >,
+        dateRange: MetricExplorerDateRange,
+        timeDimensionOverride: TimeDimensionConfig | undefined,
+    ): Promise<{
+        rows: ResultRow[];
+        fields: ItemsMap;
+        dimension: Dimension;
+        metric: MetricWithAssociatedTimeDimension;
+    }> {
+        const metric = await this.catalogService.getMetric(
+            user,
+            projectUuid,
+            compare.metricTable,
+            compare.metricName,
+            timeDimensionOverride?.interval,
+        );
+
+        const { timeDimension } = metric;
+        if (!timeDimension) {
+            throw new Error(
+                `Comparison metric should always have an associated time dimension`,
+            );
+        }
+
+        const metricDimensionGrain = timeDimensionOverride
+            ? timeDimensionOverride.interval
+            : timeDimension.interval;
+
+        const dimensionName = getFieldIdForDateDimension(
+            timeDimension.field,
+            metricDimensionGrain,
+        );
+        const dimensionFieldId = getItemId({
+            table: timeDimension.table,
+            name: dimensionName,
+        });
+
+        const metricQuery: MetricQuery = {
+            exploreName: compare.metricTable,
+            metrics: [getItemId(metric)],
+            dimensions: [dimensionFieldId],
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    and: getMetricExplorerDateRangeFilters(
+                        timeDimension.table,
+                        timeDimension.field,
+                        dateRange,
+                    ),
+                },
+            },
+            sorts: [{ fieldId: dimensionFieldId, descending: false }],
+            tableCalculations: [],
+            limit: this.maxQueryLimit,
+        };
+
+        const { rows, fields } = await this.projectService.runExploreQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            compare.metricTable,
+            null,
+        );
+
+        const dimension = fields[metricQuery.dimensions[0]];
+        if (!dimension || !isDimension(dimension)) {
+            throw new Error('Compare dimension not found or invalid');
+        }
+
+        return {
+            rows,
+            fields,
+            dimension,
+            metric,
+        };
+    }
+
     async runMetricExplorerQuery(
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
         metricName: string,
         dateRange: MetricExplorerDateRange,
-        compare: MetricExplorerComparisonType | undefined,
+        compare: MetricExplorerComparisonType,
         timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -92,20 +236,16 @@ export class MetricsExplorerService<
         const timeDimensionConfig =
             timeDimensionOverride ?? metric.timeDimension;
 
-        if (!timeDimensionConfig) {
-            throw new Error(
-                `Metric ${metricName} does not have a valid time dimension`,
-            );
-        }
+        const dimensionGrain =
+            timeDimensionConfig?.interval ?? getGrainForDateRange(dateRange);
 
-        const dimensionGrain = timeDimensionConfig.interval;
-
+        const timeDimensionFieldId = getFieldIdForDateDimension(
+            timeDimensionConfig?.field || '',
+            dimensionGrain,
+        );
         const timeDimension = getItemId({
-            table: timeDimensionConfig.table,
-            name: getFieldIdForDateDimension(
-                timeDimensionConfig.field,
-                dimensionGrain,
-            ),
+            table: timeDimensionConfig?.table || '',
+            name: timeDimensionFieldId,
         });
 
         const metricQuery: MetricQuery = {
@@ -116,20 +256,15 @@ export class MetricsExplorerService<
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        timeDimensionConfig.table,
-                        timeDimensionConfig.field,
+                        timeDimensionConfig?.table || '',
+                        timeDimensionConfig?.field || '',
                         dateRange,
                     ),
                 },
             },
-            sorts: [
-                {
-                    fieldId: timeDimension,
-                    descending: false,
-                },
-            ],
+            sorts: [{ fieldId: timeDimension, descending: false }],
             tableCalculations: [],
-            limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
+            limit: this.maxQueryLimit,
         };
 
         const { rows: currentResults, fields } =
@@ -142,129 +277,124 @@ export class MetricsExplorerService<
             );
 
         let allFields = fields;
-
         let comparisonResults: ResultRow[] | undefined;
-        if (compare) {
-            switch (compare.type) {
-                case MetricExplorerComparison.NONE:
-                    break;
-                case MetricExplorerComparison.PREVIOUS_PERIOD:
-                    const previousDateRange: MetricExplorerDateRange = [
-                        oneYearBack(dateRange[0]),
-                        oneYearBack(dateRange[1]),
-                    ];
+        let compareDimension: Dimension | undefined;
+        let compareMetric: MetricWithAssociatedTimeDimension | undefined;
 
-                    const previousPeriodMetricQuery: MetricQuery = {
-                        ...metricQuery,
-                        filters: {
-                            dimensions: {
-                                id: uuidv4(),
-                                and: getMetricExplorerDateRangeFilters(
-                                    timeDimensionConfig.table,
-                                    timeDimensionConfig.field,
-                                    previousDateRange,
-                                ),
-                            },
-                        },
-                    };
-
-                    const {
-                        rows: comparisonResultRows,
-                        fields: comparisonFields,
-                    } = await this.projectService.runExploreQuery(
-                        user,
-                        previousPeriodMetricQuery,
-                        projectUuid,
-                        exploreName,
-                        null,
-                    );
-
-                    comparisonResults = comparisonResultRows;
-                    allFields = { ...allFields, ...comparisonFields };
-
-                    break;
-                case MetricExplorerComparison.DIFFERENT_METRIC:
-                    const differentMetric = await this.catalogService.getMetric(
-                        user,
-                        projectUuid,
-                        compare.metricTable,
-                        compare.metricName,
-                    );
-
-                    const differentMetricTimeDimension =
-                        differentMetric.timeDimension;
-
-                    if (!differentMetricTimeDimension) {
-                        throw new Error(
-                            `Comparison metric should always have an associated time dimension`,
-                        );
-                    }
-
-                    const differentMetricDimensionGrain = dateRange
-                        ? getGrainForDateRange(dateRange)
-                        : differentMetricTimeDimension.interval;
-
-                    const differentMetricTimeDimensionId = getItemId({
-                        table: differentMetric.table,
-                        name: getFieldIdForDateDimension(
-                            timeDimensionConfig.field,
-                            differentMetricDimensionGrain,
-                        ),
-                    });
-
-                    const differentMetricQuery: MetricQuery = {
-                        exploreName: compare.metricTable,
-                        metrics: [getItemId(differentMetric)],
-                        dimensions: [differentMetricTimeDimensionId],
-                        filters: {
-                            dimensions: {
-                                id: uuidv4(),
-                                and: getMetricExplorerDateRangeFilters(
-                                    compare.metricTable,
-                                    differentMetricTimeDimension.field,
-                                    dateRange,
-                                ),
-                            },
-                        },
-                        sorts: [
-                            {
-                                fieldId: differentMetricTimeDimensionId,
-                                descending: false,
-                            },
-                        ],
-                        tableCalculations: [],
-                        limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
-                    };
-
-                    const {
-                        rows: differentMetricResultRows,
-                        fields: differentMetricFields,
-                    } = await this.projectService.runExploreQuery(
-                        user,
-                        differentMetricQuery,
-                        projectUuid,
-                        compare.metricTable,
-                        null,
-                    );
-
-                    comparisonResults = differentMetricResultRows;
-                    allFields = { ...allFields, ...differentMetricFields };
-
-                    break;
-                default:
-                    assertUnreachable(
-                        compare,
-                        `Unknown comparison type: ${compare}`,
-                    );
-                    break;
+        switch (compare.type) {
+            case MetricExplorerComparison.PREVIOUS_PERIOD: {
+                const {
+                    rows: prevRows,
+                    fields: prevFields,
+                    dimension: compDim,
+                } = await this.runComparePreviousPeriodMetricQuery(
+                    user,
+                    projectUuid,
+                    exploreName,
+                    metricQuery,
+                    {
+                        table:
+                            timeDimensionOverride?.table ||
+                            metric.timeDimension?.table ||
+                            '',
+                        field:
+                            timeDimensionOverride?.field ||
+                            metric.timeDimension?.field ||
+                            '',
+                        interval: dimensionGrain,
+                    },
+                    dateRange,
+                );
+                comparisonResults = prevRows;
+                allFields = { ...allFields, ...prevFields };
+                compareDimension = compDim;
+                compareMetric = metric;
+                break;
+            }
+            case MetricExplorerComparison.DIFFERENT_METRIC: {
+                const {
+                    rows: diffRows,
+                    fields: diffFields,
+                    dimension: compDim,
+                    metric: diffMetric,
+                } = await this.runCompareDifferentMetricQuery(
+                    user,
+                    projectUuid,
+                    compare,
+                    dateRange,
+                    timeDimensionOverride,
+                );
+                comparisonResults = diffRows;
+                allFields = { ...allFields, ...diffFields };
+                compareDimension = compDim;
+                compareMetric = diffMetric;
+                break;
+            }
+            case MetricExplorerComparison.NONE: {
+                break;
+            }
+            default: {
+                assertUnreachable(
+                    compare,
+                    `Unknown comparison type: ${compare}`,
+                );
             }
         }
 
+        const baseDimension = allFields[timeDimension];
+        if (!baseDimension || !isDimension(baseDimension)) {
+            throw new Error('Time dimension not found or invalid');
+        }
+
+        let dataPoints: MetricExploreDataPoint[] = [];
+        const metricWithTimeDimension: MetricWithAssociatedTimeDimension = {
+            ...metric,
+            timeDimension: {
+                table:
+                    timeDimensionOverride?.table ||
+                    metric.timeDimension?.table ||
+                    '',
+                field:
+                    timeDimensionOverride?.field ||
+                    metric.timeDimension?.field ||
+                    '',
+                interval: dimensionGrain,
+            },
+        };
+
+        if (!compare || compare.type === MetricExplorerComparison.NONE) {
+            dataPoints = getMetricExplorerDataPoints(
+                baseDimension,
+                metricWithTimeDimension,
+                currentResults,
+            );
+        } else {
+            if (!comparisonResults) {
+                throw new Error(
+                    `Comparison results expected for ${compare.type}`,
+                );
+            }
+
+            compareDimension = compareDimension || baseDimension;
+            dataPoints = getMetricExplorerDataPointsWithCompare(
+                baseDimension,
+                compareDimension,
+                metricWithTimeDimension,
+                currentResults,
+                comparisonResults,
+                compare,
+            );
+        }
+
+        const results = dataPoints
+            .map((dp) => ({ ...dp, dateValue: dp.date.valueOf() }))
+            .sort((a, b) => a.dateValue - b.dateValue);
+
         return {
-            rows: currentResults,
-            comparisonRows: comparisonResults,
+            results,
             fields: allFields,
-            metric: { ...metric, timeDimension: timeDimensionConfig },
+            metric: metricWithTimeDimension,
+            compareMetric,
         };
     }
 }

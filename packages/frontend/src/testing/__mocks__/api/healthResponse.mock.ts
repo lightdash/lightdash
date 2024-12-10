@@ -78,6 +78,7 @@ export default function mockHealthResponse(
         hasGroups: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
+        hasCacheAutocompleResults: false,
         ...overrides,
     };
 }

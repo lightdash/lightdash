@@ -45,29 +45,13 @@ export class MetricsExplorerController extends BaseController {
         @Request() req: express.Request,
         @Query() startDate: string,
         @Query() endDate: string,
-        @Query() compareToPreviousPeriod?: boolean,
-        @Query() compareToMetricTableName?: string,
-        @Query() compareToMetricMetricName?: string,
         @Body()
-        body?: {
+        body: {
             timeDimensionOverride?: TimeDimensionConfig;
+            comparison: MetricExplorerComparisonType;
         },
     ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
-
-        let compare: MetricExplorerComparisonType | undefined;
-        if (compareToPreviousPeriod) {
-            compare = {
-                type: MetricExplorerComparison.PREVIOUS_PERIOD,
-            };
-        }
-        if (compareToMetricTableName && compareToMetricMetricName) {
-            compare = {
-                type: MetricExplorerComparison.DIFFERENT_METRIC,
-                metricTable: compareToMetricTableName,
-                metricName: compareToMetricMetricName,
-            };
-        }
 
         if (!startDate || !endDate) {
             throw new Error('startDate and endDate are required');
@@ -86,7 +70,7 @@ export class MetricsExplorerController extends BaseController {
                 explore,
                 metric,
                 dateRange,
-                compare,
+                body.comparison,
                 body?.timeDimensionOverride,
             );
 

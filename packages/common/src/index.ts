@@ -852,6 +852,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasGroups: boolean;
     hasExtendedUsageAnalytics: boolean;
+    hasCacheAutocompleResults: boolean;
 };
 
 export enum DBFieldTypes {

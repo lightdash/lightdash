@@ -128,6 +128,12 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                                             order by dashboard_versions.created_at asc
                                             limit 1)`),
                     );
+                    if (filters.search) {
+                        void builder.whereRaw(
+                            `LOWER(${DashboardsTableName}.name) LIKE ?`,
+                            [`%${filters.search.toLowerCase()}%`],
+                        );
+                    }
                 }),
         shouldRowBeConverted: (value): value is SummaryContentRow =>
             value.content_type === ContentType.DASHBOARD,

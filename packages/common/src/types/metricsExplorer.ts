@@ -1,6 +1,6 @@
+import { z } from 'zod';
 import { type MetricWithAssociatedTimeDimension } from './catalog';
 import type { ItemsMap } from './field';
-import type { ResultRow } from './results';
 
 export enum MetricExplorerComparison {
     NONE = 'none',
@@ -24,17 +24,34 @@ export type MetricExplorerComparisonType =
           metricName: string;
       };
 
+const metricExploreDataPointSchema = z.object({
+    date: z.date({ coerce: true }),
+    metric: z.number().nullable(),
+    compareMetric: z.number().nullable(),
+});
+
+export const metricExploreDataPointWithDateValueSchema =
+    metricExploreDataPointSchema.extend({
+        dateValue: z.number(),
+    });
+
+// z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPoint = {
     date: Date;
-    metric: unknown;
-    compareMetric: unknown;
+    metric: number | null;
+    compareMetric: number | null;
+};
+
+// z.infer should be used here but it doesn't work with TSOA
+export type MetricExploreDataPointWithDateValue = MetricExploreDataPoint & {
+    dateValue: number;
 };
 
 export type MetricsExplorerQueryResults = {
     metric: MetricWithAssociatedTimeDimension;
-    rows: ResultRow[];
-    comparisonRows: ResultRow[] | undefined;
+    compareMetric: MetricWithAssociatedTimeDimension | undefined;
     fields: ItemsMap;
+    results: MetricExploreDataPointWithDateValue[];
 };
 
 export type ApiMetricsExplorerQueryResults = {

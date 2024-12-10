@@ -9,6 +9,7 @@ import {
     getItemId,
     type ApiGetMetricsTree,
     type ApiMetricsTreeEdgePayload,
+    type ApiMetricsWithAssociatedTimeDimensionResponse,
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
@@ -240,6 +241,31 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getMetric(req.user!, projectUuid, tableName, metricName);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get metrics with time dimensions
+     * @param projectUuid
+     * @returns the all project metrics with their associated time dimensions
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics-with-time-dimensions')
+    @OperationId('getMetricsWithTimeDimensions')
+    async getMetricsWithTimeDimensions(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiMetricsWithAssociatedTimeDimensionResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getAllCatalogMetricsWithTimeDimensions(req.user!, projectUuid);
 
         return {
             status: 'ok',

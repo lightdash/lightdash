@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine/core';
+import { Button, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -16,24 +16,24 @@ type Props = {
 };
 
 export const ExploreMetricButton = ({ row }: Props) => {
-    const [exploreUrl, setExploreUrl] = useState<string>();
-    const [shouldOpenInNewTab, setShouldOpenInNewTab] = useState(false);
+    const [shouldFetch, setShouldFetch] = useState(false);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
-    const [currentTableName, setCurrentTableName] = useState<string>();
     const { track } = useTracking();
 
     const metricQuery = useMetric({
         projectUuid,
         tableName: row.original.tableName,
         metricName: row.original.name,
+        enabled: shouldFetch,
     });
 
     useEffect(() => {
+        if (!shouldFetch) return;
         if (!projectUuid || !metricQuery.isSuccess) return;
 
         const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
@@ -48,21 +48,10 @@ export const ExploreMetricButton = ({ row }: Props) => {
         const url = new URL(pathname, window.location.origin);
         url.search = new URLSearchParams(search).toString();
 
-        setExploreUrl(url.href);
-    }, [
-        currentTableName,
-        metricQuery.data,
-        metricQuery.isSuccess,
-        projectUuid,
-        row.original,
-    ]);
+        window.open(url.href, '_blank');
 
-    useEffect(() => {
-        if (shouldOpenInNewTab && exploreUrl) {
-            window.open(exploreUrl, '_blank');
-            setShouldOpenInNewTab(false);
-        }
-    }, [exploreUrl, shouldOpenInNewTab]);
+        setShouldFetch(false); // Reset the fetch trigger
+    }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
 
     const handleExploreClick = useCallback(() => {
         track({
@@ -75,14 +64,9 @@ export const ExploreMetricButton = ({ row }: Props) => {
             },
         });
 
-        if (exploreUrl) {
-            window.open(exploreUrl, '_blank');
-        } else {
-            setShouldOpenInNewTab(true);
-            setCurrentTableName(row.original.tableName);
-        }
+        // Trigger the fetch
+        setShouldFetch(true);
     }, [
-        exploreUrl,
         organizationUuid,
         projectUuid,
         row.original.name,
@@ -105,14 +89,14 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 py="xxs"
                 px={10}
                 h={28}
+                fz="sm"
+                fw={500}
                 sx={{
                     border: `1px solid #414E62`,
                     boxShadow: '0px 0px 0px 1px #151C24',
                 }}
             >
-                <Text fz="sm" fw={500}>
-                    Explore
-                </Text>
+                Explore
             </Button>
         </Tooltip>
     );

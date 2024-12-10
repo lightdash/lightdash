@@ -14,6 +14,8 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
+const fs = require('fs');
+
 export const projectRouter = express.Router({ mergeParams: true });
 
 projectRouter.patch(
@@ -77,12 +79,18 @@ projectRouter.get(
                 .getDownloadFileService()
                 .getDownloadFile(nanoId);
             const filename = path.basename(filePath);
-            res.set('Content-Type', 'text/csv');
-            res.set('Content-Disposition', `attachment; filename=${filename}`);
-            const normalizedPath = path.normalize(filePath);
+            const normalizedPath = path.resolve('/tmp/', filename);
             if (!normalizedPath.startsWith('/tmp/')) {
-                throw new NotFoundError(`File not found ${normalizedPath}`);
+                throw new NotFoundError(`File not found ${filename}`);
             }
+            if (!fs.existsSync(normalizedPath)) {
+                throw new NotFoundError(`File not found: ${filename}`);
+            }
+            res.set('Content-Type', 'text/csv');
+            res.set(
+                'Content-Disposition',
+                `attachment; filename="${filename}"`,
+            );
             res.sendFile(normalizedPath);
         } catch (error) {
             next(error);
@@ -96,20 +104,18 @@ projectRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results = {
-                search: req.body.search,
-                results: await req.services
-                    .getProjectService()
-                    .searchFieldUniqueValues(
-                        req.user!,
-                        req.params.projectUuid,
-                        req.body.table,
-                        req.params.fieldId,
-                        req.body.search,
-                        req.body.limit,
-                        req.body.filters,
-                    ),
-            };
+            const results = await req.services
+                .getProjectService()
+                .searchFieldUniqueValues(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body.table,
+                    req.params.fieldId,
+                    req.body.search,
+                    req.body.limit,
+                    req.body.filters,
+                    req.body.forceRefresh,
+                );
 
             res.json({
                 status: 'ok',

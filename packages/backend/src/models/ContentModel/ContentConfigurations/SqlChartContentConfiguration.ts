@@ -123,6 +123,12 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                             filters.spaceUuids,
                         );
                     }
+                    if (filters.search) {
+                        void builder.whereRaw(
+                            `LOWER(${SavedSqlTableName}.name) LIKE ?`,
+                            [`%${filters.search.toLowerCase()}%`],
+                        );
+                    }
                 }),
         shouldRowBeConverted: (value): value is SelectSavedSql => {
             const contentTypeMatch = value.content_type === ContentType.CHART;

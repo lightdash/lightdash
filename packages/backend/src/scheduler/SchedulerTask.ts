@@ -82,9 +82,13 @@ import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
+import { job } from '../services/ProjectService/ProjectService.mock';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
-import { UnfurlService } from '../services/UnfurlService/UnfurlService';
+import {
+    ScreenshotContext,
+    UnfurlService,
+} from '../services/UnfurlService/UnfurlService';
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { SchedulerClient } from './SchedulerClient';
@@ -305,6 +309,8 @@ export default class SchedulerTask {
                             scheduler.customViewportWidth
                                 ? scheduler.customViewportWidth
                                 : undefined,
+                        context: ScreenshotContext.SCHEDULED_DELIVERY,
+                        contextId: jobId,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');

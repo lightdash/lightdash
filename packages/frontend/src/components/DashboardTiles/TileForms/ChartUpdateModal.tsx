@@ -1,6 +1,7 @@
 import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    type ChartContent,
     type DashboardChartTile,
     type DashboardSqlChartTile,
 } from '@lightdash/common';
@@ -9,17 +10,24 @@ import {
     Button,
     Flex,
     Group,
+    Loader,
     Modal,
+    ScrollArea,
     Select,
     Stack,
+    Text,
     TextInput,
     Title,
     type ModalProps,
+    type ScrollAreaProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
+import { uniqBy } from 'lodash';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useChartSummaries } from '../../../hooks/useChartSummaries';
+import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
@@ -50,8 +58,40 @@ const ChartUpdateModal = ({
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isInitialLoading } =
-        useChartSummaries(projectUuid);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
+    const selectScrollRef = useRef<HTMLDivElement>(null);
+    const {
+        data: chartPages,
+        isInitialLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+    } = useChartSummariesV2(
+        {
+            projectUuid,
+            page: 1,
+            pageSize: 25,
+            search: debouncedSearchQuery,
+        },
+        { keepPreviousData: true },
+    );
+    useEffect(() => {
+        selectScrollRef.current?.scrollTo({
+            top: selectScrollRef.current?.scrollHeight,
+        });
+    }, [chartPages]);
+    // Aggregates all fetched charts across pages and search queries into a unified list.
+    // This ensures that previously fetched chart are preserved even when the search query changes.
+    // Uses 'uuid' to remove duplicates and maintain a consistent set of unique charts.
+    const [savedCharts, setSavedQueries] = useState<ChartContent[]>([]);
+    useEffect(() => {
+        const allPages = chartPages?.pages.map((p) => p.data).flat() ?? [];
+
+        setSavedQueries((previousState) =>
+            uniqBy([...previousState, ...allPages], 'uuid'),
+        );
+    }, [chartPages?.pages]);
 
     const handleConfirm = form.onSubmit(
         ({
@@ -119,11 +159,11 @@ const ChartUpdateModal = ({
                                 name="savedChartUuid"
                                 label="Select chart"
                                 data={(savedCharts || []).map(
-                                    ({ uuid, name, spaceName }) => {
+                                    ({ uuid, name, space }) => {
                                         return {
                                             value: uuid,
                                             label: name,
-                                            group: spaceName,
+                                            group: space.name,
                                         };
                                     },
                                 )}
@@ -132,6 +172,41 @@ const ChartUpdateModal = ({
                                 {...form.getInputProps('uuid')}
                                 searchable
                                 placeholder="Search..."
+                                nothingFound="No charts found"
+                                clearable
+                                searchValue={searchQuery}
+                                onSearchChange={setSearchQuery}
+                                maxDropdownHeight={300}
+                                rightSection={
+                                    isFetching && (
+                                        <Loader size="xs" color="gray" />
+                                    )
+                                }
+                                dropdownComponent={({
+                                    children,
+                                    ...rest
+                                }: ScrollAreaProps) => (
+                                    <ScrollArea
+                                        {...rest}
+                                        viewportRef={selectScrollRef}
+                                    >
+                                        <>
+                                            {children}
+                                            {hasNextPage && (
+                                                <Button
+                                                    size="xs"
+                                                    variant="white"
+                                                    onClick={async () => {
+                                                        await fetchNextPage();
+                                                    }}
+                                                    disabled={isFetching}
+                                                >
+                                                    <Text>Load more</Text>
+                                                </Button>
+                                            )}
+                                        </>
+                                    </ScrollArea>
+                                )}
                             />
                         )}
                     <Group spacing="xs" position="right" mt="md">

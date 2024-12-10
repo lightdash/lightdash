@@ -28,6 +28,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UserAttributeValueMap,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
@@ -253,6 +254,56 @@ export class CatalogService<
         );
     }
 
+    private async getFilteredExplores(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ) {
+        const explores = await this.projectModel.getExploresFromCache(
+            projectUuid,
+        );
+
+        if (!explores) return [];
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        // We keep errors in the list of explores
+        const filteredExplores = explores.reduce<(Explore | ExploreError)[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) {
+                    // If no dimensions found, we don't show the explore error
+                    if (
+                        explore.errors.every(
+                            (error) =>
+                                error.type ===
+                                InlineErrorType.NO_DIMENSIONS_FOUND,
+                        )
+                    )
+                        return acc;
+
+                    return [...acc, explore];
+                }
+                if (
+                    !doesExploreMatchRequiredAttributes(explore, userAttributes)
+                ) {
+                    return acc;
+                }
+                const filteredExplore = getFilteredExplore(
+                    explore,
+                    userAttributes,
+                );
+                return [...acc, filteredExplore];
+            },
+            [],
+        );
+
+        return filteredExplores;
+    }
+
     async indexCatalog(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
@@ -461,51 +512,17 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const explores = await this.projectModel.getExploresFromCache(
+        const filteredExplores = await this.getFilteredExplores(
+            user,
+            organizationUuid,
             projectUuid,
         );
-
-        if (!explores) {
-            return {
-                data: [],
-            };
-        }
 
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
                 userUuid: user.userUuid,
             });
-
-        // We keep errors in the list of explores
-        const filteredExplores = explores.reduce<(Explore | ExploreError)[]>(
-            (acc, explore) => {
-                if (isExploreError(explore)) {
-                    // If no dimensions found, we don't show the explore error
-                    if (
-                        explore.errors.every(
-                            (error) =>
-                                error.type ===
-                                InlineErrorType.NO_DIMENSIONS_FOUND,
-                        )
-                    )
-                        return acc;
-
-                    return [...acc, explore];
-                }
-                if (
-                    !doesExploreMatchRequiredAttributes(explore, userAttributes)
-                ) {
-                    return acc;
-                }
-                const filteredExplore = getFilteredExplore(
-                    explore,
-                    userAttributes,
-                );
-                return [...acc, filteredExplore];
-            },
-            [],
-        );
 
         if (catalogSearch.searchQuery) {
             // On search we don't show explore errors, because they are not indexed
@@ -883,6 +900,7 @@ export class CatalogService<
         projectUuid: string,
         tableName: string,
         metricName: string,
+        timeIntervalOverride?: TimeFrames,
     ): Promise<MetricWithAssociatedTimeDimension> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -959,7 +977,9 @@ export class CatalogService<
 
             timeDimension = {
                 field: firstAvailableTimeDimension.name,
-                interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                interval:
+                    timeIntervalOverride ??
+                    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
                 table: firstAvailableTimeDimension.table,
             };
         }
@@ -978,7 +998,19 @@ export class CatalogService<
         projectUuid: string,
         metricUuids: string[],
     ) {
-        // TODO: check permissions
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         if (metricUuids.length > MAX_METRICS_TREE_NODE_COUNT) {
             throw new ParameterError(
                 `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
@@ -988,38 +1020,72 @@ export class CatalogService<
         return this.catalogModel.getMetricsTree(projectUuid, metricUuids);
     }
 
-    async createMetricsTreeEdge(
-        user: SessionUser,
+    private async validateMetricsTreeEdge(
         projectUuid: string,
-        {
-            sourceCatalogSearchUuid,
-            targetCatalogSearchUuid,
-        }: ApiMetricsTreeEdgePayload,
+        edgePayload: ApiMetricsTreeEdgePayload,
     ) {
-        // TODO: check permissions
+        const { sourceCatalogSearchUuid, targetCatalogSearchUuid } =
+            edgePayload;
+
         const sourceCatalogItem = await this.catalogModel.getCatalogItem(
             sourceCatalogSearchUuid,
         );
-
-        if (sourceCatalogItem?.field_type !== FieldType.METRIC) {
-            throw new ParameterError('Source metric is not a valid metric');
-        }
-
-        if (!sourceCatalogItem) {
-            throw new NotFoundError('Source metric not found');
-        }
 
         const targetCatalogItem = await this.catalogModel.getCatalogItem(
             targetCatalogSearchUuid,
         );
 
+        if (!sourceCatalogItem) {
+            throw new NotFoundError('Source metric not found');
+        }
+
+        if (sourceCatalogItem.field_type !== FieldType.METRIC) {
+            throw new ParameterError('Source metric is not a valid metric');
+        }
+
+        if (sourceCatalogItem.project_uuid !== projectUuid) {
+            throw new ForbiddenError(
+                'Source metric is not in the same project',
+            );
+        }
+
         if (!targetCatalogItem) {
             throw new NotFoundError('Target metric not found');
         }
 
-        if (targetCatalogItem?.field_type !== FieldType.METRIC) {
+        if (targetCatalogItem.field_type !== FieldType.METRIC) {
             throw new ParameterError('Target metric is not a valid metric');
         }
+
+        if (targetCatalogItem.project_uuid !== projectUuid) {
+            throw new ForbiddenError(
+                'Target metric is not in the same project',
+            );
+        }
+    }
+
+    async createMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        edgePayload: ApiMetricsTreeEdgePayload,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { sourceCatalogSearchUuid, targetCatalogSearchUuid } =
+            edgePayload;
+
+        await this.validateMetricsTreeEdge(projectUuid, edgePayload);
 
         return this.catalogModel.createMetricsTreeEdge({
             source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
@@ -1028,15 +1094,75 @@ export class CatalogService<
         });
     }
 
-    deleteMetricsTreeEdge(
+    async getAllCatalogMetricsWithTimeDimensions(
         user: SessionUser,
         projectUuid: string,
-        {
-            sourceCatalogSearchUuid,
-            targetCatalogSearchUuid,
-        }: ApiMetricsTreeEdgePayload,
+    ): Promise<MetricWithAssociatedTimeDimension[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const allCatalogMetrics = await this.catalogModel.search({
+            projectUuid,
+            userAttributes,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Metrics,
+            },
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
+                projectUuid,
+            ),
+        });
+
+        const allTableMetricPromises = allCatalogMetrics.data
+            .filter((c): c is CatalogField => c.type === CatalogType.Field)
+            .map((c) => this.getMetric(user, projectUuid, c.tableName, c.name));
+
+        const allMetrics = await Promise.all(allTableMetricPromises);
+        const metricsWithTimeDimension = allMetrics.filter(
+            (metric) => !!metric.timeDimension,
+        );
+
+        return metricsWithTimeDimension;
+    }
+
+    async deleteMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        edgePayload: ApiMetricsTreeEdgePayload,
     ) {
-        // TODO: check permissions
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { sourceCatalogSearchUuid, targetCatalogSearchUuid } =
+            edgePayload;
+
+        await this.validateMetricsTreeEdge(projectUuid, edgePayload);
+
         return this.catalogModel.deleteMetricsTreeEdge({
             source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
