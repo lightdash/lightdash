@@ -222,7 +222,7 @@ export const getMetricExplorerDataPointsWithCompare = (
         (_, date) =>
             comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
                 ? getDateCalcUtils(TimeFrames.YEAR)
-                      .back(new Date(date))
+                      .forward(new Date(date))
                       .toISOString()
                 : date,
     );
