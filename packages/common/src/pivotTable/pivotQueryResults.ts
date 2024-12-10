@@ -764,16 +764,25 @@ export const pivotQueryResults = ({
     return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
 
-export const pivotResultsAsCsv = (
-    pivotConfig: PivotConfig,
-    rows: ResultRow[],
-    itemMap: ItemsMap,
-    metricQuery: MetricQuery,
-    customLabels: Record<string, string> | undefined,
-    onlyRaw: boolean,
-    maxColumnLimit: number,
-    undefinedCharacter: string = '',
-) => {
+export const pivotResultsAsCsv = ({
+    pivotConfig,
+    rows,
+    itemMap,
+    metricQuery,
+    customLabels,
+    onlyRaw,
+    maxColumnLimit,
+    undefinedCharacter = '',
+}: {
+    pivotConfig: PivotConfig;
+    rows: ResultRow[];
+    itemMap: ItemsMap;
+    metricQuery: MetricQuery;
+    customLabels: Record<string, string> | undefined;
+    onlyRaw: boolean;
+    maxColumnLimit: number;
+    undefinedCharacter?: string;
+}) => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
         if (customLabel !== undefined) return customLabel;
