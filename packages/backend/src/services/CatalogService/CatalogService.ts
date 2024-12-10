@@ -40,6 +40,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
+import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
@@ -895,13 +896,16 @@ export class CatalogService<
         ]);
     }
 
-    async getMetric(
+    async getMetrics(
         user: SessionUser,
         projectUuid: string,
-        tableName: string,
-        metricName: string,
+        metrics: {
+            tableName: string;
+            metricName: string;
+        }[],
         timeIntervalOverride?: TimeFrames,
-    ): Promise<MetricWithAssociatedTimeDimension> {
+        userAttributes?: UserAttributeValueMap,
+    ): Promise<MetricWithAssociatedTimeDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -915,82 +919,127 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
+        const userAttributesForOrgMember =
+            userAttributes ??
+            (await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
                 userUuid: user.userUuid,
-            });
-        const explore = await this.projectModel.getExploreFromCache(
+            }));
+
+        const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
-            tableName,
+            uniqBy(metrics, 'tableName').map((m) => m.tableName),
         );
 
-        if (!explore || isExploreError(explore)) {
-            throw new NotFoundError('Explore not found');
-        }
+        const filteredExplores = Object.fromEntries(
+            Object.entries(explores).map(([tableName, explore]) => {
+                if (isExploreError(explore)) {
+                    return [tableName, undefined];
+                }
 
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
-        const tables = filteredExplore?.tables;
-        const metric = tables?.[tableName]?.metrics?.[metricName];
-        const metricBaseTable = tables?.[metric?.table];
+                const filteredExplore = getFilteredExplore(
+                    explore,
+                    userAttributesForOrgMember,
+                );
+                return [tableName, filteredExplore];
+            }),
+        );
 
-        if (!metric) {
+        const mappedMetrics = metrics
+            .map((m) => {
+                const explore = filteredExplores[m.tableName];
+
+                const tables = explore?.tables;
+                const metric = tables?.[m.tableName]?.metrics?.[m.metricName];
+
+                if (!metric) {
+                    return undefined;
+                }
+
+                const metricBaseTable = tables?.[metric?.table];
+
+                const defaultTimeDimension = getDefaultTimeDimension(
+                    metric,
+                    metricBaseTable,
+                );
+
+                let availableTimeDimensions:
+                    | ReturnType<typeof getAvailableTimeDimensionsFromTables>
+                    | undefined;
+
+                // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
+                if (!defaultTimeDimension) {
+                    availableTimeDimensions =
+                        getAvailableTimeDimensionsFromTables(tables);
+                }
+
+                let timeDimension:
+                    | MetricWithAssociatedTimeDimension['timeDimension']
+                    | undefined;
+
+                if (defaultTimeDimension) {
+                    timeDimension = {
+                        field: defaultTimeDimension.field,
+                        interval: defaultTimeDimension.interval,
+                        table: metric.table,
+                    };
+                } else if (
+                    availableTimeDimensions &&
+                    availableTimeDimensions.length > 0
+                ) {
+                    const firstAvailableTimeDimension =
+                        availableTimeDimensions[0];
+
+                    if (!firstAvailableTimeDimension.isIntervalBase) {
+                        throw new Error(
+                            'The first available time dimension is not an interval base dimension',
+                        );
+                    }
+
+                    timeDimension = {
+                        field: firstAvailableTimeDimension.name,
+                        interval:
+                            timeIntervalOverride ??
+                            DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                        table: firstAvailableTimeDimension.table,
+                    };
+                }
+
+                return {
+                    ...metric,
+                    ...(availableTimeDimensions &&
+                    availableTimeDimensions.length > 0
+                        ? { availableTimeDimensions }
+                        : {}),
+                    timeDimension,
+                };
+            })
+            .filter(
+                (m): m is MetricWithAssociatedTimeDimension => m !== undefined,
+            );
+
+        return mappedMetrics;
+    }
+
+    async getMetric(
+        user: SessionUser,
+        projectUuid: string,
+        tableName: string,
+        metricName: string,
+        timeIntervalOverride?: TimeFrames,
+    ) {
+        const metrics = await this.getMetrics(
+            user,
+            projectUuid,
+            [{ tableName, metricName }],
+            timeIntervalOverride,
+        );
+
+        if (metrics.length === 0) {
             throw new NotFoundError('Metric not found');
         }
 
-        const defaultTimeDimension = getDefaultTimeDimension(
-            metric,
-            metricBaseTable,
-        );
-
-        let availableTimeDimensions:
-            | ReturnType<typeof getAvailableTimeDimensionsFromTables>
-            | undefined;
-
-        // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
-        if (!defaultTimeDimension) {
-            availableTimeDimensions =
-                getAvailableTimeDimensionsFromTables(tables);
-        }
-
-        let timeDimension:
-            | MetricWithAssociatedTimeDimension['timeDimension']
-            | undefined;
-
-        if (defaultTimeDimension) {
-            timeDimension = {
-                field: defaultTimeDimension.field,
-                interval: defaultTimeDimension.interval,
-                table: metric.table,
-            };
-        } else if (
-            availableTimeDimensions &&
-            availableTimeDimensions.length > 0
-        ) {
-            const firstAvailableTimeDimension = availableTimeDimensions[0];
-
-            if (!firstAvailableTimeDimension.isIntervalBase) {
-                throw new Error(
-                    'The first available time dimension is not an interval base dimension',
-                );
-            }
-
-            timeDimension = {
-                field: firstAvailableTimeDimension.name,
-                interval:
-                    timeIntervalOverride ??
-                    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
-                table: firstAvailableTimeDimension.table,
-            };
-        }
-
-        return {
-            ...metric,
-            ...(availableTimeDimensions && availableTimeDimensions.length > 0
-                ? { availableTimeDimensions }
-                : {}),
-            timeDimension,
-        };
+        return metrics[0];
     }
 
     async getMetricsTree(
@@ -1128,11 +1177,20 @@ export class CatalogService<
             ),
         });
 
-        const allTableMetricPromises = allCatalogMetrics.data
-            .filter((c): c is CatalogField => c.type === CatalogType.Field)
-            .map((c) => this.getMetric(user, projectUuid, c.tableName, c.name));
+        const filteredMetrics = allCatalogMetrics.data.filter(
+            (c): c is CatalogField => c.type === CatalogType.Field,
+        );
 
-        const allMetrics = await Promise.all(allTableMetricPromises);
+        const allMetrics = await this.getMetrics(
+            user,
+            projectUuid,
+            filteredMetrics.map((m) => ({
+                tableName: m.tableName,
+                metricName: m.name,
+            })),
+            undefined,
+            userAttributes,
+        );
         const metricsWithTimeDimension = allMetrics.filter(
             (metric) => !!metric.timeDimension,
         );
