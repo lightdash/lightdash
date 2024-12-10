@@ -12,6 +12,7 @@ import {
     Button,
     Flex,
     Group,
+    LoadingOverlay,
     Stack,
     Text,
     Tooltip,
@@ -95,7 +96,7 @@ const MetricsVisualization: FC<Props> = ({
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
-    const { colors, radius, shadows, fontSizes } = useMantineTheme();
+    const { colors, radius, fontSizes, spacing } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -148,7 +149,7 @@ const MetricsVisualization: FC<Props> = ({
     }, [comparison, results]);
 
     return (
-        <Stack spacing="sm" pb="sm" w="100%" h="100%">
+        <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
                 {dateRange && results?.metric.timeDimension && (
                     <MetricPeekDatePicker
@@ -164,28 +165,50 @@ const MetricsVisualization: FC<Props> = ({
                     />
                 )}
                 <Button
-                    variant="subtle"
-                    color="gray"
+                    variant="light"
+                    color="indigo"
                     size="xs"
                     radius="md"
                     disabled={!zoomState.zoomedData}
                     leftIcon={<MantineIcon icon={IconZoomReset} />}
                     onClick={resetZoom}
+                    sx={{
+                        color: colors.indigo[7],
+                        '&[data-disabled="true"]': {
+                            opacity: 0.5,
+                            backgroundColor: colors.gray[0],
+                        },
+                    }}
+                    fz={14}
+                    h={32}
                 >
                     Reset zoom
                 </Button>
             </Group>
 
-            {showEmptyState && <MetricsVisualizationEmptyState />}
+            {showEmptyState && !isFetching && (
+                <Flex sx={{ flex: 1, position: 'relative' }}>
+                    <MetricsVisualizationEmptyState />
+                </Flex>
+            )}
 
             {!showEmptyState && results && (
-                <Flex sx={{ flex: 1 }}>
+                <Flex sx={{ flex: 1, position: 'relative' }}>
+                    <LoadingOverlay
+                        visible={isFetching}
+                        loaderProps={{
+                            size: 'sm',
+                            color: 'dark',
+                            variant: 'dots',
+                        }}
+                    />
+
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                             data={activeData}
                             margin={{
                                 right: 40,
-                                left: 50,
+                                left: 60,
                                 top: 10,
                             }}
                             onMouseDown={handleMouseDown}
@@ -220,7 +243,7 @@ const MetricsVisualization: FC<Props> = ({
                                 axisLine={false}
                                 tickLine={false}
                                 fontSize={11}
-                                width={4}
+                                width={8}
                                 domain={['dataMin - 1', 'dataMax + 1']}
                                 allowDataOverflow={false}
                                 label={
@@ -229,15 +252,19 @@ const MetricsVisualization: FC<Props> = ({
                                               value: results?.metric.label,
                                               angle: -90,
                                               position: 'left',
-                                              offset: 40,
+                                              offset: 50,
+                                              dy: -60,
                                               style: {
                                                   fontSize: 13,
                                                   fill: colors.dark[5],
                                                   fontWeight: 500,
+                                                  userSelect: 'none',
                                               },
                                           }
                                         : undefined
                                 }
+                                tickFormatter={(value) => value.toFixed(2)}
+                                style={{ userSelect: 'none' }}
                             />
 
                             <XAxis
@@ -246,6 +273,7 @@ const MetricsVisualization: FC<Props> = ({
                                 axisLine={{ stroke: colors.gray[2] }}
                                 tickLine={false}
                                 fontSize={11}
+                                style={{ userSelect: 'none' }}
                             />
 
                             <RechartsTooltip
@@ -259,12 +287,20 @@ const MetricsVisualization: FC<Props> = ({
                                 labelFormatter={(label) =>
                                     dayjs(label).format('MMM D, YYYY')
                                 }
+                                labelStyle={{
+                                    fontWeight: 500,
+                                    color: colors.gray[7],
+                                    fontSize: 13,
+                                }}
                                 contentStyle={{
                                     fontSize: fontSizes.xs,
+                                    fontWeight: 500,
                                     backgroundColor: colors.offWhite[0],
                                     borderRadius: radius.md,
                                     border: `1px solid ${colors.gray[2]}`,
-                                    boxShadow: shadows.sm,
+                                    boxShadow:
+                                        '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
+                                    padding: spacing.sm,
                                 }}
                             />
 
@@ -277,6 +313,7 @@ const MetricsVisualization: FC<Props> = ({
                                 strokeWidth={1.6}
                                 dot={false}
                                 legendType="plainline"
+                                isAnimationActive={false}
                             />
 
                             {results.compareMetric && (
@@ -290,6 +327,7 @@ const MetricsVisualization: FC<Props> = ({
                                     strokeWidth={1.3}
                                     dot={false}
                                     legendType="plainline"
+                                    isAnimationActive={false}
                                 />
                             )}
 
@@ -313,7 +351,7 @@ const MetricsVisualization: FC<Props> = ({
                     visibility: isFetching ? 'hidden' : 'visible',
                 }}
             >
-                <Group align="center" noWrap>
+                <Group align="center" noWrap spacing="xs">
                     <Tooltip
                         variant="xs"
                         label={friendlyName(
@@ -321,7 +359,7 @@ const MetricsVisualization: FC<Props> = ({
                         )}
                         disabled={!!results?.metric.availableTimeDimensions}
                     >
-                        <Text fw={500} c="gray.7" fz="sm">
+                        <Text fw={500} c="gray.7" fz={14}>
                             Date ({capitalize(timeDimensionBaseField.interval)})
                         </Text>
                     </Tooltip>
