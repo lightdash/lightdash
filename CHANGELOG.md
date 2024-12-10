@@ -1,3 +1,10 @@
+## [0.1407.2](https://github.com/lightdash/lightdash/compare/0.1407.1...0.1407.2) (2024-12-10)
+
+
+### Bug Fixes
+
+* get year forward on PoP comparison ([#12805](https://github.com/lightdash/lightdash/issues/12805)) ([37774ee](https://github.com/lightdash/lightdash/commit/37774eefd0895f6bd89398900ebe8165060c9013))
+
 ## [0.1407.1](https://github.com/lightdash/lightdash/compare/0.1407.0...0.1407.1) (2024-12-10)
 
 
