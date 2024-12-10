@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type MetricWithAssociatedTimeDimension } from './catalog';
 import type { ItemsMap } from './field';
+import type { ResultValue } from './results';
 
 export enum MetricExplorerComparison {
     NONE = 'none',
@@ -57,4 +58,19 @@ export type MetricsExplorerQueryResults = {
 export type ApiMetricsExplorerQueryResults = {
     status: 'ok';
     results: MetricsExplorerQueryResults;
+};
+
+export enum MetricTotalComparisonType {
+    NONE = 'none',
+    PREVIOUS_PERIOD = 'previous_period',
+}
+
+export type MetricTotalResults = {
+    value: ResultValue | undefined;
+    comparisonValue: ResultValue | undefined;
+};
+
+export type ApiMetricsExplorerTotalResults = {
+    status: 'ok';
+    results: MetricTotalResults;
 };

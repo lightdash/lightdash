@@ -4371,6 +4371,45 @@
                     }
                 ]
             },
+            "ResultValue": {
+                "properties": {
+                    "formatted": {
+                        "type": "string"
+                    },
+                    "raw": {}
+                },
+                "required": ["formatted", "raw"],
+                "type": "object"
+            },
+            "MetricTotalResults": {
+                "properties": {
+                    "comparisonValue": {
+                        "$ref": "#/components/schemas/ResultValue"
+                    },
+                    "value": {
+                        "$ref": "#/components/schemas/ResultValue"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiMetricsExplorerTotalResults": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MetricTotalResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MetricTotalComparisonType": {
+                "enum": ["none", "previous_period"],
+                "type": "string"
+            },
             "NotificationBase": {
                 "properties": {
                     "url": {
@@ -14472,6 +14511,84 @@
                                     }
                                 },
                                 "required": ["comparison"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {
+            "post": {
+                "operationId": "runMetricTotal",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMetricsExplorerTotalResults"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Metrics Explorer", "Metrics", "Explorer"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "explore",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "metric",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "timeFrame",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/TimeFrames"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "comparisonType": {
+                                        "$ref": "#/components/schemas/MetricTotalComparisonType"
+                                    }
+                                },
                                 "type": "object"
                             }
                         }
