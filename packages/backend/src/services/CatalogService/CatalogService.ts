@@ -1035,6 +1035,10 @@ export class CatalogService<
             timeIntervalOverride,
         );
 
+        if (metrics.length === 0) {
+            throw new NotFoundError('Metric not found');
+        }
+
         return metrics[0];
     }
 
