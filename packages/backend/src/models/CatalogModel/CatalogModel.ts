@@ -48,10 +48,7 @@ import {
     getFullTextSearchQuery,
     getFullTextSearchRankCalcSql,
 } from '../SearchModel/utils/search';
-import {
-    convertExploresToCatalog,
-    getUpdatesByCachedExploreUuid,
-} from './utils';
+import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
 
 export type CatalogModelArguments = {
@@ -439,81 +436,85 @@ export class CatalogModel {
         projectUuid: string,
         { fieldsToIncrement, fieldsToDecrement }: ChartFieldUsageChanges,
     ) {
-        const incrementByCachedExploreUuid =
-            getUpdatesByCachedExploreUuid(fieldsToIncrement);
+        return this.database.transaction(async (trx) => {
+            const transactions: Knex.QueryBuilder[] = [];
 
-        const decrementByCachedExploreUuid =
-            getUpdatesByCachedExploreUuid(fieldsToDecrement);
+            // Increment
+            if (fieldsToIncrement.length > 0) {
+                transactions.push(
+                    trx(CatalogTableName)
+                        .where((builder) => {
+                            fieldsToIncrement.forEach(
+                                ({
+                                    cachedExploreUuid,
+                                    fieldName,
+                                    fieldType,
+                                }) => {
+                                    void builder.orWhere((orBuilder) =>
+                                        orBuilder
+                                            .where(
+                                                `${CatalogTableName}.cached_explore_uuid`,
+                                                cachedExploreUuid,
+                                            )
+                                            .andWhere(
+                                                `${CatalogTableName}.name`,
+                                                fieldName,
+                                            )
+                                            .andWhere(
+                                                `${CatalogTableName}.field_type`,
+                                                fieldType,
+                                            ),
+                                    );
+                                },
+                            );
+                        })
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .increment('chart_usage', 1),
+                );
+            }
 
-        await this.database.transaction(async (trx) => {
-            const incrementPromises = Object.entries(
-                incrementByCachedExploreUuid,
-            ).map(([cachedExploreUuid, fieldNames]) =>
-                trx(CatalogTableName)
-                    .where(function updatesWhere() {
-                        void this.where(function metricsWhere() {
-                            void this.where(
-                                `${CatalogTableName}.name`,
-                                'in',
-                                fieldNames.metric,
-                            ).andWhere(
-                                `${CatalogTableName}.field_type`,
-                                FieldType.METRIC,
+            // Decrement
+            if (fieldsToDecrement.length > 0) {
+                transactions.push(
+                    trx(CatalogTableName)
+                        .where((builder) => {
+                            fieldsToDecrement.forEach(
+                                ({
+                                    cachedExploreUuid,
+                                    fieldName,
+                                    fieldType,
+                                }) => {
+                                    void builder.orWhere((orBuilder) =>
+                                        orBuilder
+                                            .where(
+                                                `${CatalogTableName}.cached_explore_uuid`,
+                                                cachedExploreUuid,
+                                            )
+                                            .andWhere(
+                                                `${CatalogTableName}.name`,
+                                                fieldName,
+                                            )
+                                            .andWhere(
+                                                `${CatalogTableName}.field_type`,
+                                                fieldType,
+                                            ),
+                                    );
+                                },
                             );
-                        }).orWhere(function dimensionsWhere() {
-                            void this.where(
-                                `${CatalogTableName}.name`,
-                                'in',
-                                fieldNames.dimension,
-                            ).andWhere(
-                                `${CatalogTableName}.field_type`,
-                                FieldType.DIMENSION,
-                            );
-                        });
-                    })
-                    .andWhere(
-                        `${CatalogTableName}.cached_explore_uuid`,
-                        cachedExploreUuid,
-                    )
-                    .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
-                    .increment('chart_usage', 1),
-            );
+                        })
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .andWhere('chart_usage', '>', 0) // Ensure we don't decrement below 0
+                        .decrement('chart_usage', 1),
+                );
+            }
 
-            const decrementPromises = Object.entries(
-                decrementByCachedExploreUuid,
-            ).map(([cachedExploreUuid, fieldNames]) =>
-                trx(CatalogTableName)
-                    .where(function updatesWhere() {
-                        void this.where(function metricsWhere() {
-                            void this.where(
-                                `${CatalogTableName}.name`,
-                                'in',
-                                fieldNames.metric,
-                            ).andWhere(
-                                `${CatalogTableName}.field_type`,
-                                FieldType.METRIC,
-                            );
-                        }).orWhere(function dimensionsWhere() {
-                            void this.where(
-                                `${CatalogTableName}.name`,
-                                'in',
-                                fieldNames.dimension,
-                            ).andWhere(
-                                `${CatalogTableName}.field_type`,
-                                FieldType.DIMENSION,
-                            );
-                        });
-                    })
-                    .andWhere(
-                        `${CatalogTableName}.cached_explore_uuid`,
-                        cachedExploreUuid,
-                    )
-                    .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
-                    .andWhere('chart_usage', '>', 0) // Ensure we don't decrement below 0
-                    .decrement('chart_usage', 1),
-            );
-
-            await Promise.all([...incrementPromises, ...decrementPromises]);
+            await Promise.all(transactions);
         });
     }
 

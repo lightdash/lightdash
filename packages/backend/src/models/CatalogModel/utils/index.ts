@@ -249,25 +249,3 @@ export async function getChartFieldUsageChanges(
         fieldsToDecrement: [...metricsToDecrement, ...dimensionsToDecrement],
     };
 }
-
-export function getUpdatesByCachedExploreUuid(
-    updates: CatalogFieldWhere[],
-): Record<string, Record<FieldType, string[]>> {
-    return updates.reduce<Record<string, Record<FieldType, string[]>>>(
-        (acc, field) => {
-            const current = acc[field.cachedExploreUuid] ?? {
-                [FieldType.METRIC]: [],
-                [FieldType.DIMENSION]: [],
-            };
-
-            current[field.fieldType] = [
-                ...current[field.fieldType],
-                field.fieldName,
-            ];
-
-            acc[field.cachedExploreUuid] = current;
-            return acc;
-        },
-        {},
-    );
-}
