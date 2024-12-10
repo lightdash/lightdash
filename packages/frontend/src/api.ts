@@ -1,5 +1,6 @@
 import {
     LightdashRequestMethodHeader,
+    LightdashVersionHeader,
     RequestMethod,
     type ApiError,
     type ApiResponse,
@@ -15,6 +16,7 @@ export const BASE_API_URL =
 const defaultHeaders = {
     'Content-Type': 'application/json',
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
+    [LightdashVersionHeader]: __APP_VERSION__,
 };
 
 const handleError = (err: any): ApiError => {

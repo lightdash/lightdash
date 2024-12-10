@@ -38,5 +38,6 @@
     "include": [
         "src",
         "src/testing/vitest.setup.ts",
+        "vite-env.d.ts"
     ]
 }
