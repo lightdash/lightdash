@@ -1,3 +1,10 @@
+# [0.1408.0](https://github.com/lightdash/lightdash/compare/0.1407.2...0.1408.0) (2024-12-10)
+
+
+### Features
+
+* pivot google sheet ([#12733](https://github.com/lightdash/lightdash/issues/12733)) ([5f3b4ba](https://github.com/lightdash/lightdash/commit/5f3b4ba8e34437981baa223d8a4e90a37be5fdd4))
+
 ## [0.1407.2](https://github.com/lightdash/lightdash/compare/0.1407.1...0.1407.2) (2024-12-10)
 
 
