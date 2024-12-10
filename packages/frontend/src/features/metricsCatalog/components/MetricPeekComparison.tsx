@@ -181,11 +181,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                             {comparison.label}
                                         </Text>
                                     </Group>
-                                    <Radio
-                                        value={comparison.type}
-                                        size="xs"
-                                        color="indigo"
-                                    />
+                                    <Radio value={comparison.type} size="xs" />
                                 </Group>
 
                                 {comparison.type ===

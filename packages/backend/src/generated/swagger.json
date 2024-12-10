@@ -4411,10 +4411,6 @@
             },
             "MetricExploreDataPoint": {
                 "properties": {
-                    "segment": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "compareMetric": {
                         "properties": {
                             "label": {
@@ -4445,12 +4441,16 @@
                         "required": ["label", "value"],
                         "type": "object"
                     },
+                    "segment": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "date": {
                         "type": "string",
                         "format": "date-time"
                     }
                 },
-                "required": ["segment", "compareMetric", "metric", "date"],
+                "required": ["compareMetric", "metric", "segment", "date"],
                 "type": "object"
             },
             "MetricExploreDataPointWithDateValue": {
@@ -4597,13 +4597,7 @@
                                 "$ref": "#/components/schemas/MetricExplorerComparison.DIFFERENT_METRIC"
                             }
                         },
-<<<<<<< HEAD
-                        "required": ["metric", "type"],
-||||||| parent of a9c0d482f (feat: metrics explorer segment by)
-                        "required": ["metricName", "metricTable", "type"],
-=======
-                        "required": ["metricName", "metricTable", "comparison"],
->>>>>>> a9c0d482f (feat: metrics explorer segment by)
+                        "required": ["metric", "comparison"],
                         "type": "object"
                     }
                 ]
@@ -12381,13 +12375,7 @@
     },
     "info": {
         "title": "Lightdash API",
-<<<<<<< HEAD
-        "version": "0.1410.1",
-||||||| parent of a9c0d482f (feat: metrics explorer segment by)
-        "version": "0.1405.0",
-=======
-        "version": "0.1407.2",
->>>>>>> a9c0d482f (feat: metrics explorer segment by)
+        "version": "0.1411.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

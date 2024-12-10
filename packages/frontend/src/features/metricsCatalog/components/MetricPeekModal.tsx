@@ -30,12 +30,15 @@ import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsW
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
+import { useSelectStyles } from '../styles/useSelectStyles';
 import { MetricPeekComparison } from './MetricPeekComparison';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
+    const { classes } = useSelectStyles();
+
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -279,6 +282,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     }
                                     onChange={handleSegmentDimensionChange}
                                     disabled={!segmentDimensionsQuery.isSuccess}
+                                    classNames={{
+                                        input: classes.input,
+                                        item: classes.item,
+                                    }}
                                 />
 
                                 <Group position="apart">

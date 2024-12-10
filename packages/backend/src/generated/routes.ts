@@ -3901,14 +3901,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                segment: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 compareMetric: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3951,6 +3943,14 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                     },
+                    required: true,
+                },
+                segment: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 date: { dataType: 'datetime', required: true },
@@ -4093,7 +4093,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-<<<<<<< HEAD
                         metric: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
@@ -4103,16 +4102,7 @@ const models: TsoaRoute.Models = {
                             },
                             required: true,
                         },
-                        type: {
-||||||| parent of a9c0d482f (feat: metrics explorer segment by)
-                        metricName: { dataType: 'string', required: true },
-                        metricTable: { dataType: 'string', required: true },
-                        type: {
-=======
-                        metricName: { dataType: 'string', required: true },
-                        metricTable: { dataType: 'string', required: true },
                         comparison: {
->>>>>>> a9c0d482f (feat: metrics explorer segment by)
                             ref: 'MetricExplorerComparison.DIFFERENT_METRIC',
                             required: true,
                         },
