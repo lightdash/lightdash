@@ -427,9 +427,7 @@ export class GroupsModel {
                             `Group name already exists`,
                         );
                     }
-                    throw new UnexpectedDatabaseError(
-                        'Failed to update group name',
-                    );
+                    throw new UnexpectedDatabaseError(error.message);
                 }
             }
 
@@ -495,7 +493,6 @@ export class GroupsModel {
                 }
             }
         });
-        // TODO: fix include member count
         return this.getGroupWithMembers(groupUuid, 10000);
     }
 
