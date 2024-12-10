@@ -1,3 +1,10 @@
+## [0.1407.1](https://github.com/lightdash/lightdash/compare/0.1407.0...0.1407.1) (2024-12-10)
+
+
+### Bug Fixes
+
+* reverted check in GroupModel if the initial and resulting counts match ([#12803](https://github.com/lightdash/lightdash/issues/12803)) ([3f9884c](https://github.com/lightdash/lightdash/commit/3f9884cc2589af151472129b238f08ff7455666f))
+
 # [0.1407.0](https://github.com/lightdash/lightdash/compare/0.1406.0...0.1407.0) (2024-12-10)
 
 
