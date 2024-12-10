@@ -62,7 +62,6 @@ import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/compo
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import {
@@ -418,20 +417,6 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         project?.upstreamProjectUuid !== undefined && userCanPromoteChart
     );
 
-    const urlToShare = useMemo(() => {
-        if (unsavedChartVersion) {
-            const urlArgs = getExplorerUrlFromCreateSavedChartVersion(
-                projectUuid,
-                unsavedChartVersion,
-                true,
-            );
-            return {
-                pathname: urlArgs.pathname,
-                search: `?${urlArgs.search}`,
-            };
-        }
-    }, [unsavedChartVersion, projectUuid]);
-
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
             <Modal
@@ -563,7 +548,6 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                         </Button>
                                         <ShareShortLinkButton
                                             disabled={!isValidQuery}
-                                            url={urlToShare}
                                         />
                                     </>
                                 ) : (
