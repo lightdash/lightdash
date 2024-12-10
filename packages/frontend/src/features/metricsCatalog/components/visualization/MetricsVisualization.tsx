@@ -18,7 +18,12 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconInfoCircle, IconZoomReset } from '@tabler/icons-react';
+import {
+    IconInfoCircle,
+    IconLineDashed,
+    IconMinus,
+    IconZoomReset,
+} from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -41,7 +46,12 @@ import {
     Tooltip as RechartsTooltip,
     XAxis,
     YAxis,
+    type TooltipProps as RechartsTooltipProps,
 } from 'recharts';
+import {
+    type NameType,
+    type ValueType,
+} from 'recharts/types/component/DefaultTooltipContent';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
@@ -70,6 +80,58 @@ const tickFormatter = (date: Date) => {
     )(date);
 };
 
+const CustomTooltip = ({
+    active,
+    payload,
+    label,
+}: RechartsTooltipProps<ValueType, NameType>) => {
+    if (!active || !payload || !payload.length) {
+        return null;
+    }
+
+    return (
+        <Stack
+            sx={(theme) => ({
+                fontSize: theme.fontSizes.xs,
+                fontWeight: 500,
+                backgroundColor: 'white',
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.gray[2]}`,
+                boxShadow:
+                    '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
+                padding: theme.spacing.sm,
+            })}
+            spacing="xs"
+        >
+            <Text c="gray.7" fz={13} fw={500}>{`${dayjs(label).format(
+                'MMM D, YYYY',
+            )}`}</Text>
+            {payload.map((entry) => (
+                <Group key={entry.name} position="apart">
+                    <Group spacing={4}>
+                        <MantineIcon
+                            color="indigo.6"
+                            icon={
+                                entry.name === 'metric'
+                                    ? IconMinus
+                                    : IconLineDashed
+                            }
+                        />
+                        <Text c="gray.8" fz={13} fw={500}>
+                            {entry.name
+                                ? entry.payload[entry.name].label
+                                : null}
+                        </Text>
+                    </Group>
+                    <Text c="dark.3" fz={13} fw={400}>
+                        {entry.name ? entry.payload[entry.name].value : null}
+                    </Text>
+                </Group>
+            ))}
+        </Stack>
+    );
+};
+
 type Props = {
     results: MetricsExplorerQueryResults | undefined;
     dateRange: MetricExplorerDateRange | undefined;
@@ -96,7 +158,7 @@ const MetricsVisualization: FC<Props> = ({
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
-    const { colors, radius, fontSizes, spacing } = useMantineTheme();
+    const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -276,38 +338,12 @@ const MetricsVisualization: FC<Props> = ({
                                 style={{ userSelect: 'none' }}
                             />
 
-                            <RechartsTooltip
-                                {...(comparison.type ===
-                                    MetricExplorerComparison.NONE && {
-                                    formatter: (value) => [
-                                        value,
-                                        results?.metric.label,
-                                    ],
-                                })}
-                                labelFormatter={(label) =>
-                                    dayjs(label).format('MMM D, YYYY')
-                                }
-                                labelStyle={{
-                                    fontWeight: 500,
-                                    color: colors.gray[7],
-                                    fontSize: 13,
-                                }}
-                                contentStyle={{
-                                    fontSize: fontSizes.xs,
-                                    fontWeight: 500,
-                                    backgroundColor: colors.offWhite[0],
-                                    borderRadius: radius.md,
-                                    border: `1px solid ${colors.gray[2]}`,
-                                    boxShadow:
-                                        '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
-                                    padding: spacing.sm,
-                                }}
-                            />
+                            <RechartsTooltip content={<CustomTooltip />} />
 
                             <Line
-                                name={legendConfig?.[0]}
+                                name="metric"
                                 type="linear"
-                                dataKey="metric"
+                                dataKey="metric.value"
                                 label={legendConfig?.[0]}
                                 stroke={colors.indigo[6]}
                                 strokeWidth={1.6}
@@ -318,9 +354,9 @@ const MetricsVisualization: FC<Props> = ({
 
                             {results.compareMetric && (
                                 <Line
-                                    name={legendConfig?.[1]}
+                                    name="compareMetric"
                                     type="linear"
-                                    dataKey="compareMetric"
+                                    dataKey="compareMetric.value"
                                     label={legendConfig?.[1]}
                                     stroke={colors.indigo[4]}
                                     strokeDasharray={'3 3'}

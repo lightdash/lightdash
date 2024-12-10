@@ -139,8 +139,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                 return {
                     type: MetricExplorerComparison.DIFFERENT_METRIC,
-                    metricTable: selectedMetric.table,
-                    metricName: selectedMetric.name,
+                    metric: {
+                        table: selectedMetric.table,
+                        name: selectedMetric.name,
+                        label: selectedMetric.label ?? selectedMetric.name,
+                    },
                 };
             default:
                 return assertUnreachable(
@@ -161,8 +164,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 MetricExplorerComparison.DIFFERENT_METRIC ||
                 (comparisonParams.type ===
                     MetricExplorerComparison.DIFFERENT_METRIC &&
-                    !!comparisonParams.metricName &&
-                    !!comparisonParams.metricTable)),
+                    !!comparisonParams.metric.name &&
+                    !!comparisonParams.metric.table)),
         keepPreviousData: true,
     };
     const metricResultsQuery = useRunMetricExplorerQuery({

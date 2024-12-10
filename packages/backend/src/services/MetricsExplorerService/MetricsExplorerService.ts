@@ -144,8 +144,8 @@ export class MetricsExplorerService<
         const metric = await this.catalogService.getMetric(
             user,
             projectUuid,
-            compare.metricTable,
-            compare.metricName,
+            compare.metric.table,
+            compare.metric.name,
             timeDimensionOverride?.interval,
         );
 
@@ -170,7 +170,7 @@ export class MetricsExplorerService<
         });
 
         const metricQuery: MetricQuery = {
-            exploreName: compare.metricTable,
+            exploreName: compare.metric.table,
             metrics: [getItemId(metric)],
             dimensions: [dimensionFieldId],
             filters: {
@@ -192,7 +192,7 @@ export class MetricsExplorerService<
             await this.projectService.runMetricExplorerQuery(
                 user,
                 projectUuid,
-                compare.metricTable,
+                compare.metric.table,
                 metricQuery,
             );
 
