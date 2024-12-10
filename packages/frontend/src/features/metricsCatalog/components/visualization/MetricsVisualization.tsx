@@ -90,6 +90,7 @@ const MetricsVisualization: FC<Props> = ({
     setTimeDimensionOverride,
     onTimeIntervalChange,
     comparison,
+    isFetching,
 }) => {
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
@@ -222,6 +223,21 @@ const MetricsVisualization: FC<Props> = ({
                                 width={4}
                                 domain={['dataMin - 1', 'dataMax + 1']}
                                 allowDataOverflow={false}
+                                label={
+                                    !showLegend
+                                        ? {
+                                              value: results?.metric.label,
+                                              angle: -90,
+                                              position: 'left',
+                                              offset: 40,
+                                              style: {
+                                                  fontSize: 13,
+                                                  fill: colors.dark[5],
+                                                  fontWeight: 500,
+                                              },
+                                          }
+                                        : undefined
+                                }
                             />
 
                             <XAxis
@@ -290,7 +306,13 @@ const MetricsVisualization: FC<Props> = ({
                     </ResponsiveContainer>
                 </Flex>
             )}
-            <Group position="center" mt="auto">
+            <Group
+                position="center"
+                mt="auto"
+                sx={{
+                    visibility: isFetching ? 'hidden' : 'visible',
+                }}
+            >
                 <Group align="center" noWrap>
                     <Tooltip
                         variant="xs"
