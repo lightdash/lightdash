@@ -402,9 +402,6 @@ export class GroupsModel {
         groupUuid: string;
         update: UpdateGroupWithMembers;
     }): Promise<GroupWithMembers> {
-        if (!groupUuid || !update) {
-            throw new ParameterError('Invalid parameters for updating group');
-        }
         const existingGroup = await this.getGroupWithMembers(groupUuid, 10000);
         if (existingGroup === undefined) {
             throw new NotFoundError(`No group found`);
