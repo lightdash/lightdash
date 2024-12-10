@@ -1,3 +1,24 @@
+# [0.1408.0](https://github.com/lightdash/lightdash/compare/0.1407.2...0.1408.0) (2024-12-10)
+
+
+### Features
+
+* pivot google sheet ([#12733](https://github.com/lightdash/lightdash/issues/12733)) ([5f3b4ba](https://github.com/lightdash/lightdash/commit/5f3b4ba8e34437981baa223d8a4e90a37be5fdd4))
+
+## [0.1407.2](https://github.com/lightdash/lightdash/compare/0.1407.1...0.1407.2) (2024-12-10)
+
+
+### Bug Fixes
+
+* get year forward on PoP comparison ([#12805](https://github.com/lightdash/lightdash/issues/12805)) ([37774ee](https://github.com/lightdash/lightdash/commit/37774eefd0895f6bd89398900ebe8165060c9013))
+
+## [0.1407.1](https://github.com/lightdash/lightdash/compare/0.1407.0...0.1407.1) (2024-12-10)
+
+
+### Bug Fixes
+
+* reverted check in GroupModel if the initial and resulting counts match ([#12803](https://github.com/lightdash/lightdash/issues/12803)) ([3f9884c](https://github.com/lightdash/lightdash/commit/3f9884cc2589af151472129b238f08ff7455666f))
+
 # [0.1407.0](https://github.com/lightdash/lightdash/compare/0.1406.0...0.1407.0) (2024-12-10)
 
 

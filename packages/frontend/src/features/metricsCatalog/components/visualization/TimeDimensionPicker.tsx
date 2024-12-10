@@ -2,10 +2,11 @@ import {
     type ApiGetMetricPeek,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Group, Select, Text, useMantineTheme } from '@mantine/core';
+import { Box, Group, Select, Text } from '@mantine/core';
 import { IconChevronDown, IconTable } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useSelectStyles } from '../../styles/useSelectStyles';
 
 type Props = {
     fields: NonNullable<ApiGetMetricPeek['results']['availableTimeDimensions']>;
@@ -42,7 +43,7 @@ export const TimeDimensionPicker: FC<Props> = ({
     dimension,
     onChange,
 }) => {
-    const theme = useMantineTheme();
+    const { classes } = useSelectStyles();
 
     return (
         <Select
@@ -55,7 +56,6 @@ export const TimeDimensionPicker: FC<Props> = ({
                 label: f.label,
                 tableLabel: f.tableLabel,
             }))}
-            h={32}
             value={dimension?.field}
             onChange={(value) => {
                 if (!value) return;
@@ -68,35 +68,7 @@ export const TimeDimensionPicker: FC<Props> = ({
                 });
             }}
             itemComponent={FieldItem}
-            styles={{
-                input: {
-                    fontWeight: 500,
-                    borderColor: theme.colors.gray[2],
-                    borderRadius: theme.radius.md,
-                    boxShadow: theme.shadows.subtle,
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    '&:hover': {
-                        backgroundColor: theme.colors.gray[0],
-                    },
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.gray[0],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[0],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.gray[0],
-                    },
-                },
-                dropdown: {
-                    minWidth: 'fit-content',
-                },
-                rightSection: { pointerEvents: 'none' },
-            }}
+            classNames={classes}
             rightSection={
                 <MantineIcon color="dark.2" icon={IconChevronDown} size={12} />
             }

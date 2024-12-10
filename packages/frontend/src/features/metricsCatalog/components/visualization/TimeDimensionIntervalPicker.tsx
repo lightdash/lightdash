@@ -3,6 +3,7 @@ import { Select } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useSelectStyles } from '../../styles/useSelectStyles';
 
 type Props = {
     dimension: TimeDimensionConfig;
@@ -13,9 +14,10 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
     dimension,
     onChange,
 }) => {
+    const { classes } = useSelectStyles();
     return (
         <Select
-            w={90}
+            w={100}
             size="xs"
             radius="md"
             color="gray"
@@ -50,33 +52,7 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             rightSection={
                 <MantineIcon color="dark.2" icon={IconChevronDown} size={12} />
             }
-            styles={(theme) => ({
-                input: {
-                    fontWeight: 500,
-                    paddingRight: 4,
-
-                    borderColor: theme.colors.gray[2],
-                    borderRadius: theme.radius.md,
-                    boxShadow: theme.shadows.subtle,
-                    '&:hover': {
-                        backgroundColor: theme.colors.gray[0],
-                    },
-                },
-                rightSection: { pointerEvents: 'none' },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
-                    },
-                },
-            })}
+            classNames={classes}
         />
     );
 };
