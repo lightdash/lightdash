@@ -1116,6 +1116,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSegmentDimensionsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'CompiledDimension' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSuccessEmpty: {
         dataType: 'refAlias',
         type: {
@@ -3823,6 +3839,46 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_DBProjectGroupAccess.role_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Dimension: {
+        dataType: 'refObject',
+        properties: {
+            fieldType: { ref: 'FieldType.DIMENSION', required: true },
+            type: { ref: 'DimensionType', required: true },
+            name: { dataType: 'string', required: true },
+            label: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            tableLabel: { dataType: 'string', required: true },
+            sql: { dataType: 'string', required: true },
+            description: { dataType: 'string' },
+            source: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Source' }, { dataType: 'undefined' }],
+            },
+            hidden: { dataType: 'boolean', required: true },
+            compact: { ref: 'CompactOrAlias' },
+            round: { dataType: 'double' },
+            format: { ref: 'Format' },
+            groupLabel: { dataType: 'string' },
+            groups: { dataType: 'array', array: { dataType: 'string' } },
+            urls: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'FieldUrl' },
+            },
+            index: { dataType: 'double' },
+            tags: { dataType: 'array', array: { dataType: 'string' } },
+            group: { dataType: 'string' },
+            requiredAttributes: {
+                ref: 'Record_string.string-or-string-Array_',
+            },
+            timeInterval: { ref: 'TimeFrames' },
+            timeIntervalBaseDimensionName: { dataType: 'string' },
+            isAdditionalDimension: { dataType: 'boolean' },
+            colors: { ref: 'Record_string.string_' },
+            isIntervalBase: { dataType: 'boolean' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_': {
         dataType: 'refAlias',
         type: {
@@ -3845,6 +3901,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                segment: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 compareMetric: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3926,11 +3990,19 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 fields: { ref: 'ItemsMap', required: true },
+                segmentDimension: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Dimension' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 compareMetric: {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'MetricWithAssociatedTimeDimension' },
-                        { dataType: 'undefined' },
+                        { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
                 },
@@ -3987,7 +4059,7 @@ const models: TsoaRoute.Models = {
         enums: ['different_metric'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricExplorerComparisonType: {
+    MetricExplorerQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -3995,7 +4067,15 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        type: {
+                        segmentDimension: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        comparison: {
                             ref: 'MetricExplorerComparison.NONE',
                             required: true,
                         },
@@ -4004,7 +4084,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        type: {
+                        comparison: {
                             ref: 'MetricExplorerComparison.PREVIOUS_PERIOD',
                             required: true,
                         },
@@ -4013,6 +4093,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+<<<<<<< HEAD
                         metric: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
@@ -4023,6 +4104,15 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         type: {
+||||||| parent of a9c0d482f (feat: metrics explorer segment by)
+                        metricName: { dataType: 'string', required: true },
+                        metricTable: { dataType: 'string', required: true },
+                        type: {
+=======
+                        metricName: { dataType: 'string', required: true },
+                        metricTable: { dataType: 'string', required: true },
+                        comparison: {
+>>>>>>> a9c0d482f (feat: metrics explorer segment by)
                             ref: 'MetricExplorerComparison.DIFFERENT_METRIC',
                             required: true,
                         },
@@ -11521,6 +11611,68 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/dataCatalog/:tableName/segment-dimensions',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.getSegmentDimensions,
+        ),
+
+        async function CatalogController_getSegmentDimensions(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                tableName: {
+                    in: 'path',
+                    name: 'tableName',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CatalogController>(
+                    CatalogController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getSegmentDimensions.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
         '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/categories',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -13838,10 +13990,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        comparison: {
-                            ref: 'MetricExplorerComparisonType',
-                            required: true,
-                        },
+                        query: { ref: 'MetricExplorerQuery', required: true },
                         timeDimensionOverride: { ref: 'TimeDimensionConfig' },
                     },
                 },

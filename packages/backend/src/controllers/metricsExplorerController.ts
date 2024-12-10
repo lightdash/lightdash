@@ -1,11 +1,10 @@
 import {
     ApiErrorPayload,
+    MetricExplorerQuery,
     MetricTotalComparisonType,
     TimeDimensionConfig,
     type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
-    type MetricExplorerComparisonType,
-    type MetricExplorerDateRange,
     type TimeFrames,
 } from '@lightdash/common';
 import {
@@ -50,7 +49,7 @@ export class MetricsExplorerController extends BaseController {
         @Body()
         body: {
             timeDimensionOverride?: TimeDimensionConfig;
-            comparison: MetricExplorerComparisonType;
+            query: MetricExplorerQuery;
         },
     ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
@@ -59,11 +58,6 @@ export class MetricsExplorerController extends BaseController {
             throw new Error('startDate and endDate are required');
         }
 
-        const dateRange: MetricExplorerDateRange = [
-            new Date(startDate),
-            new Date(endDate),
-        ];
-
         const results = await this.services
             .getMetricsExplorerService()
             .runMetricExplorerQuery(
@@ -71,8 +65,9 @@ export class MetricsExplorerController extends BaseController {
                 projectUuid,
                 explore,
                 metric,
-                dateRange,
-                body.comparison,
+                startDate,
+                endDate,
+                body.query,
                 body?.timeDimensionOverride,
             );
 

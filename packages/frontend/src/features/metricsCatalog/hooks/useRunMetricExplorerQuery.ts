@@ -1,14 +1,16 @@
 import {
     metricExploreDataPointWithDateValueSchema,
+    METRICS_EXPLORER_DATE_FORMAT,
     type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
-    type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type MetricExplorerQuery,
     type MetricTotalComparisonType,
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import { z } from 'zod';
 import { lightdashApi } from '../../../api';
 
@@ -17,9 +19,8 @@ type RunMetricExplorerQueryArgs = {
     exploreName: string;
     metricName: string;
     dateRange: MetricExplorerDateRange;
-    comparison: MetricExplorerComparisonType;
+    query: MetricExplorerQuery;
     timeDimensionOverride?: TimeDimensionConfig;
-    options?: UseQueryOptions<ApiMetricsExplorerQueryResults['results']>;
 };
 
 const getUrlParams = ({
@@ -33,8 +34,14 @@ const getUrlParams = ({
 
     // Add date range params
     if (dateRange) {
-        params.append('startDate', dateRange[0].toString());
-        params.append('endDate', dateRange[1].toString());
+        params.append(
+            'startDate',
+            dayjs(dateRange[0]).format(METRICS_EXPLORER_DATE_FORMAT),
+        );
+        params.append(
+            'endDate',
+            dayjs(dateRange[1]).format(METRICS_EXPLORER_DATE_FORMAT),
+        );
     }
 
     // Add time frame param
@@ -49,7 +56,7 @@ const postRunMetricExplorerQuery = async ({
     projectUuid,
     exploreName,
     metricName,
-    comparison,
+    query,
     dateRange,
     timeDimensionOverride,
 }: RunMetricExplorerQueryArgs) => {
@@ -64,7 +71,7 @@ const postRunMetricExplorerQuery = async ({
         method: 'POST',
         body: JSON.stringify({
             timeDimensionOverride,
-            comparison,
+            query,
         }),
     });
 
@@ -76,15 +83,17 @@ const postRunMetricExplorerQuery = async ({
     };
 };
 
-export const useRunMetricExplorerQuery = ({
-    projectUuid,
-    exploreName,
-    metricName,
-    comparison,
-    dateRange,
-    timeDimensionOverride,
-    options,
-}: Partial<RunMetricExplorerQueryArgs>) => {
+export const useRunMetricExplorerQuery = (
+    {
+        projectUuid,
+        exploreName,
+        metricName,
+        query,
+        dateRange,
+        timeDimensionOverride,
+    }: Partial<RunMetricExplorerQueryArgs>,
+    options?: UseQueryOptions<ApiMetricsExplorerQueryResults['results']>,
+) => {
     return useQuery({
         queryKey: [
             'runMetricExplorerQuery',
@@ -93,7 +102,7 @@ export const useRunMetricExplorerQuery = ({
             metricName,
             dateRange?.[0],
             dateRange?.[1],
-            comparison,
+            query,
             timeDimensionOverride,
         ],
         queryFn: () =>
@@ -101,7 +110,7 @@ export const useRunMetricExplorerQuery = ({
                 projectUuid: projectUuid!,
                 exploreName: exploreName!,
                 metricName: metricName!,
-                comparison: comparison!,
+                query: query!,
                 dateRange: dateRange!,
                 timeDimensionOverride,
             }),

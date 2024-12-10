@@ -3,13 +3,16 @@ import type {
     Dimension,
     ItemsMap,
     MetricExploreDataPoint,
+    MetricExplorerQuery,
     MetricsExplorerQueryResults,
     MetricTotalResults,
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    DateGranularity,
     ForbiddenError,
     getDateCalcUtils,
+    getDateRangeFromString,
     getDefaultDateRangeForMetricTotal,
     getFieldIdForDateDimension,
     getGrainForDateRange,
@@ -19,7 +22,6 @@ import {
     getMetricExplorerDateRangeFilters,
     isDimension,
     MetricExplorerComparison,
-    MetricExplorerComparisonType,
     MetricTotalComparisonType,
     TimeFrames,
     type MetricExplorerDateRange,
@@ -97,8 +99,7 @@ export class MetricsExplorerService<
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        timeDimensionConfig.table,
-                        timeDimensionConfig.field,
+                        timeDimensionConfig,
                         forwardBackDateRange,
                     ),
                 },
@@ -129,10 +130,7 @@ export class MetricsExplorerService<
     private async runCompareDifferentMetricQuery(
         user: SessionUser,
         projectUuid: string,
-        compare: Extract<
-            MetricExplorerComparisonType,
-            { type: MetricExplorerComparison.DIFFERENT_METRIC }
-        >,
+        query: MetricExplorerQuery,
         dateRange: MetricExplorerDateRange,
         timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<{
@@ -141,11 +139,19 @@ export class MetricsExplorerService<
         dimension: Dimension;
         metric: MetricWithAssociatedTimeDimension;
     }> {
+        if (query.comparison !== MetricExplorerComparison.DIFFERENT_METRIC) {
+            throw new Error('Invalid comparison type');
+        }
+
+        if (!query.metric.table || !query.metric.name) {
+            throw new Error('Invalid comparison metric');
+        }
+
         const metric = await this.catalogService.getMetric(
             user,
             projectUuid,
-            compare.metric.table,
-            compare.metric.name,
+            query.metric.table,
+            query.metric.name,
             timeDimensionOverride?.interval,
         );
 
@@ -170,15 +176,18 @@ export class MetricsExplorerService<
         });
 
         const metricQuery: MetricQuery = {
-            exploreName: compare.metric.table,
+            exploreName: query.metric.table,
             metrics: [getItemId(metric)],
             dimensions: [dimensionFieldId],
             filters: {
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        timeDimension.table,
-                        timeDimension.field,
+                        {
+                            table: timeDimension.table,
+                            field: timeDimension.field,
+                            interval: metricDimensionGrain,
+                        },
                         dateRange,
                     ),
                 },
@@ -192,7 +201,7 @@ export class MetricsExplorerService<
             await this.projectService.runMetricExplorerQuery(
                 user,
                 projectUuid,
-                compare.metric.table,
+                query.metric.table,
                 metricQuery,
             );
 
@@ -214,8 +223,9 @@ export class MetricsExplorerService<
         projectUuid: string,
         exploreName: string,
         metricName: string,
-        dateRange: MetricExplorerDateRange,
-        compare: MetricExplorerComparisonType,
+        startDate: string,
+        endDate: string,
+        query: MetricExplorerQuery,
         timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -238,31 +248,49 @@ export class MetricsExplorerService<
             metricName,
         );
 
+        const dateRange = getDateRangeFromString([startDate, endDate]);
+
         const timeDimensionConfig =
             timeDimensionOverride ?? metric.timeDimension;
 
+        if (!timeDimensionConfig) {
+            throw new Error('Time dimension not found');
+        }
+
         const dimensionGrain =
-            timeDimensionConfig?.interval ?? getGrainForDateRange(dateRange);
+            timeDimensionConfig.interval ?? getGrainForDateRange(dateRange);
 
         const timeDimensionFieldId = getFieldIdForDateDimension(
-            timeDimensionConfig?.field || '',
+            timeDimensionConfig.field,
             dimensionGrain,
         );
         const timeDimension = getItemId({
-            table: timeDimensionConfig?.table || '',
+            table: timeDimensionConfig.table,
             name: timeDimensionFieldId,
         });
 
+        const segmentDimensionId =
+            query.comparison === MetricExplorerComparison.NONE &&
+            query.segmentDimension
+                ? query.segmentDimension
+                : null;
+
         const metricQuery: MetricQuery = {
             exploreName,
-            dimensions: [timeDimension],
+            dimensions: [
+                timeDimension,
+                ...(segmentDimensionId ? [segmentDimensionId] : []),
+            ],
             metrics: [getItemId(metric)],
             filters: {
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        timeDimensionConfig?.table || '',
-                        timeDimensionConfig?.field || '',
+                        {
+                            table: timeDimensionConfig.table,
+                            field: timeDimensionConfig.field,
+                            interval: dimensionGrain,
+                        },
                         dateRange,
                     ),
                 },
@@ -284,8 +312,9 @@ export class MetricsExplorerService<
         let comparisonResults: ResultRow[] | undefined;
         let compareDimension: Dimension | undefined;
         let compareMetric: MetricWithAssociatedTimeDimension | undefined;
+        let segmentDimension: Dimension | null = null;
 
-        switch (compare.type) {
+        switch (query.comparison) {
             case MetricExplorerComparison.PREVIOUS_PERIOD: {
                 const {
                     rows: prevRows,
@@ -324,7 +353,7 @@ export class MetricsExplorerService<
                 } = await this.runCompareDifferentMetricQuery(
                     user,
                     projectUuid,
-                    compare,
+                    query,
                     dateRange,
                     timeDimensionOverride,
                 );
@@ -335,13 +364,16 @@ export class MetricsExplorerService<
                 break;
             }
             case MetricExplorerComparison.NONE: {
+                if (segmentDimensionId) {
+                    const dimension = allFields[segmentDimensionId];
+                    if (dimension && isDimension(dimension)) {
+                        segmentDimension = dimension;
+                    }
+                }
                 break;
             }
             default: {
-                assertUnreachable(
-                    compare,
-                    `Unknown comparison type: ${compare}`,
-                );
+                assertUnreachable(query, `Unknown comparison type: ${query}`);
             }
         }
 
@@ -366,16 +398,17 @@ export class MetricsExplorerService<
             },
         };
 
-        if (!compare || compare.type === MetricExplorerComparison.NONE) {
+        if (query.comparison === MetricExplorerComparison.NONE) {
             dataPoints = getMetricExplorerDataPoints(
                 baseDimension,
                 metricWithTimeDimension,
                 currentResults,
+                segmentDimensionId,
             );
         } else {
             if (!comparisonResults) {
                 throw new Error(
-                    `Comparison results expected for ${compare.type}`,
+                    `Comparison results expected for ${query.comparison}`,
                 );
             }
 
@@ -386,7 +419,7 @@ export class MetricsExplorerService<
                 metricWithTimeDimension,
                 currentResults,
                 comparisonResults,
-                compare,
+                query,
             );
         }
 
@@ -398,7 +431,8 @@ export class MetricsExplorerService<
             results,
             fields: allFields,
             metric: metricWithTimeDimension,
-            compareMetric,
+            compareMetric: compareMetric ?? null,
+            segmentDimension,
         };
     }
 
@@ -434,8 +468,7 @@ export class MetricsExplorerService<
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        metric.timeDimension.table,
-                        metric.timeDimension.field,
+                        metric.timeDimension,
                         dateRange,
                     ),
                 },
@@ -467,8 +500,7 @@ export class MetricsExplorerService<
                     dimensions: {
                         id: uuidv4(),
                         and: getMetricExplorerDateRangeFilters(
-                            metric.timeDimension.table,
-                            metric.timeDimension.field,
+                            metric.timeDimension,
                             compareDateRange,
                         ),
                     },

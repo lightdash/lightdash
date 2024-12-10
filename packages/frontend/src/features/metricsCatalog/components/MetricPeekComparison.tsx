@@ -1,6 +1,8 @@
 import {
+    assertUnreachable,
     getItemId,
     MetricExplorerComparison,
+    type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
 import {
@@ -27,15 +29,12 @@ import { useSelectStyles } from '../styles/useSelectStyles';
 
 type Props = {
     baseMetricLabel: string | undefined;
-    comparisonType: MetricExplorerComparison;
-    setComparisonType: (type: MetricExplorerComparison) => void;
-    handleComparisonTypeChange: (type: MetricExplorerComparison) => void;
+    query: MetricExplorerQuery;
+    onQueryChange: (query: MetricExplorerQuery) => void;
     metricsWithTimeDimensionsQuery: UseQueryResult<
         MetricWithAssociatedTimeDimension[],
         unknown
     >;
-    selectedMetric: MetricWithAssociatedTimeDimension | null;
-    handleMetricChange: (metric: string | null) => void;
 };
 
 const FieldItem = forwardRef<
@@ -55,29 +54,71 @@ const FieldItem = forwardRef<
 
 export const MetricPeekComparison: FC<Props> = ({
     baseMetricLabel,
-    comparisonType,
-    setComparisonType,
-    handleComparisonTypeChange,
+    query,
+    onQueryChange,
     metricsWithTimeDimensionsQuery,
-    selectedMetric,
-    handleMetricChange,
 }) => {
     const { classes } = useSelectStyles();
-    const showMetricSelect = useCallback(
-        (ct: MetricExplorerComparison) => {
-            return (
-                comparisonType === MetricExplorerComparison.DIFFERENT_METRIC &&
-                ct === MetricExplorerComparison.DIFFERENT_METRIC
-            );
+
+    const handleComarisonChange = useCallback(
+        (newComparison: MetricExplorerComparison) => {
+            switch (newComparison) {
+                case MetricExplorerComparison.NONE:
+                    return onQueryChange({
+                        comparison: newComparison,
+                        segmentDimension: null,
+                    });
+                case MetricExplorerComparison.DIFFERENT_METRIC:
+                    return onQueryChange({
+                        comparison: newComparison,
+                        metric: {
+                            table: '',
+                            name: '',
+                            label: '',
+                        },
+                    });
+                case MetricExplorerComparison.PREVIOUS_PERIOD:
+                    return onQueryChange({
+                        comparison: newComparison,
+                    });
+                default:
+                    return assertUnreachable(
+                        newComparison,
+                        `Unsupported comparison type: ${newComparison}`,
+                    );
+            }
         },
-        [comparisonType],
+        [onQueryChange],
+    );
+
+    const handleMetricChange = useCallback(
+        (metricId: string | null) => {
+            if (!metricsWithTimeDimensionsQuery.isSuccess) return;
+
+            const metric = metricId
+                ? metricsWithTimeDimensionsQuery.data.find(
+                      (m) => getItemId(m) === metricId,
+                  )
+                : null;
+
+            onQueryChange({
+                comparison: MetricExplorerComparison.DIFFERENT_METRIC,
+                metric: {
+                    table: metric?.table ?? '',
+                    name: metric?.name ?? '',
+                    label: metric?.label ?? '',
+                },
+            });
+        },
+        [
+            metricsWithTimeDimensionsQuery.data,
+            metricsWithTimeDimensionsQuery.isSuccess,
+            onQueryChange,
+        ],
     );
 
     return (
-        <Radio.Group
-            value={comparisonType}
-            onChange={handleComparisonTypeChange}
-        >
+        <Radio.Group value={query.comparison} onChange={handleComarisonChange}>
             <Stack spacing="sm">
                 {[
                     {
@@ -108,7 +149,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                 cursor: 'pointer',
                                 '&[data-with-border="true"]': {
                                     border:
-                                        comparisonType === comparison.type
+                                        query.comparison === comparison.type
                                             ? `1px solid ${theme.colors.indigo[5]}`
                                             : `1px solid ${theme.colors.gray[2]}`,
                                 },
@@ -116,14 +157,16 @@ export const MetricPeekComparison: FC<Props> = ({
                                     backgroundColor: theme.colors.gray[0],
                                 },
                                 backgroundColor:
-                                    comparisonType === comparison.type
+                                    query.comparison === comparison.type
                                         ? theme.fn.lighten(
                                               theme.colors.gray[1],
                                               0.3,
                                           )
                                         : 'white',
                             })}
-                            onClick={() => setComparisonType(comparison.type)}
+                            onClick={() =>
+                                handleComarisonChange(comparison.type)
+                            }
                         >
                             <Stack>
                                 <Group align="center" noWrap position="apart">
@@ -145,47 +188,54 @@ export const MetricPeekComparison: FC<Props> = ({
                                     />
                                 </Group>
 
-                                {showMetricSelect(comparison.type) && (
-                                    <Select
-                                        placeholder="Select a metric"
-                                        radius="md"
-                                        size="xs"
-                                        data={
-                                            metricsWithTimeDimensionsQuery.data?.map(
-                                                (metric) => ({
-                                                    value: getItemId(metric),
-                                                    label: metric.label,
-                                                }),
-                                            ) ?? []
-                                        }
-                                        value={
-                                            selectedMetric
-                                                ? getItemId(selectedMetric)
-                                                : null
-                                        }
-                                        onChange={handleMetricChange}
-                                        disabled={
-                                            !metricsWithTimeDimensionsQuery.isSuccess
-                                        }
-                                        itemComponent={FieldItem}
-                                        rightSection={
-                                            metricsWithTimeDimensionsQuery.isLoading ? (
-                                                <Loader size="xs" />
-                                            ) : (
-                                                <MantineIcon
-                                                    color="dark.2"
-                                                    icon={IconChevronDown}
-                                                    size={12}
-                                                />
-                                            )
-                                        }
-                                        classNames={{
-                                            input: classes.input,
-                                            item: classes.item,
-                                            rightSection: classes.rightSection,
-                                        }}
-                                    />
-                                )}
+                                {comparison.type ===
+                                    MetricExplorerComparison.DIFFERENT_METRIC &&
+                                    query.comparison ===
+                                        MetricExplorerComparison.DIFFERENT_METRIC && (
+                                        <Select
+                                            placeholder="Select a metric"
+                                            radius="md"
+                                            size="xs"
+                                            data={
+                                                metricsWithTimeDimensionsQuery.data?.map(
+                                                    (metric) => ({
+                                                        value: getItemId(
+                                                            metric,
+                                                        ),
+                                                        label: metric.label,
+                                                    }),
+                                                ) ?? []
+                                            }
+                                            value={
+                                                query.comparison ===
+                                                MetricExplorerComparison.DIFFERENT_METRIC
+                                                    ? getItemId(query.metric)
+                                                    : null
+                                            }
+                                            onChange={handleMetricChange}
+                                            disabled={
+                                                !metricsWithTimeDimensionsQuery.isSuccess
+                                            }
+                                            itemComponent={FieldItem}
+                                            rightSection={
+                                                metricsWithTimeDimensionsQuery.isLoading ? (
+                                                    <Loader size="xs" />
+                                                ) : (
+                                                    <MantineIcon
+                                                        color="dark.2"
+                                                        icon={IconChevronDown}
+                                                        size={12}
+                                                    />
+                                                )
+                                            }
+                                            classNames={{
+                                                input: classes.input,
+                                                item: classes.item,
+                                                rightSection:
+                                                    classes.rightSection,
+                                            }}
+                                        />
+                                    )}
                             </Stack>
                         </Paper>
                     </Tooltip>

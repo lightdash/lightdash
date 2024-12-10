@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { type MetricWithAssociatedTimeDimension } from './catalog';
-import type { ItemsMap } from './field';
+import type { Dimension, ItemsMap } from './field';
 import type { ResultValue } from './results';
 
 export enum MetricExplorerComparison {
@@ -12,15 +12,16 @@ export enum MetricExplorerComparison {
 export type MetricExplorerPartialDateRange = [Date | null, Date | null];
 export type MetricExplorerDateRange = [Date, Date];
 
-export type MetricExplorerComparisonType =
+export type MetricExplorerQuery =
     | {
-          type: MetricExplorerComparison.NONE;
+          comparison: MetricExplorerComparison.NONE;
+          segmentDimension: string | null;
       }
     | {
-          type: MetricExplorerComparison.PREVIOUS_PERIOD;
+          comparison: MetricExplorerComparison.PREVIOUS_PERIOD;
       }
     | {
-          type: MetricExplorerComparison.DIFFERENT_METRIC;
+          comparison: MetricExplorerComparison.DIFFERENT_METRIC;
           metric: {
               label: string;
               table: string;
@@ -30,6 +31,7 @@ export type MetricExplorerComparisonType =
 
 const metricExploreDataPointSchema = z.object({
     date: z.date({ coerce: true }),
+    segment: z.string().nullable(),
     metric: z.object({
         value: z.number().nullable(),
         label: z.string().nullable(),
@@ -48,6 +50,7 @@ export const metricExploreDataPointWithDateValueSchema =
 // z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPoint = {
     date: Date;
+    segment: string | null;
     metric: {
         value: number | null;
         label: string | null;
@@ -65,7 +68,8 @@ export type MetricExploreDataPointWithDateValue = MetricExploreDataPoint & {
 
 export type MetricsExplorerQueryResults = {
     metric: MetricWithAssociatedTimeDimension;
-    compareMetric: MetricWithAssociatedTimeDimension | undefined;
+    compareMetric: MetricWithAssociatedTimeDimension | null;
+    segmentDimension: Dimension | null;
     fields: ItemsMap;
     results: MetricExploreDataPointWithDateValue[];
 };

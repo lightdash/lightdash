@@ -54,8 +54,7 @@ export const createMetricPreviewUnsavedChartVersion = (
     const defaultTimeFilters =
         timeDimension && timeDimension.interval
             ? getMetricExplorerDateRangeFilters(
-                  timeDimension.table,
-                  timeDimension.field,
+                  timeDimension,
                   getDefaultDateRangeFromInterval(timeDimension.interval),
               )
             : [];
