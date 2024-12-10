@@ -845,6 +845,7 @@ export type HealthState = {
     staticIp: string;
     query: {
         maxLimit: number;
+        defaultLimit: number;
         csvCellsLimit: number;
     };
     pivotTable: {

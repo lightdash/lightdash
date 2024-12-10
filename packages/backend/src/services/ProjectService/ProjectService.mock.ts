@@ -407,6 +407,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 100,
+        defaultLimit: 500,
         csvCellsLimit: 100,
         timezone: undefined,
     },
