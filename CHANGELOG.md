@@ -1,3 +1,10 @@
+# [0.1411.0](https://github.com/lightdash/lightdash/compare/0.1410.3...0.1411.0) (2024-12-11)
+
+
+### Features
+
+* revise metrics catalog tooltips ([#12818](https://github.com/lightdash/lightdash/issues/12818)) ([becb92f](https://github.com/lightdash/lightdash/commit/becb92faeb14d7854798e1008b4a18e3046bec20))
+
 ## [0.1410.3](https://github.com/lightdash/lightdash/compare/0.1410.2...0.1410.3) (2024-12-11)
 
 
