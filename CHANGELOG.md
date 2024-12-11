@@ -1,3 +1,10 @@
+## [0.1412.1](https://github.com/lightdash/lightdash/compare/0.1412.0...0.1412.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* metrics explorer available metrics query ([#12834](https://github.com/lightdash/lightdash/issues/12834)) ([ebac222](https://github.com/lightdash/lightdash/commit/ebac222fd43c39905c51f7c2b2e3550bdfb6f7a9))
+
 # [0.1412.0](https://github.com/lightdash/lightdash/compare/0.1411.3...0.1412.0) (2024-12-11)
 
 
