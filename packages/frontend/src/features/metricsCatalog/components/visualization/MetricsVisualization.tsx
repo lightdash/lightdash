@@ -209,26 +209,26 @@ const MetricsVisualization: FC<Props> = ({
     const showLegend = comparison?.type !== MetricExplorerComparison.NONE;
 
     const legendConfig = useMemo(() => {
-        if (comparison.type === MetricExplorerComparison.NONE) return null;
-        if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
-            return {
-                metric: { name: 'metric', label: results?.metric.label },
-                compareMetric: {
-                    name: 'compareMetric',
-                    label: results?.compareMetric?.label,
-                },
-            };
+        switch (comparison.type) {
+            case MetricExplorerComparison.NONE:
+                return null;
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+            case MetricExplorerComparison.PREVIOUS_PERIOD: {
+                return {
+                    metric: { name: 'metric', label: results?.metric.label },
+                    compareMetric: {
+                        name: 'compareMetric',
+                        label: results?.compareMetric?.label,
+                    },
+                };
+            }
+
+            default: {
+                return {
+                    metric: { name: 'metric', label: results?.metric.label },
+                };
+            }
         }
-        if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
-            return {
-                metric: { name: 'metric', label: results?.metric.label },
-                compareMetric: {
-                    name: 'compareMetric',
-                    label: 'Previous period',
-                },
-            };
-        }
-        return { metric: { name: 'metric', label: results?.metric.label } };
     }, [comparison, results]);
 
     return (
