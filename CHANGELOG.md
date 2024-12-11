@@ -1,3 +1,10 @@
+## [0.1411.1](https://github.com/lightdash/lightdash/compare/0.1411.0...0.1411.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* improve cache autocomplete UI ([#12824](https://github.com/lightdash/lightdash/issues/12824)) ([cd0d6bc](https://github.com/lightdash/lightdash/commit/cd0d6bc88ac6f685bc8f68bfb4dd6bd882675ef0))
+
 # [0.1411.0](https://github.com/lightdash/lightdash/compare/0.1410.3...0.1411.0) (2024-12-11)
 
 
