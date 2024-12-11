@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Button,
     Flex,
     Group,
@@ -19,12 +20,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import {
-    IconInfoCircle,
-    IconLineDashed,
-    IconMinus,
-    IconZoomReset,
-} from '@tabler/icons-react';
+import { IconLineDashed, IconMinus, IconZoomReset } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -247,26 +243,37 @@ const MetricsVisualization: FC<Props> = ({
                         onTimeIntervalChange={onTimeIntervalChange}
                     />
                 )}
-                <Button
-                    variant="light"
-                    color="indigo"
-                    size="xs"
-                    radius="md"
-                    disabled={!zoomState.zoomedData}
-                    leftIcon={<MantineIcon icon={IconZoomReset} />}
-                    onClick={resetZoom}
-                    sx={{
-                        color: colors.indigo[7],
-                        '&[data-disabled="true"]': {
-                            opacity: 0.5,
-                            backgroundColor: colors.gray[0],
-                        },
-                    }}
-                    fz={14}
-                    h={32}
+
+                <Tooltip
+                    label="No zoom has been applied yet. Drag on the chart to zoom into a section"
+                    variant="xs"
+                    position="top"
+                    disabled={!!zoomState.zoomedData}
+                    withinPortal
                 >
-                    Reset zoom
-                </Button>
+                    <Box>
+                        <Button
+                            variant="light"
+                            color="indigo"
+                            size="xs"
+                            radius="md"
+                            disabled={!zoomState.zoomedData}
+                            leftIcon={<MantineIcon icon={IconZoomReset} />}
+                            onClick={resetZoom}
+                            sx={{
+                                color: colors.indigo[7],
+                                '&[data-disabled="true"]': {
+                                    opacity: 0.5,
+                                    backgroundColor: colors.gray[0],
+                                },
+                            }}
+                            fz={14}
+                            h={32}
+                        >
+                            Reset zoom
+                        </Button>
+                    </Box>
+                </Tooltip>
             </Group>
 
             {showEmptyState && !isFetching && (
@@ -423,28 +430,23 @@ const MetricsVisualization: FC<Props> = ({
                     </Tooltip>
 
                     {results?.metric.availableTimeDimensions && (
-                        <Group spacing="xs">
-                            <TimeDimensionPicker
-                                fields={results.metric.availableTimeDimensions}
-                                dimension={timeDimensionBaseField}
-                                onChange={(config) =>
-                                    setTimeDimensionOverride(config)
-                                }
-                            />
-                            <Tooltip
-                                variant="xs"
-                                disabled={!canManageExplore}
-                                label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users."
-                            >
-                                <MantineIcon
-                                    color="gray.6"
-                                    icon={IconInfoCircle}
-                                    display={
-                                        canManageExplore ? 'block' : 'none'
+                        <Tooltip
+                            variant="xs"
+                            disabled={!canManageExplore}
+                            label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users"
+                        >
+                            <Box>
+                                <TimeDimensionPicker
+                                    fields={
+                                        results.metric.availableTimeDimensions
+                                    }
+                                    dimension={timeDimensionBaseField}
+                                    onChange={(config) =>
+                                        setTimeDimensionOverride(config)
                                     }
                                 />
-                            </Tooltip>
-                        </Group>
+                            </Box>
+                        </Tooltip>
                     )}
                 </Group>
             </Group>

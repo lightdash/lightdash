@@ -84,7 +84,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
             label: (
                 <Tooltip
                     variant="xs"
-                    label={`${formatDate(preset.getValue()[0])} - ${formatDate(
+                    label={`${formatDate(preset.getValue()[0])} to ${formatDate(
                         preset.getValue()[1],
                     )}`}
                 >
@@ -162,16 +162,25 @@ export const MetricPeekDatePicker: FC<Props> = ({
                     />
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
-                            <TimeDimensionIntervalPicker
-                                dimension={timeDimensionBaseField}
-                                onChange={(value) => {
-                                    setTimeDimensionOverride(value);
-                                    onTimeIntervalChange(
-                                        value?.interval ?? timeInterval,
-                                    );
-                                    reset();
-                                }}
-                            />
+                            <Tooltip
+                                variant="xs"
+                                label="Change granularity"
+                                position="top"
+                                withinPortal
+                            >
+                                <Box>
+                                    <TimeDimensionIntervalPicker
+                                        dimension={timeDimensionBaseField}
+                                        onChange={(value) => {
+                                            setTimeDimensionOverride(value);
+                                            onTimeIntervalChange(
+                                                value?.interval ?? timeInterval,
+                                            );
+                                            reset();
+                                        }}
+                                    />
+                                </Box>
+                            </Tooltip>
                         )}
                 </Group>
             </Popover.Target>

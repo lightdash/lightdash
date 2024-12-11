@@ -345,6 +345,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 </Group>
 
                                 <MetricPeekComparison
+                                    baseMetricLabel={metricQuery.data?.label}
                                     comparisonType={comparisonType}
                                     setComparisonType={setComparisonType}
                                     handleComparisonTypeChange={
