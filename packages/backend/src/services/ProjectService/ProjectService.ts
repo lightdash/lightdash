@@ -2598,10 +2598,10 @@ export class ProjectService extends BaseService {
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
         );
-
+        // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
-            ? `${projectUuid}.${query}.${metricQuery.timezone}`
-            : `${projectUuid}.${query}`;
+            ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
+            : `${projectUuid}.cache_autocomplete.${query}`;
         const queryHash = crypto
             .createHash('sha256')
             .update(queryHashKey)
