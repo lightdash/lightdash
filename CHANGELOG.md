@@ -1,3 +1,10 @@
+# [0.1409.0](https://github.com/lightdash/lightdash/compare/0.1408.0...0.1409.0) (2024-12-11)
+
+
+### Features
+
+* make default limit configurable ([#12808](https://github.com/lightdash/lightdash/issues/12808)) ([ecbcea9](https://github.com/lightdash/lightdash/commit/ecbcea974f1392b9e48053924c9edd1e0c5d0346))
+
 # [0.1408.0](https://github.com/lightdash/lightdash/compare/0.1407.2...0.1408.0) (2024-12-10)
 
 
