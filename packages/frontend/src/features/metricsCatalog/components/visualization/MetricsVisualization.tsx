@@ -2,6 +2,7 @@ import {
     capitalize,
     friendlyName,
     MetricExplorerComparison,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
@@ -78,11 +79,65 @@ const tickFormatter = (date: Date) => {
     )(date);
 };
 
-const CustomTooltip = ({
-    active,
-    payload,
-    label,
-}: RechartsTooltipProps<ValueType, NameType>) => {
+type RechartsTooltipPropsPayload = NonNullable<
+    RechartsTooltipProps<ValueType, NameType>['payload']
+>[number];
+
+interface CustomTooltipPropsPayload extends RechartsTooltipPropsPayload {
+    payload: MetricExploreDataPointWithDateValue;
+}
+
+interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
+    payload?: CustomTooltipPropsPayload[];
+}
+
+const CustomTooltipPayloadEntry = ({
+    entry,
+}: {
+    entry: CustomTooltipPropsPayload;
+}) => {
+    const entryData = useMemo(() => {
+        if (!entry.name) {
+            return null;
+        }
+
+        const isCompareMetric = entry.name === 'compareMetric';
+        return isCompareMetric
+            ? entry.payload.compareMetric
+            : entry.payload.metric;
+    }, [entry]);
+
+    if (!entryData) {
+        return null;
+    }
+
+    return (
+        <Group position="apart">
+            <Group spacing={4}>
+                <MantineIcon
+                    color="indigo.6"
+                    icon={entry.name === 'metric' ? IconMinus : IconLineDashed}
+                />
+                <Text c="gray.8" fz={13} fw={500}>
+                    {entryData.label}
+                </Text>
+            </Group>
+
+            <Badge
+                variant="light"
+                color="indigo"
+                radius="md"
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.indigo[1]}`,
+                })}
+            >
+                {entryData.value?.formatted}
+            </Badge>
+        </Group>
+    );
+};
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (!active || !payload || !payload.length) {
         return null;
     }
@@ -105,34 +160,7 @@ const CustomTooltip = ({
                 'MMM D, YYYY',
             )}`}</Text>
             {payload.map((entry) => (
-                <Group key={entry.name} position="apart">
-                    <Group spacing={4}>
-                        <MantineIcon
-                            color="indigo.6"
-                            icon={
-                                entry.name === 'metric'
-                                    ? IconMinus
-                                    : IconLineDashed
-                            }
-                        />
-                        <Text c="gray.8" fz={13} fw={500}>
-                            {entry.name
-                                ? entry.payload[entry.name].label
-                                : null}
-                        </Text>
-                    </Group>
-
-                    <Badge
-                        variant="light"
-                        color="indigo"
-                        radius="md"
-                        sx={(theme) => ({
-                            border: `1px solid ${theme.colors.indigo[1]}`,
-                        })}
-                    >
-                        {entry.name ? entry.payload[entry.name].value : null}{' '}
-                    </Badge>
-                </Group>
+                <CustomTooltipPayloadEntry key={entry.name} entry={entry} />
             ))}
         </Stack>
     );
@@ -376,7 +404,7 @@ const MetricsVisualization: FC<Props> = ({
                             <Line
                                 name="metric"
                                 type="linear"
-                                dataKey="metric.value"
+                                dataKey="metric.value.raw"
                                 stroke={colors.indigo[6]}
                                 strokeWidth={1.6}
                                 dot={false}
@@ -388,7 +416,7 @@ const MetricsVisualization: FC<Props> = ({
                                 <Line
                                     name="compareMetric"
                                     type="linear"
-                                    dataKey="compareMetric.value"
+                                    dataKey="compareMetric.value.raw"
                                     stroke={colors.indigo[4]}
                                     strokeDasharray={'3 3'}
                                     strokeWidth={1.3}

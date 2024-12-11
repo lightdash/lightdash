@@ -85,7 +85,7 @@ export const useRunMetricExplorerQuery = ({
     timeDimensionOverride,
     options,
 }: Partial<RunMetricExplorerQueryArgs>) => {
-    return useQuery({
+    return useQuery<ApiMetricsExplorerQueryResults['results']>({
         queryKey: [
             'runMetricExplorerQuery',
             projectUuid,
