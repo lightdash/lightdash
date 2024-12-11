@@ -181,11 +181,6 @@ type RunQueryTags = {
     dashboard_uuid?: string;
 };
 
-const cachedUniqueSearchResults: Record<
-    string,
-    FieldValueSearchResult<string>
-> = {};
-
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
