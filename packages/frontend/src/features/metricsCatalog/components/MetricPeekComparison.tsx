@@ -6,6 +6,7 @@ import {
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Group,
     Loader,
@@ -191,7 +192,11 @@ export const MetricPeekComparison: FC<Props> = ({
                                 {comparison.type ===
                                     MetricExplorerComparison.DIFFERENT_METRIC &&
                                     query.comparison ===
-                                        MetricExplorerComparison.DIFFERENT_METRIC && (
+                                        MetricExplorerComparison.DIFFERENT_METRIC &&
+                                    (metricsWithTimeDimensionsQuery.isLoading ||
+                                    (metricsWithTimeDimensionsQuery.isSuccess &&
+                                        metricsWithTimeDimensionsQuery.data
+                                            .length > 0) ? (
                                         <Select
                                             placeholder="Select a metric"
                                             radius="md"
@@ -208,9 +213,6 @@ export const MetricPeekComparison: FC<Props> = ({
                                             }
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
-                                            disabled={
-                                                !metricsWithTimeDimensionsQuery.isSuccess
-                                            }
                                             itemComponent={FieldItem}
                                             rightSection={
                                                 metricsWithTimeDimensionsQuery.isLoading ? (
@@ -230,7 +232,20 @@ export const MetricPeekComparison: FC<Props> = ({
                                                     classes.rightSection,
                                             }}
                                         />
-                                    )}
+                                    ) : (
+                                        <Text span c="gray.7" fz={13}>
+                                            Only metrics with a time dimension
+                                            defined in the .yml can be compared.{' '}
+                                            <Anchor
+                                                c="gray.9"
+                                                fw={500}
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/guides/metrics-catalog/"
+                                            >
+                                                Learn more
+                                            </Anchor>
+                                        </Text>
+                                    ))}
                             </Stack>
                         </Paper>
                     </Tooltip>

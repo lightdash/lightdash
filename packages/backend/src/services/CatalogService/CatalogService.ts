@@ -23,6 +23,7 @@ import {
     InlineErrorType,
     isExploreError,
     MAX_METRICS_TREE_NODE_COUNT,
+    MetricType,
     MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
@@ -900,16 +901,24 @@ export class CatalogService<
         ]);
     }
 
-    async getMetrics(
-        user: SessionUser,
-        projectUuid: string,
+    async getMetrics({
+        user,
+        projectUuid,
+        metrics,
+        timeIntervalOverride,
+        userAttributes,
+        addDefaultTimeDimension = true,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
         metrics: {
             tableName: string;
             metricName: string;
-        }[],
-        timeIntervalOverride?: TimeFrames,
-        userAttributes?: UserAttributeValueMap,
-    ): Promise<MetricWithAssociatedTimeDimension[]> {
+        }[];
+        timeIntervalOverride?: TimeFrames;
+        userAttributes?: UserAttributeValueMap;
+        addDefaultTimeDimension?: boolean;
+    }): Promise<MetricWithAssociatedTimeDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -988,6 +997,7 @@ export class CatalogService<
                         table: metric.table,
                     };
                 } else if (
+                    addDefaultTimeDimension &&
                     availableTimeDimensions &&
                     availableTimeDimensions.length > 0
                 ) {
@@ -1032,12 +1042,12 @@ export class CatalogService<
         metricName: string,
         timeIntervalOverride?: TimeFrames,
     ) {
-        const metrics = await this.getMetrics(
+        const metrics = await this.getMetrics({
             user,
             projectUuid,
-            [{ tableName, metricName }],
+            metrics: [{ tableName, metricName }],
             timeIntervalOverride,
-        );
+        });
 
         if (metrics.length === 0) {
             throw new NotFoundError('Metric not found');
@@ -1185,19 +1195,26 @@ export class CatalogService<
             (c): c is CatalogField => c.type === CatalogType.Field,
         );
 
-        const allMetrics = await this.getMetrics(
+        const allMetrics = await this.getMetrics({
             user,
             projectUuid,
-            filteredMetrics.map((m) => ({
+            metrics: filteredMetrics.map((m) => ({
                 tableName: m.tableName,
                 metricName: m.name,
             })),
-            undefined,
             userAttributes,
-        );
-        const metricsWithTimeDimension = allMetrics.filter(
-            (metric) => !!metric.timeDimension,
-        );
+            addDefaultTimeDimension: false,
+        });
+
+        const metricsWithTimeDimension = allMetrics
+            .filter((metric) => !!metric.timeDimension)
+            .filter(
+                (m) =>
+                    m.type !== MetricType.STRING &&
+                    m.type !== MetricType.BOOLEAN &&
+                    m.type !== MetricType.DATE &&
+                    m.type !== MetricType.TIMESTAMP,
+            );
 
         return metricsWithTimeDimension;
     }
