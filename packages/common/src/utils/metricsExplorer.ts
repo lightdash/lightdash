@@ -246,7 +246,7 @@ export const getMetricExplorerDataPointsWithCompare = (
                   name: comparison.metric.name,
               });
 
-    let comparisonMetricLabel = null;
+    let comparisonMetricLabel: string | null = null;
     if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
         comparisonMetricLabel =
             comparison.metric.label ?? comparison.metric.name;
