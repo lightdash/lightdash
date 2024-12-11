@@ -204,24 +204,28 @@ export const getMetricExplorerDataPoints = (
         new Date(String(row[dimensionId].value.raw)).toISOString(),
     );
 
-    return Object.keys(groupByMetricRows).map((date) => ({
-        date: new Date(date),
-        segment: segmentDimensionId
+    return Object.keys(groupByMetricRows).map((date) => {
+        const segmentValue = segmentDimensionId
             ? parseDimensionValue(
                   groupByMetricRows[date]?.[0]?.[segmentDimensionId]?.value.raw,
               )
-            : null,
-        metric: {
-            value: parseMetricValue(
-                groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
-            ),
-            label: metric.label ?? metric.name,
-        },
-        compareMetric: {
-            value: null,
-            label: null,
-        },
-    }));
+            : null;
+
+        return {
+            date: new Date(date),
+            segment: segmentValue,
+            metric: {
+                value: parseMetricValue(
+                    groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
+                ),
+                label: segmentValue ?? metric.label ?? metric.name,
+            },
+            compareMetric: {
+                value: null,
+                label: null,
+            },
+        };
+    });
 };
 
 export const getMetricExplorerDataPointsWithCompare = (
