@@ -193,19 +193,24 @@ export const MetricPeekComparison: FC<Props> = ({
                                     MetricExplorerComparison.DIFFERENT_METRIC &&
                                     query.comparison ===
                                         MetricExplorerComparison.DIFFERENT_METRIC &&
+                                    (metricsWithTimeDimensionsQuery.isLoading ||
                                     (metricsWithTimeDimensionsQuery.isSuccess &&
-                                    metricsWithTimeDimensionsQuery.data.length >
-                                        0 ? (
+                                        metricsWithTimeDimensionsQuery.data
+                                            .length > 0) ? (
                                         <Select
                                             placeholder="Select a metric"
                                             radius="md"
                                             size="xs"
-                                            data={metricsWithTimeDimensionsQuery.data.map(
-                                                (metric) => ({
-                                                    value: getItemId(metric),
-                                                    label: metric.label,
-                                                }),
-                                            )}
+                                            data={
+                                                metricsWithTimeDimensionsQuery.data?.map(
+                                                    (metric) => ({
+                                                        value: getItemId(
+                                                            metric,
+                                                        ),
+                                                        label: metric.label,
+                                                    }),
+                                                ) ?? []
+                                            }
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
                                             itemComponent={FieldItem}
