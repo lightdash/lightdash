@@ -162,6 +162,11 @@ export class SchedulerWorker extends SchedulerTask {
     protected getTaskList(): TaskList {
         return {
             generateDailyJobs: async () => {
+                const currentDateStartOfDay = moment()
+                    .utc()
+                    .startOf('day')
+                    .toDate();
+
                 const schedulers =
                     await this.schedulerService.getAllSchedulers();
 
@@ -174,6 +179,7 @@ export class SchedulerWorker extends SchedulerTask {
                     await this.schedulerClient.generateDailyJobsForScheduler(
                         scheduler,
                         defaultTimezone,
+                        currentDateStartOfDay,
                     );
                 });
 
