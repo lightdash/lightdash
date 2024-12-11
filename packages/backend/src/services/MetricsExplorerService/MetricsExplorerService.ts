@@ -105,13 +105,13 @@ export class MetricsExplorerService<
             },
         };
 
-        const { rows, fields } = await this.projectService.runExploreQuery(
-            user,
-            adjustedMetricQuery,
-            projectUuid,
-            exploreName,
-            null,
-        );
+        const { rows, fields } =
+            await this.projectService.runMetricExplorerQuery(
+                user,
+                projectUuid,
+                exploreName,
+                adjustedMetricQuery,
+            );
 
         // Comparison uses the same dimension as the base metric
         const compareDimension = fields[adjustedMetricQuery.dimensions[0]];
@@ -188,13 +188,13 @@ export class MetricsExplorerService<
             limit: this.maxQueryLimit,
         };
 
-        const { rows, fields } = await this.projectService.runExploreQuery(
-            user,
-            metricQuery,
-            projectUuid,
-            compare.metricTable,
-            null,
-        );
+        const { rows, fields } =
+            await this.projectService.runMetricExplorerQuery(
+                user,
+                projectUuid,
+                compare.metricTable,
+                metricQuery,
+            );
 
         const dimension = fields[metricQuery.dimensions[0]];
         if (!dimension || !isDimension(dimension)) {
@@ -273,12 +273,11 @@ export class MetricsExplorerService<
         };
 
         const { rows: currentResults, fields } =
-            await this.projectService.runExploreQuery(
+            await this.projectService.runMetricExplorerQuery(
                 user,
-                metricQuery,
                 projectUuid,
                 exploreName,
-                null,
+                metricQuery,
             );
 
         let allFields = fields;
@@ -446,13 +445,13 @@ export class MetricsExplorerService<
             tableCalculations: [],
         };
 
-        const { rows: currentRows } = await this.projectService.runExploreQuery(
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName,
-            null,
-        );
+        const { rows: currentRows } =
+            await this.projectService.runMetricExplorerQuery(
+                user,
+                projectUuid,
+                exploreName,
+                metricQuery,
+            );
 
         let compareRows: ResultRow[] | undefined;
 
@@ -477,12 +476,11 @@ export class MetricsExplorerService<
             };
 
             compareRows = (
-                await this.projectService.runExploreQuery(
+                await this.projectService.runMetricExplorerQuery(
                     user,
-                    compareMetricQuery,
                     projectUuid,
                     exploreName,
-                    null,
+                    compareMetricQuery,
                 )
             ).rows;
         }
