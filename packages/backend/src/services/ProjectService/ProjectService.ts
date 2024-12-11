@@ -1692,6 +1692,24 @@ export class ProjectService extends BaseService {
         );
     }
 
+    async runMetricExplorerQuery(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+    ) {
+        return this.runQueryAndFormatRows({
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            csvLimit: undefined,
+            context: QueryExecutionContext.METRICS_EXPLORER,
+            queryTags: {},
+            chartUuid: undefined,
+        });
+    }
+
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,

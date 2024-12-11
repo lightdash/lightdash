@@ -1,22 +1,21 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
-import { useCallback, useEffect, useState } from 'react';
-import {
-    createMetricPreviewUnsavedChartVersion,
-    getExplorerUrlFromCreateSavedChartVersion,
-} from '../../../hooks/useExplorerRoute';
+import { useCallback } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useMetric } from '../hooks/useMetricsCatalog';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { toggleMetricPeekModal } from '../store/metricsCatalogSlice';
 
 type Props = {
     row: MRT_Row<CatalogField>;
 };
 
 export const ExploreMetricButton = ({ row }: Props) => {
-    const [shouldFetch, setShouldFetch] = useState(false);
+    const dispatch = useAppDispatch();
+    const history = useHistory();
+
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -24,34 +23,6 @@ export const ExploreMetricButton = ({ row }: Props) => {
         (state) => state.metricsCatalog.organizationUuid,
     );
     const { track } = useTracking();
-
-    const metricQuery = useMetric({
-        projectUuid,
-        tableName: row.original.tableName,
-        metricName: row.original.name,
-        enabled: shouldFetch,
-    });
-
-    useEffect(() => {
-        if (!shouldFetch) return;
-        if (!projectUuid || !metricQuery.isSuccess) return;
-
-        const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
-            metricQuery.data,
-        );
-
-        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
-            projectUuid,
-            unsavedChartVersion,
-        );
-
-        const url = new URL(pathname, window.location.origin);
-        url.search = new URLSearchParams(search).toString();
-
-        window.open(url.href, '_blank');
-
-        setShouldFetch(false); // Reset the fetch trigger
-    }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
 
     const handleExploreClick = useCallback(() => {
         track({
@@ -64,9 +35,19 @@ export const ExploreMetricButton = ({ row }: Props) => {
             },
         });
 
-        // Trigger the fetch
-        setShouldFetch(true);
+        history.push(
+            `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
+        );
+
+        dispatch(
+            toggleMetricPeekModal({
+                name: row.original.name,
+                tableName: row.original.tableName,
+            }),
+        );
     }, [
+        dispatch,
+        history,
         organizationUuid,
         projectUuid,
         row.original.name,
@@ -78,14 +59,13 @@ export const ExploreMetricButton = ({ row }: Props) => {
         <Tooltip
             withinPortal
             variant="xs"
-            label="Open this metric in the explorer for detailed insights."
+            label="Click to explore this metric in more detail"
         >
             <Button
                 compact
                 bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
                 radius="md"
                 onClick={handleExploreClick}
-                loading={metricQuery.isFetching}
                 py="xxs"
                 px={10}
                 h={28}

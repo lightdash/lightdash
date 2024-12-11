@@ -146,6 +146,7 @@ export const lightdashConfigMock: LightdashConfig = {
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 5000,
+        defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
     },

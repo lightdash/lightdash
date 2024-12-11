@@ -87,7 +87,10 @@ export type GetDashboardQuery = Pick<
     | 'views_count'
     | 'first_viewed_at'
 > &
-    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
+    Pick<
+        DashboardVersionTable['base'],
+        'dashboard_version_id' | 'created_at' | 'config'
+    > &
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
@@ -135,6 +138,7 @@ export class DashboardModel {
             {
                 dashboard_id: dashboardId,
                 updated_by_user_uuid: version.updatedByUser?.userUuid,
+                config: version.config,
             },
             ['dashboard_version_id', 'updated_by_user_uuid'],
         );
@@ -686,6 +690,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.slug`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardVersionsTableName}.config`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -1014,6 +1019,7 @@ export class DashboardModel {
                 lastName: dashboard.last_name,
             },
             slug: dashboard.slug,
+            config: dashboard?.config,
         };
     }
 

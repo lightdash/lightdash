@@ -1,3 +1,48 @@
+# [0.1411.0](https://github.com/lightdash/lightdash/compare/0.1410.3...0.1411.0) (2024-12-11)
+
+
+### Features
+
+* revise metrics catalog tooltips ([#12818](https://github.com/lightdash/lightdash/issues/12818)) ([becb92f](https://github.com/lightdash/lightdash/commit/becb92faeb14d7854798e1008b4a18e3046bec20))
+
+## [0.1410.3](https://github.com/lightdash/lightdash/compare/0.1410.2...0.1410.3) (2024-12-11)
+
+
+### Bug Fixes
+
+* listen to project uuid changes and reset on refresh ([#12823](https://github.com/lightdash/lightdash/issues/12823)) ([76051aa](https://github.com/lightdash/lightdash/commit/76051aafbd8832db8e91769d5c25079c940bbe73))
+
+## [0.1410.2](https://github.com/lightdash/lightdash/compare/0.1410.1...0.1410.2) (2024-12-11)
+
+
+### Bug Fixes
+
+* chart page showing charts from previews ([#12819](https://github.com/lightdash/lightdash/issues/12819)) ([6e641de](https://github.com/lightdash/lightdash/commit/6e641de75f61a9470ed068f923ed52f8af04dc4a))
+* metrics catalog double border ([#12814](https://github.com/lightdash/lightdash/issues/12814)) ([b9ad446](https://github.com/lightdash/lightdash/commit/b9ad4464473ed1fc2ba70b9e8c5eda27b8ed2743))
+* metrics explorer run query ([#12820](https://github.com/lightdash/lightdash/issues/12820)) ([ffb4423](https://github.com/lightdash/lightdash/commit/ffb4423997f88fccb01cc42aa9eb21a41fee21fa))
+* set filtering to manual since it is performed on the backend ([#12809](https://github.com/lightdash/lightdash/issues/12809)) ([b270860](https://github.com/lightdash/lightdash/commit/b2708609490b33fd9dd2f6d3db12f333ce32303c))
+
+## [0.1410.1](https://github.com/lightdash/lightdash/compare/0.1410.0...0.1410.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* share unsaved chart config ([#12811](https://github.com/lightdash/lightdash/issues/12811)) ([e0a2383](https://github.com/lightdash/lightdash/commit/e0a2383134d1d63e67d08bf0956b5394769686d0))
+
+# [0.1410.0](https://github.com/lightdash/lightdash/compare/0.1409.0...0.1410.0) (2024-12-11)
+
+
+### Features
+
+* disable date zoom dashboard ([#12804](https://github.com/lightdash/lightdash/issues/12804)) ([281bc5f](https://github.com/lightdash/lightdash/commit/281bc5f5f18c2fa45ce80a9b25aca45a94fb4cc2))
+
+# [0.1409.0](https://github.com/lightdash/lightdash/compare/0.1408.0...0.1409.0) (2024-12-11)
+
+
+### Features
+
+* make default limit configurable ([#12808](https://github.com/lightdash/lightdash/issues/12808)) ([ecbcea9](https://github.com/lightdash/lightdash/commit/ecbcea974f1392b9e48053924c9edd1e0c5d0346))
+
 # [0.1408.0](https://github.com/lightdash/lightdash/compare/0.1407.2...0.1408.0) (2024-12-10)
 
 

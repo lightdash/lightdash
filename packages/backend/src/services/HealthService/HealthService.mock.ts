@@ -61,6 +61,7 @@ export const BaseResponse: HealthState = {
     query: {
         csvCellsLimit: 100000,
         maxLimit: 5000,
+        defaultLimit: 500,
     },
     rudder: {
         dataPlaneUrl: '',

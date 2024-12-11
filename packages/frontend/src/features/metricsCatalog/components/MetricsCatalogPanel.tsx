@@ -15,7 +15,6 @@ import {
 import { IconInfoCircle, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMount } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
@@ -134,11 +133,11 @@ export const MetricsCatalogPanel = () => {
         metricName: string;
     }>();
 
-    useMount(() => {
+    useEffect(() => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
-    });
+    }, [params.projectUuid, dispatch, projectUuid]);
 
     useEffect(() => {
         if (!organizationUuid && project?.organizationUuid) {
@@ -218,7 +217,7 @@ export const MetricsCatalogPanel = () => {
                             </Text>
                             <Tooltip
                                 variant="xs"
-                                label="This feature is in active development, so we expect some bugs and rough edges"
+                                label="This feature is in beta. We're actively testing and improving it—your feedback is welcome!"
                                 position="top"
                             >
                                 <Badge

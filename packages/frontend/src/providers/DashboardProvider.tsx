@@ -115,6 +115,8 @@ type DashboardContext = {
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
+    isDateZoomDisabled: boolean;
+    setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -202,6 +204,16 @@ export const DashboardProvider: React.FC<
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
         DateGranularity | undefined
     >(dateZoom);
+
+    // Allows users to disable date zoom on view mode,
+    // by default it is enabled
+    const [isDateZoomDisabled, setIsDateZoomDisabled] =
+        useState<boolean>(false);
+    useEffect(() => {
+        if (dashboard?.config?.isDateZoomDisabled === true) {
+            setIsDateZoomDisabled(true);
+        }
+    }, [dashboard]);
 
     const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
         useState<Set<string>>();
@@ -685,6 +697,8 @@ export const DashboardProvider: React.FC<
         dashboardComments,
         hasTileComments,
         requiredDashboardFilters,
+        isDateZoomDisabled,
+        setIsDateZoomDisabled,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

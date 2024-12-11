@@ -5,6 +5,7 @@ import {
     Loader,
     MultiSelect,
     ScrollArea,
+    Stack,
     Text,
     Tooltip,
     type MultiSelectProps,
@@ -156,13 +157,9 @@ const FilterStringAutoComplete: FC<Props> = ({
     // memo override component so list doesn't scroll to the top on each click
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
-            <ScrollArea {...props}>
-                {refreshedAt && healthData?.hasCacheAutocompleResults ? (
-                    <Tooltip
-                        withinPortal
-                        position="left"
-                        label={`Click here to refresh cache filter values`}
-                    >
+            <Stack w="100%" spacing={0}>
+                <ScrollArea {...props}>
+                    {searchedMaxResults ? (
                         <Text
                             color="dimmed"
                             size="xs"
@@ -170,30 +167,41 @@ const FilterStringAutoComplete: FC<Props> = ({
                             pt="xs"
                             pb="xxs"
                             bg="white"
-                            pr="xs"
-                            sx={{ cursor: 'pointer' }}
-                            onClick={() => setForceRefresh(true)}
                         >
-                            Results loaded at {refreshedAt.toLocaleString()}
+                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
+                            {search ? 'Continue' : 'Start'} typing...
                         </Text>
-                    </Tooltip>
-                ) : null}
-                {searchedMaxResults ? (
-                    <Text
-                        color="dimmed"
-                        size="xs"
-                        px="sm"
-                        pt="xs"
-                        pb="xxs"
-                        bg="white"
-                    >
-                        Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
-                        {search ? 'Continue' : 'Start'} typing...
-                    </Text>
-                ) : null}
+                    ) : null}
 
-                {children}
-            </ScrollArea>
+                    {children}
+                </ScrollArea>
+                {healthData?.hasCacheAutocompleResults ? (
+                    <>
+                        <Tooltip
+                            withinPortal
+                            position="left"
+                            label={`Click here to refresh cache filter values`}
+                        >
+                            <Text
+                                color="dimmed"
+                                size="xs"
+                                px="sm"
+                                p="xxs"
+                                sx={(theme) => ({
+                                    cursor: 'pointer',
+                                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                    '&:hover': {
+                                        backgroundColor: theme.colors.gray[1],
+                                    },
+                                })}
+                                onClick={() => setForceRefresh(true)}
+                            >
+                                Results loaded at {refreshedAt.toLocaleString()}
+                            </Text>
+                        </Tooltip>
+                    </>
+                ) : null}
+            </Stack>
         ),
         [
             searchedMaxResults,
