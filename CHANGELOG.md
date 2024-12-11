@@ -1,3 +1,10 @@
+## [0.1411.3](https://github.com/lightdash/lightdash/compare/0.1411.2...0.1411.3) (2024-12-11)
+
+
+### Bug Fixes
+
+* use requestAnimationFrame to avoid infinite loop ([#12839](https://github.com/lightdash/lightdash/issues/12839)) ([c343565](https://github.com/lightdash/lightdash/commit/c3435657e7e435880ab1dffe2dedd0799b2a37c5))
+
 ## [0.1411.2](https://github.com/lightdash/lightdash/compare/0.1411.1...0.1411.2) (2024-12-11)
 
 
