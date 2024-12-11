@@ -7,9 +7,9 @@ export const MetricsVisualizationEmptyState = () => {
     return (
         <Paper
             p="xl"
-            w="100%"
             h="100%"
             sx={{
+                width: 'fill-available',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
