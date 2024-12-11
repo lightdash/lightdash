@@ -103,7 +103,12 @@
         "generate-api": "pnpm common-build && pnpm --filter backend generate-api && pnpm --filter backend formatter --write ./src/generated",
         "danger-local-lint": "danger -b main -f",
         "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present",
-        "preinstall": "npx only-allow pnpm"
+        "preinstall": "npx only-allow pnpm",
+        "install:common": "pnpm --filter @lightdash/common install",
+        "install:frontend": "pnpm --filter frontend install",
+        "install:backend": "pnpm --filter backend install",
+        "install:warehouses": "pnpm --filter @lightdash/warehouses install",
+        "install:cli": "pnpm --filter @lightdash/cli install"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
