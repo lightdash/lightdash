@@ -16,6 +16,7 @@ import {
     getPivotConfig,
     getRequestMethod,
     getSchedulerUuid,
+    GoogleDriveAuthenticationError,
     GsheetsNotificationPayload,
     indexCatalogJob,
     isChartValidationError,
@@ -120,6 +121,17 @@ type RunQueryTags = {
     dashboard_uuid?: string;
 };
 export default class SchedulerTask {
+    private static readonly NON_RETRYABLE_ERRORS = [
+        SlackInstallationNotFoundError,
+        GoogleDriveAuthenticationError,
+    ];
+
+    private static isNonRetryableError(error: Error): boolean {
+        return this.NON_RETRYABLE_ERRORS.some(
+            (ErrorClass) => error instanceof ErrorClass,
+        );
+    }
+
     protected readonly lightdashConfig: LightdashConfig;
 
     protected readonly analytics: LightdashAnalytics;
@@ -1064,10 +1076,6 @@ export default class SchedulerTask {
         );
     }
 
-    private static isGoogleSheetsPermissionError(error: Error): boolean {
-        return error.message.includes('the caller does not have permission');
-    }
-
     protected async uploadGsheetFromQuery(
         jobId: string,
         scheduledTime: Date,
@@ -1149,8 +1157,6 @@ export default class SchedulerTask {
                 payload.metricQuery.tableCalculations,
             );
             if (payload.pivotConfig) {
-                // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
                 const formattedRows = formatRows(rows, itemMap);
 
                 const pivotedResults = pivotResultsAsCsv({
@@ -1210,11 +1216,11 @@ export default class SchedulerTask {
                 },
             });
 
-            // If this is a Google Sheets permission error, disable the scheduler
-            if (
-                SchedulerTask.isGoogleSheetsPermissionError(e) &&
-                payload.schedulerUuid
-            ) {
+            // Check for non-retryable errors and disable scheduler
+            if (SchedulerTask.isNonRetryableError(e) && payload.schedulerUuid) {
+                Logger.warn(
+                    `Disabling scheduler with non-retryable error: ${e}`,
+                );
                 const user = await this.userService.getSessionByUserUuid(
                     payload.userUuid,
                 );
