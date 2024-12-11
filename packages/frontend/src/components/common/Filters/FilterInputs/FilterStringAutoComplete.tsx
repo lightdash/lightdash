@@ -187,10 +187,13 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 size="xs"
                                 px="sm"
                                 p="xxs"
-                                sx={{
+                                sx={(theme) => ({
                                     cursor: 'pointer',
-                                    borderTop: '1px solid #E5E5E5',
-                                }}
+                                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                    '&:hover': {
+                                        backgroundColor: theme.colors.gray[1],
+                                    },
+                                })}
                                 onClick={() => setForceRefresh(true)}
                             >
                                 Results loaded at {refreshedAt.toLocaleString()}
