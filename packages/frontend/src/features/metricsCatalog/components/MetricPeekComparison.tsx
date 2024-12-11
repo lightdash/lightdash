@@ -181,7 +181,11 @@ export const MetricPeekComparison: FC<Props> = ({
                                             {comparison.label}
                                         </Text>
                                     </Group>
-                                    <Radio value={comparison.type} size="xs" />
+                                    <Radio
+                                        value={comparison.type}
+                                        size="xs"
+                                        color="indigo"
+                                    />
                                 </Group>
 
                                 {comparison.type ===
@@ -202,12 +206,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                                     }),
                                                 ) ?? []
                                             }
-                                            value={
-                                                query.comparison ===
-                                                MetricExplorerComparison.DIFFERENT_METRIC
-                                                    ? getItemId(query.metric)
-                                                    : null
-                                            }
+                                            value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
                                             disabled={
                                                 !metricsWithTimeDimensionsQuery.isSuccess
