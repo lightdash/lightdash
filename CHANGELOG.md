@@ -1,3 +1,10 @@
+## [0.1410.1](https://github.com/lightdash/lightdash/compare/0.1410.0...0.1410.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* share unsaved chart config ([#12811](https://github.com/lightdash/lightdash/issues/12811)) ([e0a2383](https://github.com/lightdash/lightdash/commit/e0a2383134d1d63e67d08bf0956b5394769686d0))
+
 # [0.1410.0](https://github.com/lightdash/lightdash/compare/0.1409.0...0.1410.0) (2024-12-11)
 
 
