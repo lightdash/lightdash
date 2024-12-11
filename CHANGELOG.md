@@ -1,3 +1,10 @@
+## [0.1411.2](https://github.com/lightdash/lightdash/compare/0.1411.1...0.1411.2) (2024-12-11)
+
+
+### Bug Fixes
+
+* calculate y axis width dynamically ([#12831](https://github.com/lightdash/lightdash/issues/12831)) ([5c845f5](https://github.com/lightdash/lightdash/commit/5c845f5270d0151f5ac83dd5ae482a933aee4e66))
+
 ## [0.1411.1](https://github.com/lightdash/lightdash/compare/0.1411.0...0.1411.1) (2024-12-11)
 
 
