@@ -235,7 +235,7 @@ const MetricsVisualization: FC<Props> = ({
         return Array.from(segmentsMap.entries()).map(
             ([segment, segmentData], i) => ({
                 segment,
-                color: colors[CHART_COLORS[i % CHART_COLORS.length]][6],
+                color: colors[CHART_COLORS[i % CHART_COLORS.length]]?.[6],
                 data: segmentData,
             }),
         );
