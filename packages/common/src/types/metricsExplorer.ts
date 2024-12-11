@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { type MetricWithAssociatedTimeDimension } from './catalog';
 import type { ItemsMap } from './field';
 import type { ResultValue } from './results';
@@ -28,32 +27,17 @@ export type MetricExplorerComparisonType =
           };
       };
 
-const metricExploreDataPointSchema = z.object({
-    date: z.date({ coerce: true }),
-    metric: z.object({
-        value: z.number().nullable(),
-        label: z.string().nullable(),
-    }),
-    compareMetric: z.object({
-        value: z.number().nullable(),
-        label: z.string().nullable(),
-    }),
-});
-
-export const metricExploreDataPointWithDateValueSchema =
-    metricExploreDataPointSchema.extend({
-        dateValue: z.number(),
-    });
-
 // z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPoint = {
     date: Date;
     metric: {
         value: number | null;
+        formatted: string | null;
         label: string | null;
     };
     compareMetric: {
         value: number | null;
+        formatted: string | null;
         label: string | null;
     };
 };

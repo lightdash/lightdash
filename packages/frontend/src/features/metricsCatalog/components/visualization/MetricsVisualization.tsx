@@ -1,7 +1,10 @@
 import {
     capitalize,
+    formatNumberValue,
     friendlyName,
+    getCustomFormatFromLegacy,
     MetricExplorerComparison,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
@@ -78,11 +81,65 @@ const tickFormatter = (date: Date) => {
     )(date);
 };
 
-const CustomTooltip = ({
-    active,
-    payload,
-    label,
-}: RechartsTooltipProps<ValueType, NameType>) => {
+type RechartsTooltipPropsPayload = NonNullable<
+    RechartsTooltipProps<ValueType, NameType>['payload']
+>[number];
+
+interface CustomTooltipPropsPayload extends RechartsTooltipPropsPayload {
+    payload: MetricExploreDataPointWithDateValue;
+}
+
+interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
+    payload?: CustomTooltipPropsPayload[];
+}
+
+const CustomTooltipPayloadEntry = ({
+    entry,
+}: {
+    entry: CustomTooltipPropsPayload;
+}) => {
+    const entryData = useMemo(() => {
+        if (!entry.name) {
+            return null;
+        }
+
+        const isCompareMetric = entry.name === 'compareMetric';
+        return isCompareMetric
+            ? entry.payload.compareMetric
+            : entry.payload.metric;
+    }, [entry]);
+
+    if (!entryData) {
+        return null;
+    }
+
+    return (
+        <Group position="apart">
+            <Group spacing={4}>
+                <MantineIcon
+                    color="indigo.6"
+                    icon={entry.name === 'metric' ? IconMinus : IconLineDashed}
+                />
+                <Text c="gray.8" fz={13} fw={500}>
+                    {entryData.label}
+                </Text>
+            </Group>
+
+            <Badge
+                variant="light"
+                color="indigo"
+                radius="md"
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.indigo[1]}`,
+                })}
+            >
+                {entryData.formatted}
+            </Badge>
+        </Group>
+    );
+};
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (!active || !payload || !payload.length) {
         return null;
     }
@@ -105,34 +162,7 @@ const CustomTooltip = ({
                 'MMM D, YYYY',
             )}`}</Text>
             {payload.map((entry) => (
-                <Group key={entry.name} position="apart">
-                    <Group spacing={4}>
-                        <MantineIcon
-                            color="indigo.6"
-                            icon={
-                                entry.name === 'metric'
-                                    ? IconMinus
-                                    : IconLineDashed
-                            }
-                        />
-                        <Text c="gray.8" fz={13} fw={500}>
-                            {entry.name
-                                ? entry.payload[entry.name].label
-                                : null}
-                        </Text>
-                    </Group>
-
-                    <Badge
-                        variant="light"
-                        color="indigo"
-                        radius="md"
-                        sx={(theme) => ({
-                            border: `1px solid ${theme.colors.indigo[1]}`,
-                        })}
-                    >
-                        {entry.name ? entry.payload[entry.name].value : null}{' '}
-                    </Badge>
-                </Group>
+                <CustomTooltipPayloadEntry key={entry.name} entry={entry} />
             ))}
         </Stack>
     );
@@ -161,10 +191,13 @@ const MetricsVisualization: FC<Props> = ({
     comparison,
     isFetching,
 }) => {
-    const { yAxisWidth, setChartRef } = useDynamicYAxisWidth();
+    const { leftYAxisWidth, rightYAxisWidth, setChartRef } =
+        useDynamicYAxisWidth();
+
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
+
     const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
@@ -228,6 +261,50 @@ const MetricsVisualization: FC<Props> = ({
             }
         }
     }, [comparison, results]);
+
+    const commonYAxisConfig = useMemo(() => {
+        let ticks: number[] | undefined;
+
+        // When comparing previous period, we want to show the same ticks for both metrics since normally they work on the same scale
+        if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            ticks = [
+                ...new Set(
+                    activeData
+                        .flatMap((row) => [
+                            row.metric.value,
+                            row.compareMetric?.value,
+                        ])
+                        .filter((n) => n !== null),
+                ),
+            ];
+        }
+
+        return {
+            axisLine: false,
+            tickLine: false,
+            fontSize: 11,
+            allowDataOverflow: false,
+            domain: ['dataMin - 1', 'dataMax + 1'],
+            ticks,
+        };
+    }, [activeData, comparison.type]);
+
+    const formatConfig = useMemo(() => {
+        switch (comparison.type) {
+            case MetricExplorerComparison.NONE:
+                return {
+                    metric: results?.metric.format,
+                };
+            case MetricExplorerComparison.PREVIOUS_PERIOD:
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+                return {
+                    metric: results?.metric.format,
+                    compareMetric: results?.compareMetric?.format,
+                };
+        }
+    }, [comparison, results]);
+
+    console.log(formatConfig);
 
     return (
         <Stack spacing="sm" w="100%" h="100%">
@@ -336,12 +413,10 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                fontSize={11}
-                                width={yAxisWidth}
-                                domain={['dataMin - 1', 'dataMax + 1']}
-                                allowDataOverflow={false}
+                                yAxisId="metric"
+                                dataKey="metric.value"
+                                width={leftYAxisWidth}
+                                {...commonYAxisConfig}
                                 label={
                                     !showLegend
                                         ? {
@@ -358,7 +433,22 @@ const MetricsVisualization: FC<Props> = ({
                                           }
                                         : undefined
                                 }
-                                tickFormatter={(value) => value.toFixed(2)}
+                                tickFormatter={(value) => {
+                                    if (!formatConfig?.metric) {
+                                        return value;
+                                    }
+
+                                    const customFormat =
+                                        getCustomFormatFromLegacy({
+                                            format: formatConfig.metric,
+                                            round: 2,
+                                        });
+
+                                    return formatNumberValue(
+                                        value,
+                                        customFormat,
+                                    );
+                                }}
                                 style={{ userSelect: 'none' }}
                             />
 
@@ -375,6 +465,7 @@ const MetricsVisualization: FC<Props> = ({
 
                             <Line
                                 name="metric"
+                                yAxisId="metric"
                                 type="linear"
                                 dataKey="metric.value"
                                 stroke={colors.indigo[6]}
@@ -385,17 +476,77 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             {results.compareMetric && (
-                                <Line
-                                    name="compareMetric"
-                                    type="linear"
-                                    dataKey="compareMetric.value"
-                                    stroke={colors.indigo[4]}
-                                    strokeDasharray={'3 3'}
-                                    strokeWidth={1.3}
-                                    dot={false}
-                                    legendType="plainline"
-                                    isAnimationActive={false}
-                                />
+                                <>
+                                    {comparison.type ===
+                                        MetricExplorerComparison.DIFFERENT_METRIC && (
+                                        <YAxis
+                                            yAxisId="compareMetric"
+                                            dataKey="compareMetric.value"
+                                            orientation="right"
+                                            width={rightYAxisWidth}
+                                            {...commonYAxisConfig}
+                                            label={
+                                                !showLegend
+                                                    ? {
+                                                          value: results
+                                                              ?.compareMetric
+                                                              .label,
+                                                          angle: -90,
+                                                          position: 'left',
+                                                          offset: 50,
+                                                          dy: -60,
+                                                          style: {
+                                                              fontSize: 13,
+                                                              fill: colors
+                                                                  .dark[5],
+                                                              fontWeight: 500,
+                                                              userSelect:
+                                                                  'none',
+                                                          },
+                                                      }
+                                                    : undefined
+                                            }
+                                            tickFormatter={(value) => {
+                                                if (
+                                                    !formatConfig?.compareMetric
+                                                ) {
+                                                    return value;
+                                                }
+
+                                                const customFormat =
+                                                    getCustomFormatFromLegacy({
+                                                        format: formatConfig.compareMetric,
+                                                        round: 2,
+                                                    });
+
+                                                return formatNumberValue(
+                                                    value,
+                                                    customFormat,
+                                                );
+                                            }}
+                                            style={{ userSelect: 'none' }}
+                                        />
+                                    )}
+
+                                    <Line
+                                        name="compareMetric"
+                                        // We want to show the compare metric on the same axis as the metric when comparing the same metric
+                                        yAxisId={
+                                            comparison.type ===
+                                            MetricExplorerComparison.DIFFERENT_METRIC
+                                                ? 'compareMetric'
+                                                : 'metric'
+                                        }
+                                        type="linear"
+                                        dataKey="compareMetric.value"
+                                        stroke={colors.indigo[4]}
+                                        strokeDasharray={'3 3'}
+                                        strokeWidth={1.3}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />
+                                </>
                             )}
 
                             {zoomState.refAreaLeft &&

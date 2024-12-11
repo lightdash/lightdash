@@ -190,10 +190,13 @@ export const getMetricExplorerDataPoints = (
             value: parseMetricValue(
                 groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
             ),
+            formatted:
+                groupByMetricRows[date]?.[0]?.[metricId]?.value.formatted,
             label: metric.label ?? metric.name,
         },
         compareMetric: {
             value: null,
+            formatted: null,
             label: null,
         },
     }));
@@ -257,12 +260,17 @@ export const getMetricExplorerDataPointsWithCompare = (
     return Array.from(dates).map((date) => ({
         date: new Date(date),
         metric: {
+            formatted:
+                groupByMetricRows[date]?.[0]?.[metricId]?.value.formatted,
             value: parseMetricValue(
                 groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
             ),
             label: metric.label ?? metric.name,
         },
         compareMetric: {
+            formatted:
+                offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
+                    ?.value.formatted,
             value: parseMetricValue(
                 offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
                     ?.value.raw,
