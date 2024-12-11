@@ -31,11 +31,13 @@ export type MetricExplorerComparisonType =
 export type MetricExploreDataPoint = {
     date: Date;
     metric: {
-        value: ResultValue | null;
+        value: number | null;
+        formatted: string | null;
         label: string | null;
     };
     compareMetric: {
-        value: ResultValue | null;
+        value: number | null;
+        formatted: string | null;
         label: string | null;
     };
 };
