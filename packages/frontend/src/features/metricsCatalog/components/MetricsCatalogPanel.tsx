@@ -217,7 +217,7 @@ export const MetricsCatalogPanel = () => {
                             </Text>
                             <Tooltip
                                 variant="xs"
-                                label="This feature is in active development, so we expect some bugs and rough edges"
+                                label="This feature is in beta. We're actively testing and improving it—your feedback is welcome!"
                                 position="top"
                             >
                                 <Badge
