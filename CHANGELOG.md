@@ -1,3 +1,10 @@
+# [0.1412.0](https://github.com/lightdash/lightdash/compare/0.1411.3...0.1412.0) (2024-12-11)
+
+
+### Features
+
+* metrics explorer segment by ([#12817](https://github.com/lightdash/lightdash/issues/12817)) ([47f660c](https://github.com/lightdash/lightdash/commit/47f660c2135dc3ed723bc73e52d168c11b1e9b59))
+
 ## [0.1411.3](https://github.com/lightdash/lightdash/compare/0.1411.2...0.1411.3) (2024-12-11)
 
 
