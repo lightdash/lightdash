@@ -15,7 +15,12 @@ type ChartRef =
  * This is used to ensure that the y-axis labels (and tick) are not cut off.
  */
 export const useDynamicYAxisWidth = () => {
-    const [yAxisWidth, setYAxisWidth] = useState<number | undefined>(undefined);
+    const [leftYAxisWidth, setLeftYAxisWidth] = useState<number | undefined>(
+        undefined,
+    );
+    const [rightYAxisWidth, setRightYAxisWidth] = useState<number | undefined>(
+        undefined,
+    );
 
     const setChartRef = useCallback(
         (chartRef: ChartRef) => {
@@ -25,22 +30,51 @@ export const useDynamicYAxisWidth = () => {
                 const tickValueElements: NodeListOf<Element> =
                     chartRef.container!.querySelectorAll(TICK_VALUE_SELECTOR);
 
-                const highestWidth = Array.from(tickValueElements).reduce(
-                    (maxWidth, el) => {
-                        const width = el.getBoundingClientRect().width;
-                        return Math.max(maxWidth, width);
-                    },
-                    0,
+                const leftTickArray = Array.from(tickValueElements).filter(
+                    (el) => el.getAttribute('orientation') === 'left',
                 );
 
-                const newWidth = highestWidth + PADDING;
-                if (newWidth !== yAxisWidth) {
-                    setYAxisWidth(newWidth);
+                const rightTickArray = Array.from(tickValueElements).filter(
+                    (el) => el.getAttribute('orientation') === 'right',
+                );
+
+                if (leftTickArray.length > 0) {
+                    const leftHighestWidth = leftTickArray.reduce(
+                        (maxWidth, el) => {
+                            const width = el.getBoundingClientRect().width;
+                            return Math.max(maxWidth, width);
+                        },
+                        0,
+                    );
+
+                    const newWidth = leftHighestWidth + PADDING;
+                    if (newWidth !== leftYAxisWidth) {
+                        setLeftYAxisWidth(newWidth);
+                    } else {
+                        setLeftYAxisWidth(undefined);
+                    }
+                }
+
+                if (rightTickArray.length > 0) {
+                    const rightHighestWidth = rightTickArray.reduce(
+                        (maxWidth, el) => {
+                            const width = el.getBoundingClientRect().width;
+                            return Math.max(maxWidth, width);
+                        },
+                        0,
+                    );
+
+                    const newWidth = rightHighestWidth + PADDING;
+                    if (newWidth !== rightYAxisWidth) {
+                        setRightYAxisWidth(newWidth);
+                    } else {
+                        setRightYAxisWidth(undefined);
+                    }
                 }
             });
         },
-        [yAxisWidth],
+        [leftYAxisWidth, rightYAxisWidth],
     );
 
-    return { yAxisWidth, setChartRef };
+    return { leftYAxisWidth, rightYAxisWidth, setChartRef };
 };
