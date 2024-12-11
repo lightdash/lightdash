@@ -303,7 +303,6 @@ const FilterStringAutoComplete: FC<Props> = ({
                     handleResetSearch();
                     onDropdownClose?.();
                 }}
-                dropdownPosition="bottom"
                 onChange={handleChange}
                 onCreate={handleAdd}
                 onKeyDown={handleKeyDown}
