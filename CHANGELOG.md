@@ -1,3 +1,10 @@
+# [0.1410.0](https://github.com/lightdash/lightdash/compare/0.1409.0...0.1410.0) (2024-12-11)
+
+
+### Features
+
+* disable date zoom dashboard ([#12804](https://github.com/lightdash/lightdash/issues/12804)) ([281bc5f](https://github.com/lightdash/lightdash/commit/281bc5f5f18c2fa45ce80a9b25aca45a94fb4cc2))
+
 # [0.1409.0](https://github.com/lightdash/lightdash/compare/0.1408.0...0.1409.0) (2024-12-11)
 
 
