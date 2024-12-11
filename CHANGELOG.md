@@ -1,3 +1,10 @@
+## [0.1410.3](https://github.com/lightdash/lightdash/compare/0.1410.2...0.1410.3) (2024-12-11)
+
+
+### Bug Fixes
+
+* listen to project uuid changes and reset on refresh ([#12823](https://github.com/lightdash/lightdash/issues/12823)) ([76051aa](https://github.com/lightdash/lightdash/commit/76051aafbd8832db8e91769d5c25079c940bbe73))
+
 ## [0.1410.2](https://github.com/lightdash/lightdash/compare/0.1410.1...0.1410.2) (2024-12-11)
 
 
