@@ -412,9 +412,9 @@ const MetricsVisualization: FC<Props> = ({
 
                             {segmentedData.map((segment) => (
                                 <Line
-                                    key={segment.segment}
+                                    key={segment.segment ?? 'metric'}
                                     type="linear"
-                                    name={segment.segment ?? 'metric'}
+                                    name="metric"
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}
