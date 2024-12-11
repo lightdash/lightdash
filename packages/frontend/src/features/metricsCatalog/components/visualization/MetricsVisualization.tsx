@@ -55,6 +55,7 @@ import {
 } from 'recharts/types/component/DefaultTooltipContent';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
+import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
@@ -164,6 +165,7 @@ const MetricsVisualization: FC<Props> = ({
     comparison,
     isFetching,
 }) => {
+    const { yAxisWidth, setChartRef } = useDynamicYAxisWidth();
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
@@ -288,10 +290,11 @@ const MetricsVisualization: FC<Props> = ({
 
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
+                            ref={(instance) => setChartRef(instance)}
                             data={activeData}
                             margin={{
                                 right: 40,
-                                left: 60,
+                                left: 10,
                                 top: 10,
                             }}
                             onMouseDown={handleMouseDown}
@@ -329,7 +332,7 @@ const MetricsVisualization: FC<Props> = ({
                                 axisLine={false}
                                 tickLine={false}
                                 fontSize={11}
-                                width={8}
+                                width={yAxisWidth}
                                 domain={['dataMin - 1', 'dataMax + 1']}
                                 allowDataOverflow={false}
                                 label={
@@ -338,7 +341,6 @@ const MetricsVisualization: FC<Props> = ({
                                               value: results?.metric.label,
                                               angle: -90,
                                               position: 'left',
-                                              offset: 50,
                                               dy: -60,
                                               style: {
                                                   fontSize: 13,
