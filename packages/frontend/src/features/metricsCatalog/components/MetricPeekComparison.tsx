@@ -60,7 +60,7 @@ export const MetricPeekComparison: FC<Props> = ({
 }) => {
     const { classes } = useSelectStyles();
 
-    const handleComarisonChange = useCallback(
+    const handleComparisonChange = useCallback(
         (newComparison: MetricExplorerComparison) => {
             switch (newComparison) {
                 case MetricExplorerComparison.NONE:
