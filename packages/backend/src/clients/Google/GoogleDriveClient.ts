@@ -5,6 +5,7 @@ import {
     formatDate,
     getItemLabel,
     getItemLabelWithoutTableName,
+    GoogleDriveAuthenticationError,
     isDimension,
     isField,
     ItemsMap,
@@ -45,7 +46,9 @@ export class GoogleDriveClient {
                 authClient,
             });
         } catch (err) {
-            throw new Error(`Failed to get credentials: ${err}`);
+            throw new GoogleDriveAuthenticationError(
+                `Failed to get credentials: ${err}`,
+            );
         }
     }
 
@@ -54,27 +57,33 @@ export class GoogleDriveClient {
         fileId: string,
         title: string,
     ) {
-        const spreadsheet = await sheets.spreadsheets.get({
-            spreadsheetId: fileId,
-        });
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: fileId,
-            requestBody: {
-                requests: [
-                    {
-                        updateSheetProperties: {
-                            properties: {
-                                sheetId:
-                                    spreadsheet.data.sheets?.[0].properties
-                                        ?.sheetId,
-                                title,
+        try {
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+            });
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: fileId,
+                requestBody: {
+                    requests: [
+                        {
+                            updateSheetProperties: {
+                                properties: {
+                                    sheetId:
+                                        spreadsheet.data.sheets?.[0].properties
+                                            ?.sheetId,
+                                    title,
+                                },
+                                fields: 'title',
                             },
-                            fields: 'title',
                         },
-                    },
-                ],
-            },
-        });
+                    ],
+                },
+            });
+        } catch (err) {
+            throw new GoogleDriveAuthenticationError(
+                `Failed to change tab title: ${err}`,
+            );
+        }
     }
 
     async createNewTab(refreshToken: string, fileId: string, tabName: string) {
@@ -86,8 +95,8 @@ export class GoogleDriveClient {
 
         // Creates a new tab in the sheet
         const tabTitle = tabName.replaceAll(':', '.'); // we can't use ranges with colons in their tab ids
-        await sheets.spreadsheets
-            .batchUpdate({
+        try {
+            await sheets.spreadsheets.batchUpdate({
                 spreadsheetId: fileId,
                 requestBody: {
                     requests: [
@@ -100,19 +109,26 @@ export class GoogleDriveClient {
                         },
                     ],
                 },
-            })
-            .catch((error: any) => {
-                if (
-                    error.code === 400 &&
-                    error.errors[0]?.message.includes(tabName)
-                ) {
-                    Logger.debug(
-                        `Google sheet tab already exist, we will overwrite it: ${error.errors[0]?.message}`,
-                    );
-                } else {
-                    throw new Error(error);
-                }
             });
+        } catch (error: any) {
+            if (
+                error.code === 400 &&
+                error.errors[0]?.message.includes(tabName)
+            ) {
+                Logger.debug(
+                    `Google sheet tab already exist, we will overwrite it: ${error.errors[0]?.message}`,
+                );
+            } else if (
+                error.code === 403 ||
+                error.message?.includes('permission')
+            ) {
+                throw new GoogleDriveAuthenticationError(
+                    `Failed to create tab: ${error}`,
+                );
+            } else {
+                throw error;
+            }
+        }
 
         return tabTitle;
     }
@@ -165,14 +181,23 @@ export class GoogleDriveClient {
             ...tabsUpdated,
         ];
 
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: fileId,
-            range: `${metadataTabName}!A1`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: {
-                values: metadata,
-            },
-        });
+        try {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: fileId,
+                range: `${metadataTabName}!A1`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: metadata,
+                },
+            });
+        } catch (err) {
+            if (err instanceof GoogleDriveAuthenticationError) {
+                throw err;
+            }
+            throw new GoogleDriveAuthenticationError(
+                `Failed to upload metadata: ${err}`,
+            );
+        }
     }
 
     private static async clearTabName(
@@ -180,8 +205,6 @@ export class GoogleDriveClient {
         fileId: string,
         tabName?: string,
     ) {
-        // The method "SheetId: 0" only works if the first default sheet tab still exists (it's not deleted by the user)
-        // So instead we select all the cells in the first tab by its name
         try {
             if (tabName === undefined) {
                 const spreadsheet = await sheets.spreadsheets.get({
@@ -208,7 +231,19 @@ export class GoogleDriveClient {
                 });
             }
         } catch (error) {
+            if (error instanceof GoogleDriveAuthenticationError) {
+                throw error;
+            }
+            if (
+                (error as any).code === 403 ||
+                (error as any).message?.includes('permission')
+            ) {
+                throw new GoogleDriveAuthenticationError(
+                    `Failed to clear sheet: ${error}`,
+                );
+            }
             Logger.error('Unable to clear the sheet', error);
+            throw error;
         }
     }
 
@@ -319,23 +354,39 @@ export class GoogleDriveClient {
             Logger.info('No data to write to the sheet');
             return;
         }
-        const auth = await this.getCredentials(refreshToken);
-        const sheets = google.sheets({ version: 'v4', auth });
 
-        // Clear first sheet before writting
-        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+        try {
+            const auth = await this.getCredentials(refreshToken);
+            const sheets = google.sheets({ version: 'v4', auth });
 
-        Logger.info(
-            `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,
-        );
+            // Clear first sheet before writing
+            await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
 
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: fileId,
-            range: tabName ? `${tabName}!A1` : 'A1',
-            valueInputOption: 'RAW',
-            requestBody: {
-                values: results,
-            },
-        });
+            Logger.info(
+                `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,
+            );
+
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: fileId,
+                range: tabName ? `${tabName}!A1` : 'A1',
+                valueInputOption: 'RAW',
+                requestBody: {
+                    values: results,
+                },
+            });
+        } catch (err) {
+            if (err instanceof GoogleDriveAuthenticationError) {
+                throw err;
+            }
+            if (
+                (err as any).code === 403 ||
+                (err as any).message?.includes('permission')
+            ) {
+                throw new GoogleDriveAuthenticationError(
+                    `Failed to append to sheet: ${err}`,
+                );
+            }
+            throw err;
+        }
     }
 }

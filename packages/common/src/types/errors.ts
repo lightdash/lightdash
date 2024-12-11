@@ -349,3 +349,14 @@ export class SlackInstallationNotFoundError extends LightdashError {
         });
     }
 }
+
+export class GoogleDriveAuthenticationError extends LightdashError {
+    constructor(message: string = 'Google Drive authentication failed') {
+        super({
+            message,
+            name: 'GoogleDriveAuthenticationError',
+            statusCode: 403,
+            data: {},
+        });
+    }
+}

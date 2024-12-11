@@ -3602,6 +3602,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                schedulerUuid: { dataType: 'string' },
                 pivotConfig: { ref: 'PivotConfig' },
                 hiddenFields: {
                     dataType: 'array',
