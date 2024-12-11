@@ -65,7 +65,9 @@ import {
 } from './resourceUtils';
 
 type ResourceView2Props = {
-    filters: Pick<ContentArgs, 'projectUuid' | 'spaceUuids' | 'contentTypes'>;
+    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
+        projectUuid: string;
+    };
 };
 
 const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
@@ -280,6 +282,7 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
         useInfiniteContent(
             {
                 ...filters,
+                projectUuids: [filters.projectUuid],
                 page: 1,
                 pageSize: 25,
                 search: deferredSearch,
