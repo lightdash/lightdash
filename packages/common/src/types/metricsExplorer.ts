@@ -21,14 +21,23 @@ export type MetricExplorerComparisonType =
       }
     | {
           type: MetricExplorerComparison.DIFFERENT_METRIC;
-          metricTable: string;
-          metricName: string;
+          metric: {
+              label: string;
+              table: string;
+              name: string;
+          };
       };
 
 const metricExploreDataPointSchema = z.object({
     date: z.date({ coerce: true }),
-    metric: z.number().nullable(),
-    compareMetric: z.number().nullable(),
+    metric: z.object({
+        value: z.number().nullable(),
+        label: z.string().nullable(),
+    }),
+    compareMetric: z.object({
+        value: z.number().nullable(),
+        label: z.string().nullable(),
+    }),
 });
 
 export const metricExploreDataPointWithDateValueSchema =
@@ -39,8 +48,14 @@ export const metricExploreDataPointWithDateValueSchema =
 // z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPoint = {
     date: Date;
-    metric: number | null;
-    compareMetric: number | null;
+    metric: {
+        value: number | null;
+        label: string | null;
+    };
+    compareMetric: {
+        value: number | null;
+        label: string | null;
+    };
 };
 
 // z.infer should be used here but it doesn't work with TSOA

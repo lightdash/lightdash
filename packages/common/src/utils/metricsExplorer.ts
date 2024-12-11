@@ -186,10 +186,16 @@ export const getMetricExplorerDataPoints = (
 
     return Object.keys(groupByMetricRows).map((date) => ({
         date: new Date(date),
-        metric: parseMetricValue(
-            groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
-        ),
-        compareMetric: null,
+        metric: {
+            value: parseMetricValue(
+                groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
+            ),
+            label: metric.label ?? metric.name,
+        },
+        compareMetric: {
+            value: null,
+            label: null,
+        },
     }));
 };
 
@@ -236,19 +242,33 @@ export const getMetricExplorerDataPointsWithCompare = (
         comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
             ? metricId
             : getItemId({
-                  table: comparison.metricTable,
-                  name: comparison.metricName,
+                  table: comparison.metric.table,
+                  name: comparison.metric.name,
               });
+
+    let comparisonMetricLabel: string | null = null;
+    if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
+        comparisonMetricLabel =
+            comparison.metric.label ?? comparison.metric.name;
+    } else if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
+        comparisonMetricLabel = 'Previous Period';
+    }
 
     return Array.from(dates).map((date) => ({
         date: new Date(date),
-        metric: parseMetricValue(
-            groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
-        ),
-        compareMetric: parseMetricValue(
-            offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]?.value
-                .raw,
-        ),
+        metric: {
+            value: parseMetricValue(
+                groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
+            ),
+            label: metric.label ?? metric.name,
+        },
+        compareMetric: {
+            value: parseMetricValue(
+                offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
+                    ?.value.raw,
+            ),
+            label: comparisonMetricLabel,
+        },
     }));
 };
 

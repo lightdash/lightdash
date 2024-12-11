@@ -4291,14 +4291,34 @@
             "MetricExploreDataPoint": {
                 "properties": {
                     "compareMetric": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["label", "value"],
+                        "type": "object"
                     },
                     "metric": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["label", "value"],
+                        "type": "object"
                     },
                     "date": {
                         "type": "string",
@@ -4410,17 +4430,26 @@
                     },
                     {
                         "properties": {
-                            "metricName": {
-                                "type": "string"
-                            },
-                            "metricTable": {
-                                "type": "string"
+                            "metric": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "table": {
+                                        "type": "string"
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "table", "label"],
+                                "type": "object"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/MetricExplorerComparison.DIFFERENT_METRIC"
                             }
                         },
-                        "required": ["metricName", "metricTable", "type"],
+                        "required": ["metric", "type"],
                         "type": "object"
                     }
                 ]
@@ -12198,7 +12227,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1405.0",
+        "version": "0.1410.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
