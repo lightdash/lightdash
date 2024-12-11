@@ -1815,6 +1815,15 @@
                 "required": ["order", "name", "uuid"],
                 "type": "object"
             },
+            "DashboardConfig": {
+                "properties": {
+                    "isDateZoomDisabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["isDateZoomDisabled"],
+                "type": "object"
+            },
             "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
                 "properties": {
                     "name": {
@@ -1891,6 +1900,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "required": [
@@ -7189,6 +7201,9 @@
             },
             "Dashboard": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -7417,6 +7432,9 @@
             },
             "CreateDashboard": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"

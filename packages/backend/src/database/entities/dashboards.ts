@@ -1,4 +1,8 @@
-import { DashboardFilters, DashboardTileTypes } from '@lightdash/common';
+import {
+    DashboardConfig,
+    DashboardFilters,
+    DashboardTileTypes,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const DashboardsTableName = 'dashboards';
@@ -32,6 +36,7 @@ type DbDashboardVersion = {
     dashboard_id: number;
     created_at: Date;
     updated_by_user_uuid: string | undefined;
+    config: DashboardConfig | undefined;
 };
 
 type DbDashboardView = {
@@ -76,7 +81,7 @@ export type DashboardTable = Knex.CompositeTableType<
 
 export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
-    Pick<DbDashboardVersion, 'dashboard_id' | 'updated_by_user_uuid'>
+    Pick<DbDashboardVersion, 'dashboard_id' | 'updated_by_user_uuid' | 'config'>
 >;
 
 export type DashboardViewTable = Knex.CompositeTableType<
