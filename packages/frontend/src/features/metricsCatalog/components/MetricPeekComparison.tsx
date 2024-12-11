@@ -118,7 +118,7 @@ export const MetricPeekComparison: FC<Props> = ({
     );
 
     return (
-        <Radio.Group value={query.comparison} onChange={handleComarisonChange}>
+        <Radio.Group value={query.comparison} onChange={handleComparisonChange}>
             <Stack spacing="sm">
                 {[
                     {
@@ -165,7 +165,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                         : 'white',
                             })}
                             onClick={() =>
-                                handleComarisonChange(comparison.type)
+                                handleComparisonChange(comparison.type)
                             }
                         >
                             <Stack>
