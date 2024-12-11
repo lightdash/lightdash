@@ -38,6 +38,7 @@ export default function mockHealthResponse(
         posthog: undefined,
         query: {
             maxLimit: 1000000,
+            defaultLimit: 500,
             csvCellsLimit: 100,
         },
         pivotTable: {

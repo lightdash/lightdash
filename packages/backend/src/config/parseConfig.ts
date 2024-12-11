@@ -248,6 +248,7 @@ export type LightdashConfig = {
     maxPayloadSize: string;
     query: {
         maxLimit: number;
+        defaultLimit: number;
         csvCellsLimit: number;
         timezone: string | undefined;
     };
@@ -704,6 +705,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',
                 ) || 5000,
+            defaultLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_DEFAULT_LIMIT',
+                ) || 500,
             csvCellsLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
