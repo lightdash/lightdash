@@ -17,21 +17,30 @@ type ChartRef =
 export const useDynamicYAxisWidth = () => {
     const [yAxisWidth, setYAxisWidth] = useState<number | undefined>(undefined);
 
-    const setChartRef = useCallback((chartRef: ChartRef) => {
-        if (chartRef && chartRef.container) {
-            const tickValueElements: NodeListOf<Element> =
-                chartRef.container.querySelectorAll(TICK_VALUE_SELECTOR);
-            const highestWidth = Array.from(tickValueElements).reduce(
-                (maxWidth, el) => {
-                    const width = el.getBoundingClientRect().width;
-                    return Math.max(maxWidth, width);
-                },
-                0,
-            );
+    const setChartRef = useCallback(
+        (chartRef: ChartRef) => {
+            if (!chartRef?.container) return;
 
-            setYAxisWidth(highestWidth + PADDING);
-        }
-    }, []);
+            requestAnimationFrame(() => {
+                const tickValueElements: NodeListOf<Element> =
+                    chartRef.container!.querySelectorAll(TICK_VALUE_SELECTOR);
+
+                const highestWidth = Array.from(tickValueElements).reduce(
+                    (maxWidth, el) => {
+                        const width = el.getBoundingClientRect().width;
+                        return Math.max(maxWidth, width);
+                    },
+                    0,
+                );
+
+                const newWidth = highestWidth + PADDING;
+                if (newWidth !== yAxisWidth) {
+                    setYAxisWidth(newWidth);
+                }
+            });
+        },
+        [yAxisWidth],
+    );
 
     return { yAxisWidth, setChartRef };
 };
