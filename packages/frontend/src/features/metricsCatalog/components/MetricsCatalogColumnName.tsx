@@ -20,16 +20,19 @@ import EmojiPicker, {
 } from 'emoji-picker-react';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
-import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
-import { toggleMetricPeekModal } from '../store/metricsCatalogSlice';
 
+import {
+    createMetricPreviewUnsavedChartVersion,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
 import '../../../styles/emoji-picker-react.css';
+import { useMetric } from '../hooks/useMetricsCatalog';
 
 const PICKER_HEIGHT = 300;
 const PICKER_WIDTH = 350;
@@ -100,7 +103,6 @@ type Props = {
 
 export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
     ({ row, table }, ref) => {
-        const dispatch = useAppDispatch();
         const { track } = useTracking();
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
@@ -119,8 +121,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
         } | null>(null);
         const [iconRef, setIconRef] = useState<HTMLButtonElement | null>(null);
         const [pickerRef, setPickerRef] = useState<HTMLDivElement | null>(null);
-
-        const history = useHistory();
+        const [shouldFetch, setShouldFetch] = useState(false);
 
         useEffect(
             function lockScroll() {
@@ -169,17 +170,55 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
             setIsPickerOpen(true);
         };
 
-        const handlePeekMetric = (metric: CatalogField) => {
-            history.push(
-                `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
+        const metricQuery = useMetric({
+            projectUuid,
+            tableName: row.original.tableName,
+            metricName: row.original.name,
+            enabled: shouldFetch,
+        });
+
+        useEffect(() => {
+            if (!shouldFetch) return;
+            if (!projectUuid || !metricQuery.isSuccess) return;
+
+            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
+                metricQuery.data,
             );
-            dispatch(
-                toggleMetricPeekModal({
-                    name: metric.name,
-                    tableName: metric.tableName,
-                }),
-            );
-        };
+
+            const { pathname, search } =
+                getExplorerUrlFromCreateSavedChartVersion(
+                    projectUuid,
+                    unsavedChartVersion,
+                );
+
+            const url = new URL(pathname, window.location.origin);
+            url.search = new URLSearchParams(search).toString();
+
+            window.open(url.href, '_blank');
+
+            setShouldFetch(false); // Reset the fetch trigger
+        }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
+
+        const handleMetricClick = useCallback(() => {
+            track({
+                name: EventName.METRICS_CATALOG_METRIC_NAME_CLICKED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName: row.original.name,
+                    tableName: row.original.tableName,
+                },
+            });
+
+            // Trigger the fetch
+            setShouldFetch(true);
+        }, [
+            organizationUuid,
+            projectUuid,
+            row.original.name,
+            row.original.tableName,
+            track,
+        ]);
 
         const handleOnClick = (emoji: EmojiClickData | null) => {
             if (!projectUuid) return;
@@ -259,9 +298,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         variant="xs"
                         openDelay={300}
                     >
-                        <UnstyledButton
-                            onClick={() => handlePeekMetric(row.original)}
-                        >
+                        <UnstyledButton onClick={handleMetricClick}>
                             <Highlight
                                 highlight={table.getState().globalFilter || ''}
                                 c="dark.9"
