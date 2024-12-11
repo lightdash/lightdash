@@ -2679,7 +2679,12 @@ export class ProjectService extends BaseService {
             refreshedAt: new Date(),
         };
         if (isCacheEnabled) {
-            const buffer = Buffer.from(JSON.stringify(searchResults));
+            const buffer = Buffer.from(
+                JSON.stringify({
+                    ...searchResults,
+                    cached: true,
+                }),
+            );
             // fire and forget
             this.s3CacheClient
                 .uploadResults(queryHash, buffer, queryTags)
