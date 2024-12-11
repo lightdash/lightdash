@@ -33,11 +33,13 @@ export type MetricExploreDataPoint = {
     date: Date;
     segment: string | null;
     metric: {
-        value: ResultValue | null;
+        value: number | null;
+        formatted: string | null;
         label: string | null;
     };
     compareMetric: {
-        value: ResultValue | null;
+        value: number | null;
+        formatted: string | null;
         label: string | null;
     };
 };

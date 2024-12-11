@@ -1,6 +1,8 @@
 import {
     capitalize,
+    formatNumberValue,
     friendlyName,
+    getCustomFormatFromLegacy,
     MetricExplorerComparison,
     type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
@@ -132,7 +134,7 @@ const CustomTooltipPayloadEntry = ({
                     border: `1px solid ${theme.colors.indigo[1]}`,
                 })}
             >
-                {entryData.value?.formatted}
+                {entryData.formatted}
             </Badge>
         </Group>
     );
@@ -306,6 +308,29 @@ const MetricsVisualization: FC<Props> = ({
         }
     }, [query, results]);
 
+    const yAxisConfig = {
+        axisLine: false,
+        tickLine: false,
+        fontSize: 11,
+        allowDataOverflow: false,
+        domain: ['dataMin - 1', 'dataMax + 1'],
+    };
+
+    const formatConfig = useMemo(() => {
+        switch (query.comparison) {
+            case MetricExplorerComparison.NONE:
+                return {
+                    metric: results?.metric.format,
+                };
+            case MetricExplorerComparison.PREVIOUS_PERIOD:
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+                return {
+                    metric: results?.metric.format,
+                    compareMetric: results?.compareMetric?.format,
+                };
+        }
+    }, [query.comparison, results]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -415,12 +440,10 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                fontSize={11}
+                                yAxisId="metric"
+                                dataKey="metric.value"
+                                {...yAxisConfig}
                                 width={yAxisWidth}
-                                domain={['dataMin - 1', 'dataMax + 1']}
-                                allowDataOverflow={false}
                                 label={
                                     !showLegend
                                         ? {
@@ -437,7 +460,22 @@ const MetricsVisualization: FC<Props> = ({
                                           }
                                         : undefined
                                 }
-                                tickFormatter={(value) => value.toFixed(2)}
+                                tickFormatter={(value) => {
+                                    if (!formatConfig?.metric) {
+                                        return value;
+                                    }
+
+                                    const customFormat =
+                                        getCustomFormatFromLegacy({
+                                            format: formatConfig.metric,
+                                            round: 2,
+                                        });
+
+                                    return formatNumberValue(
+                                        value,
+                                        customFormat,
+                                    );
+                                }}
                                 style={{ userSelect: 'none' }}
                             />
 
@@ -468,18 +506,63 @@ const MetricsVisualization: FC<Props> = ({
                             ))}
 
                             {results.compareMetric && (
-                                <Line
-                                    name="compareMetric"
-                                    type="linear"
-                                    dataKey="compareMetric.value"
-                                    data={segmentedData[0].data}
-                                    stroke={colors.indigo[4]}
-                                    strokeDasharray={'3 3'}
-                                    strokeWidth={1.3}
-                                    dot={false}
-                                    legendType="plainline"
-                                    isAnimationActive={false}
-                                />
+                                <>
+                                    <Line
+                                        name="compareMetric"
+                                        yAxisId="compareMetric"
+                                        type="linear"
+                                        dataKey="compareMetric.value"
+                                        data={segmentedData[0].data}
+                                        stroke={colors.indigo[4]}
+                                        strokeDasharray={'3 3'}
+                                        strokeWidth={1.3}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />
+
+                                    <YAxis
+                                        yAxisId="compareMetric"
+                                        dataKey="compareMetric.value"
+                                        orientation="right"
+                                        {...yAxisConfig}
+                                        label={
+                                            !showLegend
+                                                ? {
+                                                      value: results
+                                                          ?.compareMetric.label,
+                                                      angle: -90,
+                                                      position: 'left',
+                                                      offset: 50,
+                                                      dy: -60,
+                                                      style: {
+                                                          fontSize: 13,
+                                                          fill: colors.dark[5],
+                                                          fontWeight: 500,
+                                                          userSelect: 'none',
+                                                      },
+                                                  }
+                                                : undefined
+                                        }
+                                        tickFormatter={(value) => {
+                                            if (!formatConfig?.compareMetric) {
+                                                return value;
+                                            }
+
+                                            const customFormat =
+                                                getCustomFormatFromLegacy({
+                                                    format: formatConfig.compareMetric,
+                                                    round: 2,
+                                                });
+
+                                            return formatNumberValue(
+                                                value,
+                                                customFormat,
+                                            );
+                                        }}
+                                        style={{ userSelect: 'none' }}
+                                    />
+                                </>
                             )}
 
                             {/*

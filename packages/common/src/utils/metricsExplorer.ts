@@ -242,9 +242,11 @@ export const getMetricExplorerDataPoints = (
                     segment: segmentValue,
                     metric: {
                         value: parseMetricValue(row[metricId]?.value.raw),
+                        formatted: row[metricId]?.value.formatted,
                         label: segmentValue ?? metric.label ?? metric.name,
                     },
                     compareMetric: {
+                        formatted: null,
                         value: null,
                         label: null,
                     },
@@ -318,25 +320,21 @@ export const getMetricExplorerDataPointsWithCompare = (
         date: new Date(date),
         segment: null,
         metric: {
-            value: {
-                raw: parseMetricValue(
-                    groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
-                ),
-                formatted:
-                    groupByMetricRows[date]?.[0]?.[metricId]?.value.formatted,
-            },
+            formatted:
+                groupByMetricRows[date]?.[0]?.[metricId]?.value.formatted,
+            value: parseMetricValue(
+                groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
+            ),
             label: metric.label ?? metric.name,
         },
         compareMetric: {
-            value: {
-                raw: parseMetricValue(
-                    offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
-                        ?.value.raw,
-                ),
-                formatted:
-                    offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
-                        ?.value.formatted,
-            },
+            formatted:
+                offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
+                    ?.value.formatted,
+            value: parseMetricValue(
+                offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]
+                    ?.value.raw,
+            ),
             label: comparisonMetricLabel,
         },
     }));
