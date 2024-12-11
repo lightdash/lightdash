@@ -1064,6 +1064,10 @@ export default class SchedulerTask {
         );
     }
 
+    private static isGoogleSheetsPermissionError(error: Error): boolean {
+        return error.message.includes('the caller does not have permission');
+    }
+
     protected async uploadGsheetFromQuery(
         jobId: string,
         scheduledTime: Date,
@@ -1205,6 +1209,21 @@ export default class SchedulerTask {
                     error: e.message,
                 },
             });
+
+            // If this is a Google Sheets permission error, disable the scheduler
+            if (
+                SchedulerTask.isGoogleSheetsPermissionError(e) &&
+                payload.schedulerUuid
+            ) {
+                const user = await this.userService.getSessionByUserUuid(
+                    payload.userUuid,
+                );
+                await this.schedulerService.setSchedulerEnabled(
+                    user,
+                    payload.schedulerUuid,
+                    false,
+                );
+            }
 
             this.analytics.track({
                 event: 'download_results.error',

@@ -23,4 +23,5 @@ export type UploadMetricGsheet = {
 export type UploadMetricGsheetPayload = UploadMetricGsheet & {
     userUuid: string;
     organizationUuid?: string;
+    schedulerUuid?: string; // Optional since not all uploads are from schedulers
 };
