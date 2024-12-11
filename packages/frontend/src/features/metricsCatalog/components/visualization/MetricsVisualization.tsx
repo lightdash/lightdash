@@ -191,10 +191,13 @@ const MetricsVisualization: FC<Props> = ({
     comparison,
     isFetching,
 }) => {
-    const { yAxisWidth, setChartRef } = useDynamicYAxisWidth();
+    const { leftYAxisWidth, rightYAxisWidth, setChartRef } =
+        useDynamicYAxisWidth();
+
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
+
     const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
@@ -259,7 +262,7 @@ const MetricsVisualization: FC<Props> = ({
         }
     }, [comparison, results]);
 
-    const yAxisConfig = useMemo(() => {
+    const commonYAxisConfig = useMemo(() => {
         let ticks: number[] | undefined;
 
         // When comparing previous period, we want to show the same ticks for both metrics since normally they work on the same scale
@@ -300,6 +303,8 @@ const MetricsVisualization: FC<Props> = ({
                 };
         }
     }, [comparison, results]);
+
+    console.log(formatConfig);
 
     return (
         <Stack spacing="sm" w="100%" h="100%">
@@ -410,8 +415,8 @@ const MetricsVisualization: FC<Props> = ({
                             <YAxis
                                 yAxisId="metric"
                                 dataKey="metric.value"
-                                {...yAxisConfig}
-                                width={yAxisWidth}
+                                width={leftYAxisWidth}
+                                {...commonYAxisConfig}
                                 label={
                                     !showLegend
                                         ? {
@@ -478,7 +483,8 @@ const MetricsVisualization: FC<Props> = ({
                                             yAxisId="compareMetric"
                                             dataKey="compareMetric.value"
                                             orientation="right"
-                                            {...yAxisConfig}
+                                            width={rightYAxisWidth}
+                                            {...commonYAxisConfig}
                                             label={
                                                 !showLegend
                                                     ? {
