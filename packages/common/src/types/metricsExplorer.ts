@@ -33,11 +33,21 @@ const metricExploreDataPointSchema = z.object({
     date: z.date({ coerce: true }),
     segment: z.string().nullable(),
     metric: z.object({
-        value: z.number().nullable(),
+        value: z
+            .object({
+                raw: z.unknown().refine((x) => x !== undefined, 'Required'), // Needed because zod infers unknown as optional
+                formatted: z.string(),
+            })
+            .nullable(),
         label: z.string().nullable(),
     }),
     compareMetric: z.object({
-        value: z.number().nullable(),
+        value: z
+            .object({
+                raw: z.unknown().refine((x) => x !== undefined, 'Required'), // Needed because zod infers unknown as optional
+                formatted: z.string(),
+            })
+            .nullable(),
         label: z.string().nullable(),
     }),
 });
@@ -52,11 +62,11 @@ export type MetricExploreDataPoint = {
     date: Date;
     segment: string | null;
     metric: {
-        value: number | null;
+        value: ResultValue | null;
         label: string | null;
     };
     compareMetric: {
-        value: number | null;
+        value: ResultValue | null;
         label: string | null;
     };
 };

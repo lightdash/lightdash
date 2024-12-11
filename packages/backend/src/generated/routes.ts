@@ -3896,6 +3896,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ResultValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                formatted: { dataType: 'string', required: true },
+                raw: { dataType: 'any', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricExploreDataPoint: {
         dataType: 'refAlias',
         type: {
@@ -3915,7 +3927,7 @@ const models: TsoaRoute.Models = {
                         value: {
                             dataType: 'union',
                             subSchemas: [
-                                { dataType: 'double' },
+                                { ref: 'ResultValue' },
                                 { dataType: 'enum', enums: [null] },
                             ],
                             required: true,
@@ -3937,7 +3949,7 @@ const models: TsoaRoute.Models = {
                         value: {
                             dataType: 'union',
                             subSchemas: [
-                                { dataType: 'double' },
+                                { ref: 'ResultValue' },
                                 { dataType: 'enum', enums: [null] },
                             ],
                             required: true,
@@ -4110,18 +4122,6 @@ const models: TsoaRoute.Models = {
                     },
                 },
             ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResultValue: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                formatted: { dataType: 'string', required: true },
-                raw: { dataType: 'any', required: true },
-            },
             validators: {},
         },
     },

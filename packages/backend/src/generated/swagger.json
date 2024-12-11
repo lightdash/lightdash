@@ -4409,6 +4409,16 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
+            "ResultValue": {
+                "properties": {
+                    "formatted": {
+                        "type": "string"
+                    },
+                    "raw": {}
+                },
+                "required": ["formatted", "raw"],
+                "type": "object"
+            },
             "MetricExploreDataPoint": {
                 "properties": {
                     "compareMetric": {
@@ -4418,8 +4428,11 @@
                                 "nullable": true
                             },
                             "value": {
-                                "type": "number",
-                                "format": "double",
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ResultValue"
+                                    }
+                                ],
                                 "nullable": true
                             }
                         },
@@ -4433,8 +4446,11 @@
                                 "nullable": true
                             },
                             "value": {
-                                "type": "number",
-                                "format": "double",
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ResultValue"
+                                    }
+                                ],
                                 "nullable": true
                             }
                         },
@@ -4605,16 +4621,6 @@
                         "type": "object"
                     }
                 ]
-            },
-            "ResultValue": {
-                "properties": {
-                    "formatted": {
-                        "type": "string"
-                    },
-                    "raw": {}
-                },
-                "required": ["formatted", "raw"],
-                "type": "object"
             },
             "MetricTotalResults": {
                 "properties": {
