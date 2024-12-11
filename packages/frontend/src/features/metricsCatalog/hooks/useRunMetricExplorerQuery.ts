@@ -1,5 +1,4 @@
 import {
-    metricExploreDataPointWithDateValueSchema,
     type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
     type MetricExplorerComparisonType,
@@ -70,10 +69,11 @@ const postRunMetricExplorerQuery = async ({
 
     return {
         ...response,
-        results: z
-            .array(metricExploreDataPointWithDateValueSchema)
-            .parse(response.results),
-    };
+        results: response.results.map((result) => ({
+            ...result,
+            date: z.date({ coerce: true }).parse(result.date),
+        })),
+    } satisfies ApiMetricsExplorerQueryResults['results'];
 };
 
 export const useRunMetricExplorerQuery = ({
