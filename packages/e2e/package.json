@@ -8,10 +8,10 @@
         "cypress:run": "cypress run",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
-        "lint": "yarn run linter ./cypress",
-        "fix-lint": "yarn run linter ./cypress --fix",
-        "format": "yarn run formatter ./cypress --check",
-        "fix-format": "yarn run formatter ./cypress --write"
+        "lint": "pnpm run linter ./cypress",
+        "fix-lint": "pnpm run linter ./cypress --fix",
+        "format": "pnpm run formatter ./cypress --check",
+        "fix-format": "pnpm run formatter ./cypress --write"
     },
     "devDependencies": {},
     "dependencies": {

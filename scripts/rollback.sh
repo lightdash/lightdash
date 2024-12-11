@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-yarn workspace backend rollback-all
+pnpm --filter backend rollback-all

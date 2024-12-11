@@ -2575,7 +2575,7 @@
 
 ### Bug Fixes
 
-* update yarn lock after [#11525](https://github.com/lightdash/lightdash/issues/11525) ([#11547](https://github.com/lightdash/lightdash/issues/11547)) ([e6cff78](https://github.com/lightdash/lightdash/commit/e6cff780c66cfd2ca1daa0f316bbcef7a95cf822))
+* update pnpm lock after [#11525](https://github.com/lightdash/lightdash/issues/11525) ([#11547](https://github.com/lightdash/lightdash/issues/11547)) ([e6cff78](https://github.com/lightdash/lightdash/commit/e6cff780c66cfd2ca1daa0f316bbcef7a95cf822))
 
 ## [0.1255.5](https://github.com/lightdash/lightdash/compare/0.1255.4...0.1255.5) (2024-09-16)
 
@@ -6786,7 +6786,7 @@
 
 ### Bug Fixes
 
-* docs/package.json & docs/yarn.lock to reduce vulnerabilities ([#9307](https://github.com/lightdash/lightdash/issues/9307)) ([f0d3c3d](https://github.com/lightdash/lightdash/commit/f0d3c3df3d94f7bc445fe7105c6156a04c3b0df7))
+* docs/package.json & docs/pnpm-lock.yaml to reduce vulnerabilities ([#9307](https://github.com/lightdash/lightdash/issues/9307)) ([f0d3c3d](https://github.com/lightdash/lightdash/commit/f0d3c3df3d94f7bc445fe7105c6156a04c3b0df7))
 
 # [0.1028.0](https://github.com/lightdash/lightdash/compare/0.1027.4...0.1028.0) (2024-03-11)
 
@@ -22617,7 +22617,7 @@
 
 ### Fixed
 - Fixed bug with generated SQL for string filters
-- 
+-
 
 ## [0.12.0] - 2022-02-01
 ### Added
@@ -22737,7 +22737,7 @@
 ## [0.11.0] - 2021-12-08
 ### Added
 - Metrics defined under the `metrics: ` tag in dbt projects are imported to Lightdash (#926)
- 
+
 ### Changed
 - Lightdash projects must be compatible with dbt version 1.0.0 (#926)
 - Saved charts in homepage are ordered by the most recently updated first (#956)
@@ -22944,9 +22944,9 @@
 ### Added
 - Users can reorder the result table columns
 - Add dbt profile target option in lightdash project config
-- Add table calculations to your results table. Table calculations allow you to combine columns together 
+- Add table calculations to your results table. Table calculations allow you to combine columns together
 in your results. For example, adding together two metrics to make a third or compute a running total. Table calculations
-are written using raw sql. 
+are written using raw sql.
 
 ### Fixed
 - Fixed error drawer from opening on each query change
@@ -22982,7 +22982,7 @@ are written using raw sql.
 ## [0.6.1] - 2021-08-05
 ### Added
  - Projects can now connect to github. Pull your dbt project files straight from a public or private github repository.
- 
+
 ### Fixed
  - Fix bug where models with missing schema.yml entries would stop Lightdash projects from compiling
 
@@ -23058,7 +23058,7 @@ are written using raw sql.
 ### Fixed
  - bug where we could group the only dimension available making the chart inaccessible
  - only show scroll bar in sidebar when content is scrollable
- - Stick sidebar on top left 
+ - Stick sidebar on top left
  - The stuck problem with scrollbar that shows only limited content on overflow
  - Errors in `meta` tags (such as invalid references to other dimensions) no longer crash the server and errors are shown in the UI
 
