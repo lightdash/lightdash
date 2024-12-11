@@ -308,13 +308,32 @@ const MetricsVisualization: FC<Props> = ({
         }
     }, [query, results]);
 
-    const yAxisConfig = {
-        axisLine: false,
-        tickLine: false,
-        fontSize: 11,
-        allowDataOverflow: false,
-        domain: ['dataMin - 1', 'dataMax + 1'],
-    };
+    const yAxisConfig = useMemo(() => {
+        let ticks: number[] | undefined;
+
+        // When comparing previous period, we want to show the same ticks for both metrics since normally they work on the same scale
+        if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            ticks = [
+                ...new Set(
+                    activeData
+                        .flatMap((row) => [
+                            row.metric.value,
+                            row.compareMetric?.value,
+                        ])
+                        .filter((n) => n !== null),
+                ),
+            ];
+        }
+
+        return {
+            axisLine: false,
+            tickLine: false,
+            fontSize: 11,
+            allowDataOverflow: false,
+            domain: ['dataMin - 1', 'dataMax + 1'],
+            ticks,
+        };
+    }, [activeData, query.comparison]);
 
     const formatConfig = useMemo(() => {
         switch (query.comparison) {
@@ -509,7 +528,13 @@ const MetricsVisualization: FC<Props> = ({
                                 <>
                                     <Line
                                         name="compareMetric"
-                                        yAxisId="compareMetric"
+                                        // We want to show the compare metric on the same axis as the metric when comparing the same metric
+                                        yAxisId={
+                                            query.comparison ===
+                                            MetricExplorerComparison.DIFFERENT_METRIC
+                                                ? 'compareMetric'
+                                                : 'metric'
+                                        }
                                         type="linear"
                                         dataKey="compareMetric.value"
                                         data={segmentedData[0].data}
