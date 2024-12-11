@@ -18,6 +18,7 @@ export type UploadMetricGsheet = {
     customLabels?: CustomLabel;
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    schedulerUuid?: string; // Optional since not all uploads are from schedulers
 };
 
 export type UploadMetricGsheetPayload = UploadMetricGsheet & {

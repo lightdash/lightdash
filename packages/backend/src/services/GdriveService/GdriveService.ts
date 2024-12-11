@@ -87,7 +87,7 @@ export class GdriveService extends BaseService {
         }
 
         const payload: UploadMetricGsheetPayload = {
-            ...gsheetOptions,
+            ...gsheetOptions, // This will now include schedulerUuid if present
             userUuid: user.userUuid,
             organizationUuid: user.organizationUuid,
         };
