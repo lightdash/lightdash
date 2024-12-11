@@ -1769,7 +1769,7 @@ export class ProjectService extends BaseService {
                 span.setAttribute('cacheHit', false);
 
                 if (
-                    this.lightdashConfig.resultsCache?.enabled &&
+                    this.lightdashConfig.resultsCache?.resultsEnabled &&
                     !invalidateCache
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
@@ -1833,7 +1833,7 @@ export class ProjectService extends BaseService {
                         ),
                 );
 
-                if (this.lightdashConfig.resultsCache?.enabled) {
+                if (this.lightdashConfig.resultsCache?.resultsEnabled) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
@@ -2497,18 +2497,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const cachekey = `${projectUuid}-${table}-${initialFieldId}-${search}-${JSON.stringify(
-            filters,
-        )}`;
-        const cacheEnabled = this.lightdashConfig.cacheAutocompleResults;
-        if (
-            !forceRefresh &&
-            cachedUniqueSearchResults[cachekey] !== undefined &&
-            cacheEnabled
-        ) {
-            return cachedUniqueSearchResults[cachekey];
-        }
-
         if (limit > this.lightdashConfig.query.maxLimit) {
             throw new ParameterError(
                 `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
@@ -2616,6 +2604,42 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
         );
 
+        const queryHashKey = metricQuery.timezone
+            ? `${projectUuid}.${query}.${metricQuery.timezone}`
+            : `${projectUuid}.${query}`;
+        const queryHash = crypto
+            .createHash('sha256')
+            .update(queryHashKey)
+            .digest('hex');
+
+        const isCacheEnabled =
+            this.lightdashConfig.resultsCache.autocompleteEnabled &&
+            this.s3CacheClient.isEnabled();
+
+        if (!forceRefresh && isCacheEnabled) {
+            const isCached = await this.s3CacheClient.getResultsMetadata(
+                queryHash,
+            );
+
+            if (isCached !== undefined) {
+                const cacheEntry = await this.s3CacheClient.getResults(
+                    queryHash,
+                );
+                const stringResults =
+                    await cacheEntry.Body?.transformToString();
+                if (stringResults) {
+                    try {
+                        return JSON.parse(stringResults);
+                    } catch (e) {
+                        this.logger.error(
+                            'Error parsing autocomplete cache results:',
+                            e,
+                        );
+                    }
+                }
+            }
+        }
+
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2641,14 +2665,12 @@ export class ProjectService extends BaseService {
             results: rows.map((row) => row[getItemId(field)]),
             refreshedAt: new Date(),
         };
-        if (
-            cacheEnabled &&
-            (forceRefresh || cachedUniqueSearchResults[cachekey] === undefined)
-        ) {
-            cachedUniqueSearchResults[cachekey] = {
-                ...searchResults,
-                cached: true,
-            };
+        if (isCacheEnabled) {
+            const buffer = Buffer.from(JSON.stringify(searchResults));
+            // fire and forget
+            this.s3CacheClient
+                .uploadResults(queryHash, buffer, queryTags)
+                .catch((e) => undefined); // ignore since error is tracked in s3Client
         }
 
         return {

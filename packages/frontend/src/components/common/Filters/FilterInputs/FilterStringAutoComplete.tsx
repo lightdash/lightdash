@@ -161,7 +161,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                     <Tooltip
                         withinPortal
                         position="left"
-                        label={`Click here to cache results now`}
+                        label={`Click here to refresh cache filter values`}
                     >
                         <Text
                             color="dimmed"
