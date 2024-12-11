@@ -1,12 +1,10 @@
 import {
-    assertUnreachable,
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
     MetricExplorerComparison,
-    type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
-    type MetricWithAssociatedTimeDimension,
+    type MetricExplorerQuery,
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
@@ -17,25 +15,30 @@ import {
     Group,
     LoadingOverlay,
     Modal,
+    Select,
     Stack,
     Text,
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconBoxAlignTopRight, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
+import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
+import { useSelectStyles } from '../styles/useSelectStyles';
 import { MetricPeekComparison } from './MetricPeekComparison';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
+    const { classes } = useSelectStyles();
+
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -53,8 +56,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         metricName,
     });
 
-    const [comparisonType, setComparisonType] =
-        useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
+    const [query, setQuery] = useState<MetricExplorerQuery>({
+        comparison: MetricExplorerComparison.NONE,
+        segmentDimension: null,
+    });
 
     const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
         null,
@@ -68,116 +73,40 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         projectUuid,
         options: {
             enabled:
-                comparisonType === MetricExplorerComparison.DIFFERENT_METRIC,
+                query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
         },
     });
 
-    const [selectedMetric, setSelectedMetric] =
-        useState<MetricWithAssociatedTimeDimension | null>(null);
-
-    const handleMetricChange = useCallback(
-        (metricId: string | null) => {
-            if (!metricsWithTimeDimensionsQuery.isSuccess) return;
-
-            if (!metricId) {
-                setSelectedMetric(null);
-                return;
-            }
-
-            const metric = metricsWithTimeDimensionsQuery.data.find(
-                (m) => getItemId(m) === metricId,
-            );
-
-            setSelectedMetric(metric ?? null);
-        },
-        [
-            metricsWithTimeDimensionsQuery.data,
-            metricsWithTimeDimensionsQuery.isSuccess,
-        ],
-    );
-
-    const handleComparisonTypeChange = useCallback(
-        (value: MetricExplorerComparison) => {
-            setComparisonType(value);
-
-            if (
-                value === MetricExplorerComparison.NONE ||
-                value === MetricExplorerComparison.PREVIOUS_PERIOD
-            ) {
-                setSelectedMetric(null);
-            }
-
-            if (value === MetricExplorerComparison.NONE) {
-                setDateRange(null);
-                setTimeDimensionOverride(undefined);
-            } else if (timeDimensionOverride) {
-                setDateRange(
-                    getDefaultDateRangeFromInterval(
-                        timeDimensionOverride.interval,
-                    ),
-                );
-            }
-        },
-        [timeDimensionOverride],
-    );
-
-    const comparisonParams = useMemo((): MetricExplorerComparisonType => {
-        switch (comparisonType) {
-            case MetricExplorerComparison.NONE:
-                return {
-                    type: MetricExplorerComparison.NONE,
-                };
-            case MetricExplorerComparison.PREVIOUS_PERIOD:
-                return {
-                    type: MetricExplorerComparison.PREVIOUS_PERIOD,
-                };
-            case MetricExplorerComparison.DIFFERENT_METRIC:
-                if (!selectedMetric) {
-                    return {
-                        type: MetricExplorerComparison.NONE,
-                    };
-                }
-
-                return {
-                    type: MetricExplorerComparison.DIFFERENT_METRIC,
-                    metric: {
-                        table: selectedMetric.table,
-                        name: selectedMetric.name,
-                        label: selectedMetric.label ?? selectedMetric.name,
-                    },
-                };
-            default:
-                return assertUnreachable(
-                    comparisonType,
-                    `Unknown comparison type: ${comparisonType}`,
-                );
-        }
-    }, [comparisonType, selectedMetric]);
-
-    const metricExplorerQueryOptions = {
-        enabled:
-            !!projectUuid &&
-            !!tableName &&
-            !!metricName &&
-            !!comparisonParams &&
-            !!dateRange &&
-            (comparisonParams.type !==
-                MetricExplorerComparison.DIFFERENT_METRIC ||
-                (comparisonParams.type ===
-                    MetricExplorerComparison.DIFFERENT_METRIC &&
-                    !!comparisonParams.metric.name &&
-                    !!comparisonParams.metric.table)),
-        keepPreviousData: true,
-    };
-    const metricResultsQuery = useRunMetricExplorerQuery({
+    const segmentDimensionsQuery = useCatalogSegmentDimensions({
         projectUuid,
-        exploreName: tableName,
-        metricName,
-        dateRange: dateRange ?? undefined,
-        comparison: comparisonParams,
-        timeDimensionOverride,
-        options: metricExplorerQueryOptions,
+        tableName,
     });
+
+    const metricResultsQuery = useRunMetricExplorerQuery(
+        {
+            projectUuid,
+            exploreName: tableName,
+            metricName,
+            dateRange: dateRange ?? undefined,
+            query,
+            timeDimensionOverride,
+        },
+        {
+            enabled:
+                !!projectUuid &&
+                !!tableName &&
+                !!metricName &&
+                !!query &&
+                !!dateRange &&
+                (query.comparison !==
+                    MetricExplorerComparison.DIFFERENT_METRIC ||
+                    (query.comparison ===
+                        MetricExplorerComparison.DIFFERENT_METRIC &&
+                        query.metric.name !== '' &&
+                        query.metric.table !== '')),
+            keepPreviousData: true,
+        },
+    );
 
     const timeDimensionBaseField: TimeDimensionConfig | undefined =
         useMemo(() => {
@@ -248,12 +177,23 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         [timeDimensionBaseField],
     );
 
+    const handleSegmentDimensionChange = useCallback((value: string | null) => {
+        setQuery({
+            comparison: MetricExplorerComparison.NONE,
+            segmentDimension: value,
+        });
+    }, []);
+
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
-        setComparisonType(MetricExplorerComparison.NONE);
-        setDateRange(null);
+
+        setQuery({
+            comparison: MetricExplorerComparison.NONE,
+            segmentDimension: null,
+        });
         setTimeDimensionOverride(undefined);
-        setSelectedMetric(null);
+        setDateRange(null);
+
         onClose();
     }, [history, onClose, projectUuid]);
 
@@ -312,6 +252,42 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     <Stack py="md" px="lg" bg="offWhite.0" miw={340}>
                         <Stack spacing="xl">
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
+                                <Text fw={500} c="gray.7">
+                                    Segment
+                                </Text>
+
+                                <Select
+                                    placeholder="Segment by"
+                                    clearable
+                                    icon={
+                                        <MantineIcon
+                                            icon={IconBoxAlignTopRight}
+                                        />
+                                    }
+                                    radius="md"
+                                    size="xs"
+                                    data={
+                                        segmentDimensionsQuery.data?.map(
+                                            (dimension) => ({
+                                                value: getItemId(dimension),
+                                                label: dimension.label,
+                                            }),
+                                        ) ?? []
+                                    }
+                                    value={
+                                        query.comparison ===
+                                        MetricExplorerComparison.NONE
+                                            ? query.segmentDimension
+                                            : null
+                                    }
+                                    onChange={handleSegmentDimensionChange}
+                                    disabled={!segmentDimensionsQuery.isSuccess}
+                                    classNames={{
+                                        input: classes.input,
+                                        item: classes.item,
+                                    }}
+                                />
+
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">
                                         Comparison
@@ -325,7 +301,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                         radius="md"
                                         sx={(theme) => ({
                                             visibility:
-                                                comparisonType ===
+                                                query.comparison ===
                                                 MetricExplorerComparison.NONE
                                                     ? 'hidden'
                                                     : 'visible',
@@ -335,9 +311,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             },
                                         })}
                                         onClick={() =>
-                                            setComparisonType(
-                                                MetricExplorerComparison.NONE,
-                                            )
+                                            setQuery({
+                                                comparison:
+                                                    MetricExplorerComparison.NONE,
+                                                segmentDimension: null,
+                                            })
                                         }
                                     >
                                         Clear
@@ -346,16 +324,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                                 <MetricPeekComparison
                                     baseMetricLabel={metricQuery.data?.label}
-                                    comparisonType={comparisonType}
-                                    setComparisonType={setComparisonType}
-                                    handleComparisonTypeChange={
-                                        handleComparisonTypeChange
-                                    }
-                                    handleMetricChange={handleMetricChange}
+                                    query={query}
+                                    onQueryChange={setQuery}
                                     metricsWithTimeDimensionsQuery={
                                         metricsWithTimeDimensionsQuery
                                     }
-                                    selectedMetric={selectedMetric}
                                 />
                             </Stack>
                         </Stack>
@@ -365,7 +338,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Box w="100%" py="xl" px="xxl">
                         <MetricsVisualization
-                            comparison={comparisonParams}
+                            query={query}
                             dateRange={dateRange ?? undefined}
                             results={metricResultsQuery.data}
                             onDateRangeChange={setDateRange}

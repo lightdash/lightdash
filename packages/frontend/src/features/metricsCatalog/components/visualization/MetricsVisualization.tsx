@@ -2,8 +2,8 @@ import {
     capitalize,
     friendlyName,
     MetricExplorerComparison,
-    type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
     type TimeDimensionConfig,
     type TimeFrames,
@@ -141,7 +141,7 @@ const CustomTooltip = ({
 type Props = {
     results: MetricsExplorerQueryResults | undefined;
     dateRange: MetricExplorerDateRange | undefined;
-    comparison: MetricExplorerComparisonType;
+    query: MetricExplorerQuery;
     onDateRangeChange: (range: MetricExplorerDateRange) => void;
     showTimeDimensionIntervalPicker: boolean;
     timeDimensionBaseField: TimeDimensionConfig;
@@ -149,6 +149,17 @@ type Props = {
     onTimeIntervalChange: (interval: TimeFrames) => void;
     isFetching: boolean;
 };
+
+const CHART_COLORS = [
+    'indigo',
+    'red',
+    'green',
+    'blue',
+    'yellow',
+    'orange',
+    'purple',
+    'pink',
+];
 
 const MetricsVisualization: FC<Props> = ({
     results,
@@ -158,7 +169,7 @@ const MetricsVisualization: FC<Props> = ({
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
-    comparison,
+    query,
     isFetching,
 }) => {
     const { yAxisWidth, setChartRef } = useDynamicYAxisWidth();
@@ -203,11 +214,38 @@ const MetricsVisualization: FC<Props> = ({
         };
     }, [activeData]);
 
+    const segmentedData = useMemo((): {
+        segment: string | null;
+        color: string;
+        data: MetricsExplorerQueryResults['results'];
+    }[] => {
+        const segmentsMap = new Map<
+            string | null,
+            MetricsExplorerQueryResults['results']
+        >();
+
+        activeData.forEach((row) => {
+            const segment = row.segment; // Preserve `null` as is
+            if (!segmentsMap.has(segment)) {
+                segmentsMap.set(segment, []);
+            }
+            segmentsMap.get(segment)!.push(row);
+        });
+
+        return Array.from(segmentsMap.entries()).map(
+            ([segment, segmentData], i) => ({
+                segment,
+                color: colors[CHART_COLORS[i % CHART_COLORS.length]]?.[6],
+                data: segmentData,
+            }),
+        );
+    }, [activeData, colors]);
+
     const showEmptyState = activeData.length === 0;
-    const showLegend = comparison?.type !== MetricExplorerComparison.NONE;
+    const showLegend = query.comparison !== MetricExplorerComparison.NONE;
 
     const legendConfig = useMemo(() => {
-        switch (comparison.type) {
+        switch (query.comparison) {
             case MetricExplorerComparison.NONE:
                 return null;
             case MetricExplorerComparison.DIFFERENT_METRIC:
@@ -227,7 +265,7 @@ const MetricsVisualization: FC<Props> = ({
                 };
             }
         }
-    }, [comparison, results]);
+    }, [query, results]);
 
     return (
         <Stack spacing="sm" w="100%" h="100%">
@@ -298,7 +336,6 @@ const MetricsVisualization: FC<Props> = ({
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                             ref={(instance) => setChartRef(instance)}
-                            data={activeData}
                             margin={{
                                 right: 40,
                                 left: 10,
@@ -373,22 +410,27 @@ const MetricsVisualization: FC<Props> = ({
 
                             <RechartsTooltip content={<CustomTooltip />} />
 
-                            <Line
-                                name="metric"
-                                type="linear"
-                                dataKey="metric.value"
-                                stroke={colors.indigo[6]}
-                                strokeWidth={1.6}
-                                dot={false}
-                                legendType="plainline"
-                                isAnimationActive={false}
-                            />
+                            {segmentedData.map((segment) => (
+                                <Line
+                                    key={segment.segment ?? 'metric'}
+                                    type="linear"
+                                    name="metric"
+                                    data={segment.data}
+                                    dataKey="metric.value"
+                                    stroke={segment.color}
+                                    strokeWidth={1.6}
+                                    dot={false}
+                                    legendType="plainline"
+                                    isAnimationActive={false}
+                                />
+                            ))}
 
                             {results.compareMetric && (
                                 <Line
                                     name="compareMetric"
                                     type="linear"
                                     dataKey="compareMetric.value"
+                                    data={segmentedData[0].data}
                                     stroke={colors.indigo[4]}
                                     strokeDasharray={'3 3'}
                                     strokeWidth={1.3}

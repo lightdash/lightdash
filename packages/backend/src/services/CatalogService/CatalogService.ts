@@ -10,7 +10,9 @@ import {
     CatalogTable,
     CatalogType,
     ChartSummary,
+    CompiledDimension,
     DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+    DimensionType,
     Explore,
     ExploreError,
     FieldType,
@@ -1198,6 +1200,60 @@ export class CatalogService<
         );
 
         return metricsWithTimeDimension;
+    }
+
+    async getSegmentDimensions(
+        user: SessionUser,
+        projectUuid: string,
+        tableName: string,
+    ): Promise<CompiledDimension[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            tableName,
+        );
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const catalogDimensions = await this.catalogModel.search({
+            projectUuid,
+            userAttributes,
+            exploreName: tableName,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Dimensions,
+            },
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
+                projectUuid,
+            ),
+        });
+
+        const nonTimeDimensions = catalogDimensions.data
+            .map((d) => explore?.tables?.[tableName]?.dimensions?.[d.name])
+            .filter((d): d is CompiledDimension => !!d)
+            .filter(
+                (d) =>
+                    d.type !== DimensionType.DATE &&
+                    d.type !== DimensionType.TIMESTAMP,
+            );
+
+        return nonTimeDimensions;
     }
 
     async deleteMetricsTreeEdge(

@@ -18,8 +18,8 @@ import {
 import {
     MetricExplorerComparison,
     type MetricExploreDataPoint,
-    type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type MetricExplorerQuery,
 } from '../types/metricsExplorer';
 import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
@@ -119,6 +119,15 @@ export const getDateCalcUtils = (timeFrame: TimeFrames) => {
     }
 };
 
+export const METRICS_EXPLORER_DATE_FORMAT = 'YYYY-MM-DD';
+
+export const getDateRangeFromString = (
+    dateRange: [string, string],
+): MetricExplorerDateRange => [
+    dayjs(dateRange[0], METRICS_EXPLORER_DATE_FORMAT).toDate(),
+    dayjs(dateRange[1], METRICS_EXPLORER_DATE_FORMAT).toDate(),
+];
+
 // TODO: refine the time grain for each time frame
 //   Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
 //   Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
@@ -144,14 +153,15 @@ export const getGrainForDateRange = (
 };
 
 export const getMetricExplorerDateRangeFilters = (
-    exploreName: string,
-    dimensionName: string,
+    timeDimensionConfig: TimeDimensionConfig,
     dateRange: MetricExplorerDateRange,
 ): DateFilter[] => {
-    const defaultGrain = getGrainForDateRange(dateRange);
     const targetFieldId = getItemId({
-        table: exploreName,
-        name: getFieldIdForDateDimension(dimensionName, defaultGrain),
+        table: timeDimensionConfig.table,
+        name: getFieldIdForDateDimension(
+            timeDimensionConfig.field,
+            timeDimensionConfig.interval,
+        ),
     });
 
     return [
@@ -159,7 +169,9 @@ export const getMetricExplorerDateRangeFilters = (
             id: uuidv4(),
             target: { fieldId: targetFieldId },
             operator: ConditionalOperator.IN_BETWEEN,
-            values: dateRange,
+            values: dateRange.map((date) =>
+                dayjs(date).format(METRICS_EXPLORER_DATE_FORMAT),
+            ),
         },
     ];
 };
@@ -172,10 +184,18 @@ const parseMetricValue = (value: unknown): number | null => {
     return Number.isNaN(parsed) ? null : parsed;
 };
 
+// we are assuming that the dimension value is a string and if it's not defined we just return null
+// so actually `null` value will be converted to `"null"` string
+const parseDimensionValue = (value: unknown): string | null => {
+    if (value === undefined) return null;
+    return String(value);
+};
+
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
+    segmentDimensionId: string | null,
 ): Array<MetricExploreDataPoint> => {
     const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
@@ -184,19 +204,26 @@ export const getMetricExplorerDataPoints = (
         new Date(String(row[dimensionId].value.raw)).toISOString(),
     );
 
-    return Object.keys(groupByMetricRows).map((date) => ({
-        date: new Date(date),
-        metric: {
-            value: parseMetricValue(
-                groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
-            ),
-            label: metric.label ?? metric.name,
-        },
-        compareMetric: {
-            value: null,
-            label: null,
-        },
-    }));
+    return Object.entries(groupByMetricRows).flatMap(([date, rows]) =>
+        rows.map((row) => {
+            const segmentValue = segmentDimensionId
+                ? parseDimensionValue(row[segmentDimensionId]?.value.raw)
+                : null;
+
+            return {
+                date: new Date(date),
+                segment: segmentValue,
+                metric: {
+                    value: parseMetricValue(row[metricId]?.value.raw),
+                    label: segmentValue ?? metric.label ?? metric.name,
+                },
+                compareMetric: {
+                    value: null,
+                    label: null,
+                },
+            };
+        }),
+    );
 };
 
 export const getMetricExplorerDataPointsWithCompare = (
@@ -205,9 +232,9 @@ export const getMetricExplorerDataPointsWithCompare = (
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
-    comparison: MetricExplorerComparisonType,
+    query: MetricExplorerQuery,
 ): Array<MetricExploreDataPoint> => {
-    if (comparison.type === MetricExplorerComparison.NONE) {
+    if (query.comparison === MetricExplorerComparison.NONE) {
         throw new Error('Comparison type is required');
     }
 
@@ -226,7 +253,7 @@ export const getMetricExplorerDataPointsWithCompare = (
     const offsetGroupByCompareMetricRows = mapKeys(
         groupByCompareMetricRows,
         (_, date) =>
-            comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
+            query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD
                 ? getDateCalcUtils(TimeFrames.YEAR)
                       .forward(new Date(date))
                       .toISOString()
@@ -239,23 +266,23 @@ export const getMetricExplorerDataPointsWithCompare = (
     ]);
 
     const compareMetricId =
-        comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
+        query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD
             ? metricId
             : getItemId({
-                  table: comparison.metric.table,
-                  name: comparison.metric.name,
+                  table: query.metric.table,
+                  name: query.metric.name,
               });
 
     let comparisonMetricLabel: string | null = null;
-    if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
-        comparisonMetricLabel =
-            comparison.metric.label ?? comparison.metric.name;
-    } else if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
+    if (query.comparison === MetricExplorerComparison.DIFFERENT_METRIC) {
+        comparisonMetricLabel = query.metric.label ?? query.metric.name;
+    } else if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
         comparisonMetricLabel = 'Previous Period';
     }
 
     return Array.from(dates).map((date) => ({
         date: new Date(date),
+        segment: null,
         metric: {
             value: parseMetricValue(
                 groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
