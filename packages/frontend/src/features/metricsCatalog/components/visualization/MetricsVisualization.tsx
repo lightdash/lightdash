@@ -57,6 +57,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
+import { getMatchingPresetLabel } from '../../utils/metricPeekDate';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
@@ -197,6 +198,7 @@ type Props = {
     isFetching: boolean;
 };
 
+const DEFAULT_LINE_COLOR = 'indigo';
 const CHART_MANTINE_COLORS = [
     'violet',
     'teal',
@@ -293,39 +295,124 @@ const MetricsVisualization: FC<Props> = ({
         return Array.from(segmentsMap.entries()).map(
             ([segment, segmentData], i) => ({
                 segment,
-                color: colors[
-                    CHART_MANTINE_COLORS[i % CHART_MANTINE_COLORS.length]
-                ][CHART_MANTINE_COLOR_INDEX],
+                color: segment
+                    ? colors[
+                          CHART_MANTINE_COLORS[i % CHART_MANTINE_COLORS.length]
+                      ][CHART_MANTINE_COLOR_INDEX]
+                    : colors[DEFAULT_LINE_COLOR][CHART_MANTINE_COLOR_INDEX],
                 data: segmentData,
             }),
         );
     }, [activeData, colors]);
 
     const showEmptyState = activeData.length === 0;
-    const showLegend = query.comparison !== MetricExplorerComparison.NONE;
+    const showLegend =
+        query.comparison !== MetricExplorerComparison.NONE ||
+        segmentedData.length > 1;
 
-    const legendConfig = useMemo(() => {
+    const legendConfig: Record<
+        string | 'metric' | 'compareMetric',
+        { name: string; label: string }
+    > | null = useMemo(() => {
         switch (query.comparison) {
             case MetricExplorerComparison.NONE:
+                if (segmentedData.length > 1) {
+                    return segmentedData.reduce(
+                        (acc, { segment }) => ({
+                            ...acc,
+                            ...(segment
+                                ? {
+                                      [segment]: {
+                                          name: segment,
+                                          label: segment,
+                                      },
+                                  }
+                                : {}),
+                        }),
+                        {},
+                    );
+                }
+                // Single series case (no segments)
+                if (segmentedData.length === 1) {
+                    return {
+                        metric: {
+                            name: 'metric',
+                            label: results?.metric.label,
+                        },
+                    };
+                }
                 return null;
-            case MetricExplorerComparison.DIFFERENT_METRIC:
-            case MetricExplorerComparison.PREVIOUS_PERIOD: {
+            case MetricExplorerComparison.DIFFERENT_METRIC: {
                 return {
-                    metric: { name: 'metric', label: results?.metric.label },
+                    metric: {
+                        name: 'metric',
+                        label: results?.metric.label,
+                    },
                     compareMetric: {
                         name: 'compareMetric',
                         label: results?.compareMetric?.label,
                     },
                 };
             }
+            case MetricExplorerComparison.PREVIOUS_PERIOD: {
+                if (!dateRange || !results?.metric.timeDimension?.interval)
+                    return null;
+                const preset = getMatchingPresetLabel(
+                    dateRange,
+                    results?.metric.timeDimension?.interval,
+                );
+                const currentPeriodYear = dateRange
+                    ? dayjs(dateRange[1]).year()
+                    : null;
+                const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
+
+                // If the date range is 5 years, we want to show the year range
+                if (preset === '5Y' && startYear && currentPeriodYear) {
+                    return {
+                        metric: {
+                            name: 'metric',
+                            label: `${startYear}-${currentPeriodYear}`,
+                        },
+                        compareMetric: {
+                            name: 'compareMetric',
+                            label: `${startYear - 1}-${currentPeriodYear - 1}`,
+                        },
+                    };
+                }
+
+                return {
+                    metric: {
+                        name: 'metric',
+                        label: currentPeriodYear
+                            ? `${currentPeriodYear}`
+                            : results?.metric.label,
+                    },
+                    compareMetric: {
+                        name: 'compareMetric',
+                        label: currentPeriodYear
+                            ? `${currentPeriodYear - 1}`
+                            : results?.compareMetric?.label,
+                    },
+                };
+            }
 
             default: {
                 return {
-                    metric: { name: 'metric', label: results?.metric.label },
+                    metric: {
+                        name: 'metric',
+                        label: results?.metric.label,
+                    },
                 };
             }
         }
-    }, [query, results]);
+    }, [
+        query.comparison,
+        segmentedData,
+        results?.metric.label,
+        results?.metric.timeDimension?.interval,
+        results?.compareMetric?.label,
+        dateRange,
+    ]);
 
     const formatConfig = useMemo(() => {
         return {
@@ -435,17 +522,19 @@ const MetricsVisualization: FC<Props> = ({
                                     verticalAlign="top"
                                     height={50}
                                     margin={{ bottom: 20 }}
-                                    formatter={(
-                                        value: 'metric' | 'compareMetric',
-                                    ) => (
+                                    formatter={(value: string) => (
                                         <Text
                                             span
                                             c="dark.5"
                                             size={14}
                                             fw={400}
                                         >
-                                            {legendConfig?.[value]?.label ||
-                                                value}
+                                            {legendConfig &&
+                                            typeof value === 'string' &&
+                                            value in legendConfig
+                                                ? legendConfig[value]?.label ||
+                                                  value
+                                                : value}
                                         </Text>
                                     )}
                                 />
@@ -502,8 +591,8 @@ const MetricsVisualization: FC<Props> = ({
                                 <Line
                                     key={segment.segment ?? 'metric'}
                                     type="linear"
-                                    name="metric"
                                     yAxisId="metric"
+                                    name={segment.segment ?? 'metric'}
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}
