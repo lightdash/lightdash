@@ -28,7 +28,6 @@ export type MetricExplorerQuery =
           };
       };
 
-// z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPoint = {
     date: Date;
     segment: string | null;
@@ -44,7 +43,6 @@ export type MetricExploreDataPoint = {
     };
 };
 
-// z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPointWithDateValue = MetricExploreDataPoint & {
     dateValue: number;
 };
