@@ -496,6 +496,7 @@ const MetricsVisualization: FC<Props> = ({
                                     key={segment.segment ?? 'metric'}
                                     type="linear"
                                     name="metric"
+                                    yAxisId="metric"
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}

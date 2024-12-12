@@ -50,9 +50,9 @@ export const useDynamicYAxisWidth = () => {
                     const newWidth = leftHighestWidth + PADDING;
                     if (newWidth !== leftYAxisWidth) {
                         setLeftYAxisWidth(newWidth);
-                    } else {
-                        setLeftYAxisWidth(undefined);
                     }
+                } else {
+                    setLeftYAxisWidth(undefined);
                 }
 
                 if (rightTickArray.length > 0) {
@@ -67,9 +67,9 @@ export const useDynamicYAxisWidth = () => {
                     const newWidth = rightHighestWidth + PADDING;
                     if (newWidth !== rightYAxisWidth) {
                         setRightYAxisWidth(newWidth);
-                    } else {
-                        setRightYAxisWidth(undefined);
                     }
+                } else {
+                    setRightYAxisWidth(undefined);
                 }
             });
         },
