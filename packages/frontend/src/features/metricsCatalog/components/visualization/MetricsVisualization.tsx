@@ -310,6 +310,12 @@ const MetricsVisualization: FC<Props> = ({
         query.comparison !== MetricExplorerComparison.NONE ||
         segmentedData.length > 1;
 
+    const showLabel =
+        [
+            MetricExplorerComparison.NONE,
+            MetricExplorerComparison.PREVIOUS_PERIOD,
+        ].includes(query.comparison) || segmentedData.length > 1;
+
     const legendConfig: Record<
         string | 'metric' | 'compareMetric',
         { name: string; label: string }
@@ -552,7 +558,7 @@ const MetricsVisualization: FC<Props> = ({
                                 width={leftYAxisWidth}
                                 {...commonYAxisConfig}
                                 label={
-                                    !showLegend
+                                    showLabel
                                         ? {
                                               value: results?.metric.label,
                                               angle: -90,
