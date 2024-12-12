@@ -104,7 +104,12 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
     posthog: undefined,
-    resultsCache: { cacheStateTimeSeconds: 0, enabled: false, s3: {} },
+    resultsCache: {
+        cacheStateTimeSeconds: 0,
+        resultsEnabled: false,
+        autocompleteEnabled: false,
+        s3: {},
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',

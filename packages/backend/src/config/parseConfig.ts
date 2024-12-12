@@ -266,7 +266,8 @@ export type LightdashConfig = {
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
     resultsCache: {
-        enabled: boolean;
+        resultsEnabled: boolean;
+        autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3: {
             bucket?: string;
@@ -293,7 +294,6 @@ export type LightdashConfig = {
         appName: string;
         redirectDomain: string;
     };
-    cacheAutocompleResults?: boolean;
 };
 
 export type SlackConfig = {
@@ -751,7 +751,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
         },
         resultsCache: {
-            enabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            resultsEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            autocompleteEnabled:
+                process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,
@@ -834,7 +836,5 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
         },
-        cacheAutocompleResults:
-            process.env.CACHE_AUTOCOMPLETE_RESULTS === 'true',
     };
 };
