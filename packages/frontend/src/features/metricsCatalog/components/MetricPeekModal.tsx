@@ -15,6 +15,7 @@ import {
     Button,
     Divider,
     Group,
+    Loader,
     LoadingOverlay,
     Modal,
     Select,
@@ -283,7 +284,15 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             : null
                                     }
                                     onChange={handleSegmentDimensionChange}
-                                    disabled={!segmentDimensionsQuery.isSuccess}
+                                    // this does not work as expected in Mantine 6
+                                    data-disabled={
+                                        !segmentDimensionsQuery.isSuccess
+                                    }
+                                    rightSection={
+                                        segmentDimensionsQuery.isLoading ? (
+                                            <Loader size="xs" color="gray.5" />
+                                        ) : undefined
+                                    }
                                     classNames={{
                                         input: classes.input,
                                         item: classes.item,
