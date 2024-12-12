@@ -84,13 +84,26 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         tableName,
     });
 
+    const queryHasEmptyMetric = useMemo(() => {
+        return (
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
+            query.metric.name === '' &&
+            query.metric.table === ''
+        );
+    }, [query]);
+
     const metricResultsQuery = useRunMetricExplorerQuery(
         {
             projectUuid,
             exploreName: tableName,
             metricName,
             dateRange: dateRange ?? undefined,
-            query,
+            query: queryHasEmptyMetric
+                ? {
+                      comparison: MetricExplorerComparison.NONE,
+                      segmentDimension: null,
+                  }
+                : query,
             timeDimensionOverride,
         },
         {
