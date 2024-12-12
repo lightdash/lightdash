@@ -4,12 +4,14 @@ import {
     isDimension,
     MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
     MetricExplorerComparison,
+    type CatalogField,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Box,
     Button,
@@ -24,7 +26,12 @@ import {
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconInfoCircle, IconX } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconInfoCircle,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -40,9 +47,11 @@ import { useSelectStyles } from '../styles/useSelectStyles';
 import { MetricPeekComparison } from './MetricPeekComparison';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    metrics: CatalogField[];
+};
 
-export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
+export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const { track } = useTracking();
     const { classes } = useSelectStyles();
 
@@ -60,6 +69,37 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     }>();
 
     const history = useHistory();
+
+    const currentMetricIndex = useMemo(() => {
+        return metrics.findIndex(
+            (metric) =>
+                metric.name === metricName && metric.tableName === tableName,
+        );
+    }, [metrics, metricName, tableName]);
+
+    const nextMetricInList = useMemo(() => {
+        return metrics[currentMetricIndex + 1];
+    }, [currentMetricIndex, metrics]);
+
+    const previousMetricInList = useMemo(() => {
+        return metrics[currentMetricIndex - 1];
+    }, [currentMetricIndex, metrics]);
+
+    const handleGoToNextMetric = useCallback(() => {
+        if (nextMetricInList) {
+            history.push(
+                `/projects/${projectUuid}/metrics/peek/${nextMetricInList.tableName}/${nextMetricInList.name}`,
+            );
+        }
+    }, [history, nextMetricInList, projectUuid]);
+
+    const handleGoToPreviousMetric = useCallback(() => {
+        if (previousMetricInList) {
+            history.push(
+                `/projects/${projectUuid}/metrics/peek/${previousMetricInList.tableName}/${previousMetricInList.name}`,
+            );
+        }
+    }, [history, previousMetricInList, projectUuid]);
 
     const metricQuery = useMetric({
         projectUuid,
@@ -364,6 +404,32 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     })}
                 >
                     <Group spacing="xs">
+                        <Group spacing="xxs">
+                            <ActionIcon
+                                variant="outline"
+                                size="sm"
+                                radius="sm"
+                                sx={(theme) => ({
+                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                })}
+                                onClick={handleGoToPreviousMetric}
+                                disabled={!previousMetricInList}
+                            >
+                                <MantineIcon icon={IconChevronUp} />
+                            </ActionIcon>
+                            <ActionIcon
+                                variant="outline"
+                                size="sm"
+                                radius="sm"
+                                sx={(theme) => ({
+                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                })}
+                                onClick={handleGoToNextMetric}
+                                disabled={!nextMetricInList}
+                            >
+                                <MantineIcon icon={IconChevronDown} />
+                            </ActionIcon>
+                        </Group>
                         <Text fw={600} fz="md" color="gray.8">
                             {metricQuery.data?.label}
                         </Text>
