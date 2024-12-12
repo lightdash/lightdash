@@ -828,13 +828,14 @@ export class ProjectController extends BaseController {
     async getChartsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() ids?: string[],
     ): Promise<ApiChartAsCodeListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .getCharts(req.user!, projectUuid),
+                .getCharts(req.user!, projectUuid, ids),
         };
     }
 
@@ -845,13 +846,14 @@ export class ProjectController extends BaseController {
     async getDashboardsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() ids?: string[],
     ): Promise<ApiDashboardAsCodeListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .getDashboards(req.user!, projectUuid),
+                .getDashboards(req.user!, projectUuid, ids),
         };
     }
 

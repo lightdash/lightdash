@@ -107,6 +107,12 @@ export class CoderService extends BaseService {
         };
     }
 
+    static isUuid(id: string) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            id,
+        );
+    }
+
     private static transformDashboard(
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummary, 'uuid' | 'slug'>[],
@@ -200,7 +206,44 @@ export class CoderService extends BaseService {
         });
     }
 
-    async getDashboards(user: SessionUser, projectUuid: string) {
+    /* 
+    Dashboard or chart ids can be uuids or slugs
+     We need to convert uuids to slugs before making the query
+    */
+    async convertIdsToSlugs(
+        type: 'dashboard' | 'chart',
+        ids: string[] | undefined,
+    ) {
+        if (!ids) return ids; // return [] or undefined
+
+        const uuids = ids?.filter((id) => CoderService.isUuid(id));
+        let uuidsToSlugs: string[] = [];
+
+        if (uuids.length > 0) {
+            if (type === 'dashboard') {
+                uuidsToSlugs = await this.dashboardModel.getSlugsForUuids(
+                    uuids,
+                );
+            } else if (type === 'chart') {
+                uuidsToSlugs = await this.savedChartModel.getSlugsForUuids(
+                    uuids,
+                );
+            }
+        }
+        const slugs = ids?.filter((id) => !CoderService.isUuid(id)) ?? [];
+
+        return [...uuidsToSlugs, ...slugs];
+    }
+
+    /* 
+    @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
+    @returns: DashboardAsCode[]
+    */
+    async getDashboards(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardIds: string[] | undefined,
+    ) {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
@@ -219,12 +262,25 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        const slugs = await this.convertIdsToSlugs('dashboard', dashboardIds);
+
+        if (slugs?.length === 0) {
+            this.logger.warn(
+                `No dashboards to download for project ${projectUuid} with ids ${dashboardIds?.join(
+                    ', ',
+                )}`,
+            );
+            return [];
+        }
+
         // TODO
         // We need to get the dashboards and all the dashboards config
         // At the moment we are going to fetch them all in individual queries
         // But in the future we should fetch them in a single query for optimization purposes
         const dashboardSummaries = await this.dashboardModel.find({
             projectUuid,
+            slugs,
         });
 
         const dashboardPromises = dashboardSummaries.map((chart) =>
@@ -240,7 +296,11 @@ export class CoderService extends BaseService {
         );
     }
 
-    async getCharts(user: SessionUser, projectUuid: string) {
+    async getCharts(
+        user: SessionUser,
+        projectUuid: string,
+        chartIds?: string[],
+    ) {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
@@ -259,11 +319,26 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        const slugs = await this.convertIdsToSlugs('chart', chartIds);
+        if (slugs?.length === 0) {
+            this.logger.warn(
+                `No charts to download for project ${projectUuid} with ids ${chartIds?.join(
+                    ', ',
+                )}`,
+            );
+            return [];
+        }
+
         // TODO
         // We need to get the charts and all the chart config
         // At the moment we are going to fetch them all in individual queries
         // But in the future we should fetch them in a single query for optimiziation purposes
-        const chartSummaries = await this.savedChartModel.find({ projectUuid });
+
+        const chartSummaries = await this.savedChartModel.find({
+            projectUuid,
+            slugs,
+        });
         const chartPromises = chartSummaries.map((chart) =>
             this.savedChartModel.get(chart.uuid),
         );

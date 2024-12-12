@@ -20,7 +20,22 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
+    charts: string[];
+    dashboards: string[];
     force: boolean;
+};
+
+const parseContentFilters = (items: string[]): string => {
+    if (items.length === 0) return '';
+
+    const parsedItems = items.map((item) => {
+        const uuidMatch = item.match(/https?:\/\/.+\/saved\/([a-f0-9-]+)/i);
+        return uuidMatch ? uuidMatch[1] : item;
+    });
+
+    return `?${new URLSearchParams(
+        parsedItems.map((item) => ['ids', item] as [string, string]),
+    ).toString()}`;
 };
 
 const dumpIntoFiles = async (
@@ -115,23 +130,28 @@ export const downloadHandler = async (
     }
 
     // Download charts
-    GlobalState.debug('Downloading charts');
+    GlobalState.debug(`Downloading charts`);
+    const chartFilters = parseContentFilters(options.charts);
+
     const chartsAsCode = await lightdashApi<
         ApiChartAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/charts/code`,
+        url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
         body: undefined,
     });
     await dumpIntoFiles('charts', chartsAsCode);
 
     // Download dashboards
-    GlobalState.debug('Downloading dashboards');
+
+    GlobalState.debug(`Downloading dashboards`);
+    const dashboardFilters = parseContentFilters(options.dashboards);
+
     const dashboardsAsCode = await lightdashApi<
         ApiDashboardAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/dashboards/code`,
+        url: `/api/v1/projects/${projectId}/dashboards/code${dashboardFilters}`,
         body: undefined,
     });
 

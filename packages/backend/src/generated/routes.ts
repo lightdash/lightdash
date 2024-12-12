@@ -16828,6 +16828,12 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                ids: {
+                    in: 'query',
+                    name: 'ids',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16883,6 +16889,12 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'req',
                     required: true,
                     dataType: 'object',
+                },
+                ids: {
+                    in: 'query',
+                    name: 'ids',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                 },
             };
 
