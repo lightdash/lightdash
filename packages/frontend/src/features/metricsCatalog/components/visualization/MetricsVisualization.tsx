@@ -1,6 +1,7 @@
 import {
     applyCustomFormat,
     capitalize,
+    ComparisonFormatTypes,
     friendlyName,
     getCustomFormat,
     MetricExplorerComparison,
@@ -56,6 +57,7 @@ import {
     type ValueType,
 } from 'recharts/types/component/DefaultTooltipContent';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
 import {
@@ -106,6 +108,17 @@ interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
     dateRange?: MetricExplorerDateRange;
 }
 
+const SquareBadge = ({ color }: { color?: DefaultMantineColor }) => (
+    <Box
+        sx={{
+            width: 10,
+            height: 10,
+            borderRadius: 2,
+            backgroundColor: color ?? 'indigo.6',
+        }}
+    />
+);
+
 const CustomTooltipPayloadEntry = ({
     entry,
     color,
@@ -148,6 +161,7 @@ const CustomTooltipPayloadEntry = ({
                 sx={(theme) => ({
                     border: `1px solid ${theme.colors.indigo[1]}`,
                 })}
+                h={24}
             >
                 {entryData.formatted}
             </Badge>
@@ -186,10 +200,12 @@ const CustomTooltipPayloadEntry = ({
 
                     <Badge
                         variant="light"
-                        color="indigo"
+                        color="gray.7"
                         radius="md"
+                        h={24}
                         sx={(theme) => ({
                             border: `1px solid ${theme.colors.indigo[1]}`,
+                            fontFeatureSettings: '"tnum"',
                         })}
                     >
                         {entryData.formatted}
@@ -206,14 +222,7 @@ const CustomTooltipPayloadEntry = ({
         return (
             <Group position="apart">
                 <Group spacing={4}>
-                    <Box
-                        sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 2,
-                            backgroundColor: color ?? 'indigo.6',
-                        }}
-                    />
+                    <SquareBadge color={color} />
                     <Text c="gray.8" fz={13} fw={500}>
                         {entryData.label}
                     </Text>
@@ -223,6 +232,7 @@ const CustomTooltipPayloadEntry = ({
                     variant="light"
                     color="gray"
                     radius="md"
+                    h={24}
                     sx={(theme) => ({
                         border: `1px solid ${theme.colors.gray[2]}`,
                         color: theme.colors.gray[7],
@@ -248,8 +258,9 @@ const CustomTooltipPayloadEntry = ({
 
             <Badge
                 variant="light"
-                color="indigo"
+                color="gray.7"
                 radius="md"
+                h={24}
                 sx={(theme) => ({
                     border: `1px solid ${theme.colors.indigo[1]}`,
                 })}
@@ -278,20 +289,27 @@ const PercentageChangeFooter: FC<{
     }
 
     const percentChange =
-        ((uniqueEntries[0].payload.metric.value -
-            uniqueEntries[0].payload.compareMetric.value) /
-            Math.abs(uniqueEntries[0].payload.compareMetric.value)) *
-        100;
+        calculateComparisonValue(
+            uniqueEntries[0].payload.metric.value,
+            uniqueEntries[0].payload.compareMetric.value,
+            ComparisonFormatTypes.PERCENTAGE,
+        ) * 100;
 
     const changeColor =
         percentChange > 0 ? 'green.7' : percentChange < 0 ? 'red.7' : 'dark.4';
 
     return (
         <Group position="right" spacing={4}>
-            <Text c="gray.7" fz={13} fw={500}>
+            <Text c="gray.7" fz={11} fw={500}>
                 Change:
             </Text>
-            <Text c={changeColor} fz={13} fw={500} ta="right">
+            <Text
+                c={changeColor}
+                fz={11}
+                fw={500}
+                ta="right"
+                sx={{ fontFeatureSettings: '"tnum"' }}
+            >
                 {percentChange > 0 ? '+' : ''}
                 {percentChange.toFixed(1)}%
             </Text>
@@ -309,8 +327,14 @@ const CustomTooltip = ({
     dateRange,
 }: CustomTooltipProps & { dateRange?: MetricExplorerDateRange }) => {
     const uniqueEntries = useMemo(() => {
-        return uniqBy(payload, getUniqueEntryKey);
-    }, [payload]);
+        return uniqBy(payload, getUniqueEntryKey).filter((entry) =>
+            comparison.comparison === MetricExplorerComparison.NONE &&
+            comparison.segmentDimension !== null &&
+            entry.payload.segment
+                ? entry.name === entry.payload.segment
+                : true,
+        );
+    }, [payload, comparison]);
 
     if (!active || !uniqueEntries || !uniqueEntries.length) {
         return null;
@@ -320,7 +344,7 @@ const CustomTooltip = ({
 
     return (
         <Stack
-            miw={150}
+            miw={200}
             fz={13}
             fw={500}
             p="sm"
@@ -341,13 +365,20 @@ const CustomTooltip = ({
                     comparison.segmentDimension === null
                         ? 'space-between'
                         : 'flex-start',
+                alignItems:
+                    comparison.comparison === MetricExplorerComparison.NONE &&
+                    comparison.segmentDimension === null
+                        ? 'center'
+                        : 'initial',
             })}
         >
             <Text c="gray.7" fz={13} fw={500}>
                 {dateLabel}
             </Text>
-            {comparison.comparison ===
-                MetricExplorerComparison.PREVIOUS_PERIOD && (
+            {(comparison.comparison ===
+                MetricExplorerComparison.PREVIOUS_PERIOD ||
+                comparison.comparison ===
+                    MetricExplorerComparison.DIFFERENT_METRIC) && (
                 <Divider color="gray.2" />
             )}
             {uniqueEntries.map((entry) => (
@@ -721,9 +752,9 @@ const MetricsVisualization: FC<Props> = ({
                                     formatter={(value: string) => (
                                         <Text
                                             span
-                                            c="dark.5"
+                                            c="dark.4"
                                             size={14}
-                                            fw={400}
+                                            fw={500}
                                         >
                                             {legendConfig &&
                                             typeof value === 'string' &&
@@ -755,8 +786,8 @@ const MetricsVisualization: FC<Props> = ({
                                               position: 'left',
                                               dy: -60,
                                               style: {
-                                                  fontSize: 13,
-                                                  fill: colors.dark[5],
+                                                  fontSize: 14,
+                                                  fill: colors.gray[7],
                                                   fontWeight: 500,
                                                   userSelect: 'none',
                                               },
@@ -806,7 +837,7 @@ const MetricsVisualization: FC<Props> = ({
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}
-                                    strokeWidth={1.6}
+                                    strokeWidth={1.4}
                                     dot={false}
                                     legendType="plainline"
                                     isAnimationActive={false}
@@ -842,9 +873,9 @@ const MetricsVisualization: FC<Props> = ({
                                         type="linear"
                                         dataKey="compareMetric.value"
                                         data={segmentedData[0].data}
-                                        stroke={colors.indigo[4]}
+                                        stroke={colors.dark[4]}
                                         strokeDasharray={'3 3'}
-                                        strokeWidth={1.3}
+                                        strokeWidth={1.4}
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
@@ -893,6 +924,7 @@ const MetricsVisualization: FC<Props> = ({
                             variant="xs"
                             disabled={!canManageExplore}
                             label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users"
+                            position="right"
                         >
                             <Box>
                                 <TimeDimensionPicker

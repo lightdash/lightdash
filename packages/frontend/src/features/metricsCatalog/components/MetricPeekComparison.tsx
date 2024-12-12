@@ -47,7 +47,7 @@ const FieldItem = forwardRef<
     }
 >(({ value, label, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Text fz="sm" c="dark.8" fw={500}>
+        <Text fz="sm" c="dark.8" fw={400}>
             {label}
         </Text>
     </Box>
@@ -171,7 +171,7 @@ export const MetricPeekComparison: FC<Props> = ({
                         >
                             <Stack>
                                 <Group align="center" noWrap position="apart">
-                                    <Group>
+                                    <Group noWrap>
                                         <Paper p="xs">
                                             <MantineIcon
                                                 icon={comparison.icon}

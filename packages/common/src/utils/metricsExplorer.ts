@@ -487,14 +487,15 @@ export const getAvailableSegmentDimensions = (
             (d) =>
                 d.type !== DimensionType.DATE &&
                 d.type !== DimensionType.TIMESTAMP &&
-                d.type !== DimensionType.NUMBER,
+                d.type !== DimensionType.NUMBER &&
+                !d.timeIntervalBaseDimensionName,
         );
 
 export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],
 ): MetricWithAssociatedTimeDimension[] =>
     metrics
-        .filter((metric) => !!metric.timeDimension)
+        .filter((metric) => !!metric.defaultTimeDimension)
         .filter(
             (metric) =>
                 metric.type !== MetricType.STRING &&
