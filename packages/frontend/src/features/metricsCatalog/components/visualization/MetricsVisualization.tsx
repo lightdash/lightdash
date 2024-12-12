@@ -99,7 +99,7 @@ interface CustomTooltipPropsPayload extends RechartsTooltipPropsPayload {
 }
 
 interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
-    comparison: MetricExplorerComparison;
+    comparison: MetricExplorerQuery;
     granularity: TimeFrames | undefined;
     is5YearDateRangePreset: boolean;
     payload?: CustomTooltipPropsPayload[];
@@ -116,7 +116,7 @@ const CustomTooltipPayloadEntry = ({
 }: {
     entry: CustomTooltipPropsPayload;
     color?: DefaultMantineColor;
-    comparison: MetricExplorerComparison;
+    comparison: MetricExplorerQuery;
     dateLabel: string | undefined;
     is5YearDateRangePreset: boolean;
     dateRange?: MetricExplorerDateRange;
@@ -136,7 +136,10 @@ const CustomTooltipPayloadEntry = ({
         return null;
     }
 
-    if (comparison === MetricExplorerComparison.NONE) {
+    if (
+        comparison.comparison === MetricExplorerComparison.NONE &&
+        comparison.segmentDimension === null
+    ) {
         return (
             <Badge
                 variant="light"
@@ -151,7 +154,7 @@ const CustomTooltipPayloadEntry = ({
         );
     }
 
-    if (comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+    if (comparison.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
         const currentPeriodYear = dateRange ? dayjs(dateRange[1]).year() : null;
         const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
 
@@ -193,6 +196,41 @@ const CustomTooltipPayloadEntry = ({
                     </Badge>
                 </Group>
             </>
+        );
+    }
+
+    if (
+        comparison.comparison === MetricExplorerComparison.NONE &&
+        comparison.segmentDimension !== null
+    ) {
+        return (
+            <Group position="apart">
+                <Group spacing={4}>
+                    <Box
+                        sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 2,
+                            backgroundColor: color ?? 'indigo.6',
+                        }}
+                    />
+                    <Text c="gray.8" fz={13} fw={500}>
+                        {entryData.label}
+                    </Text>
+                </Group>
+
+                <Badge
+                    variant="light"
+                    color="gray"
+                    radius="md"
+                    sx={(theme) => ({
+                        border: `1px solid ${theme.colors.gray[2]}`,
+                        color: theme.colors.gray[7],
+                    })}
+                >
+                    {entryData.formatted}
+                </Badge>
+            </Group>
         );
     }
 
@@ -246,7 +284,7 @@ const PercentageChangeFooter: FC<{
         100;
 
     const changeColor =
-        percentChange > 0 ? 'green.6' : percentChange < 0 ? 'red.6' : 'dark.4';
+        percentChange > 0 ? 'green.7' : percentChange < 0 ? 'red.7' : 'dark.4';
 
     return (
         <Group position="right" spacing={4}>
@@ -293,12 +331,23 @@ const CustomTooltip = ({
                 border: `1px solid ${theme.colors.gray[2]}`,
                 boxShadow:
                     '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
+                flexDirection:
+                    comparison.comparison === MetricExplorerComparison.NONE &&
+                    comparison.segmentDimension === null
+                        ? 'row'
+                        : 'column',
+                justifyContent:
+                    comparison.comparison === MetricExplorerComparison.NONE &&
+                    comparison.segmentDimension === null
+                        ? 'space-between'
+                        : 'flex-start',
             })}
         >
             <Text c="gray.7" fz={13} fw={500}>
                 {dateLabel}
             </Text>
-            {comparison === MetricExplorerComparison.PREVIOUS_PERIOD && (
+            {comparison.comparison ===
+                MetricExplorerComparison.PREVIOUS_PERIOD && (
                 <Divider color="gray.2" />
             )}
             {uniqueEntries.map((entry) => (
@@ -314,7 +363,7 @@ const CustomTooltip = ({
             ))}
             <PercentageChangeFooter
                 uniqueEntries={uniqueEntries}
-                comparison={comparison}
+                comparison={comparison.comparison}
             />
         </Stack>
     );
@@ -735,7 +784,7 @@ const MetricsVisualization: FC<Props> = ({
                             <RechartsTooltip
                                 content={
                                     <CustomTooltip
-                                        comparison={query.comparison}
+                                        comparison={query}
                                         granularity={
                                             results.metric.timeDimension
                                                 ?.interval
