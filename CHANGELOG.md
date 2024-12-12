@@ -1,3 +1,10 @@
+## [0.1413.1](https://github.com/lightdash/lightdash/compare/0.1413.0...0.1413.1) (2024-12-12)
+
+
+### Bug Fixes
+
+* metrics explorer disable data zoom ([#12852](https://github.com/lightdash/lightdash/issues/12852)) ([55f703a](https://github.com/lightdash/lightdash/commit/55f703a5fe5b5b2f1b31fb98776cd951f7c08f95))
+
 # [0.1413.0](https://github.com/lightdash/lightdash/compare/0.1412.1...0.1413.0) (2024-12-12)
 
 
