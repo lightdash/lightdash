@@ -1160,6 +1160,23 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSegmentDimensionsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledDimension"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccessEmpty": {
                 "properties": {
                     "results": {},
@@ -1815,6 +1832,15 @@
                 "required": ["order", "name", "uuid"],
                 "type": "object"
             },
+            "DashboardConfig": {
+                "properties": {
+                    "isDateZoomDisabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["isDateZoomDisabled"],
+                "type": "object"
+            },
             "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
                 "properties": {
                     "name": {
@@ -1891,6 +1917,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "required": [
@@ -4268,6 +4297,110 @@
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
             },
+            "Dimension": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.DIMENSION"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/Format"
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "urls": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldUrl"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "group": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "timeIntervalBaseDimensionName": {
+                        "type": "string"
+                    },
+                    "isAdditionalDimension": {
+                        "type": "boolean"
+                    },
+                    "colors": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "isIntervalBase": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "fieldType",
+                    "type",
+                    "name",
+                    "label",
+                    "table",
+                    "tableLabel",
+                    "sql",
+                    "hidden"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
                 "properties": {},
                 "type": "object",
@@ -4279,13 +4412,45 @@
             "MetricExploreDataPoint": {
                 "properties": {
                     "compareMetric": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "formatted": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["label", "formatted", "value"],
+                        "type": "object"
                     },
                     "metric": {
-                        "type": "number",
-                        "format": "double",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "formatted": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["label", "formatted", "value"],
+                        "type": "object"
+                    },
+                    "segment": {
+                        "type": "string",
                         "nullable": true
                     },
                     "date": {
@@ -4293,7 +4458,7 @@
                         "format": "date-time"
                     }
                 },
-                "required": ["compareMetric", "metric", "date"],
+                "required": ["compareMetric", "metric", "segment", "date"],
                 "type": "object"
             },
             "MetricExploreDataPointWithDateValue": {
@@ -4315,6 +4480,9 @@
             },
             "MetricsExplorerQueryResults": {
                 "properties": {
+                    "hasFilteredSeries": {
+                        "type": "boolean"
+                    },
                     "results": {
                         "items": {
                             "$ref": "#/components/schemas/MetricExploreDataPointWithDateValue"
@@ -4324,14 +4492,34 @@
                     "fields": {
                         "$ref": "#/components/schemas/ItemsMap"
                     },
+                    "segmentDimension": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Dimension"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "compareMetric": {
-                        "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "metric": {
                         "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
                     }
                 },
-                "required": ["results", "fields", "metric"],
+                "required": [
+                    "hasFilteredSeries",
+                    "results",
+                    "fields",
+                    "segmentDimension",
+                    "compareMetric",
+                    "metric"
+                ],
                 "type": "object"
             },
             "ApiMetricsExplorerQueryResults": {
@@ -4376,39 +4564,52 @@
                 "enum": ["different_metric"],
                 "type": "string"
             },
-            "MetricExplorerComparisonType": {
+            "MetricExplorerQuery": {
                 "anyOf": [
                     {
                         "properties": {
-                            "type": {
+                            "segmentDimension": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "comparison": {
                                 "$ref": "#/components/schemas/MetricExplorerComparison.NONE"
                             }
                         },
-                        "required": ["type"],
+                        "required": ["segmentDimension", "comparison"],
                         "type": "object"
                     },
                     {
                         "properties": {
-                            "type": {
+                            "comparison": {
                                 "$ref": "#/components/schemas/MetricExplorerComparison.PREVIOUS_PERIOD"
                             }
                         },
-                        "required": ["type"],
+                        "required": ["comparison"],
                         "type": "object"
                     },
                     {
                         "properties": {
-                            "metricName": {
-                                "type": "string"
+                            "metric": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "table": {
+                                        "type": "string"
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "table", "label"],
+                                "type": "object"
                             },
-                            "metricTable": {
-                                "type": "string"
-                            },
-                            "type": {
+                            "comparison": {
                                 "$ref": "#/components/schemas/MetricExplorerComparison.DIFFERENT_METRIC"
                             }
                         },
-                        "required": ["metricName", "metricTable", "type"],
+                        "required": ["metric", "comparison"],
                         "type": "object"
                     }
                 ]
@@ -7189,6 +7390,9 @@
             },
             "Dashboard": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -7417,6 +7621,9 @@
             },
             "CreateDashboard": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -12180,7 +12387,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1405.0",
+        "version": "0.1413.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12638,6 +12845,54 @@
                     {
                         "in": "path",
                         "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{tableName}/segment-dimensions": {
+            "get": {
+                "operationId": "getSegmentDimensions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSegmentDimensionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get dimensions that can be used to segment metrics",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "tableName",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -14545,14 +14800,14 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "comparison": {
-                                        "$ref": "#/components/schemas/MetricExplorerComparisonType"
+                                    "query": {
+                                        "$ref": "#/components/schemas/MetricExplorerQuery"
                                     },
                                     "timeDimensionOverride": {
                                         "$ref": "#/components/schemas/TimeDimensionConfig"
                                     }
                                 },
-                                "required": ["comparison"],
+                                "required": ["query"],
                                 "type": "object"
                             }
                         }

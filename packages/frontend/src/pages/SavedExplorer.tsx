@@ -13,12 +13,15 @@ import { useChartPinningMutation } from '../hooks/pinning/useChartPinningMutatio
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import { useApp } from '../providers/AppProvider';
 import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
 
 const SavedExplorer = () => {
+    const { health } = useApp();
+
     const { savedQueryUuid, mode, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
@@ -108,6 +111,7 @@ const SavedExplorer = () => {
                     : undefined
             }
             savedChart={data}
+            defaultLimit={health.data?.query.defaultLimit}
         >
             <Page
                 title={data?.name}

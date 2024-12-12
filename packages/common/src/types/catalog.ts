@@ -285,3 +285,8 @@ export type ApiMetricsWithAssociatedTimeDimensionResponse = {
     status: 'ok';
     results: MetricWithAssociatedTimeDimension[];
 };
+
+export type ApiSegmentDimensionsResponse = {
+    status: 'ok';
+    results: CompiledDimension[];
+};

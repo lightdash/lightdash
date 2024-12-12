@@ -116,7 +116,7 @@ const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
         fetchNextPage,
     } = useInfiniteContent(
         {
-            projectUuid,
+            projectUuids: [projectUuid],
             contentTypes:
                 resourceType === AddToSpaceResources.CHART
                     ? [ContentType.CHART]

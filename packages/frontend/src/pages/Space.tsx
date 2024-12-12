@@ -54,7 +54,7 @@ const Space: FC = () => {
 
     const { data: allItems, isLoading: isContentLoading } = useContent(
         {
-            projectUuid,
+            projectUuids: [projectUuid],
             spaceUuids: [spaceUuid],
             pageSize: Number.MAX_SAFE_INTEGER,
         },

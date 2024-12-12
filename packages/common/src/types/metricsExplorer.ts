@@ -1,6 +1,5 @@
-import { z } from 'zod';
 import { type MetricWithAssociatedTimeDimension } from './catalog';
-import type { ItemsMap } from './field';
+import type { Dimension, ItemsMap } from './field';
 import type { ResultValue } from './results';
 
 export enum MetricExplorerComparison {
@@ -12,47 +11,49 @@ export enum MetricExplorerComparison {
 export type MetricExplorerPartialDateRange = [Date | null, Date | null];
 export type MetricExplorerDateRange = [Date, Date];
 
-export type MetricExplorerComparisonType =
+export type MetricExplorerQuery =
     | {
-          type: MetricExplorerComparison.NONE;
+          comparison: MetricExplorerComparison.NONE;
+          segmentDimension: string | null;
       }
     | {
-          type: MetricExplorerComparison.PREVIOUS_PERIOD;
+          comparison: MetricExplorerComparison.PREVIOUS_PERIOD;
       }
     | {
-          type: MetricExplorerComparison.DIFFERENT_METRIC;
-          metricTable: string;
-          metricName: string;
+          comparison: MetricExplorerComparison.DIFFERENT_METRIC;
+          metric: {
+              label: string;
+              table: string;
+              name: string;
+          };
       };
 
-const metricExploreDataPointSchema = z.object({
-    date: z.date({ coerce: true }),
-    metric: z.number().nullable(),
-    compareMetric: z.number().nullable(),
-});
-
-export const metricExploreDataPointWithDateValueSchema =
-    metricExploreDataPointSchema.extend({
-        dateValue: z.number(),
-    });
-
-// z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPoint = {
     date: Date;
-    metric: number | null;
-    compareMetric: number | null;
+    segment: string | null;
+    metric: {
+        value: number | null;
+        formatted: string | null;
+        label: string | null;
+    };
+    compareMetric: {
+        value: number | null;
+        formatted: string | null;
+        label: string | null;
+    };
 };
 
-// z.infer should be used here but it doesn't work with TSOA
 export type MetricExploreDataPointWithDateValue = MetricExploreDataPoint & {
     dateValue: number;
 };
 
 export type MetricsExplorerQueryResults = {
     metric: MetricWithAssociatedTimeDimension;
-    compareMetric: MetricWithAssociatedTimeDimension | undefined;
+    compareMetric: MetricWithAssociatedTimeDimension | null;
+    segmentDimension: Dimension | null;
     fields: ItemsMap;
     results: MetricExploreDataPointWithDateValue[];
+    hasFilteredSeries: boolean;
 };
 
 export type ApiMetricsExplorerQueryResults = {

@@ -1,15 +1,19 @@
 import {
+    applyCustomFormat,
     capitalize,
     friendlyName,
+    getCustomFormat,
     MetricExplorerComparison,
-    type MetricExplorerComparisonType,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
+    type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
 import {
-    Button,
+    Badge,
+    Box,
     Flex,
     Group,
     LoadingOverlay,
@@ -17,8 +21,9 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
+    type DefaultMantineColor,
 } from '@mantine/core';
-import { IconInfoCircle, IconZoomReset } from '@tabler/icons-react';
+import { IconLineDashed, IconMinus } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -30,25 +35,35 @@ import {
     timeYear,
 } from 'd3-time';
 import dayjs from 'dayjs';
-import { useEffect, useMemo, type FC } from 'react';
+import { uniqBy } from 'lodash';
+import { useMemo, type FC } from 'react';
 import {
     CartesianGrid,
     Legend,
     Line,
     LineChart,
-    ReferenceArea,
+    // REMOVE COMMENTS TO ENABLE CHART ZOOM
+    // ReferenceArea,
     ResponsiveContainer,
     Tooltip as RechartsTooltip,
     XAxis,
     YAxis,
+    type TooltipProps as RechartsTooltipProps,
 } from 'recharts';
+import {
+    type NameType,
+    type ValueType,
+} from 'recharts/types/component/DefaultTooltipContent';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
+import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
+import { getMatchingPresetLabel } from '../../utils/metricPeekDate';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { FORMATS } from './types';
-import { useChartZoom } from './useChartZoom';
+// REMOVE COMMENTS TO ENABLE CHART ZOOM
+// import { useChartZoom } from './useChartZoom';
 
 const tickFormatter = (date: Date) => {
     return (
@@ -70,10 +85,111 @@ const tickFormatter = (date: Date) => {
     )(date);
 };
 
+type RechartsTooltipPropsPayload = NonNullable<
+    RechartsTooltipProps<ValueType, NameType>['payload']
+>[number];
+
+interface CustomTooltipPropsPayload extends RechartsTooltipPropsPayload {
+    payload: MetricExploreDataPointWithDateValue;
+}
+
+interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
+    payload?: CustomTooltipPropsPayload[];
+}
+
+const CustomTooltipPayloadEntry = ({
+    entry,
+    color,
+}: {
+    entry: CustomTooltipPropsPayload;
+    color?: DefaultMantineColor;
+}) => {
+    const entryData = useMemo(() => {
+        if (!entry.name) {
+            return null;
+        }
+
+        const isCompareMetric = entry.name === 'compareMetric';
+        return isCompareMetric
+            ? entry.payload.compareMetric
+            : entry.payload.metric;
+    }, [entry]);
+
+    if (!entryData) {
+        return null;
+    }
+
+    return (
+        <Group position="apart">
+            <Group spacing={4}>
+                <MantineIcon
+                    color={color ?? 'indigo.6'}
+                    icon={entry.name === 'metric' ? IconMinus : IconLineDashed}
+                />
+                <Text c="gray.8" fz={13} fw={500}>
+                    {entryData.label}
+                </Text>
+            </Group>
+
+            <Badge
+                variant="light"
+                color="indigo"
+                radius="md"
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.indigo[1]}`,
+                })}
+            >
+                {entryData.formatted}
+            </Badge>
+        </Group>
+    );
+};
+
+function getUniqueEntryKey(entry: CustomTooltipPropsPayload) {
+    return `${entry.name}_${entry.payload.segment}_${entry.payload.dateValue}_${entry.payload.metric.value}`;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+    const uniqueEntries = useMemo(() => {
+        return uniqBy(payload, getUniqueEntryKey);
+    }, [payload]);
+
+    if (!active || !uniqueEntries || !uniqueEntries.length) {
+        return null;
+    }
+
+    return (
+        <Stack
+            sx={(theme) => ({
+                fontSize: theme.fontSizes.xs,
+                fontWeight: 500,
+                backgroundColor: 'white',
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.gray[2]}`,
+                boxShadow:
+                    '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
+                padding: theme.spacing.sm,
+            })}
+            spacing="xs"
+        >
+            <Text c="gray.7" fz={13} fw={500}>{`${dayjs(label).format(
+                'MMM D, YYYY',
+            )}`}</Text>
+            {uniqueEntries.map((entry) => (
+                <CustomTooltipPayloadEntry
+                    key={getUniqueEntryKey(entry)}
+                    entry={entry}
+                    color={entry.stroke}
+                />
+            ))}
+        </Stack>
+    );
+};
+
 type Props = {
     results: MetricsExplorerQueryResults | undefined;
     dateRange: MetricExplorerDateRange | undefined;
-    comparison: MetricExplorerComparisonType;
+    query: MetricExplorerQuery;
     onDateRangeChange: (range: MetricExplorerDateRange) => void;
     showTimeDimensionIntervalPicker: boolean;
     timeDimensionBaseField: TimeDimensionConfig;
@@ -81,6 +197,22 @@ type Props = {
     onTimeIntervalChange: (interval: TimeFrames) => void;
     isFetching: boolean;
 };
+
+const DEFAULT_LINE_COLOR = 'indigo';
+const CHART_MANTINE_COLORS = [
+    'violet',
+    'teal',
+    'lime',
+    'yellow',
+    'gray',
+    'blue',
+    'red',
+    'pink',
+    'cyan',
+    'orange',
+];
+
+const CHART_MANTINE_COLOR_INDEX = 4;
 
 const MetricsVisualization: FC<Props> = ({
     results,
@@ -90,33 +222,41 @@ const MetricsVisualization: FC<Props> = ({
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
-    comparison,
+    query,
     isFetching,
 }) => {
+    const { leftYAxisWidth, rightYAxisWidth, setChartRef } =
+        useDynamicYAxisWidth();
+
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
-    const { colors, radius, fontSizes, spacing } = useMantineTheme();
+
+    const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
         return results.results;
     }, [results]);
 
-    const {
-        activeData,
-        zoomState,
-        handlers: {
-            handleMouseDown,
-            handleMouseMove,
-            handleMouseUp,
-            resetZoom,
-        },
-    } = useChartZoom({ data });
+    // REMOVE THIS LINE TO ENABLE CHART ZOOM
+    const activeData = data;
 
-    useEffect(() => {
-        resetZoom();
-    }, [data, resetZoom]);
+    // REMOVE COMMENTS TO ENABLE CHART ZOOM
+    // const {
+    //     activeData,
+    //     zoomState,
+    //     handlers: {
+    //         handleMouseDown,
+    //         handleMouseMove,
+    //         handleMouseUp,
+    //         resetZoom,
+    //     },
+    // } = useChartZoom({ data });
+
+    // useEffect(() => {
+    //     resetZoom();
+    // }, [data, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
         const timeValues = activeData.map((row) => row.dateValue);
@@ -134,19 +274,167 @@ const MetricsVisualization: FC<Props> = ({
         };
     }, [activeData]);
 
-    const showEmptyState = activeData.length === 0;
-    const showLegend = comparison?.type !== MetricExplorerComparison.NONE;
+    const segmentedData = useMemo((): {
+        segment: string | null;
+        color: string;
+        data: MetricsExplorerQueryResults['results'];
+    }[] => {
+        const segmentsMap = new Map<
+            string | null,
+            MetricsExplorerQueryResults['results']
+        >();
 
-    const legendConfig = useMemo(() => {
-        if (comparison.type === MetricExplorerComparison.NONE) return null;
-        if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
-            return [results?.metric.label, results?.compareMetric?.label];
+        activeData.forEach((row) => {
+            const segment = row.segment; // Preserve `null` as is
+            if (!segmentsMap.has(segment)) {
+                segmentsMap.set(segment, []);
+            }
+            segmentsMap.get(segment)!.push(row);
+        });
+
+        return Array.from(segmentsMap.entries()).map(
+            ([segment, segmentData], i) => ({
+                segment,
+                color: segment
+                    ? colors[
+                          CHART_MANTINE_COLORS[i % CHART_MANTINE_COLORS.length]
+                      ][CHART_MANTINE_COLOR_INDEX]
+                    : colors[DEFAULT_LINE_COLOR][CHART_MANTINE_COLOR_INDEX],
+                data: segmentData,
+            }),
+        );
+    }, [activeData, colors]);
+
+    const showEmptyState = activeData.length === 0;
+    const showLegend =
+        query.comparison !== MetricExplorerComparison.NONE ||
+        segmentedData.length > 1;
+
+    const legendConfig: Record<
+        string | 'metric' | 'compareMetric',
+        { name: string; label: string }
+    > | null = useMemo(() => {
+        switch (query.comparison) {
+            case MetricExplorerComparison.NONE:
+                if (segmentedData.length > 1) {
+                    return segmentedData.reduce(
+                        (acc, { segment }) => ({
+                            ...acc,
+                            ...(segment
+                                ? {
+                                      [segment]: {
+                                          name: segment,
+                                          label: segment,
+                                      },
+                                  }
+                                : {}),
+                        }),
+                        {},
+                    );
+                }
+                // Single series case (no segments)
+                if (segmentedData.length === 1) {
+                    return {
+                        metric: {
+                            name: 'metric',
+                            label: results?.metric.label,
+                        },
+                    };
+                }
+                return null;
+            case MetricExplorerComparison.DIFFERENT_METRIC: {
+                return {
+                    metric: {
+                        name: 'metric',
+                        label: results?.metric.label,
+                    },
+                    compareMetric: {
+                        name: 'compareMetric',
+                        label: results?.compareMetric?.label,
+                    },
+                };
+            }
+            case MetricExplorerComparison.PREVIOUS_PERIOD: {
+                if (!dateRange || !results?.metric.timeDimension?.interval)
+                    return null;
+                const preset = getMatchingPresetLabel(
+                    dateRange,
+                    results?.metric.timeDimension?.interval,
+                );
+                const currentPeriodYear = dateRange
+                    ? dayjs(dateRange[1]).year()
+                    : null;
+                const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
+
+                // If the date range is 5 years, we want to show the year range
+                if (preset === '5Y' && startYear && currentPeriodYear) {
+                    return {
+                        metric: {
+                            name: 'metric',
+                            label: `${startYear}-${currentPeriodYear}`,
+                        },
+                        compareMetric: {
+                            name: 'compareMetric',
+                            label: `${startYear - 1}-${currentPeriodYear - 1}`,
+                        },
+                    };
+                }
+
+                return {
+                    metric: {
+                        name: 'metric',
+                        label: currentPeriodYear
+                            ? `${currentPeriodYear}`
+                            : results?.metric.label,
+                    },
+                    compareMetric: {
+                        name: 'compareMetric',
+                        label: currentPeriodYear
+                            ? `${currentPeriodYear - 1}`
+                            : results?.compareMetric?.label,
+                    },
+                };
+            }
+
+            default: {
+                return {
+                    metric: {
+                        name: 'metric',
+                        label: results?.metric.label,
+                    },
+                };
+            }
         }
-        if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
-            return [results?.metric.label, 'Previous period'];
-        }
-        return [results?.metric.label];
-    }, [comparison, results]);
+    }, [
+        query.comparison,
+        segmentedData,
+        results?.metric.label,
+        results?.metric.timeDimension?.interval,
+        results?.compareMetric?.label,
+        dateRange,
+    ]);
+
+    const formatConfig = useMemo(() => {
+        return {
+            metric: getCustomFormat(results?.metric),
+            compareMetric: getCustomFormat(results?.compareMetric ?? undefined),
+        };
+    }, [results]);
+
+    const shouldSplitYAxis = useMemo(() => {
+        return (
+            query.comparison !== MetricExplorerComparison.NONE &&
+            formatConfig.compareMetric !== formatConfig.metric
+        );
+    }, [query.comparison, formatConfig]);
+
+    const commonYAxisConfig = {
+        axisLine: false,
+        tickLine: false,
+        fontSize: 11,
+        allowDataOverflow: false,
+        domain: ['dataMin - 1', 'dataMax + 1'],
+    };
 
     return (
         <Stack spacing="sm" w="100%" h="100%">
@@ -164,26 +452,39 @@ const MetricsVisualization: FC<Props> = ({
                         onTimeIntervalChange={onTimeIntervalChange}
                     />
                 )}
-                <Button
-                    variant="light"
-                    color="indigo"
-                    size="xs"
-                    radius="md"
-                    disabled={!zoomState.zoomedData}
-                    leftIcon={<MantineIcon icon={IconZoomReset} />}
-                    onClick={resetZoom}
-                    sx={{
-                        color: colors.indigo[7],
-                        '&[data-disabled="true"]': {
-                            opacity: 0.5,
-                            backgroundColor: colors.gray[0],
-                        },
-                    }}
-                    fz={14}
-                    h={32}
+
+                {/*
+                REMOVE COMMENTS TO ENABLE CHART ZOOM
+                <Tooltip
+                    label="No zoom has been applied yet. Drag on the chart to zoom into a section"
+                    variant="xs"
+                    position="top"
+                    disabled={!!zoomState.zoomedData}
+                    withinPortal
                 >
-                    Reset zoom
-                </Button>
+                    <Box>
+                        <Button
+                            variant="light"
+                            color="indigo"
+                            size="xs"
+                            radius="md"
+                            disabled={!zoomState.zoomedData}
+                            leftIcon={<MantineIcon icon={IconZoomReset} />}
+                            onClick={resetZoom}
+                            sx={{
+                                color: colors.indigo[7],
+                                '&[data-disabled="true"]': {
+                                    opacity: 0.5,
+                                    backgroundColor: colors.gray[0],
+                                },
+                            }}
+                            fz={14}
+                            h={32}
+                        >
+                            Reset zoom
+                        </Button>
+                    </Box>
+                </Tooltip> */}
             </Group>
 
             {showEmptyState && !isFetching && (
@@ -205,29 +506,35 @@ const MetricsVisualization: FC<Props> = ({
 
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                            data={activeData}
+                            ref={(instance) => setChartRef(instance)}
                             margin={{
                                 right: 40,
-                                left: 60,
+                                left: 10,
                                 top: 10,
                             }}
-                            onMouseDown={handleMouseDown}
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
+                            // REMOVE COMMENTS TO ENABLE CHART ZOOM
+                            // onMouseDown={handleMouseDown}
+                            // onMouseMove={handleMouseMove}
+                            // onMouseUp={handleMouseUp}
                         >
                             {showLegend && (
                                 <Legend
                                     verticalAlign="top"
                                     height={50}
                                     margin={{ bottom: 20 }}
-                                    formatter={(value) => (
+                                    formatter={(value: string) => (
                                         <Text
                                             span
                                             c="dark.5"
                                             size={14}
                                             fw={400}
                                         >
-                                            {value}
+                                            {legendConfig &&
+                                            typeof value === 'string' &&
+                                            value in legendConfig
+                                                ? legendConfig[value]?.label ||
+                                                  value
+                                                : value}
                                         </Text>
                                     )}
                                 />
@@ -240,19 +547,16 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                fontSize={11}
-                                width={8}
-                                domain={['dataMin - 1', 'dataMax + 1']}
-                                allowDataOverflow={false}
+                                yAxisId="metric"
+                                dataKey="metric.value"
+                                width={leftYAxisWidth}
+                                {...commonYAxisConfig}
                                 label={
                                     !showLegend
                                         ? {
                                               value: results?.metric.label,
                                               angle: -90,
                                               position: 'left',
-                                              offset: 50,
                                               dy: -60,
                                               style: {
                                                   fontSize: 13,
@@ -263,7 +567,12 @@ const MetricsVisualization: FC<Props> = ({
                                           }
                                         : undefined
                                 }
-                                tickFormatter={(value) => value.toFixed(2)}
+                                tickFormatter={(value) => {
+                                    return applyCustomFormat(
+                                        value,
+                                        formatConfig.metric,
+                                    );
+                                }}
                                 style={{ userSelect: 'none' }}
                             />
 
@@ -276,61 +585,65 @@ const MetricsVisualization: FC<Props> = ({
                                 style={{ userSelect: 'none' }}
                             />
 
-                            <RechartsTooltip
-                                {...(comparison.type ===
-                                    MetricExplorerComparison.NONE && {
-                                    formatter: (value) => [
-                                        value,
-                                        results?.metric.label,
-                                    ],
-                                })}
-                                labelFormatter={(label) =>
-                                    dayjs(label).format('MMM D, YYYY')
-                                }
-                                labelStyle={{
-                                    fontWeight: 500,
-                                    color: colors.gray[7],
-                                    fontSize: 13,
-                                }}
-                                contentStyle={{
-                                    fontSize: fontSizes.xs,
-                                    fontWeight: 500,
-                                    backgroundColor: colors.offWhite[0],
-                                    borderRadius: radius.md,
-                                    border: `1px solid ${colors.gray[2]}`,
-                                    boxShadow:
-                                        '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
-                                    padding: spacing.sm,
-                                }}
-                            />
+                            <RechartsTooltip content={<CustomTooltip />} />
 
-                            <Line
-                                name={legendConfig?.[0]}
-                                type="linear"
-                                dataKey="metric"
-                                label={legendConfig?.[0]}
-                                stroke={colors.indigo[6]}
-                                strokeWidth={1.6}
-                                dot={false}
-                                legendType="plainline"
-                                isAnimationActive={false}
-                            />
-
-                            {results.compareMetric && (
+                            {segmentedData.map((segment) => (
                                 <Line
-                                    name={legendConfig?.[1]}
+                                    key={segment.segment ?? 'metric'}
                                     type="linear"
-                                    dataKey="compareMetric"
-                                    label={legendConfig?.[1]}
-                                    stroke={colors.indigo[4]}
-                                    strokeDasharray={'3 3'}
-                                    strokeWidth={1.3}
+                                    yAxisId="metric"
+                                    name={segment.segment ?? 'metric'}
+                                    data={segment.data}
+                                    dataKey="metric.value"
+                                    stroke={segment.color}
+                                    strokeWidth={1.6}
                                     dot={false}
                                     legendType="plainline"
                                     isAnimationActive={false}
                                 />
+                            ))}
+
+                            {results.compareMetric && (
+                                <>
+                                    {shouldSplitYAxis && (
+                                        <YAxis
+                                            yAxisId="compareMetric"
+                                            dataKey="compareMetric.value"
+                                            orientation="right"
+                                            width={rightYAxisWidth}
+                                            {...commonYAxisConfig}
+                                            tickFormatter={(value) => {
+                                                return applyCustomFormat(
+                                                    value,
+                                                    formatConfig.compareMetric,
+                                                );
+                                            }}
+                                            style={{ userSelect: 'none' }}
+                                        />
+                                    )}
+
+                                    <Line
+                                        name="compareMetric"
+                                        yAxisId={
+                                            shouldSplitYAxis
+                                                ? 'compareMetric'
+                                                : 'metric'
+                                        }
+                                        type="linear"
+                                        dataKey="compareMetric.value"
+                                        data={segmentedData[0].data}
+                                        stroke={colors.indigo[4]}
+                                        strokeDasharray={'3 3'}
+                                        strokeWidth={1.3}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />
+                                </>
                             )}
 
+                            {/*
+                            REMOVE COMMENTS TO ENABLE CHART ZOOM
                             {zoomState.refAreaLeft &&
                                 zoomState.refAreaRight && (
                                     <ReferenceArea
@@ -340,6 +653,7 @@ const MetricsVisualization: FC<Props> = ({
                                         fill={colors.gray[3]}
                                     />
                                 )}
+                            */}
                         </LineChart>
                     </ResponsiveContainer>
                 </Flex>
@@ -365,28 +679,23 @@ const MetricsVisualization: FC<Props> = ({
                     </Tooltip>
 
                     {results?.metric.availableTimeDimensions && (
-                        <Group spacing="xs">
-                            <TimeDimensionPicker
-                                fields={results.metric.availableTimeDimensions}
-                                dimension={timeDimensionBaseField}
-                                onChange={(config) =>
-                                    setTimeDimensionOverride(config)
-                                }
-                            />
-                            <Tooltip
-                                variant="xs"
-                                disabled={!canManageExplore}
-                                label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users."
-                            >
-                                <MantineIcon
-                                    color="gray.6"
-                                    icon={IconInfoCircle}
-                                    display={
-                                        canManageExplore ? 'block' : 'none'
+                        <Tooltip
+                            variant="xs"
+                            disabled={!canManageExplore}
+                            label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users"
+                        >
+                            <Box>
+                                <TimeDimensionPicker
+                                    fields={
+                                        results.metric.availableTimeDimensions
+                                    }
+                                    dimension={timeDimensionBaseField}
+                                    onChange={(config) =>
+                                        setTimeDimensionOverride(config)
                                     }
                                 />
-                            </Tooltip>
-                        </Group>
+                            </Box>
+                        </Tooltip>
                     )}
                 </Group>
             </Group>

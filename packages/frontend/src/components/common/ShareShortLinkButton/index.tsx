@@ -6,7 +6,10 @@ import { useAsyncClipboard } from '../../../hooks/useAsyncClipboard';
 import { useCreateShareMutation } from '../../../hooks/useShare';
 import MantineIcon from '../MantineIcon';
 
-const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
+const ShareShortLinkButton: FC<{
+    disabled?: boolean;
+    url?: { pathname: string; search: string };
+}> = ({ disabled, url }) => {
     const location = useLocation();
 
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -14,8 +17,8 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
 
     const getSharedUrl = async () => {
         const response = await createShareUrl({
-            path: location.pathname,
-            params: location.search,
+            path: url?.pathname ?? location.pathname,
+            params: url?.search ?? location.search,
         });
         return response.shareUrl;
     };

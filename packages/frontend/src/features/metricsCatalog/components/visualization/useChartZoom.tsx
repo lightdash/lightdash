@@ -1,3 +1,10 @@
+/*
+    REMOVE COMMENTS TO ENABLE CHART ZOOM
+*/
+
+export {};
+
+/*
 import type { MetricExploreDataPoint } from '@lightdash/common';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
@@ -23,6 +30,7 @@ type ZoomState<T extends MetricExploreDataPoint> = {
     refAreaRight: number | null;
     zoomedData: T[] | null;
 };
+*/
 
 /**
  * Hook to handle zooming on the chart using the recharts library
@@ -30,6 +38,8 @@ type ZoomState<T extends MetricExploreDataPoint> = {
  * @param data - The data to zoom on
  * @returns The zoom state and handlers
  */
+
+/*
 export const useChartZoom = <T extends MetricExploreDataPoint>({
     data,
 }: UseChartZoomArgs<T>): ChartZoom<T> => {
@@ -114,3 +124,4 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
 
     return result;
 };
+*/

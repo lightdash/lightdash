@@ -1,3 +1,133 @@
+# [0.1415.0](https://github.com/lightdash/lightdash/compare/0.1414.0...0.1415.0) (2024-12-12)
+
+
+### Features
+
+* add priority levels to job queue ([#12841](https://github.com/lightdash/lightdash/issues/12841)) ([66191c6](https://github.com/lightdash/lightdash/commit/66191c6b25884f53839c930e5eb711a806481d92))
+
+# [0.1414.0](https://github.com/lightdash/lightdash/compare/0.1413.3...0.1414.0) (2024-12-12)
+
+
+### Features
+
+* metrics explorer categories in the url ([#12865](https://github.com/lightdash/lightdash/issues/12865)) ([e213e9f](https://github.com/lightdash/lightdash/commit/e213e9f2164cf722361e7160095ef8325a080774))
+
+## [0.1413.3](https://github.com/lightdash/lightdash/compare/0.1413.2...0.1413.3) (2024-12-12)
+
+
+### Bug Fixes
+
+* set comparison as none if empty metric ([#12864](https://github.com/lightdash/lightdash/issues/12864)) ([2d4c395](https://github.com/lightdash/lightdash/commit/2d4c395f402eb10f012ee44ec73081135427454c))
+
+## [0.1413.2](https://github.com/lightdash/lightdash/compare/0.1413.1...0.1413.2) (2024-12-12)
+
+
+### Bug Fixes
+
+* metrics explorer segment compare select loading states ([#12851](https://github.com/lightdash/lightdash/issues/12851)) ([affc164](https://github.com/lightdash/lightdash/commit/affc1648eb85bde0f78e98270fdbd621e13c38a2))
+
+## [0.1413.1](https://github.com/lightdash/lightdash/compare/0.1413.0...0.1413.1) (2024-12-12)
+
+
+### Bug Fixes
+
+* metrics explorer disable data zoom ([#12852](https://github.com/lightdash/lightdash/issues/12852)) ([55f703a](https://github.com/lightdash/lightdash/commit/55f703a5fe5b5b2f1b31fb98776cd951f7c08f95))
+
+# [0.1413.0](https://github.com/lightdash/lightdash/compare/0.1412.1...0.1413.0) (2024-12-12)
+
+
+### Bug Fixes
+
+* generate jobs starting at midnight, even when scheduler is delayed ([#12838](https://github.com/lightdash/lightdash/issues/12838)) ([21cd140](https://github.com/lightdash/lightdash/commit/21cd140885ab522001646d1319ee676b0177b2ae))
+* improve backend autocomplete ([#12821](https://github.com/lightdash/lightdash/issues/12821)) ([adee39e](https://github.com/lightdash/lightdash/commit/adee39eae87cf7ee586e1be6e8d1ffa56d9c6a1a))
+* metrics explorer filter segment dimension ([#12848](https://github.com/lightdash/lightdash/issues/12848)) ([1cce625](https://github.com/lightdash/lightdash/commit/1cce62511fb0087a261d143ef90cb8ece63d81a1))
+
+
+### Features
+
+* metrics explorer segment by max 10 series ([#12850](https://github.com/lightdash/lightdash/issues/12850)) ([ff84d4c](https://github.com/lightdash/lightdash/commit/ff84d4c6961df4bcfbc17714142a98c6a1d1d22c))
+* metrics explorer visualization colors ([#12849](https://github.com/lightdash/lightdash/issues/12849)) ([bfedcf3](https://github.com/lightdash/lightdash/commit/bfedcf3aba37db4caa6f1c531433c58ea6a9d1ba))
+
+## [0.1412.1](https://github.com/lightdash/lightdash/compare/0.1412.0...0.1412.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* metrics explorer available metrics query ([#12834](https://github.com/lightdash/lightdash/issues/12834)) ([ebac222](https://github.com/lightdash/lightdash/commit/ebac222fd43c39905c51f7c2b2e3550bdfb6f7a9))
+
+# [0.1412.0](https://github.com/lightdash/lightdash/compare/0.1411.3...0.1412.0) (2024-12-11)
+
+
+### Features
+
+* metrics explorer segment by ([#12817](https://github.com/lightdash/lightdash/issues/12817)) ([47f660c](https://github.com/lightdash/lightdash/commit/47f660c2135dc3ed723bc73e52d168c11b1e9b59))
+
+## [0.1411.3](https://github.com/lightdash/lightdash/compare/0.1411.2...0.1411.3) (2024-12-11)
+
+
+### Bug Fixes
+
+* use requestAnimationFrame to avoid infinite loop ([#12839](https://github.com/lightdash/lightdash/issues/12839)) ([c343565](https://github.com/lightdash/lightdash/commit/c3435657e7e435880ab1dffe2dedd0799b2a37c5))
+
+## [0.1411.2](https://github.com/lightdash/lightdash/compare/0.1411.1...0.1411.2) (2024-12-11)
+
+
+### Bug Fixes
+
+* calculate y axis width dynamically ([#12831](https://github.com/lightdash/lightdash/issues/12831)) ([5c845f5](https://github.com/lightdash/lightdash/commit/5c845f5270d0151f5ac83dd5ae482a933aee4e66))
+
+## [0.1411.1](https://github.com/lightdash/lightdash/compare/0.1411.0...0.1411.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* improve cache autocomplete UI ([#12824](https://github.com/lightdash/lightdash/issues/12824)) ([cd0d6bc](https://github.com/lightdash/lightdash/commit/cd0d6bc88ac6f685bc8f68bfb4dd6bd882675ef0))
+
+# [0.1411.0](https://github.com/lightdash/lightdash/compare/0.1410.3...0.1411.0) (2024-12-11)
+
+
+### Features
+
+* revise metrics catalog tooltips ([#12818](https://github.com/lightdash/lightdash/issues/12818)) ([becb92f](https://github.com/lightdash/lightdash/commit/becb92faeb14d7854798e1008b4a18e3046bec20))
+
+## [0.1410.3](https://github.com/lightdash/lightdash/compare/0.1410.2...0.1410.3) (2024-12-11)
+
+
+### Bug Fixes
+
+* listen to project uuid changes and reset on refresh ([#12823](https://github.com/lightdash/lightdash/issues/12823)) ([76051aa](https://github.com/lightdash/lightdash/commit/76051aafbd8832db8e91769d5c25079c940bbe73))
+
+## [0.1410.2](https://github.com/lightdash/lightdash/compare/0.1410.1...0.1410.2) (2024-12-11)
+
+
+### Bug Fixes
+
+* chart page showing charts from previews ([#12819](https://github.com/lightdash/lightdash/issues/12819)) ([6e641de](https://github.com/lightdash/lightdash/commit/6e641de75f61a9470ed068f923ed52f8af04dc4a))
+* metrics catalog double border ([#12814](https://github.com/lightdash/lightdash/issues/12814)) ([b9ad446](https://github.com/lightdash/lightdash/commit/b9ad4464473ed1fc2ba70b9e8c5eda27b8ed2743))
+* metrics explorer run query ([#12820](https://github.com/lightdash/lightdash/issues/12820)) ([ffb4423](https://github.com/lightdash/lightdash/commit/ffb4423997f88fccb01cc42aa9eb21a41fee21fa))
+* set filtering to manual since it is performed on the backend ([#12809](https://github.com/lightdash/lightdash/issues/12809)) ([b270860](https://github.com/lightdash/lightdash/commit/b2708609490b33fd9dd2f6d3db12f333ce32303c))
+
+## [0.1410.1](https://github.com/lightdash/lightdash/compare/0.1410.0...0.1410.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* share unsaved chart config ([#12811](https://github.com/lightdash/lightdash/issues/12811)) ([e0a2383](https://github.com/lightdash/lightdash/commit/e0a2383134d1d63e67d08bf0956b5394769686d0))
+
+# [0.1410.0](https://github.com/lightdash/lightdash/compare/0.1409.0...0.1410.0) (2024-12-11)
+
+
+### Features
+
+* disable date zoom dashboard ([#12804](https://github.com/lightdash/lightdash/issues/12804)) ([281bc5f](https://github.com/lightdash/lightdash/commit/281bc5f5f18c2fa45ce80a9b25aca45a94fb4cc2))
+
+# [0.1409.0](https://github.com/lightdash/lightdash/compare/0.1408.0...0.1409.0) (2024-12-11)
+
+
+### Features
+
+* make default limit configurable ([#12808](https://github.com/lightdash/lightdash/issues/12808)) ([ecbcea9](https://github.com/lightdash/lightdash/commit/ecbcea974f1392b9e48053924c9edd1e0c5d0346))
+
 # [0.1408.0](https://github.com/lightdash/lightdash/compare/0.1407.2...0.1408.0) (2024-12-10)
 
 

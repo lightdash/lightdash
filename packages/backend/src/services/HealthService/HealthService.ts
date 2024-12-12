@@ -146,7 +146,7 @@ export class HealthService extends BaseService {
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
-                this.lightdashConfig.cacheAutocompleResults || false,
+                this.lightdashConfig.resultsCache.autocompleteEnabled || false,
         };
     }
 

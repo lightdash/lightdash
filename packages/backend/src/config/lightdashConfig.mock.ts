@@ -104,7 +104,12 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
     posthog: undefined,
-    resultsCache: { cacheStateTimeSeconds: 0, enabled: false, s3: {} },
+    resultsCache: {
+        cacheStateTimeSeconds: 0,
+        resultsEnabled: false,
+        autocompleteEnabled: false,
+        s3: {},
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',
@@ -141,6 +146,7 @@ export const lightdashConfigMock: LightdashConfig = {
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 5000,
+        defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
     },

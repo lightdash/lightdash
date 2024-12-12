@@ -7,6 +7,7 @@ import {
     GroupWithMembers,
     NotExistsError,
     NotFoundError,
+    ParameterError,
     ProjectGroupAccess,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
@@ -423,7 +424,7 @@ export class GroupsModel {
                             `Group name already exists`,
                         );
                     }
-                    throw error; // Re-throw other errors
+                    throw new UnexpectedDatabaseError(error.message);
                 }
             }
 
@@ -462,9 +463,10 @@ export class GroupsModel {
                         )
                         .andWhere('groups.group_uuid', groupUuid);
 
-                    // Check if the initial and resulting counts match
                     if (newMembers.length !== membersToAdd.length) {
-                        throw new Error(`Some provided user UUIDs are invalid`);
+                        throw new ParameterError(
+                            'Some provided user UUIDs are invalid',
+                        );
                     }
 
                     await trx('group_memberships')
@@ -488,7 +490,6 @@ export class GroupsModel {
                 }
             }
         });
-        // TODO: fix include member count
         return this.getGroupWithMembers(groupUuid, 10000);
     }
 

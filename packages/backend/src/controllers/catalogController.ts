@@ -6,6 +6,7 @@ import {
     ApiErrorPayload,
     ApiGetMetricPeek,
     ApiMetricsCatalog,
+    ApiSegmentDimensionsResponse,
     getItemId,
     type ApiGetMetricsTree,
     type ApiMetricsTreeEdgePayload,
@@ -266,6 +267,33 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getAllCatalogMetricsWithTimeDimensions(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get dimensions that can be used to segment metrics
+     * @param projectUuid
+     * @param metric
+     * @returns the all metric dimensions that can be used to segment metrics
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{tableName}/segment-dimensions')
+    @OperationId('getSegmentDimensions')
+    async getSegmentDimensions(
+        @Path() projectUuid: string,
+        @Path() tableName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSegmentDimensionsResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getSegmentDimensions(req.user!, projectUuid, tableName);
 
         return {
             status: 'ok',

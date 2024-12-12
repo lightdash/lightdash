@@ -59,4 +59,5 @@ export enum QueryExecutionContext {
     API = 'api',
     CLI = 'cli',
     SEMANTIC_VIEWER = 'semanticViewer',
+    METRICS_EXPLORER = 'metricsExplorer',
 }

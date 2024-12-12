@@ -14,11 +14,11 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
-import { useMount } from 'react-use';
+import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
+import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
 import { MetricsCatalogIcon } from '../../../svgs/metricsCatalog';
@@ -26,6 +26,7 @@ import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
     setActiveMetric,
+    setCategoryFilters,
     setOrganizationUuid,
     setProjectUuid,
     toggleMetricPeekModal,
@@ -105,6 +106,11 @@ export const MetricsCatalogPanel = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const history = useHistory();
+    const categoriesParam = useSearchParams('categories');
+    const categories = useAppSelector(
+        (state) => state.metricsCatalog.categoryFilters,
+    );
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
@@ -134,17 +140,36 @@ export const MetricsCatalogPanel = () => {
         metricName: string;
     }>();
 
-    useMount(() => {
+    useEffect(() => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
-    });
+    }, [params.projectUuid, dispatch, projectUuid]);
 
     useEffect(() => {
         if (!organizationUuid && project?.organizationUuid) {
             dispatch(setOrganizationUuid(project.organizationUuid));
         }
     }, [project, dispatch, organizationUuid]);
+
+    useEffect(() => {
+        const urlCategories =
+            categoriesParam?.split(',').map(decodeURIComponent) || [];
+        dispatch(setCategoryFilters(urlCategories));
+    }, [categoriesParam, dispatch]);
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        if (categories.length > 0) {
+            queryParams.set(
+                'categories',
+                categories.map(encodeURIComponent).join(','),
+            );
+        } else {
+            queryParams.delete('categories');
+        }
+        history.replace({ search: queryParams.toString() });
+    }, [categories, history]);
 
     useEffect(
         function handleAbilities() {
@@ -218,7 +243,7 @@ export const MetricsCatalogPanel = () => {
                             </Text>
                             <Tooltip
                                 variant="xs"
-                                label="This feature is in active development, so we expect some bugs and rough edges"
+                                label="This feature is in beta. We're actively testing and improving it—your feedback is welcome!"
                                 position="top"
                             >
                                 <Badge

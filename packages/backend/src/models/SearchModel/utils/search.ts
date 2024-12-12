@@ -9,7 +9,7 @@ export function getFullTextSearchQuery(searchQuery: string) {
         .map((word) => word.trim())
         .filter((word) => word.length > 0)
         .filter((word, index, self) => self.indexOf(word) === index)
-        .map((word) => word.concat(':*'))
+        .map((word) => `'${word.replace(/'/g, "''")}':*`) // wrap the word in quotes and escape existing quotes, this so that we can search with special charcters in the search query
         .join(' & ');
 }
 
