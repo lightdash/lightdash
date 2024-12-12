@@ -1,3 +1,10 @@
+## [0.1415.2](https://github.com/lightdash/lightdash/compare/0.1415.1...0.1415.2) (2024-12-12)
+
+
+### Bug Fixes
+
+* keep custom metric formatting in BigValue ([#12869](https://github.com/lightdash/lightdash/issues/12869)) ([1671304](https://github.com/lightdash/lightdash/commit/16713042cab8c9e1179ea71c761d180418e6bdf7))
+
 ## [0.1415.1](https://github.com/lightdash/lightdash/compare/0.1415.0...0.1415.1) (2024-12-12)
 
 
