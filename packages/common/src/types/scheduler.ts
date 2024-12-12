@@ -39,6 +39,12 @@ export enum SchedulerFormat {
     GSHEETS = 'gsheets',
 }
 
+export enum JobPriority {
+    HIGH = 0, // UI-waiting jobs (queries, download csv, compile)
+    MEDIUM = 1, // Related jobs (validate/catalogindex)
+    LOW = 2, // Background jobs (scheduled deliveries, sheets sync)
+}
+
 export type SchedulerLog = {
     task:
         | 'handleScheduledDelivery'

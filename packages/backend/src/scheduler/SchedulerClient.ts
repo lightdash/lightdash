@@ -10,6 +10,7 @@ import {
     hasSchedulerUuid,
     indexCatalogJob,
     isCreateSchedulerSlackTarget,
+    JobPriority,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     ScheduledJobs,
@@ -169,6 +170,7 @@ export class SchedulerClient {
         identifier: string,
         payload: any,
         scheduledAt: Date,
+        priority: JobPriority,
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
     ) {
         const messageId = nanoid();
@@ -199,6 +201,7 @@ export class SchedulerClient {
                     {
                         runAt: scheduledAt,
                         maxAttempts,
+                        priority,
                     },
                 );
 
@@ -282,6 +285,7 @@ export class SchedulerClient {
             'handleScheduledDelivery',
             payload,
             date,
+            JobPriority.LOW,
             maxAttempts,
         );
         await this.schedulerModel.logSchedulerJob({
@@ -321,6 +325,7 @@ export class SchedulerClient {
             'uploadGsheets',
             payload,
             date,
+            JobPriority.LOW,
         );
 
         this.analytics.track({
@@ -404,6 +409,7 @@ export class SchedulerClient {
             identifier,
             payload,
             date,
+            JobPriority.LOW,
         );
 
         this.analytics.track({
@@ -527,6 +533,7 @@ export class SchedulerClient {
             'downloadCsv',
             payload,
             now,
+            JobPriority.HIGH,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -553,6 +560,7 @@ export class SchedulerClient {
             'uploadGsheetFromQuery',
             payload,
             now,
+            JobPriority.LOW,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -579,6 +587,7 @@ export class SchedulerClient {
             'validateProject',
             payload,
             now,
+            JobPriority.MEDIUM,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -605,6 +614,7 @@ export class SchedulerClient {
             semanticLayerQueryJob,
             payload,
             now,
+            JobPriority.HIGH,
         );
         await this.schedulerModel.logSchedulerJob({
             task: semanticLayerQueryJob,
@@ -627,6 +637,7 @@ export class SchedulerClient {
             sqlRunnerJob,
             payload,
             now,
+            JobPriority.HIGH,
         );
         await this.schedulerModel.logSchedulerJob({
             task: sqlRunnerJob,
@@ -649,6 +660,7 @@ export class SchedulerClient {
             sqlRunnerPivotQueryJob,
             payload,
             now,
+            JobPriority.HIGH,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -672,6 +684,7 @@ export class SchedulerClient {
             'compileProject',
             payload,
             now,
+            JobPriority.HIGH,
             1,
         );
 
@@ -731,6 +744,7 @@ export class SchedulerClient {
             'testAndCompileProject',
             payload,
             now,
+            JobPriority.HIGH,
             1,
         );
 
@@ -761,6 +775,7 @@ export class SchedulerClient {
             indexCatalogJob,
             payload,
             now,
+            JobPriority.MEDIUM,
         );
         await this.schedulerModel.logSchedulerJob({
             task: indexCatalogJob,
