@@ -1,4 +1,8 @@
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    type TimeDimensionConfig,
+    type TimeFrames,
+} from '@lightdash/common';
 import {
     createContext,
     memo,
@@ -68,7 +72,13 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED
-        | EventName.METRICS_CATALOG_ICON_APPLIED;
+        | EventName.METRICS_CATALOG_ICON_APPLIED
+        | EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD
+        | EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC
+        | EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED
+        | EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED
+        | EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED
+        | EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED;
     properties?: {};
 };
 
@@ -248,6 +258,72 @@ type MetricsCatalogIconAppliedEvent = {
     };
 };
 
+type MetricsCatalogExploreCompareLastPeriodEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+    };
+};
+
+type MetricsCatalogExploreCompareAnotherMetricEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+        compareMetricName: string;
+        compareTableName: string;
+    };
+};
+
+type MetricsCatalogExploreDateFilterAppliedEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+        dateFilter: string;
+    };
+};
+
+type MetricsCatalogExploreGranularityAppliedEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+        granularity: TimeFrames;
+    };
+};
+
+type MetricsCatalogExploreSegmentByAppliedEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+        segmentDimension: string;
+    };
+};
+
+type MetricsCatalogExploreTimeDimensionOverrideAppliedEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+        timeDimensionOverride: TimeDimensionConfig;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -267,7 +343,13 @@ export type EventData =
     | MetricsCatalogCategoryClickedEvent
     | MetricsCatalogCategoryFilterAppliedEvent
     | MetricsCatalogIconAppliedEvent
-    | MetricsCatalogMetricNameClickedEvent;
+    | MetricsCatalogMetricNameClickedEvent
+    | MetricsCatalogExploreCompareLastPeriodEvent
+    | MetricsCatalogExploreCompareAnotherMetricEvent
+    | MetricsCatalogExploreDateFilterAppliedEvent
+    | MetricsCatalogExploreGranularityAppliedEvent
+    | MetricsCatalogExploreSegmentByAppliedEvent
+    | MetricsCatalogExploreTimeDimensionOverrideAppliedEvent;
 
 type IdentifyData = {
     id: string;

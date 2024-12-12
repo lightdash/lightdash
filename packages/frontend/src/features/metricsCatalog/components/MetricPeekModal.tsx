@@ -28,7 +28,9 @@ import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTracking } from '../../../providers/TrackingProvider';
 import { Blocks } from '../../../svgs/metricsCatalog';
+import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
@@ -41,10 +43,11 @@ import MetricsVisualization from './visualization/MetricsVisualization';
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
+    const { track } = useTracking();
     const { classes } = useSelectStyles();
 
-    const projectUuid = useAppSelector(
-        (state) => state.metricsCatalog.projectUuid,
+    const { projectUuid, organizationUuid } = useAppSelector(
+        (state) => state.metricsCatalog,
     );
 
     const { tableName, metricName } = useParams<{
@@ -178,13 +181,24 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 );
             }
         },
-        [timeDimensionOverride, timeDimensionBaseField, dateRange],
+        [timeDimensionOverride, timeDimensionBaseField, dateRange, track],
     );
 
     const handleTimeIntervalChange = useCallback(
         function handleTimeIntervalChange(timeInterval: TimeFrames) {
             // Always reset the date range to the default range for the new interval
             setDateRange(getDefaultDateRangeFromInterval(timeInterval));
+
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    granularity: timeInterval,
+                },
+            });
 
             if (timeDimensionBaseField) {
                 setTimeDimensionOverride({
@@ -193,15 +207,36 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 });
             }
         },
-        [timeDimensionBaseField],
+        [
+            metricName,
+            organizationUuid,
+            projectUuid,
+            tableName,
+            timeDimensionBaseField,
+            track,
+        ],
     );
 
-    const handleSegmentDimensionChange = useCallback((value: string | null) => {
-        setQuery({
-            comparison: MetricExplorerComparison.NONE,
-            segmentDimension: value,
-        });
-    }, []);
+    const handleSegmentDimensionChange = useCallback(
+        (value: string | null) => {
+            setQuery({
+                comparison: MetricExplorerComparison.NONE,
+                segmentDimension: value,
+            });
+
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    segmentDimension: value,
+                },
+            });
+        },
+        [metricName, organizationUuid, projectUuid, tableName, track],
+    );
 
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
@@ -215,6 +250,89 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
         onClose();
     }, [history, onClose, projectUuid]);
+
+    useEffect(() => {
+        if (timeDimensionOverride) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    timeDimensionOverride: timeDimensionOverride,
+                },
+            });
+        }
+    }, [
+        timeDimensionOverride,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+    ]);
+
+    useEffect(() => {
+        if (dateRange) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    dateRange: dateRange,
+                },
+            });
+        }
+    }, [
+        dateRange,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+    ]);
+
+    useEffect(() => {
+        if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                },
+            });
+        }
+
+        if (
+            !queryHasEmptyMetric &&
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
+        ) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    compareMetricName: query.metric.name,
+                    compareTableName: query.metric.table,
+                },
+            });
+        }
+    }, [
+        query,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+        queryHasEmptyMetric,
+    ]);
 
     return (
         <Modal.Root
