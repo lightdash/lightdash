@@ -42,6 +42,28 @@ describe('Cron converter', () => {
         expect(executionDates[0]).toStrictEqual(new Date(2023, 0, 1, 0, 0, 0)); // First execution should be at midnight
     });
 
+    test('Make sure we can schedule at midnight by passing the start of the day', () => {
+        const when = new Date(2023, 0, 1, 0, 0, 0);
+        const executionDates = getDailyDatesFromCron(
+            { cron: '0 * * * *', timezone: 'UTC' }, // Every hour
+            when,
+        );
+
+        expect(executionDates[0]).toStrictEqual(new Date(2023, 0, 1, 0, 0, 0)); // First execution should be at midnight
+    });
+
+    test('When no start time is provided, it should generate jobs after now', () => {
+        // A minute and a half after midnight
+        const when = new Date(2023, 0, 1, 0, 1, 30);
+        const executionDates = getDailyDatesFromCron(
+            { cron: '0 0 * * *', timezone: 'UTC' }, // At midnight
+            when,
+        );
+
+        // We should not generate jobs for today
+        expect(executionDates.length).toStrictEqual(0);
+    });
+
     test('Beginning and end of workday', () => {
         const when = new Date(2023, 0, 1, 0, 0, 30); // Beggining of the day (30 seconds after midnight)
         const executionDates = getDailyDatesFromCron(

@@ -424,13 +424,20 @@ export class SchedulerClient {
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         defaultTimezone: string,
+        // startingDateTime specifies that time after which to generate jobs.
+        // If not provided, it will generate job after now, which is the desired
+        // behavior for new schedulers and updates.
+        startingDateTime?: Date,
     ): Promise<void> {
         if (scheduler.enabled === false) return; // Do not add jobs for disabled schedulers
 
-        const dates = getDailyDatesFromCron({
-            cron: scheduler.cron,
-            timezone: scheduler.timezone ?? defaultTimezone,
-        });
+        const dates = getDailyDatesFromCron(
+            {
+                cron: scheduler.cron,
+                timezone: scheduler.timezone ?? defaultTimezone,
+            },
+            startingDateTime,
+        );
 
         try {
             const promises = dates.map((date: Date) =>
