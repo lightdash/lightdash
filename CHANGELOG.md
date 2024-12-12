@@ -1,3 +1,10 @@
+# [0.1416.0](https://github.com/lightdash/lightdash/compare/0.1415.2...0.1416.0) (2024-12-12)
+
+
+### Features
+
+* update metrics catalog axes, tooltips, and general fixes ([#12871](https://github.com/lightdash/lightdash/issues/12871)) ([ec92497](https://github.com/lightdash/lightdash/commit/ec92497c3a2cfe318a6388f0309711e925932baf))
+
 ## [0.1415.2](https://github.com/lightdash/lightdash/compare/0.1415.1...0.1415.2) (2024-12-12)
 
 
