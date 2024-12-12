@@ -77,7 +77,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         >
             <Menu.Target>
                 <Group spacing={0} sx={{ position: 'relative' }}>
-                    {!isEditMode && (
+                    {isEditMode && (
                         <ActionIcon
                             size="xs"
                             variant="subtle"
