@@ -1,19 +1,21 @@
 import {
     applyCustomFormat,
     capitalize,
+    ComparisonFormatTypes,
     friendlyName,
     getCustomFormat,
     MetricExplorerComparison,
+    TimeFrames,
     type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
     type TimeDimensionConfig,
-    type TimeFrames,
 } from '@lightdash/common';
 import {
     Badge,
     Box,
+    Divider,
     Flex,
     Group,
     LoadingOverlay,
@@ -55,9 +57,14 @@ import {
     type ValueType,
 } from 'recharts/types/component/DefaultTooltipContent';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
-import { getMatchingPresetLabel } from '../../utils/metricPeekDate';
+import {
+    getGranularityLabel,
+    getGranularitySublabel,
+    is5YearDateRange,
+} from '../../utils/metricPeekDate';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
@@ -94,15 +101,38 @@ interface CustomTooltipPropsPayload extends RechartsTooltipPropsPayload {
 }
 
 interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
+    comparison: MetricExplorerQuery;
+    granularity: TimeFrames | undefined;
+    is5YearDateRangePreset: boolean;
     payload?: CustomTooltipPropsPayload[];
+    dateRange?: MetricExplorerDateRange;
 }
+
+const SquareBadge = ({ color }: { color?: DefaultMantineColor }) => (
+    <Box
+        sx={{
+            width: 10,
+            height: 10,
+            borderRadius: 2,
+            backgroundColor: color ?? 'indigo.6',
+        }}
+    />
+);
 
 const CustomTooltipPayloadEntry = ({
     entry,
     color,
+    comparison,
+    date,
+    is5YearDateRangePreset,
+    dateRange,
 }: {
     entry: CustomTooltipPropsPayload;
     color?: DefaultMantineColor;
+    comparison: MetricExplorerQuery;
+    date: string | undefined;
+    is5YearDateRangePreset: boolean;
+    dateRange?: MetricExplorerDateRange;
 }) => {
     const entryData = useMemo(() => {
         if (!entry.name) {
@@ -119,6 +149,101 @@ const CustomTooltipPayloadEntry = ({
         return null;
     }
 
+    if (
+        comparison.comparison === MetricExplorerComparison.NONE &&
+        comparison.segmentDimension === null
+    ) {
+        return (
+            <Badge
+                variant="light"
+                color="indigo"
+                radius="md"
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.indigo[1]}`,
+                })}
+                h={24}
+            >
+                {entryData.formatted}
+            </Badge>
+        );
+    }
+
+    if (comparison.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+        const currentPeriodYear = dateRange ? dayjs(dateRange[1]).year() : null;
+        const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
+
+        let label = getGranularitySublabel(entry.name, date);
+
+        if (is5YearDateRangePreset && startYear && currentPeriodYear) {
+            label =
+                entry.name === 'metric'
+                    ? `${startYear}-${currentPeriodYear}`
+                    : `${startYear - 1}-${currentPeriodYear - 1}`;
+        }
+
+        return (
+            <>
+                <Group position="apart">
+                    <Group spacing={4}>
+                        <MantineIcon
+                            color={color ?? 'indigo.6'}
+                            icon={
+                                entry.name === 'metric'
+                                    ? IconMinus
+                                    : IconLineDashed
+                            }
+                        />
+                        <Text c="gray.8" fz={13} fw={500}>
+                            {label}
+                        </Text>
+                    </Group>
+
+                    <Badge
+                        variant="light"
+                        color="gray.7"
+                        radius="md"
+                        h={24}
+                        sx={(theme) => ({
+                            border: `1px solid ${theme.colors.gray[1]}`,
+                            fontFeatureSettings: '"tnum"',
+                        })}
+                    >
+                        {entryData.formatted}
+                    </Badge>
+                </Group>
+            </>
+        );
+    }
+
+    if (
+        comparison.comparison === MetricExplorerComparison.NONE &&
+        comparison.segmentDimension !== null
+    ) {
+        return (
+            <Group position="apart">
+                <Group spacing={4}>
+                    <SquareBadge color={color} />
+                    <Text c="gray.8" fz={13} fw={500}>
+                        {entryData.label}
+                    </Text>
+                </Group>
+
+                <Badge
+                    variant="light"
+                    color="gray"
+                    radius="md"
+                    h={24}
+                    sx={(theme) => ({
+                        border: `1px solid ${theme.colors.gray[1]}`,
+                        color: theme.colors.gray[7],
+                    })}
+                >
+                    {entryData.formatted}
+                </Badge>
+            </Group>
+        );
+    }
+
     return (
         <Group position="apart">
             <Group spacing={4}>
@@ -133,10 +258,11 @@ const CustomTooltipPayloadEntry = ({
 
             <Badge
                 variant="light"
-                color="indigo"
+                color="gray.7"
                 radius="md"
+                h={24}
                 sx={(theme) => ({
-                    border: `1px solid ${theme.colors.indigo[1]}`,
+                    border: `1px solid ${theme.colors.gray[1]}`,
                 })}
             >
                 {entryData.formatted}
@@ -149,39 +275,146 @@ function getUniqueEntryKey(entry: CustomTooltipPropsPayload) {
     return `${entry.name}_${entry.payload.segment}_${entry.payload.dateValue}_${entry.payload.metric.value}`;
 }
 
-const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+const PercentageChangeFooter: FC<{
+    uniqueEntries: CustomTooltipPropsPayload[];
+    comparison: MetricExplorerComparison;
+}> = ({ uniqueEntries, comparison }) => {
+    if (comparison !== MetricExplorerComparison.PREVIOUS_PERIOD) return null;
+
+    if (
+        !uniqueEntries[0]?.payload.metric?.value ||
+        !uniqueEntries[0]?.payload.compareMetric?.value
+    ) {
+        return null;
+    }
+
+    const percentChange =
+        calculateComparisonValue(
+            uniqueEntries[0].payload.metric.value,
+            uniqueEntries[0].payload.compareMetric.value,
+            ComparisonFormatTypes.PERCENTAGE,
+        ) * 100;
+
+    const changeColor =
+        percentChange > 0 ? 'green.7' : percentChange < 0 ? 'red.7' : 'dark.4';
+
+    return (
+        <Group position="right" spacing={4}>
+            <Text c="gray.7" fz={11} fw={500}>
+                Change:
+            </Text>
+            <Text
+                c={changeColor}
+                fz={11}
+                fw={500}
+                ta="right"
+                sx={{ fontFeatureSettings: '"tnum"' }}
+            >
+                {percentChange > 0 ? '+' : ''}
+                {percentChange.toFixed(1)}%
+            </Text>
+        </Group>
+    );
+};
+
+const CustomTooltip = ({
+    active,
+    payload,
+    label,
+    comparison,
+    granularity,
+    is5YearDateRangePreset,
+    dateRange,
+}: CustomTooltipProps & { dateRange?: MetricExplorerDateRange }) => {
+    const hasNoComparison =
+        comparison.comparison === MetricExplorerComparison.NONE;
+    const isSegmented = hasNoComparison && comparison.segmentDimension !== null;
+    const showFullDate =
+        hasNoComparison ||
+        comparison.comparison === MetricExplorerComparison.DIFFERENT_METRIC ||
+        is5YearDateRangePreset;
+
     const uniqueEntries = useMemo(() => {
-        return uniqBy(payload, getUniqueEntryKey);
-    }, [payload]);
+        return uniqBy(payload, getUniqueEntryKey).filter((entry) =>
+            isSegmented && entry.payload.segment
+                ? entry.name === entry.payload.segment
+                : true,
+        );
+    }, [payload, isSegmented]);
 
     if (!active || !uniqueEntries || !uniqueEntries.length) {
         return null;
     }
 
+    const dateLabel = getGranularityLabel(label, granularity, showFullDate);
+    let showDateLabel = false;
+
+    switch (comparison.comparison) {
+        case MetricExplorerComparison.NONE:
+            showDateLabel = true;
+            break;
+        case MetricExplorerComparison.PREVIOUS_PERIOD:
+            showDateLabel =
+                granularity !== TimeFrames.YEAR || is5YearDateRangePreset;
+            break;
+        case MetricExplorerComparison.DIFFERENT_METRIC:
+            showDateLabel = true;
+            break;
+    }
+
     return (
         <Stack
+            miw={200}
+            fz={13}
+            fw={500}
+            p="sm"
+            spacing="xs"
             sx={(theme) => ({
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 500,
                 backgroundColor: 'white',
                 borderRadius: theme.radius.md,
                 border: `1px solid ${theme.colors.gray[2]}`,
                 boxShadow:
                     '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
-                padding: theme.spacing.sm,
+                flexDirection:
+                    comparison.comparison === MetricExplorerComparison.NONE &&
+                    comparison.segmentDimension === null
+                        ? 'row'
+                        : 'column',
+                justifyContent:
+                    comparison.comparison === MetricExplorerComparison.NONE &&
+                    comparison.segmentDimension === null
+                        ? 'space-between'
+                        : 'flex-start',
+                alignItems:
+                    comparison.comparison === MetricExplorerComparison.NONE &&
+                    comparison.segmentDimension === null
+                        ? 'center'
+                        : 'initial',
             })}
-            spacing="xs"
         >
-            <Text c="gray.7" fz={13} fw={500}>{`${dayjs(label).format(
-                'MMM D, YYYY',
-            )}`}</Text>
+            {showDateLabel && (
+                <>
+                    <Text c="gray.7" fz={13} fw={500}>
+                        {dateLabel}
+                    </Text>
+                    <Divider color="gray.2" />
+                </>
+            )}
             {uniqueEntries.map((entry) => (
                 <CustomTooltipPayloadEntry
                     key={getUniqueEntryKey(entry)}
+                    date={label}
+                    is5YearDateRangePreset={is5YearDateRangePreset}
                     entry={entry}
                     color={entry.stroke}
+                    comparison={comparison}
+                    dateRange={dateRange}
                 />
             ))}
+            <PercentageChangeFooter
+                uniqueEntries={uniqueEntries}
+                comparison={comparison.comparison}
+            />
         </Stack>
     );
 };
@@ -310,6 +543,21 @@ const MetricsVisualization: FC<Props> = ({
         query.comparison !== MetricExplorerComparison.NONE ||
         segmentedData.length > 1;
 
+    const showLabel =
+        [
+            MetricExplorerComparison.NONE,
+            MetricExplorerComparison.PREVIOUS_PERIOD,
+        ].includes(query.comparison) || segmentedData.length > 1;
+
+    const is5YearDateRangePreset = useMemo(() => {
+        if (!dateRange || !results?.metric.timeDimension?.interval)
+            return false;
+        return is5YearDateRange(
+            dateRange,
+            results?.metric.timeDimension?.interval,
+        );
+    }, [dateRange, results?.metric.timeDimension?.interval]);
+
     const legendConfig: Record<
         string | 'metric' | 'compareMetric',
         { name: string; label: string }
@@ -357,17 +605,14 @@ const MetricsVisualization: FC<Props> = ({
             case MetricExplorerComparison.PREVIOUS_PERIOD: {
                 if (!dateRange || !results?.metric.timeDimension?.interval)
                     return null;
-                const preset = getMatchingPresetLabel(
-                    dateRange,
-                    results?.metric.timeDimension?.interval,
-                );
+
                 const currentPeriodYear = dateRange
                     ? dayjs(dateRange[1]).year()
                     : null;
                 const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
 
                 // If the date range is 5 years, we want to show the year range
-                if (preset === '5Y' && startYear && currentPeriodYear) {
+                if (is5YearDateRangePreset && startYear && currentPeriodYear) {
                     return {
                         metric: {
                             name: 'metric',
@@ -412,6 +657,7 @@ const MetricsVisualization: FC<Props> = ({
         results?.metric.timeDimension?.interval,
         results?.compareMetric?.label,
         dateRange,
+        is5YearDateRangePreset,
     ]);
 
     const formatConfig = useMemo(() => {
@@ -423,7 +669,7 @@ const MetricsVisualization: FC<Props> = ({
 
     const shouldSplitYAxis = useMemo(() => {
         return (
-            query.comparison !== MetricExplorerComparison.NONE &&
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
             formatConfig.compareMetric !== formatConfig.metric
         );
     }, [query.comparison, formatConfig]);
@@ -433,7 +679,6 @@ const MetricsVisualization: FC<Props> = ({
         tickLine: false,
         fontSize: 11,
         allowDataOverflow: false,
-        domain: ['dataMin - 1', 'dataMax + 1'],
     };
 
     return (
@@ -525,9 +770,9 @@ const MetricsVisualization: FC<Props> = ({
                                     formatter={(value: string) => (
                                         <Text
                                             span
-                                            c="dark.5"
+                                            c="dark.4"
                                             size={14}
-                                            fw={400}
+                                            fw={500}
                                         >
                                             {legendConfig &&
                                             typeof value === 'string' &&
@@ -552,15 +797,15 @@ const MetricsVisualization: FC<Props> = ({
                                 width={leftYAxisWidth}
                                 {...commonYAxisConfig}
                                 label={
-                                    !showLegend
+                                    showLabel
                                         ? {
                                               value: results?.metric.label,
                                               angle: -90,
                                               position: 'left',
                                               dy: -60,
                                               style: {
-                                                  fontSize: 13,
-                                                  fill: colors.dark[5],
+                                                  fontSize: 14,
+                                                  fill: colors.gray[7],
                                                   fontWeight: 500,
                                                   userSelect: 'none',
                                               },
@@ -585,7 +830,24 @@ const MetricsVisualization: FC<Props> = ({
                                 style={{ userSelect: 'none' }}
                             />
 
-                            <RechartsTooltip content={<CustomTooltip />} />
+                            <RechartsTooltip
+                                content={
+                                    <CustomTooltip
+                                        comparison={query}
+                                        granularity={
+                                            results.metric.timeDimension
+                                                ?.interval
+                                        }
+                                        is5YearDateRangePreset={
+                                            is5YearDateRangePreset
+                                        }
+                                        dateRange={dateRange}
+                                    />
+                                }
+                                cursor={{
+                                    stroke: colors.gray[4],
+                                }}
+                            />
 
                             {segmentedData.map((segment) => (
                                 <Line
@@ -596,7 +858,7 @@ const MetricsVisualization: FC<Props> = ({
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}
-                                    strokeWidth={1.6}
+                                    strokeWidth={1.4}
                                     dot={false}
                                     legendType="plainline"
                                     isAnimationActive={false}
@@ -632,9 +894,9 @@ const MetricsVisualization: FC<Props> = ({
                                         type="linear"
                                         dataKey="compareMetric.value"
                                         data={segmentedData[0].data}
-                                        stroke={colors.indigo[4]}
-                                        strokeDasharray={'3 3'}
-                                        strokeWidth={1.3}
+                                        stroke={colors.indigo[9]}
+                                        strokeDasharray={'3 4'}
+                                        strokeWidth={1.6}
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
@@ -683,6 +945,7 @@ const MetricsVisualization: FC<Props> = ({
                             variant="xs"
                             disabled={!canManageExplore}
                             label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users"
+                            position="right"
                         >
                             <Box>
                                 <TimeDimensionPicker
