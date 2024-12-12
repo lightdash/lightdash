@@ -1,3 +1,10 @@
+# [0.1415.0](https://github.com/lightdash/lightdash/compare/0.1414.0...0.1415.0) (2024-12-12)
+
+
+### Features
+
+* add priority levels to job queue ([#12841](https://github.com/lightdash/lightdash/issues/12841)) ([66191c6](https://github.com/lightdash/lightdash/commit/66191c6b25884f53839c930e5eb711a806481d92))
+
 # [0.1414.0](https://github.com/lightdash/lightdash/compare/0.1413.3...0.1414.0) (2024-12-12)
 
 
