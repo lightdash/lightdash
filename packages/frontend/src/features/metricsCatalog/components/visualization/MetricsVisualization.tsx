@@ -119,20 +119,6 @@ const CustomTooltipPayloadEntry = ({
         return null;
     }
 
-    // const isDataSegmented = entry.payload.segment;
-    // // if the data is segmented, we want to show the metric value because thats the datakey
-    // const entryValue = isDataSegmented
-    //     ? entry.payload.metric.value
-    //     : entry.name
-    //     ? entry.payload[entry.name].value
-    //     : null;
-
-    // const entryLabel = isDataSegmented
-    //     ? entry.payload.segment
-    //     : entry.name
-    //     ? entry.payload[entry.name].label
-    //     : null;
-
     return (
         <Group position="apart">
             <Group spacing={4}>
@@ -213,6 +199,7 @@ type Props = {
 };
 
 const CHART_MANTINE_COLORS = [
+    'indigo',
     'violet',
     'teal',
     'lime',
