@@ -1,3 +1,10 @@
+# [0.1414.0](https://github.com/lightdash/lightdash/compare/0.1413.3...0.1414.0) (2024-12-12)
+
+
+### Features
+
+* metrics explorer categories in the url ([#12865](https://github.com/lightdash/lightdash/issues/12865)) ([e213e9f](https://github.com/lightdash/lightdash/commit/e213e9f2164cf722361e7160095ef8325a080774))
+
 ## [0.1413.3](https://github.com/lightdash/lightdash/compare/0.1413.2...0.1413.3) (2024-12-12)
 
 
