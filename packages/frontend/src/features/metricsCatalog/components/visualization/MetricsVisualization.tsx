@@ -1,6 +1,6 @@
 import {
+    applyCustomFormat,
     capitalize,
-    formatNumberValue,
     friendlyName,
     getCustomFormatFromLegacy,
     MetricExplorerComparison,
@@ -311,49 +311,39 @@ const MetricsVisualization: FC<Props> = ({
         }
     }, [query, results]);
 
-    const commonYAxisConfig = useMemo(() => {
-        let ticks: number[] | undefined;
-
-        // When comparing previous period, we want to show the same ticks for both metrics since normally they work on the same scale
-        if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
-            ticks = [
-                ...new Set(
-                    activeData
-                        .flatMap((row) => [
-                            row.metric.value,
-                            row.compareMetric?.value,
-                        ])
-                        .filter((n) => n !== null),
-                ),
-            ];
-        }
-
-        return {
-            axisLine: false,
-            tickLine: false,
-            fontSize: 11,
-            allowDataOverflow: false,
-            domain: ['dataMin - 1', 'dataMax + 1'],
-            ticks,
-        };
-    }, [activeData, query.comparison]);
-
     const formatConfig = useMemo(() => {
-        switch (query.comparison) {
-            case MetricExplorerComparison.NONE:
-                return {
-                    metric: results?.metric.format,
-                };
-            case MetricExplorerComparison.PREVIOUS_PERIOD:
-            case MetricExplorerComparison.DIFFERENT_METRIC:
-                return {
-                    metric: results?.metric.format,
-                    compareMetric: results?.compareMetric?.format,
-                };
-        }
-    }, [query.comparison, results]);
+        return {
+            metric: results?.metric.format,
+            compareMetric: results?.compareMetric?.format,
+        };
+    }, [results]);
 
-    console.log(formatConfig);
+    const shouldSplitYAxis = useMemo(() => {
+        return (
+            query.comparison !== MetricExplorerComparison.NONE &&
+            formatConfig.compareMetric !== formatConfig.metric
+        );
+    }, [query.comparison, formatConfig]);
+
+    const yAxisTickFormatter = (
+        value: number,
+        formatType: keyof typeof formatConfig,
+    ) => {
+        const customFormat = getCustomFormatFromLegacy({
+            format: formatConfig[formatType],
+            round: 2,
+        });
+
+        return applyCustomFormat(value, customFormat);
+    };
+
+    const commonYAxisConfig = {
+        axisLine: false,
+        tickLine: false,
+        fontSize: 11,
+        allowDataOverflow: false,
+        domain: ['dataMin - 1', 'dataMax + 1'],
+    };
 
     return (
         <Stack spacing="sm" w="100%" h="100%">
@@ -485,20 +475,7 @@ const MetricsVisualization: FC<Props> = ({
                                         : undefined
                                 }
                                 tickFormatter={(value) => {
-                                    if (!formatConfig?.metric) {
-                                        return value;
-                                    }
-
-                                    const customFormat =
-                                        getCustomFormatFromLegacy({
-                                            format: formatConfig.metric,
-                                            round: 2,
-                                        });
-
-                                    return formatNumberValue(
-                                        value,
-                                        customFormat,
-                                    );
+                                    return yAxisTickFormatter(value, 'metric');
                                 }}
                                 style={{ userSelect: 'none' }}
                             />
@@ -531,12 +508,48 @@ const MetricsVisualization: FC<Props> = ({
 
                             {results.compareMetric && (
                                 <>
+                                    {shouldSplitYAxis && (
+                                        <YAxis
+                                            yAxisId="compareMetric"
+                                            dataKey="compareMetric.value"
+                                            orientation="right"
+                                            width={rightYAxisWidth}
+                                            {...commonYAxisConfig}
+                                            label={
+                                                !showLegend
+                                                    ? {
+                                                          value: results
+                                                              ?.compareMetric
+                                                              .label,
+                                                          angle: -90,
+                                                          position: 'left',
+                                                          offset: 50,
+                                                          dy: -60,
+                                                          style: {
+                                                              fontSize: 13,
+                                                              fill: colors
+                                                                  .dark[5],
+                                                              fontWeight: 500,
+                                                              userSelect:
+                                                                  'none',
+                                                          },
+                                                      }
+                                                    : undefined
+                                            }
+                                            tickFormatter={(value) => {
+                                                return yAxisTickFormatter(
+                                                    value,
+                                                    'compareMetric',
+                                                );
+                                            }}
+                                            style={{ userSelect: 'none' }}
+                                        />
+                                    )}
+
                                     <Line
                                         name="compareMetric"
-                                        // We want to show the compare metric on the same axis as the metric when comparing the same metric
                                         yAxisId={
-                                            query.comparison ===
-                                            MetricExplorerComparison.DIFFERENT_METRIC
+                                            shouldSplitYAxis
                                                 ? 'compareMetric'
                                                 : 'metric'
                                         }
@@ -549,49 +562,6 @@ const MetricsVisualization: FC<Props> = ({
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
-                                    />
-
-                                    <YAxis
-                                        yAxisId="compareMetric"
-                                        dataKey="compareMetric.value"
-                                        orientation="right"
-                                        {...commonYAxisConfig}
-                                        width={rightYAxisWidth}
-                                        label={
-                                            !showLegend
-                                                ? {
-                                                      value: results
-                                                          ?.compareMetric.label,
-                                                      angle: -90,
-                                                      position: 'left',
-                                                      offset: 50,
-                                                      dy: -60,
-                                                      style: {
-                                                          fontSize: 13,
-                                                          fill: colors.dark[5],
-                                                          fontWeight: 500,
-                                                          userSelect: 'none',
-                                                      },
-                                                  }
-                                                : undefined
-                                        }
-                                        tickFormatter={(value) => {
-                                            if (!formatConfig?.compareMetric) {
-                                                return value;
-                                            }
-
-                                            const customFormat =
-                                                getCustomFormatFromLegacy({
-                                                    format: formatConfig.compareMetric,
-                                                    round: 2,
-                                                });
-
-                                            return formatNumberValue(
-                                                value,
-                                                customFormat,
-                                            );
-                                        }}
-                                        style={{ userSelect: 'none' }}
                                     />
                                 </>
                             )}
