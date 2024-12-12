@@ -737,7 +737,7 @@ export class SchedulerClient {
             'testAndCompileProject',
             payload,
             now,
-            JobPriority.MEDIUM,
+            JobPriority.HIGH,
         );
 
         await this.schedulerModel.logSchedulerJob({
