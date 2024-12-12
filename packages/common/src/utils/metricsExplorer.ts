@@ -7,6 +7,7 @@ import { type CompiledTable } from '../types/explore';
 import type { Dimension } from '../types/field';
 import {
     DimensionType,
+    MetricType,
     type CompiledDimension,
     type CompiledMetric,
 } from '../types/field';
@@ -434,3 +435,28 @@ export const getAvailableTimeDimensionsFromTables = (
                 !dim.hidden,
         ),
     );
+
+export const getAvailableSegmentDimensions = (
+    dimensions: Dimension[],
+): CompiledDimension[] =>
+    dimensions
+        .filter((d): d is CompiledDimension => !!d)
+        .filter(
+            (d) =>
+                d.type !== DimensionType.DATE &&
+                d.type !== DimensionType.TIMESTAMP &&
+                d.type !== DimensionType.NUMBER,
+        );
+
+export const getAvailableCompareMetrics = (
+    metrics: MetricWithAssociatedTimeDimension[],
+): MetricWithAssociatedTimeDimension[] =>
+    metrics
+        .filter((metric) => !!metric.timeDimension)
+        .filter(
+            (metric) =>
+                metric.type !== MetricType.STRING &&
+                metric.type !== MetricType.BOOLEAN &&
+                metric.type !== MetricType.DATE &&
+                metric.type !== MetricType.TIMESTAMP,
+        );

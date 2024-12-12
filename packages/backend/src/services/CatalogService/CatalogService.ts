@@ -17,6 +17,8 @@ import {
     ExploreError,
     FieldType,
     ForbiddenError,
+    getAvailableCompareMetrics,
+    getAvailableSegmentDimensions,
     getAvailableTimeDimensionsFromTables,
     getDefaultTimeDimension,
     hasIntersection,
@@ -1206,17 +1208,7 @@ export class CatalogService<
             addDefaultTimeDimension: false,
         });
 
-        const metricsWithTimeDimension = allMetrics
-            .filter((metric) => !!metric.timeDimension)
-            .filter(
-                (m) =>
-                    m.type !== MetricType.STRING &&
-                    m.type !== MetricType.BOOLEAN &&
-                    m.type !== MetricType.DATE &&
-                    m.type !== MetricType.TIMESTAMP,
-            );
-
-        return metricsWithTimeDimension;
+        return getAvailableCompareMetrics(allMetrics);
     }
 
     async getSegmentDimensions(
@@ -1261,16 +1253,11 @@ export class CatalogService<
             ),
         });
 
-        const nonTimeDimensions = catalogDimensions.data
+        const allDimensions = catalogDimensions.data
             .map((d) => explore?.tables?.[tableName]?.dimensions?.[d.name])
-            .filter((d): d is CompiledDimension => !!d)
-            .filter(
-                (d) =>
-                    d.type !== DimensionType.DATE &&
-                    d.type !== DimensionType.TIMESTAMP,
-            );
+            .filter((d): d is CompiledDimension => d !== undefined);
 
-        return nonTimeDimensions;
+        return getAvailableSegmentDimensions(allDimensions);
     }
 
     async deleteMetricsTreeEdge(
