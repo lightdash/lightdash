@@ -715,40 +715,30 @@ export class UserService extends BaseService {
             );
 
             if (userWithSameEmail) {
-                const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-                    userWithSameEmail.userUuid,
-                );
-                this.logger.info(
-                    `Email status for user ${userWithSameEmail.userUuid} - Is verified: ${emailStatus.isVerified}`,
-                );
-
-                if (emailStatus.isVerified) {
-                    if (
-                        this.lightdashConfig.groups.enabled === true &&
-                        this.lightdashConfig.auth.enableGroupSync === true &&
-                        Array.isArray(openIdUser.openId.groups) &&
-                        openIdUser.openId.groups.length &&
-                        userWithSameEmail.organizationUuid
-                    ) {
-                        this.logger.info(
-                            `Syncing groups for email-linked user ${
-                                userWithSameEmail.userUuid
-                            } - Groups: ${openIdUser.openId.groups.join(', ')}`,
-                        );
-                        await this.tryAddUserToGroups({
-                            userUuid: userWithSameEmail.userUuid,
-                            groups: openIdUser.openId.groups,
-                            organizationUuid:
-                                userWithSameEmail.organizationUuid,
-                        });
-                    }
-
-                    return this.linkOpenIdIdentityToUser(
-                        userWithSameEmail,
-                        openIdUser,
-                        refreshToken,
+                if (
+                    this.lightdashConfig.groups.enabled === true &&
+                    this.lightdashConfig.auth.enableGroupSync === true &&
+                    Array.isArray(openIdUser.openId.groups) &&
+                    openIdUser.openId.groups.length &&
+                    userWithSameEmail.organizationUuid
+                ) {
+                    this.logger.info(
+                        `Syncing groups for email-linked user ${
+                            userWithSameEmail.userUuid
+                        } - Groups: ${openIdUser.openId.groups.join(', ')}`,
                     );
+                    await this.tryAddUserToGroups({
+                        userUuid: userWithSameEmail.userUuid,
+                        groups: openIdUser.openId.groups,
+                        organizationUuid: userWithSameEmail.organizationUuid,
+                    });
                 }
+
+                return this.linkOpenIdIdentityToUser(
+                    userWithSameEmail,
+                    openIdUser,
+                    refreshToken,
+                );
             }
         }
 
