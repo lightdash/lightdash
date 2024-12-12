@@ -95,33 +95,33 @@ EXPOSE 8080
 FROM base AS prod-builder
 # Install development dependencies for all
 COPY package.json .
-COPY yarn.lock .
+COPY pnpm-lock.yaml .
 COPY tsconfig.json .
 COPY .eslintrc.js .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
-RUN yarn install --pure-lockfile --non-interactive
+RUN pnpm install --pure-lockfile --non-interactive
 
 # Build common
 COPY packages/common/tsconfig.json ./packages/common/
 COPY packages/common/src/ ./packages/common/src/
-RUN yarn --cwd ./packages/common/ build
+RUN pnpm --cwd ./packages/common/ build
 
 # Build warehouses
 COPY packages/warehouses/tsconfig.json ./packages/warehouses/
 COPY packages/warehouses/src/ ./packages/warehouses/src/
-RUN yarn --cwd ./packages/warehouses/ build
+RUN pnpm --cwd ./packages/warehouses/ build
 
 # Build backend
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src
-RUN yarn --cwd ./packages/backend/ build
+RUN pnpm --cwd ./packages/backend/ build
 
 # Build frontend
 COPY packages/frontend ./packages/frontend
-RUN yarn --cwd ./packages/frontend/ build
+RUN pnpm --cwd ./packages/frontend/ build
 
 # Cleanup development dependencies
 RUN rm -rf node_modules \
@@ -129,7 +129,7 @@ RUN rm -rf node_modules \
 
 # Install production dependencies
 ENV NODE_ENV production
-RUN yarn install --pure-lockfile --non-interactive --production
+RUN pnpm install --pure-lockfile --non-interactive --production
 
 # -----------------------------
 # Stage 3: execution environment for backend
@@ -184,4 +184,4 @@ COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
 COPY ./examples/full-jaffle-shop-demo/entrypoint.sh /usr/bin/entrypoint.sh
 COPY ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
 
-CMD ["yarn", "start"]
+CMD ["pnpm", "start"]

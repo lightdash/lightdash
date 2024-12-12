@@ -55,12 +55,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build      
+        run: pnpm common-build
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@v1.2.2
@@ -91,7 +91,7 @@ jobs:
           CYPRESS_TRINO_PASSWORD: ${{secrets.TRINO_PASSWORD}}
           TZ: 'UTC'
           CYPRESS_TZ: 'UTC'
-  
+
   build-cypress-e2e-image:
     runs-on: ubuntu-latest
     name: Build cypress e2e image
@@ -139,12 +139,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: pnpm common-build
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
@@ -210,12 +210,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: pnpm common-build
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json

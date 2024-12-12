@@ -28,13 +28,13 @@
     "scripts": {
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
-        "lint": "yarn run linter ./src",
-        "fix-lint": "yarn run linter ./src --fix",
-        "format": "yarn run formatter ./src --check",
-        "fix-format": "yarn run formatter ./src --write",
+        "lint": "pnpm run linter ./src",
+        "fix-lint": "pnpm run linter ./src --fix",
+        "format": "pnpm run formatter ./src --check",
+        "fix-format": "pnpm run formatter ./src --write",
         "test": "jest",
         "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
-        "build": "yarn copy-files && tsc --build tsconfig.json",
-        "dev": "yarn copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json"
+        "build": "pnpm copy-files && tsc --build tsconfig.json",
+        "dev": "pnpm copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json"
     }
 }
