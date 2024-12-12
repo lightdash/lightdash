@@ -24,10 +24,11 @@ import {
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconBoxAlignTopRight, IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { Blocks } from '../../../svgs/metricsCatalog';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
@@ -93,6 +94,19 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         );
     }, [query]);
 
+    const isQueryEnabled =
+        (!!projectUuid &&
+            !!tableName &&
+            !!metricName &&
+            !!query &&
+            !!dateRange &&
+            (query.comparison !== MetricExplorerComparison.DIFFERENT_METRIC ||
+                (query.comparison ===
+                    MetricExplorerComparison.DIFFERENT_METRIC &&
+                    query.metric.name !== '' &&
+                    query.metric.table !== ''))) ||
+        queryHasEmptyMetric;
+
     const metricResultsQuery = useRunMetricExplorerQuery(
         {
             projectUuid,
@@ -108,18 +122,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             timeDimensionOverride,
         },
         {
-            enabled:
-                !!projectUuid &&
-                !!tableName &&
-                !!metricName &&
-                !!query &&
-                !!dateRange &&
-                (query.comparison !==
-                    MetricExplorerComparison.DIFFERENT_METRIC ||
-                    (query.comparison ===
-                        MetricExplorerComparison.DIFFERENT_METRIC &&
-                        query.metric.name !== '' &&
-                        query.metric.table !== '')),
+            enabled: isQueryEnabled,
             keepPreviousData: true,
         },
     );
@@ -266,20 +269,54 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     mih={600}
                 >
                     <Stack py="md" px="lg" bg="offWhite.0" w={460}>
-                        <Stack spacing="xl">
-                            <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
-                                <Text fw={500} c="gray.7">
-                                    Segment
-                                </Text>
+                        <Stack spacing="xl" w="100%" sx={{ flexGrow: 1 }}>
+                            <Stack spacing="xs">
+                                <Group position="apart">
+                                    <Text fw={500} c="gray.7">
+                                        Segment
+                                    </Text>
+
+                                    <Button
+                                        variant="subtle"
+                                        compact
+                                        color="dark"
+                                        size="xs"
+                                        radius="md"
+                                        rightIcon={
+                                            <MantineIcon
+                                                icon={IconX}
+                                                color="gray.5"
+                                                size={12}
+                                            />
+                                        }
+                                        sx={(theme) => ({
+                                            visibility:
+                                                !(
+                                                    'segmentDimension' in query
+                                                ) || !query.segmentDimension
+                                                    ? 'hidden'
+                                                    : 'visible',
+                                            '&:hover': {
+                                                backgroundColor:
+                                                    theme.colors.gray[1],
+                                            },
+                                        })}
+                                        styles={{
+                                            rightIcon: {
+                                                marginLeft: 4,
+                                            },
+                                        }}
+                                        onClick={() =>
+                                            handleSegmentDimensionChange(null)
+                                        }
+                                    >
+                                        Clear
+                                    </Button>
+                                </Group>
 
                                 <Select
                                     placeholder="Segment by"
-                                    clearable
-                                    icon={
-                                        <MantineIcon
-                                            icon={IconBoxAlignTopRight}
-                                        />
-                                    }
+                                    icon={<Blocks />}
                                     radius="md"
                                     size="xs"
                                     data={
@@ -306,10 +343,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             <Loader size="xs" color="gray.5" />
                                         ) : undefined
                                     }
-                                    classNames={{
-                                        input: classes.input,
-                                        item: classes.item,
-                                    }}
+                                    classNames={classes}
                                 />
 
                                 {metricResultsQuery.isSuccess &&
@@ -319,25 +353,39 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             py="xs"
                                             px="sm"
                                             variant="light"
-                                            color="yellow"
+                                            color="blue"
                                             sx={(theme) => ({
                                                 borderStyle: 'dashed',
                                                 borderWidth: 1,
                                                 borderColor:
-                                                    theme.colors.yellow[4],
+                                                    theme.colors.blue[4],
                                             })}
+                                            styles={{
+                                                icon: {
+                                                    marginRight: 2,
+                                                },
+                                            }}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    color="blue.7"
+                                                    size={16}
+                                                />
+                                            }
                                         >
-                                            <Text size="sm" color="gray.7">
+                                            <Text size="xs" color="blue.7" span>
                                                 Only the first{' '}
                                                 {
                                                     MAX_SEGMENT_DIMENSION_UNIQUE_VALUES
                                                 }{' '}
-                                                unique values of the segment
-                                                dimension are shown.
+                                                series are displayed to maintain
+                                                a clear and readable chart.
                                             </Text>
                                         </Alert>
                                     )}
-
+                            </Stack>
+                            <Divider color="gray.2" />
+                            <Stack spacing="xs">
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">
                                         Comparison
@@ -367,6 +415,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                                 segmentDimension: null,
                                             })
                                         }
+                                        rightIcon={
+                                            <MantineIcon
+                                                icon={IconX}
+                                                color="gray.5"
+                                                size={12}
+                                            />
+                                        }
+                                        styles={{
+                                            rightIcon: {
+                                                marginLeft: 4,
+                                            },
+                                        }}
                                     >
                                         Clear
                                     </Button>
