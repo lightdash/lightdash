@@ -7,6 +7,7 @@ import {
     DownloadCsvPayload,
     EmailNotificationPayload,
     FieldReferenceError,
+    ForbiddenError,
     formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
@@ -29,6 +30,7 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     LightdashPage,
+    MissingConfigError,
     NotEnoughResults,
     NotificationFrequency,
     NotificationPayloadBase,
@@ -53,6 +55,8 @@ import {
     SqlRunnerPivotQueryPayload,
     ThresholdOperator,
     ThresholdOptions,
+    UnexpectedGoogleSheetsError,
+    UnexpectedServerError,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
@@ -1211,7 +1215,8 @@ export default class SchedulerTask {
                 userId: payload.userUuid,
                 properties: analyticsProperties,
             });
-            throw e; // Cascade error to it can be retried by graphile
+
+            throw e;
         }
     }
 
@@ -1543,19 +1548,20 @@ export default class SchedulerTask {
                 sendNow: schedulerUuid === undefined,
             },
         });
-        let user: SessionUser;
+        let user: SessionUser | undefined;
+        let scheduler: SchedulerAndTargets | undefined;
 
         try {
             if (!this.googleDriveClient.isEnabled) {
-                throw new Error(
+                throw new MissingConfigError(
                     'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
                 );
             }
-
-            const scheduler =
+            scheduler =
                 await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                     schedulerUuid,
                 );
+
             const { format, savedChartUuid, dashboardUuid, thresholds } =
                 scheduler;
 
@@ -1581,7 +1587,7 @@ export default class SchedulerTask {
             );
 
             if (format !== SchedulerFormat.GSHEETS) {
-                throw new Error(
+                throw new UnexpectedServerError(
                     `Unable to process format ${format} on sendGdriveNotification`,
                 );
             } else if (savedChartUuid) {
@@ -1601,7 +1607,7 @@ export default class SchedulerTask {
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
-                    throw new Error(
+                    throw new UnexpectedServerError(
                         'Thresholds not implemented for google sheets',
                     );
                 }
@@ -1751,12 +1757,12 @@ export default class SchedulerTask {
                             );
                         const { rows } =
                             await this.projectService.getResultsForChart(
-                                user,
+                                user!,
                                 chartUuid,
                                 QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                             );
                         const explore = await this.projectService.getExplore(
-                            user,
+                            user!,
                             chart.projectUuid,
                             chart.tableName,
                         );
@@ -1826,7 +1832,7 @@ export default class SchedulerTask {
                         throw error;
                     });
             } else {
-                throw new Error('Not implemented');
+                throw new UnexpectedServerError('Not implemented');
             }
 
             this.analytics.track({
@@ -1875,14 +1881,28 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: { error: e.message },
             });
-
             if (
-                `${e}`.includes('invalid_grant') ||
-                `${e}`.includes('Requested entity was not found')
+                e instanceof ForbiddenError ||
+                e instanceof MissingConfigError ||
+                e instanceof UnexpectedGoogleSheetsError
             ) {
                 console.warn(
-                    `Disabling scheduler with non-retryable error: ${e}`,
+                    `Disabling Google sheets scheduler with non-retryable error: ${e}`,
                 );
+                if (
+                    this.slackClient.isEnabled &&
+                    user?.organizationUuid &&
+                    scheduler
+                ) {
+                    await this.slackClient.postMessageToNotificationChannel({
+                        organizationUuid: user.organizationUuid,
+                        text: `Error uploading Google Sheets: ${scheduler.name}`,
+                        blocks: getNotificationChannelErrorBlocks(
+                            scheduler.name,
+                            e,
+                        ),
+                    });
+                }
                 await this.schedulerService.setSchedulerEnabled(
                     user!, // This error from gdriveClient happens after user initialized
                     schedulerUuid,

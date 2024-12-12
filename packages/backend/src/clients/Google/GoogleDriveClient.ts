@@ -2,6 +2,7 @@ import {
     CustomDimension,
     DimensionType,
     Field,
+    ForbiddenError,
     formatDate,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -9,7 +10,9 @@ import {
     isField,
     ItemsMap,
     Metric,
+    MissingConfigError,
     TableCalculation,
+    UnexpectedGoogleSheetsError,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -45,7 +48,7 @@ export class GoogleDriveClient {
                 authClient,
             });
         } catch (err) {
-            throw new Error(`Failed to get credentials: ${err}`);
+            throw new ForbiddenError(`Failed to get credentials: ${err}`);
         }
     }
 
@@ -79,7 +82,7 @@ export class GoogleDriveClient {
 
     async createNewTab(refreshToken: string, fileId: string, tabName: string) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
@@ -110,7 +113,7 @@ export class GoogleDriveClient {
                         `Google sheet tab already exist, we will overwrite it: ${error.errors[0]?.message}`,
                     );
                 } else {
-                    throw new Error(error);
+                    throw new UnexpectedGoogleSheetsError(error);
                 }
             });
 
@@ -119,7 +122,7 @@ export class GoogleDriveClient {
 
     async createNewSheet(refreshToken: string, title: string) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
@@ -142,7 +145,7 @@ export class GoogleDriveClient {
         reportUrl?: string,
     ) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
 
         const metadataTabName = 'metadata';
@@ -190,7 +193,7 @@ export class GoogleDriveClient {
                 const firstSheetName =
                     spreadsheet.data.sheets?.[0].properties?.title;
                 if (!firstSheetName) {
-                    throw new Error(
+                    throw new UnexpectedGoogleSheetsError(
                         'Unable to find the first sheet name in the spreadsheet',
                     );
                 }
@@ -209,6 +212,7 @@ export class GoogleDriveClient {
             }
         } catch (error) {
             Logger.error('Unable to clear the sheet', error);
+            // Silently ignore this error
         }
     }
 
@@ -263,7 +267,7 @@ export class GoogleDriveClient {
         hiddenFields: string[] = [],
     ) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
 
         if (csvContent.length === 0) {
@@ -312,7 +316,7 @@ export class GoogleDriveClient {
         tabName?: string,
     ) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
 
         if (results.length === 0) {
