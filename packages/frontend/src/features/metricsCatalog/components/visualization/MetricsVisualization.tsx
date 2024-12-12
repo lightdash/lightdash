@@ -326,21 +326,27 @@ const CustomTooltip = ({
     is5YearDateRangePreset,
     dateRange,
 }: CustomTooltipProps & { dateRange?: MetricExplorerDateRange }) => {
+    const hasNoComparison =
+        comparison.comparison === MetricExplorerComparison.NONE;
+    const isSegmented = hasNoComparison && comparison.segmentDimension !== null;
+    const showFullDate =
+        hasNoComparison ||
+        comparison.comparison === MetricExplorerComparison.DIFFERENT_METRIC ||
+        is5YearDateRangePreset;
+
     const uniqueEntries = useMemo(() => {
         return uniqBy(payload, getUniqueEntryKey).filter((entry) =>
-            comparison.comparison === MetricExplorerComparison.NONE &&
-            comparison.segmentDimension !== null &&
-            entry.payload.segment
+            isSegmented && entry.payload.segment
                 ? entry.name === entry.payload.segment
                 : true,
         );
-    }, [payload, comparison]);
+    }, [payload, isSegmented]);
 
     if (!active || !uniqueEntries || !uniqueEntries.length) {
         return null;
     }
 
-    const dateLabel = getGranularityLabel(label, granularity);
+    const dateLabel = getGranularityLabel(label, granularity, showFullDate);
     let showDateLabel = false;
 
     switch (comparison.comparison) {

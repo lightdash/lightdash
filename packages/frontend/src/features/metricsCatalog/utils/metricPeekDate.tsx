@@ -288,6 +288,7 @@ export const getMatchingPresetLabel = (
 export const getGranularityLabel = (
     dateLabel: string,
     granularity: TimeFrames | undefined,
+    showFullDate: boolean,
 ): string | undefined => {
     if (!granularity) {
         return undefined;
@@ -295,11 +296,20 @@ export const getGranularityLabel = (
 
     switch (granularity) {
         case TimeFrames.DAY:
+            if (showFullDate) {
+                return dayjs(dateLabel).format('MMM D, YYYY');
+            }
             return dayjs(dateLabel).format('MMM D');
         case TimeFrames.WEEK:
+            if (showFullDate) {
+                return dayjs(dateLabel).format('MMM D, YYYY');
+            }
             return dayjs(dateLabel).format('MMM D');
         case TimeFrames.MONTH:
-            return dayjs(dateLabel).format('MMM, YYYY');
+            if (showFullDate) {
+                return dayjs(dateLabel).format('MMM, YYYY');
+            }
+            return dayjs(dateLabel).format('MMM');
         case TimeFrames.YEAR:
             return dayjs(dateLabel).format('YYYY');
         default:
