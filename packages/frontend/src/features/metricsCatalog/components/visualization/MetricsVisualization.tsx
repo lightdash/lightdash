@@ -1,7 +1,10 @@
 import {
+    applyCustomFormat,
     capitalize,
     friendlyName,
+    getCustomFormat,
     MetricExplorerComparison,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
@@ -18,6 +21,7 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
+    type DefaultMantineColor,
 } from '@mantine/core';
 import { IconLineDashed, IconMinus } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
@@ -31,6 +35,7 @@ import {
     timeYear,
 } from 'd3-time';
 import dayjs from 'dayjs';
+import { uniqBy } from 'lodash';
 import { useMemo, type FC } from 'react';
 import {
     CartesianGrid,
@@ -79,12 +84,76 @@ const tickFormatter = (date: Date) => {
     )(date);
 };
 
-const CustomTooltip = ({
-    active,
-    payload,
-    label,
-}: RechartsTooltipProps<ValueType, NameType>) => {
-    if (!active || !payload || !payload.length) {
+type RechartsTooltipPropsPayload = NonNullable<
+    RechartsTooltipProps<ValueType, NameType>['payload']
+>[number];
+
+interface CustomTooltipPropsPayload extends RechartsTooltipPropsPayload {
+    payload: MetricExploreDataPointWithDateValue;
+}
+
+interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
+    payload?: CustomTooltipPropsPayload[];
+}
+
+const CustomTooltipPayloadEntry = ({
+    entry,
+    color,
+}: {
+    entry: CustomTooltipPropsPayload;
+    color?: DefaultMantineColor;
+}) => {
+    const entryData = useMemo(() => {
+        if (!entry.name) {
+            return null;
+        }
+
+        const isCompareMetric = entry.name === 'compareMetric';
+        return isCompareMetric
+            ? entry.payload.compareMetric
+            : entry.payload.metric;
+    }, [entry]);
+
+    if (!entryData) {
+        return null;
+    }
+
+    return (
+        <Group position="apart">
+            <Group spacing={4}>
+                <MantineIcon
+                    color={color ?? 'indigo.6'}
+                    icon={entry.name === 'metric' ? IconMinus : IconLineDashed}
+                />
+                <Text c="gray.8" fz={13} fw={500}>
+                    {entryData.label}
+                </Text>
+            </Group>
+
+            <Badge
+                variant="light"
+                color="indigo"
+                radius="md"
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.indigo[1]}`,
+                })}
+            >
+                {entryData.formatted}
+            </Badge>
+        </Group>
+    );
+};
+
+function getUniqueEntryKey(entry: CustomTooltipPropsPayload) {
+    return `${entry.name}_${entry.payload.segment}_${entry.payload.dateValue}_${entry.payload.metric.value}`;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+    const uniqueEntries = useMemo(() => {
+        return uniqBy(payload, getUniqueEntryKey);
+    }, [payload]);
+
+    if (!active || !uniqueEntries || !uniqueEntries.length) {
         return null;
     }
 
@@ -105,35 +174,12 @@ const CustomTooltip = ({
             <Text c="gray.7" fz={13} fw={500}>{`${dayjs(label).format(
                 'MMM D, YYYY',
             )}`}</Text>
-            {payload.map((entry) => (
-                <Group key={entry.name} position="apart">
-                    <Group spacing={4}>
-                        <MantineIcon
-                            color="indigo.6"
-                            icon={
-                                entry.name === 'metric'
-                                    ? IconMinus
-                                    : IconLineDashed
-                            }
-                        />
-                        <Text c="gray.8" fz={13} fw={500}>
-                            {entry.name
-                                ? entry.payload[entry.name].label
-                                : null}
-                        </Text>
-                    </Group>
-
-                    <Badge
-                        variant="light"
-                        color="indigo"
-                        radius="md"
-                        sx={(theme) => ({
-                            border: `1px solid ${theme.colors.indigo[1]}`,
-                        })}
-                    >
-                        {entry.name ? entry.payload[entry.name].value : null}{' '}
-                    </Badge>
-                </Group>
+            {uniqueEntries.map((entry) => (
+                <CustomTooltipPayloadEntry
+                    key={getUniqueEntryKey(entry)}
+                    entry={entry}
+                    color={entry.stroke}
+                />
             ))}
         </Stack>
     );
@@ -177,10 +223,13 @@ const MetricsVisualization: FC<Props> = ({
     query,
     isFetching,
 }) => {
-    const { yAxisWidth, setChartRef } = useDynamicYAxisWidth();
+    const { leftYAxisWidth, rightYAxisWidth, setChartRef } =
+        useDynamicYAxisWidth();
+
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
+
     const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
@@ -277,6 +326,28 @@ const MetricsVisualization: FC<Props> = ({
             }
         }
     }, [query, results]);
+
+    const formatConfig = useMemo(() => {
+        return {
+            metric: getCustomFormat(results?.metric),
+            compareMetric: getCustomFormat(results?.compareMetric ?? undefined),
+        };
+    }, [results]);
+
+    const shouldSplitYAxis = useMemo(() => {
+        return (
+            query.comparison !== MetricExplorerComparison.NONE &&
+            formatConfig.compareMetric !== formatConfig.metric
+        );
+    }, [query.comparison, formatConfig]);
+
+    const commonYAxisConfig = {
+        axisLine: false,
+        tickLine: false,
+        fontSize: 11,
+        allowDataOverflow: false,
+        domain: ['dataMin - 1', 'dataMax + 1'],
+    };
 
     return (
         <Stack spacing="sm" w="100%" h="100%">
@@ -387,12 +458,10 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                fontSize={11}
-                                width={yAxisWidth}
-                                domain={['dataMin - 1', 'dataMax + 1']}
-                                allowDataOverflow={false}
+                                yAxisId="metric"
+                                dataKey="metric.value"
+                                width={leftYAxisWidth}
+                                {...commonYAxisConfig}
                                 label={
                                     !showLegend
                                         ? {
@@ -409,7 +478,12 @@ const MetricsVisualization: FC<Props> = ({
                                           }
                                         : undefined
                                 }
-                                tickFormatter={(value) => value.toFixed(2)}
+                                tickFormatter={(value) => {
+                                    return applyCustomFormat(
+                                        value,
+                                        formatConfig.metric,
+                                    );
+                                }}
                                 style={{ userSelect: 'none' }}
                             />
 
@@ -429,6 +503,7 @@ const MetricsVisualization: FC<Props> = ({
                                     key={segment.segment ?? 'metric'}
                                     type="linear"
                                     name="metric"
+                                    yAxisId="metric"
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}
@@ -440,18 +515,42 @@ const MetricsVisualization: FC<Props> = ({
                             ))}
 
                             {results.compareMetric && (
-                                <Line
-                                    name="compareMetric"
-                                    type="linear"
-                                    dataKey="compareMetric.value"
-                                    data={segmentedData[0].data}
-                                    stroke={colors.indigo[4]}
-                                    strokeDasharray={'3 3'}
-                                    strokeWidth={1.3}
-                                    dot={false}
-                                    legendType="plainline"
-                                    isAnimationActive={false}
-                                />
+                                <>
+                                    {shouldSplitYAxis && (
+                                        <YAxis
+                                            yAxisId="compareMetric"
+                                            dataKey="compareMetric.value"
+                                            orientation="right"
+                                            width={rightYAxisWidth}
+                                            {...commonYAxisConfig}
+                                            tickFormatter={(value) => {
+                                                return applyCustomFormat(
+                                                    value,
+                                                    formatConfig.compareMetric,
+                                                );
+                                            }}
+                                            style={{ userSelect: 'none' }}
+                                        />
+                                    )}
+
+                                    <Line
+                                        name="compareMetric"
+                                        yAxisId={
+                                            shouldSplitYAxis
+                                                ? 'compareMetric'
+                                                : 'metric'
+                                        }
+                                        type="linear"
+                                        dataKey="compareMetric.value"
+                                        data={segmentedData[0].data}
+                                        stroke={colors.indigo[4]}
+                                        strokeDasharray={'3 3'}
+                                        strokeWidth={1.3}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />
+                                </>
                             )}
 
                             {/*

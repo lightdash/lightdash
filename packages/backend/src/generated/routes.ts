@@ -3912,6 +3912,14 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        formatted: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         value: {
                             dataType: 'union',
                             subSchemas: [
@@ -3927,6 +3935,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         label: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        formatted: {
                             dataType: 'union',
                             subSchemas: [
                                 { dataType: 'string' },

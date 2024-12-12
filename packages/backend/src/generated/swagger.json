@@ -4417,18 +4417,7 @@
                                 "type": "string",
                                 "nullable": true
                             },
-                            "value": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            }
-                        },
-                        "required": ["label", "value"],
-                        "type": "object"
-                    },
-                    "metric": {
-                        "properties": {
-                            "label": {
+                            "formatted": {
                                 "type": "string",
                                 "nullable": true
                             },
@@ -4438,7 +4427,26 @@
                                 "nullable": true
                             }
                         },
-                        "required": ["label", "value"],
+                        "required": ["label", "formatted", "value"],
+                        "type": "object"
+                    },
+                    "metric": {
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "formatted": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["label", "formatted", "value"],
                         "type": "object"
                     },
                     "segment": {
@@ -12379,7 +12387,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1412.1",
+        "version": "0.1413.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
