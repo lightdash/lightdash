@@ -532,27 +532,6 @@ const MetricsVisualization: FC<Props> = ({
                                             orientation="right"
                                             width={rightYAxisWidth}
                                             {...commonYAxisConfig}
-                                            label={
-                                                !showLegend
-                                                    ? {
-                                                          value: results
-                                                              ?.compareMetric
-                                                              .label,
-                                                          angle: -90,
-                                                          position: 'left',
-                                                          offset: 50,
-                                                          dy: -60,
-                                                          style: {
-                                                              fontSize: 13,
-                                                              fill: colors
-                                                                  .dark[5],
-                                                              fontWeight: 500,
-                                                              userSelect:
-                                                                  'none',
-                                                          },
-                                                      }
-                                                    : undefined
-                                            }
                                             tickFormatter={(value) => {
                                                 return yAxisTickFormatter(
                                                     value,
