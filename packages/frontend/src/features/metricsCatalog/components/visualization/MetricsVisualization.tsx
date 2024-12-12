@@ -11,7 +11,6 @@ import {
 import {
     Badge,
     Box,
-    Button,
     Flex,
     Group,
     LoadingOverlay,
@@ -20,7 +19,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconLineDashed, IconMinus, IconZoomReset } from '@tabler/icons-react';
+import { IconLineDashed, IconMinus } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -32,13 +31,14 @@ import {
     timeYear,
 } from 'd3-time';
 import dayjs from 'dayjs';
-import { useEffect, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import {
     CartesianGrid,
     Legend,
     Line,
     LineChart,
-    ReferenceArea,
+    // REMOVE COMMENTS TO ENABLE CHART ZOOM
+    // ReferenceArea,
     ResponsiveContainer,
     Tooltip as RechartsTooltip,
     XAxis,
@@ -56,7 +56,8 @@ import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { FORMATS } from './types';
-import { useChartZoom } from './useChartZoom';
+// REMOVE COMMENTS TO ENABLE CHART ZOOM
+// import { useChartZoom } from './useChartZoom';
 
 const tickFormatter = (date: Date) => {
     return (
@@ -187,20 +188,24 @@ const MetricsVisualization: FC<Props> = ({
         return results.results;
     }, [results]);
 
-    const {
-        activeData,
-        zoomState,
-        handlers: {
-            handleMouseDown,
-            handleMouseMove,
-            handleMouseUp,
-            resetZoom,
-        },
-    } = useChartZoom({ data });
+    // REMOVE THIS LINE TO ENABLE CHART ZOOM
+    const activeData = data;
 
-    useEffect(() => {
-        resetZoom();
-    }, [data, resetZoom]);
+    // REMOVE COMMENTS TO ENABLE CHART ZOOM
+    // const {
+    //     activeData,
+    //     zoomState,
+    //     handlers: {
+    //         handleMouseDown,
+    //         handleMouseMove,
+    //         handleMouseUp,
+    //         resetZoom,
+    //     },
+    // } = useChartZoom({ data });
+
+    // useEffect(() => {
+    //     resetZoom();
+    // }, [data, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
         const timeValues = activeData.map((row) => row.dateValue);
@@ -290,6 +295,8 @@ const MetricsVisualization: FC<Props> = ({
                     />
                 )}
 
+                {/*
+                REMOVE COMMENTS TO ENABLE CHART ZOOM
                 <Tooltip
                     label="No zoom has been applied yet. Drag on the chart to zoom into a section"
                     variant="xs"
@@ -319,7 +326,7 @@ const MetricsVisualization: FC<Props> = ({
                             Reset zoom
                         </Button>
                     </Box>
-                </Tooltip>
+                </Tooltip> */}
             </Group>
 
             {showEmptyState && !isFetching && (
@@ -347,9 +354,10 @@ const MetricsVisualization: FC<Props> = ({
                                 left: 10,
                                 top: 10,
                             }}
-                            onMouseDown={handleMouseDown}
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
+                            // REMOVE COMMENTS TO ENABLE CHART ZOOM
+                            // onMouseDown={handleMouseDown}
+                            // onMouseMove={handleMouseMove}
+                            // onMouseUp={handleMouseUp}
                         >
                             {showLegend && (
                                 <Legend
@@ -446,6 +454,8 @@ const MetricsVisualization: FC<Props> = ({
                                 />
                             )}
 
+                            {/*
+                            REMOVE COMMENTS TO ENABLE CHART ZOOM
                             {zoomState.refAreaLeft &&
                                 zoomState.refAreaRight && (
                                     <ReferenceArea
@@ -455,6 +465,7 @@ const MetricsVisualization: FC<Props> = ({
                                         fill={colors.gray[3]}
                                     />
                                 )}
+                            */}
                         </LineChart>
                     </ResponsiveContainer>
                 </Flex>
