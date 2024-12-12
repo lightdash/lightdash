@@ -1,3 +1,18 @@
+# [0.1413.0](https://github.com/lightdash/lightdash/compare/0.1412.1...0.1413.0) (2024-12-12)
+
+
+### Bug Fixes
+
+* generate jobs starting at midnight, even when scheduler is delayed ([#12838](https://github.com/lightdash/lightdash/issues/12838)) ([21cd140](https://github.com/lightdash/lightdash/commit/21cd140885ab522001646d1319ee676b0177b2ae))
+* improve backend autocomplete ([#12821](https://github.com/lightdash/lightdash/issues/12821)) ([adee39e](https://github.com/lightdash/lightdash/commit/adee39eae87cf7ee586e1be6e8d1ffa56d9c6a1a))
+* metrics explorer filter segment dimension ([#12848](https://github.com/lightdash/lightdash/issues/12848)) ([1cce625](https://github.com/lightdash/lightdash/commit/1cce62511fb0087a261d143ef90cb8ece63d81a1))
+
+
+### Features
+
+* metrics explorer segment by max 10 series ([#12850](https://github.com/lightdash/lightdash/issues/12850)) ([ff84d4c](https://github.com/lightdash/lightdash/commit/ff84d4c6961df4bcfbc17714142a98c6a1d1d22c))
+* metrics explorer visualization colors ([#12849](https://github.com/lightdash/lightdash/issues/12849)) ([bfedcf3](https://github.com/lightdash/lightdash/commit/bfedcf3aba37db4caa6f1c531433c58ea6a9d1ba))
+
 ## [0.1412.1](https://github.com/lightdash/lightdash/compare/0.1412.0...0.1412.1) (2024-12-11)
 
 
