@@ -1,3 +1,10 @@
+## [0.1413.3](https://github.com/lightdash/lightdash/compare/0.1413.2...0.1413.3) (2024-12-12)
+
+
+### Bug Fixes
+
+* set comparison as none if empty metric ([#12864](https://github.com/lightdash/lightdash/issues/12864)) ([2d4c395](https://github.com/lightdash/lightdash/commit/2d4c395f402eb10f012ee44ec73081135427454c))
+
 ## [0.1413.2](https://github.com/lightdash/lightdash/compare/0.1413.1...0.1413.2) (2024-12-12)
 
 
