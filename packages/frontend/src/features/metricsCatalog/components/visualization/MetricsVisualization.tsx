@@ -2,7 +2,7 @@ import {
     applyCustomFormat,
     capitalize,
     friendlyName,
-    getCustomFormatFromLegacy,
+    getCustomFormat,
     MetricExplorerComparison,
     type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
@@ -329,8 +329,8 @@ const MetricsVisualization: FC<Props> = ({
 
     const formatConfig = useMemo(() => {
         return {
-            metric: results?.metric.format,
-            compareMetric: results?.compareMetric?.format,
+            metric: getCustomFormat(results?.metric),
+            compareMetric: getCustomFormat(results?.compareMetric ?? undefined),
         };
     }, [results]);
 
@@ -340,18 +340,6 @@ const MetricsVisualization: FC<Props> = ({
             formatConfig.compareMetric !== formatConfig.metric
         );
     }, [query.comparison, formatConfig]);
-
-    const yAxisTickFormatter = (
-        value: number,
-        formatType: keyof typeof formatConfig,
-    ) => {
-        const customFormat = getCustomFormatFromLegacy({
-            format: formatConfig[formatType],
-            round: 2,
-        });
-
-        return applyCustomFormat(value, customFormat);
-    };
 
     const commonYAxisConfig = {
         axisLine: false,
@@ -491,7 +479,10 @@ const MetricsVisualization: FC<Props> = ({
                                         : undefined
                                 }
                                 tickFormatter={(value) => {
-                                    return yAxisTickFormatter(value, 'metric');
+                                    return applyCustomFormat(
+                                        value,
+                                        formatConfig.metric,
+                                    );
                                 }}
                                 style={{ userSelect: 'none' }}
                             />
@@ -533,9 +524,9 @@ const MetricsVisualization: FC<Props> = ({
                                             width={rightYAxisWidth}
                                             {...commonYAxisConfig}
                                             tickFormatter={(value) => {
-                                                return yAxisTickFormatter(
+                                                return applyCustomFormat(
                                                     value,
-                                                    'compareMetric',
+                                                    formatConfig.compareMetric,
                                                 );
                                             }}
                                             style={{ userSelect: 'none' }}
