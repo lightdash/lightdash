@@ -4409,16 +4409,6 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "ResultValue": {
-                "properties": {
-                    "formatted": {
-                        "type": "string"
-                    },
-                    "raw": {}
-                },
-                "required": ["formatted", "raw"],
-                "type": "object"
-            },
             "MetricExploreDataPoint": {
                 "properties": {
                     "compareMetric": {
@@ -4427,16 +4417,17 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "formatted": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "value": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ResultValue"
-                                    }
-                                ],
+                                "type": "number",
+                                "format": "double",
                                 "nullable": true
                             }
                         },
-                        "required": ["label", "value"],
+                        "required": ["label", "formatted", "value"],
                         "type": "object"
                     },
                     "metric": {
@@ -4445,16 +4436,17 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "formatted": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "value": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ResultValue"
-                                    }
-                                ],
+                                "type": "number",
+                                "format": "double",
                                 "nullable": true
                             }
                         },
-                        "required": ["label", "value"],
+                        "required": ["label", "formatted", "value"],
                         "type": "object"
                     },
                     "segment": {
@@ -4621,6 +4613,16 @@
                         "type": "object"
                     }
                 ]
+            },
+            "ResultValue": {
+                "properties": {
+                    "formatted": {
+                        "type": "string"
+                    },
+                    "raw": {}
+                },
+                "required": ["formatted", "raw"],
+                "type": "object"
             },
             "MetricTotalResults": {
                 "properties": {
@@ -12385,7 +12387,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1412.1",
+        "version": "0.1413.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
