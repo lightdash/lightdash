@@ -2,6 +2,7 @@ import {
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
+    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
     MetricExplorerComparison,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
@@ -9,6 +10,7 @@ import {
     type TimeFrames,
 } from '@lightdash/common';
 import {
+    Alert,
     Box,
     Button,
     Divider,
@@ -287,6 +289,32 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                         item: classes.item,
                                     }}
                                 />
+
+                                {metricResultsQuery.isSuccess &&
+                                    metricResultsQuery.data
+                                        .hasFilteredSeries && (
+                                        <Alert
+                                            py="xs"
+                                            px="sm"
+                                            variant="light"
+                                            color="yellow"
+                                            sx={(theme) => ({
+                                                borderStyle: 'dashed',
+                                                borderWidth: 1,
+                                                borderColor:
+                                                    theme.colors.yellow[4],
+                                            })}
+                                        >
+                                            <Text size="sm" color="gray.7">
+                                                Only the first{' '}
+                                                {
+                                                    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES
+                                                }{' '}
+                                                unique values of the segment
+                                                dimension are shown.
+                                            </Text>
+                                        </Alert>
+                                    )}
 
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">

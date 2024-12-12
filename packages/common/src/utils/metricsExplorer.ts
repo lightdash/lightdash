@@ -192,39 +192,70 @@ const parseDimensionValue = (value: unknown): string | null => {
     return String(value);
 };
 
+export const MAX_SEGMENT_DIMENSION_UNIQUE_VALUES = 10;
+
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
     segmentDimensionId: string | null,
-): Array<MetricExploreDataPoint> => {
+): {
+    dataPoints: Array<MetricExploreDataPoint>;
+    isSegmentDimensionFiltered: boolean;
+} => {
     const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
 
-    const groupByMetricRows = groupBy(metricRows, (row) =>
+    let filteredMetricRows = metricRows;
+    let isSegmentDimensionFiltered = false;
+    if (segmentDimensionId) {
+        const countUniqueValues = new Set(
+            metricRows.map((row) => row[segmentDimensionId]?.value.raw),
+        ).size;
+
+        if (countUniqueValues > MAX_SEGMENT_DIMENSION_UNIQUE_VALUES) {
+            isSegmentDimensionFiltered = true;
+            const first10Values = Array.from(
+                new Set(
+                    metricRows.map((row) => row[segmentDimensionId]?.value.raw),
+                ),
+            ).slice(0, MAX_SEGMENT_DIMENSION_UNIQUE_VALUES);
+            filteredMetricRows = metricRows.filter((row) =>
+                first10Values.includes(row[segmentDimensionId]?.value.raw),
+            );
+        }
+    }
+
+    const groupByMetricRows = groupBy(filteredMetricRows, (row) =>
         new Date(String(row[dimensionId].value.raw)).toISOString(),
     );
 
-    return Object.entries(groupByMetricRows).flatMap(([date, rows]) =>
-        rows.map((row) => {
-            const segmentValue = segmentDimensionId
-                ? parseDimensionValue(row[segmentDimensionId]?.value.raw)
-                : null;
+    const dataPoints = Object.entries(groupByMetricRows).flatMap(
+        ([date, rows]) =>
+            rows.map((row) => {
+                const segmentValue = segmentDimensionId
+                    ? parseDimensionValue(row[segmentDimensionId]?.value.raw)
+                    : null;
 
-            return {
-                date: new Date(date),
-                segment: segmentValue,
-                metric: {
-                    value: parseMetricValue(row[metricId]?.value.raw),
-                    label: segmentValue ?? metric.label ?? metric.name,
-                },
-                compareMetric: {
-                    value: null,
-                    label: null,
-                },
-            };
-        }),
+                return {
+                    date: new Date(date),
+                    segment: segmentValue,
+                    metric: {
+                        value: parseMetricValue(row[metricId]?.value.raw),
+                        label: segmentValue ?? metric.label ?? metric.name,
+                    },
+                    compareMetric: {
+                        value: null,
+                        label: null,
+                    },
+                };
+            }),
     );
+
+    return {
+        dataPoints,
+        isSegmentDimensionFiltered,
+    };
 };
 
 export const getMetricExplorerDataPointsWithCompare = (
@@ -234,7 +265,9 @@ export const getMetricExplorerDataPointsWithCompare = (
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
     query: MetricExplorerQuery,
-): Array<MetricExploreDataPoint> => {
+): {
+    dataPoints: Array<MetricExploreDataPoint>;
+} => {
     if (query.comparison === MetricExplorerComparison.NONE) {
         throw new Error('Comparison type is required');
     }
@@ -281,7 +314,7 @@ export const getMetricExplorerDataPointsWithCompare = (
         comparisonMetricLabel = 'Previous Period';
     }
 
-    return Array.from(dates).map((date) => ({
+    const dataPoints = Array.from(dates).map((date) => ({
         date: new Date(date),
         segment: null,
         metric: {
@@ -298,6 +331,8 @@ export const getMetricExplorerDataPointsWithCompare = (
             label: comparisonMetricLabel,
         },
     }));
+
+    return { dataPoints };
 };
 
 /**

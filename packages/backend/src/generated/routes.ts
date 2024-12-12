@@ -3981,6 +3981,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                hasFilteredSeries: { dataType: 'boolean', required: true },
                 results: {
                     dataType: 'array',
                     array: {
