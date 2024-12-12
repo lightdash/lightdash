@@ -295,9 +295,9 @@ export const getGranularityLabel = (
 
     switch (granularity) {
         case TimeFrames.DAY:
-            return dayjs(dateLabel).format('MMM D, YYYY');
+            return dayjs(dateLabel).format('MMM D');
         case TimeFrames.WEEK:
-            return dayjs(dateLabel).format('MMM D, YYYY');
+            return dayjs(dateLabel).format('MMM D');
         case TimeFrames.MONTH:
             return dayjs(dateLabel).format('MMM, YYYY');
         case TimeFrames.YEAR:

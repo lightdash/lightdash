@@ -5,12 +5,12 @@ import {
     friendlyName,
     getCustomFormat,
     MetricExplorerComparison,
+    TimeFrames,
     type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
     type TimeDimensionConfig,
-    type TimeFrames,
 } from '@lightdash/common';
 import {
     Badge,
@@ -123,14 +123,14 @@ const CustomTooltipPayloadEntry = ({
     entry,
     color,
     comparison,
-    dateLabel,
+    date,
     is5YearDateRangePreset,
     dateRange,
 }: {
     entry: CustomTooltipPropsPayload;
     color?: DefaultMantineColor;
     comparison: MetricExplorerQuery;
-    dateLabel: string | undefined;
+    date: string | undefined;
     is5YearDateRangePreset: boolean;
     dateRange?: MetricExplorerDateRange;
 }) => {
@@ -172,7 +172,7 @@ const CustomTooltipPayloadEntry = ({
         const currentPeriodYear = dateRange ? dayjs(dateRange[1]).year() : null;
         const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
 
-        let label = getGranularitySublabel(entry.name, dateLabel);
+        let label = getGranularitySublabel(entry.name, date);
 
         if (is5YearDateRangePreset && startYear && currentPeriodYear) {
             label =
@@ -204,7 +204,7 @@ const CustomTooltipPayloadEntry = ({
                         radius="md"
                         h={24}
                         sx={(theme) => ({
-                            border: `1px solid ${theme.colors.indigo[1]}`,
+                            border: `1px solid ${theme.colors.gray[1]}`,
                             fontFeatureSettings: '"tnum"',
                         })}
                     >
@@ -234,7 +234,7 @@ const CustomTooltipPayloadEntry = ({
                     radius="md"
                     h={24}
                     sx={(theme) => ({
-                        border: `1px solid ${theme.colors.gray[2]}`,
+                        border: `1px solid ${theme.colors.gray[1]}`,
                         color: theme.colors.gray[7],
                     })}
                 >
@@ -262,7 +262,7 @@ const CustomTooltipPayloadEntry = ({
                 radius="md"
                 h={24}
                 sx={(theme) => ({
-                    border: `1px solid ${theme.colors.indigo[1]}`,
+                    border: `1px solid ${theme.colors.gray[1]}`,
                 })}
             >
                 {entryData.formatted}
@@ -341,6 +341,20 @@ const CustomTooltip = ({
     }
 
     const dateLabel = getGranularityLabel(label, granularity);
+    let showDateLabel = false;
+
+    switch (comparison.comparison) {
+        case MetricExplorerComparison.NONE:
+            showDateLabel = true;
+            break;
+        case MetricExplorerComparison.PREVIOUS_PERIOD:
+            showDateLabel =
+                granularity !== TimeFrames.YEAR || is5YearDateRangePreset;
+            break;
+        case MetricExplorerComparison.DIFFERENT_METRIC:
+            showDateLabel = true;
+            break;
+    }
 
     return (
         <Stack
@@ -372,19 +386,18 @@ const CustomTooltip = ({
                         : 'initial',
             })}
         >
-            <Text c="gray.7" fz={13} fw={500}>
-                {dateLabel}
-            </Text>
-            {(comparison.comparison ===
-                MetricExplorerComparison.PREVIOUS_PERIOD ||
-                comparison.comparison ===
-                    MetricExplorerComparison.DIFFERENT_METRIC) && (
-                <Divider color="gray.2" />
+            {showDateLabel && (
+                <>
+                    <Text c="gray.7" fz={13} fw={500}>
+                        {dateLabel}
+                    </Text>
+                    <Divider color="gray.2" />
+                </>
             )}
             {uniqueEntries.map((entry) => (
                 <CustomTooltipPayloadEntry
                     key={getUniqueEntryKey(entry)}
-                    dateLabel={dateLabel}
+                    date={label}
                     is5YearDateRangePreset={is5YearDateRangePreset}
                     entry={entry}
                     color={entry.stroke}
@@ -825,6 +838,9 @@ const MetricsVisualization: FC<Props> = ({
                                         dateRange={dateRange}
                                     />
                                 }
+                                cursor={{
+                                    stroke: colors.gray[4],
+                                }}
                             />
 
                             {segmentedData.map((segment) => (
@@ -872,9 +888,9 @@ const MetricsVisualization: FC<Props> = ({
                                         type="linear"
                                         dataKey="compareMetric.value"
                                         data={segmentedData[0].data}
-                                        stroke={colors.dark[4]}
-                                        strokeDasharray={'3 3'}
-                                        strokeWidth={1.4}
+                                        stroke={colors.indigo[9]}
+                                        strokeDasharray={'3 4'}
+                                        strokeWidth={1.6}
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
