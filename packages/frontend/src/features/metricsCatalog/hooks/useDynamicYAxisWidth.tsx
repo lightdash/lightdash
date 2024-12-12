@@ -27,8 +27,12 @@ export const useDynamicYAxisWidth = () => {
             if (!chartRef?.container) return;
 
             requestAnimationFrame(() => {
-                const tickValueElements: NodeListOf<Element> =
-                    chartRef.container!.querySelectorAll(TICK_VALUE_SELECTOR);
+                const tickValueElements: NodeListOf<Element> | undefined =
+                    chartRef.container?.querySelectorAll(TICK_VALUE_SELECTOR);
+
+                if (!tickValueElements) {
+                    return;
+                }
 
                 const leftTickArray = Array.from(tickValueElements).filter(
                     (el) => el.getAttribute('orientation') === 'left',
