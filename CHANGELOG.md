@@ -1,3 +1,10 @@
+## [0.1413.2](https://github.com/lightdash/lightdash/compare/0.1413.1...0.1413.2) (2024-12-12)
+
+
+### Bug Fixes
+
+* metrics explorer segment compare select loading states ([#12851](https://github.com/lightdash/lightdash/issues/12851)) ([affc164](https://github.com/lightdash/lightdash/commit/affc1648eb85bde0f78e98270fdbd621e13c38a2))
+
 ## [0.1413.1](https://github.com/lightdash/lightdash/compare/0.1413.0...0.1413.1) (2024-12-12)
 
 
