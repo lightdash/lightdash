@@ -1,3 +1,10 @@
+## [0.1415.1](https://github.com/lightdash/lightdash/compare/0.1415.0...0.1415.1) (2024-12-12)
+
+
+### Bug Fixes
+
+* update date zoom button styling and add removal functionality ([#12870](https://github.com/lightdash/lightdash/issues/12870)) ([68ec2e5](https://github.com/lightdash/lightdash/commit/68ec2e570e0c1d5c9f56329a472c5c7bae094079))
+
 # [0.1415.0](https://github.com/lightdash/lightdash/compare/0.1414.0...0.1415.0) (2024-12-12)
 
 
