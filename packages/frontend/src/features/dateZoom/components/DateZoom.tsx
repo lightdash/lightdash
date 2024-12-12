@@ -1,10 +1,10 @@
 import { DateGranularity } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Group,
     Menu,
     Text,
-    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import {
@@ -47,12 +47,17 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         if (isEditMode)
             return (
                 <Button
-                    variant="default"
+                    variant="outline"
                     size="xs"
                     leftIcon={<MantineIcon icon={IconCalendarSearch} />}
                     onClick={() => setIsDateZoomDisabled(false)}
+                    sx={(themeStyles) => ({
+                        borderStyle: 'dashed',
+                        borderWidth: '1px',
+                        borderColor: themeStyles.colors.gray[4],
+                    })}
                 >
-                    Enable Date Zoom
+                    + Add date zoom
                 </Button>
             );
         return null;
@@ -71,7 +76,23 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
             onClose={() => setShowOpenIcon(false)}
         >
             <Menu.Target>
-                <Group spacing={0}>
+                <Group spacing={0} sx={{ position: 'relative' }}>
+                    {!isEditMode && (
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            onClick={() => setIsDateZoomDisabled(true)}
+                            sx={(themeStyles) => ({
+                                position: 'absolute',
+                                top: -6,
+                                left: -6,
+                                zIndex: 1,
+                                backgroundColor: themeStyles.white,
+                            })}
+                        >
+                            <MantineIcon icon={IconX} size={12} />
+                        </ActionIcon>
+                    )}
                     <Button
                         size="xs"
                         variant="default"
@@ -103,21 +124,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             ) : null}
                         </Text>
                     </Button>
-                    {isEditMode && (
-                        <Tooltip
-                            label="Disable date zoom on view mode"
-                            position="left"
-                        >
-                            <Button
-                                variant="default"
-                                size="xs"
-                                p={'xs'}
-                                onClick={() => setIsDateZoomDisabled(true)}
-                            >
-                                <MantineIcon size={12} icon={IconX} />
-                            </Button>
-                        </Tooltip>
-                    )}
                 </Group>
             </Menu.Target>
             <Menu.Dropdown>
