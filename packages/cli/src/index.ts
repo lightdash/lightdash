@@ -425,10 +425,14 @@ program
     .command('download')
     .description('Downloads charts and dashboards as code')
     .option('--verbose', undefined, false)
-    .option('-c, --charts <charts...>', 'specify charts to download', [])
+    .option(
+        '-c, --charts <charts...>',
+        'specify chart slugs, uuids, or urls to download',
+        [],
+    )
     .option(
         '-d, --dashboards <dashboards...>',
-        'specify dashboards to download',
+        'specify dashboard slugs, uuids or urls to download',
         [],
     )
     .action(downloadHandler);

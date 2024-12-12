@@ -21,16 +21,23 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
-    charts: string[];
-    dashboards: string[];
+    charts: string[]; // These can be slugs, uuids or urls
+    dashboards: string[]; // These can be slugs, uuids or urls
     force: boolean;
 };
 
+/* 
+    This function is used to parse the content filters.
+    It can be slugs, uuids or urls
+    We remove the URL part (if any) and return a list of `slugs or uuids` that can be used in the API call
+*/
 const parseContentFilters = (items: string[]): string => {
     if (items.length === 0) return '';
 
     const parsedItems = items.map((item) => {
-        const uuidMatch = item.match(/https?:\/\/.+\/saved\/([a-f0-9-]+)/i);
+        const uuidMatch = item.match(
+            /https?:\/\/.+\/(?:saved|dashboards)\/([a-f0-9-]+)/i,
+        );
         return uuidMatch ? uuidMatch[1] : item;
     });
 
@@ -143,7 +150,7 @@ export const downloadHandler = async (
     });
 
     chartsAsCode.missingIds.forEach((missingId) => {
-        console.warn(styles.warning(`Missing chart with id "${missingId}"`));
+        console.warn(styles.warning(`No chart with id "${missingId}"`));
     });
 
     await dumpIntoFiles('charts', chartsAsCode.charts);
@@ -162,9 +169,7 @@ export const downloadHandler = async (
     });
 
     dashboardsAsCode.missingIds.forEach((missingId) => {
-        console.warn(
-            styles.warning(`Missing dashboard with id "${missingId}"`),
-        );
+        console.warn(styles.warning(`No dashboard with id "${missingId}"`));
     });
 
     await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
