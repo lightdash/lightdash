@@ -650,7 +650,7 @@ const MetricsVisualization: FC<Props> = ({
 
     const shouldSplitYAxis = useMemo(() => {
         return (
-            query.comparison !== MetricExplorerComparison.NONE &&
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
             formatConfig.compareMetric !== formatConfig.metric
         );
     }, [query.comparison, formatConfig]);
@@ -660,7 +660,6 @@ const MetricsVisualization: FC<Props> = ({
         tickLine: false,
         fontSize: 11,
         allowDataOverflow: false,
-        domain: ['dataMin - 1', 'dataMax + 1'],
     };
 
     return (
