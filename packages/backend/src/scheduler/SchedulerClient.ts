@@ -738,7 +738,7 @@ export class SchedulerClient {
             payload,
             now,
             JobPriority.HIGH,
-            SCHEDULED_JOB_MAX_ATTEMPTS,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
