@@ -267,7 +267,7 @@ const useBigNumberConfig = (
             return applyCustomFormat(firstRowValueRaw, {
                 ...item.formatOptions,
                 type,
-                compact: bigNumberStyle,
+                compact: bigNumberStyle ?? item.formatOptions?.compact,
             });
         } else {
             return applyCustomFormat(
