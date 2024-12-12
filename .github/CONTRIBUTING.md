@@ -122,7 +122,7 @@ git pull upstream main
 4. Install the dependencies with yarn (npm isn't supported):
 
 ```sh
-yarn install
+pnpm install
 ```
 
 5. Create a new topic branch:
@@ -206,8 +206,8 @@ Once connected run the following commands in the VS Code terminal:
 
 ```shell
 # Setup the database
-yarn workspace backend migrate
-yarn workspace backend seed
+pnpm --filter backend migrate
+pnpm --filter backend seed
 
 # Run Lightdash frontend and backend in dev mode
 yarn dev
@@ -266,8 +266,8 @@ yarn dev # http://localhost:3000
 
 Notes:
 
--   If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
--   If you change files inside `/packages/warehouses` you should run `yarn warehouses-build` before `yarn dev`
+-   If you change files inside `/packages/common` you should run `pnpm common-build` before `yarn dev`
+-   If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `yarn dev`
 -   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 -   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
 
@@ -358,9 +358,9 @@ Password: demo_password!
 
 ```shell
 # Prepare dependencies
-yarn install
-yarn common-build
-yarn warehouses-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
 
 # Run unit tests
 yarn test
@@ -372,9 +372,9 @@ Before running e2e tests make sure you're running the app locally.
 
 ```shell
 # Prepare dependencies
-yarn install
-yarn common-build
-yarn warehouses-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
 
 # Run cypress in interactive mode
 yarn e2e-open
@@ -401,7 +401,7 @@ then registered in `packages/backend/src/index.ts` but in order to be made avail
 `routes.ts` file by executing:
 
 ```shell
-yarn workspace backend run tsoa routes
+pnpm --filter backend run tsoa routes
 ```
 
 ### Running headless browser locally
