@@ -198,8 +198,8 @@ type Props = {
     isFetching: boolean;
 };
 
+const DEFAULT_LINE_COLOR = 'indigo';
 const CHART_MANTINE_COLORS = [
-    'indigo',
     'violet',
     'teal',
     'lime',
@@ -295,9 +295,11 @@ const MetricsVisualization: FC<Props> = ({
         return Array.from(segmentsMap.entries()).map(
             ([segment, segmentData], i) => ({
                 segment,
-                color: colors[
-                    CHART_MANTINE_COLORS[i % CHART_MANTINE_COLORS.length]
-                ][CHART_MANTINE_COLOR_INDEX],
+                color: segment
+                    ? colors[
+                          CHART_MANTINE_COLORS[i % CHART_MANTINE_COLORS.length]
+                      ][CHART_MANTINE_COLOR_INDEX]
+                    : colors[DEFAULT_LINE_COLOR][CHART_MANTINE_COLOR_INDEX],
                 data: segmentData,
             }),
         );
