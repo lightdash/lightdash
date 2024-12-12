@@ -383,6 +383,7 @@ export class MetricsExplorerService<
         }
 
         let dataPoints: MetricExploreDataPoint[] = [];
+        let hasFilteredSeries = false;
         const metricWithTimeDimension: MetricWithAssociatedTimeDimension = {
             ...metric,
             timeDimension: {
@@ -399,12 +400,17 @@ export class MetricsExplorerService<
         };
 
         if (query.comparison === MetricExplorerComparison.NONE) {
-            dataPoints = getMetricExplorerDataPoints(
+            const {
+                dataPoints: metricExplorerDataPoints,
+                isSegmentDimensionFiltered,
+            } = getMetricExplorerDataPoints(
                 baseDimension,
                 metricWithTimeDimension,
                 currentResults,
                 segmentDimensionId,
             );
+            dataPoints = metricExplorerDataPoints;
+            hasFilteredSeries = isSegmentDimensionFiltered;
         } else {
             if (!comparisonResults) {
                 throw new Error(
@@ -413,14 +419,17 @@ export class MetricsExplorerService<
             }
 
             compareDimension = compareDimension || baseDimension;
-            dataPoints = getMetricExplorerDataPointsWithCompare(
-                baseDimension,
-                compareDimension,
-                metricWithTimeDimension,
-                currentResults,
-                comparisonResults,
-                query,
-            );
+            const { dataPoints: metricExplorerDataPointsWithCompare } =
+                getMetricExplorerDataPointsWithCompare(
+                    baseDimension,
+                    compareDimension,
+                    metricWithTimeDimension,
+                    currentResults,
+                    comparisonResults,
+                    query,
+                );
+
+            dataPoints = metricExplorerDataPointsWithCompare;
         }
 
         const results = dataPoints
@@ -433,6 +442,7 @@ export class MetricsExplorerService<
             metric: metricWithTimeDimension,
             compareMetric: compareMetric ?? null,
             segmentDimension,
+            hasFilteredSeries,
         };
     }
 

@@ -72,6 +72,7 @@ export type MetricsExplorerQueryResults = {
     segmentDimension: Dimension | null;
     fields: ItemsMap;
     results: MetricExploreDataPointWithDateValue[];
+    hasFilteredSeries: boolean;
 };
 
 export type ApiMetricsExplorerQueryResults = {
