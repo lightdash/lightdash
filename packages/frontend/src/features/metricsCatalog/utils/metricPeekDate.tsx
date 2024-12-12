@@ -5,6 +5,7 @@ import {
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
+import { type NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { type DateRangePreset } from '../hooks/useDateRangePicker';
 
 const DATE_FORMAT = 'MMM D, YYYY';
@@ -279,4 +280,55 @@ export const getMatchingPresetLabel = (
         return areDateRangesEqual(preset.getValue(), dateRange, timeInterval);
     });
     return matchingPreset?.controlLabel;
+};
+
+/**
+ * Gets the granularity formatted label for a given date range - on tooltips
+ */
+export const getGranularityLabel = (
+    dateLabel: string,
+    granularity: TimeFrames | undefined,
+): string | undefined => {
+    if (!granularity) {
+        return undefined;
+    }
+
+    switch (granularity) {
+        case TimeFrames.DAY:
+            return dayjs(dateLabel).format('MMM D, YYYY');
+        case TimeFrames.WEEK:
+            return dayjs(dateLabel).format('MMM D, YYYY');
+        case TimeFrames.MONTH:
+            return dayjs(dateLabel).format('MMM, YYYY');
+        case TimeFrames.YEAR:
+            return dayjs(dateLabel).format('YYYY');
+        default:
+            return assertUnimplementedTimeframe(granularity);
+    }
+};
+
+export const getGranularitySublabel = (
+    entryName: NameType | 'metric' | 'compareMetric' | undefined,
+    dateLabel: string | undefined,
+): string | undefined => {
+    if (!entryName || !dateLabel) {
+        return undefined;
+    }
+
+    switch (entryName) {
+        case 'metric':
+            return dayjs(dateLabel).format('YYYY');
+        case 'compareMetric':
+            return dayjs(dateLabel).subtract(1, 'year').format('YYYY');
+        default:
+            return undefined;
+    }
+};
+
+export const is5YearDateRange = (
+    dateRange: [Date | null, Date | null],
+    timeInterval: TimeFrames,
+): boolean => {
+    const preset = getMatchingPresetLabel(dateRange, timeInterval);
+    return preset === '5Y';
 };
