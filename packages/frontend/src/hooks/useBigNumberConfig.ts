@@ -8,6 +8,7 @@ import {
     getCustomFormatFromLegacy,
     getItemId,
     getItemLabel,
+    hasFormatOptions,
     isField,
     isMetric,
     isNumericItem,
@@ -251,6 +252,23 @@ const useBigNumberConfig = (
             );
         } else if (item !== undefined && isTableCalculation(item)) {
             return formatItemValue(item, firstRowValueRaw);
+        } else if (item !== undefined && hasFormatOptions(item)) {
+            // Custom metrics case
+
+            // If the custom metric has no format, but the big number has
+            // compact, treat the custom metric as a number
+            const type =
+                item.formatOptions?.type === CustomFormatType.DEFAULT
+                    ? bigNumberStyle
+                        ? CustomFormatType.NUMBER
+                        : CustomFormatType.DEFAULT
+                    : item.formatOptions?.type;
+
+            return applyCustomFormat(firstRowValueRaw, {
+                ...item.formatOptions,
+                type,
+                compact: bigNumberStyle,
+            });
         } else {
             return applyCustomFormat(
                 firstRowValueRaw,
