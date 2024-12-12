@@ -17,7 +17,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconCalendar, IconChevronDown, IconStack } from '@tabler/icons-react';
+import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import {
     forwardRef,
@@ -214,16 +214,17 @@ export const MetricPeekComparison: FC<Props> = ({
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
                                             itemComponent={FieldItem}
+                                            // this does not work as expected in Mantine 6
+                                            data-disabled={
+                                                !metricsWithTimeDimensionsQuery.isSuccess
+                                            }
                                             rightSection={
                                                 metricsWithTimeDimensionsQuery.isLoading ? (
-                                                    <Loader size="xs" />
-                                                ) : (
-                                                    <MantineIcon
-                                                        color="dark.2"
-                                                        icon={IconChevronDown}
-                                                        size={12}
+                                                    <Loader
+                                                        size="xs"
+                                                        color="gray.5"
                                                     />
-                                                )
+                                                ) : undefined
                                             }
                                             classNames={{
                                                 input: classes.input,
