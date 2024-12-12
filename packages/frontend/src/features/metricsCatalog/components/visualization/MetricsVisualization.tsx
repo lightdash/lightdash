@@ -21,6 +21,7 @@ import {
     Text,
     Tooltip,
     useMantineTheme,
+    type DefaultMantineColor,
 } from '@mantine/core';
 import { IconLineDashed, IconMinus } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
@@ -34,6 +35,7 @@ import {
     timeYear,
 } from 'd3-time';
 import dayjs from 'dayjs';
+import { uniqBy } from 'lodash';
 import { useMemo, type FC } from 'react';
 import {
     CartesianGrid,
@@ -96,8 +98,10 @@ interface CustomTooltipProps extends RechartsTooltipProps<ValueType, NameType> {
 
 const CustomTooltipPayloadEntry = ({
     entry,
+    color,
 }: {
     entry: CustomTooltipPropsPayload;
+    color?: DefaultMantineColor;
 }) => {
     const entryData = useMemo(() => {
         if (!entry.name) {
@@ -118,7 +122,7 @@ const CustomTooltipPayloadEntry = ({
         <Group position="apart">
             <Group spacing={4}>
                 <MantineIcon
-                    color="indigo.6"
+                    color={color ?? 'indigo.6'}
                     icon={entry.name === 'metric' ? IconMinus : IconLineDashed}
                 />
                 <Text c="gray.8" fz={13} fw={500}>
@@ -140,8 +144,16 @@ const CustomTooltipPayloadEntry = ({
     );
 };
 
+function getUniqueEntryKey(entry: CustomTooltipPropsPayload) {
+    return `${entry.name}_${entry.payload.segment}_${entry.payload.dateValue}_${entry.payload.metric.value}`;
+}
+
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
-    if (!active || !payload || !payload.length) {
+    const uniqueEntries = useMemo(() => {
+        return uniqBy(payload, getUniqueEntryKey);
+    }, [payload]);
+
+    if (!active || !uniqueEntries || !uniqueEntries.length) {
         return null;
     }
 
@@ -162,8 +174,12 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
             <Text c="gray.7" fz={13} fw={500}>{`${dayjs(label).format(
                 'MMM D, YYYY',
             )}`}</Text>
-            {payload.map((entry) => (
-                <CustomTooltipPayloadEntry key={entry.name} entry={entry} />
+            {uniqueEntries.map((entry) => (
+                <CustomTooltipPayloadEntry
+                    key={getUniqueEntryKey(entry)}
+                    entry={entry}
+                    color={entry.stroke}
+                />
             ))}
         </Stack>
     );
