@@ -7918,10 +7918,22 @@
             "ApiChartAsCodeListResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/ChartAsCode"
+                        "properties": {
+                            "missingIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "charts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ChartAsCode"
+                                },
+                                "type": "array"
+                            }
                         },
-                        "type": "array"
+                        "required": ["missingIds", "charts"],
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -8059,10 +8071,22 @@
             "ApiDashboardAsCodeListResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardAsCode"
+                        "properties": {
+                            "missingIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "dashboards": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardAsCode"
+                                },
+                                "type": "array"
+                            }
                         },
-                        "type": "array"
+                        "required": ["missingIds", "dashboards"],
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",

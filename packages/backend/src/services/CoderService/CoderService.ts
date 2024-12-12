@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    ApiChartAsCodeListResponse,
+    ApiDashboardAsCodeListResponse,
     ChartAsCode,
     CreateSavedChart,
     currentVersion,
@@ -235,6 +237,23 @@ export class CoderService extends BaseService {
         return [...uuidsToSlugs, ...slugs];
     }
 
+    static getMissingIds(
+        ids: string[] | undefined,
+        items: Pick<SavedChartDAO | DashboardDAO, 'slug' | 'uuid'>[],
+    ) {
+        return ids
+            ? ids.reduce<string[]>((acc, id) => {
+                  const exists = items.some(
+                      (item) => id === item.uuid || id === item.slug,
+                  );
+                  if (!exists) {
+                      acc.push(id);
+                  }
+                  return acc;
+              }, [])
+            : [];
+    }
+
     /* 
     @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
     @returns: DashboardAsCode[]
@@ -243,7 +262,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dashboardIds: string[] | undefined,
-    ) {
+    ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
@@ -271,7 +290,10 @@ export class CoderService extends BaseService {
                     ', ',
                 )}`,
             );
-            return [];
+            return {
+                dashboards: [],
+                missingIds: dashboardIds || [],
+            };
         }
 
         // TODO
@@ -288,19 +310,31 @@ export class CoderService extends BaseService {
         );
         const dashboards = await Promise.all(dashboardPromises);
 
+        const missingIds = CoderService.getMissingIds(dashboardIds, dashboards);
+        if (missingIds.length > 0) {
+            this.logger.warn(
+                `Missing filtered dashboards for project ${projectUuid} with ids ${missingIds.join(
+                    ', ',
+                )}`,
+            );
+        }
         // get all spaces to map  spaceSlug
         const spaceUuids = dashboards.map((dashboard) => dashboard.spaceUuid);
         const spaces = await this.spaceModel.find({ spaceUuids });
-        return dashboards.map((dashboard) =>
-            CoderService.transformDashboard(dashboard, spaces),
-        );
+
+        return {
+            dashboards: dashboards.map((dashboard) =>
+                CoderService.transformDashboard(dashboard, spaces),
+            ),
+            missingIds,
+        };
     }
 
     async getCharts(
         user: SessionUser,
         projectUuid: string,
         chartIds?: string[],
-    ) {
+    ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
@@ -327,7 +361,10 @@ export class CoderService extends BaseService {
                     ', ',
                 )}`,
             );
-            return [];
+            return {
+                charts: [],
+                missingIds: chartIds || [],
+            };
         }
 
         // TODO
@@ -343,13 +380,18 @@ export class CoderService extends BaseService {
             this.savedChartModel.get(chart.uuid),
         );
         const charts = await Promise.all(chartPromises);
+        const missingIds = CoderService.getMissingIds(chartIds, charts);
 
         // get all spaces to map  spaceSlug
         const spaceUuids = charts.map((chart) => chart.spaceUuid);
         const spaces = await this.spaceModel.find({ spaceUuids });
-        return charts.map((chart) =>
-            CoderService.transformChart(chart, spaces),
-        );
+
+        return {
+            charts: charts.map((chart) =>
+                CoderService.transformChart(chart, spaces),
+            ),
+            missingIds,
+        };
     }
 
     async upsertChart(

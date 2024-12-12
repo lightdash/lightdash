@@ -28,7 +28,7 @@ export type ChartAsCode = Pick<
 
 export type ApiChartAsCodeListResponse = {
     status: 'ok';
-    results: ChartAsCode[];
+    results: { charts: ChartAsCode[]; missingIds: string[] };
 };
 
 export type ApiChartAsCodeUpsertResponse = {
@@ -55,7 +55,7 @@ export type DashboardAsCode = Pick<
 
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
-    results: DashboardAsCode[];
+    results: { dashboards: DashboardAsCode[]; missingIds: string[] };
 };
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';

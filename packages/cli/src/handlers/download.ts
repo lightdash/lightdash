@@ -15,6 +15,7 @@ import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
+import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
 const DOWNLOAD_FOLDER = 'lightdash';
@@ -140,7 +141,12 @@ export const downloadHandler = async (
         url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
         body: undefined,
     });
-    await dumpIntoFiles('charts', chartsAsCode);
+
+    chartsAsCode.missingIds.forEach((missingId) => {
+        console.warn(styles.warning(`Missing chart with id "${missingId}"`));
+    });
+
+    await dumpIntoFiles('charts', chartsAsCode.charts);
 
     // Download dashboards
 
@@ -155,7 +161,13 @@ export const downloadHandler = async (
         body: undefined,
     });
 
-    await dumpIntoFiles('dashboards', dashboardsAsCode);
+    dashboardsAsCode.missingIds.forEach((missingId) => {
+        console.warn(
+            styles.warning(`Missing dashboard with id "${missingId}"`),
+        );
+    });
+
+    await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
 
     // TODO delete files if chart don't exist ?*/
 };

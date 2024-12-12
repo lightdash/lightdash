@@ -7084,8 +7084,19 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ChartAsCode' },
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        missingIds: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        charts: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'ChartAsCode' },
+                            required: true,
+                        },
+                    },
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -7221,8 +7232,22 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DashboardAsCode' },
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        missingIds: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        dashboards: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'DashboardAsCode',
+                            },
+                            required: true,
+                        },
+                    },
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
