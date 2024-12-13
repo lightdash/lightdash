@@ -42,7 +42,7 @@ import React, {
     useState,
     type UIEvent,
 } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import {
     useInfiniteContent,
     type ContentArgs,
@@ -72,6 +72,7 @@ type ResourceView2Props = {
 
 const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
     const theme = useMantineTheme();
+    const history = useHistory();
     const { data: spaces = [] } = useSpaceSummaries(
         filters.projectUuid,
         true,
@@ -463,8 +464,11 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
                 },
             },
         },
-        mantineTableBodyRowProps: {
+        mantineTableBodyRowProps: ({ row }) => ({
             sx: {
+                cursor: isResourceViewSpaceItem(row.original)
+                    ? undefined
+                    : 'pointer',
                 'td:first-of-type > div > .explore-button-container': {
                     visibility: 'hidden',
                     opacity: 0,
@@ -482,7 +486,14 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
                     },
                 },
             },
-        },
+            onClick: () => {
+                if (isResourceViewSpaceItem(row.original)) {
+                    return;
+                }
+
+                history.push(getResourceUrl(filters.projectUuid, row.original));
+            },
+        }),
         mantineTableBodyCellProps: (props) => {
             const isLastColumn =
                 props.table.getAllColumns().indexOf(props.column) ===
@@ -601,7 +612,18 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
         ),
         enableRowActions: true,
         renderRowActions: ({ row }) => (
-            <ResourceActionMenu item={row.original} onAction={handleAction} />
+            <Box
+                component="div"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }}
+            >
+                <ResourceActionMenu
+                    item={row.original}
+                    onAction={handleAction}
+                />
+            </Box>
         ),
         icons: {
             IconArrowsSort: () => (
