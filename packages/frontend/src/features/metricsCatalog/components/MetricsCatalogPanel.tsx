@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     ActionIcon,
     Anchor,
-    Avatar,
     Badge,
     Box,
     Group,
@@ -21,7 +20,6 @@ import { useProject } from '../../../hooks/useProject';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
-import { MetricsCatalogIcon } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
@@ -229,41 +227,38 @@ export const MetricsCatalogPanel = () => {
     return (
         <Stack w="100%" spacing="xxl">
             <Group position="apart">
-                <Group spacing="sm">
-                    <Avatar
-                        src={MetricsCatalogIcon}
-                        alt="Metrics Catalog"
-                        size={48}
-                    />
-                    <Box>
-                        <Group spacing="xs">
-                            <Text color="gray.8" weight={600} size="xl">
-                                Metrics Catalog
-                            </Text>
-                            <Tooltip
-                                variant="xs"
-                                label="This feature is in beta. We're actively testing and improving it—your feedback is welcome!"
-                                position="top"
-                            >
-                                <Badge
-                                    variant="filled"
-                                    color="indigo.5"
-                                    radius="sm"
-                                    size="xs"
-                                    sx={{
-                                        border: `1px solid ${theme.colors.indigo[2]}`,
-                                        cursor: 'pointer',
-                                    }}
-                                >
-                                    Alpha
-                                </Badge>
-                            </Tooltip>
-                        </Group>
-                        <Text color="gray.6" size="sm" weight={400}>
-                            Browse all Metrics & KPIs across this project
+                <Box>
+                    <Group spacing="xs">
+                        <Text color="gray.8" weight={600} size="xl">
+                            Metrics Catalog
                         </Text>
-                    </Box>
-                </Group>
+                        <Tooltip
+                            variant="xs"
+                            label="This feature is in beta. We're actively testing and improving it—your feedback is welcome!"
+                            position="top"
+                        >
+                            <Badge
+                                variant="filled"
+                                color="indigo.5"
+                                radius={6}
+                                size="md"
+                                py="xxs"
+                                px="xs"
+                                sx={{
+                                    border: `1px solid ${theme.colors.indigo[2]}`,
+                                    cursor: 'pointer',
+                                    boxShadow:
+                                        '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
+                                }}
+                            >
+                                Beta
+                            </Badge>
+                        </Tooltip>
+                    </Group>
+                    <Text color="gray.6" size="sm" weight={400}>
+                        Browse all Metrics & KPIs across this project
+                    </Text>
+                </Box>
                 <Group spacing="xs">
                     <RefreshDbtButton
                         onClick={handleRefreshDbt}
