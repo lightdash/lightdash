@@ -35,6 +35,7 @@ import {
     updateFile,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -177,6 +178,9 @@ export class GitIntegrationService extends BaseService {
             branch: mainBranch,
             token,
         });
+        Logger.debug(
+            `Creating branch ${branchName} from ${mainBranch} (commit: ${commitSha}) in ${owner}/${repo}`,
+        );
         // create branch in git
         const newBranch = await createBranch({
             branchName,
@@ -185,6 +189,9 @@ export class GitIntegrationService extends BaseService {
             sha: commitSha,
             installationId,
         });
+        Logger.debug(
+            `Successfully created branch ${branchName} in ${owner}/${repo}`,
+        );
     }
 
     async getPullRequestDetails({
@@ -291,6 +298,9 @@ Affected charts:
                     token,
                 },
             );
+            Logger.debug(
+                `Updating file ${fileName} in ${owner}/${repo} (branch: ${branchName}, sha: ${fileSha})`,
+            );
 
             const yamlSchema = await GitIntegrationService.loadYamlSchema(
                 fileContent,
@@ -323,6 +333,9 @@ Affected charts:
                 token,
                 message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
             });
+            Logger.debug(
+                `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branchName})`,
+            );
             return acc;
         }, Promise.resolve());
     }
@@ -657,16 +670,22 @@ ${sql}
             name,
             columns,
         });
+        Logger.debug(
+            `Creating pull request from branch ${branchName} to ${branch} in ${owner}/${repo}`,
+        );
         const pullRequest = await createPullRequest({
             ...githubProps,
             title: `Creates \`${name}\` SQL and YML model`,
             body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
- 
+
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
             head: branchName,
             base: branch,
         });
+        Logger.debug(
+            `Successfully created pull request #${pullRequest.number} in ${owner}/${repo}`,
+        );
 
         this.analytics.track({
             event: 'write_back.created',
