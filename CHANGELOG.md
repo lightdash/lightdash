@@ -1,3 +1,10 @@
+## [0.1418.1](https://github.com/lightdash/lightdash/compare/0.1418.0...0.1418.1) (2024-12-13)
+
+
+### Bug Fixes
+
+* metrics explorer y label align center ([#12901](https://github.com/lightdash/lightdash/issues/12901)) ([3bcc9b6](https://github.com/lightdash/lightdash/commit/3bcc9b6998067163a1f6a9e8ea693bec49199856))
+
 # [0.1418.0](https://github.com/lightdash/lightdash/compare/0.1417.1...0.1418.0) (2024-12-13)
 
 
