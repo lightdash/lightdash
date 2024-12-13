@@ -25,8 +25,14 @@ const SavedQueries: FC = () => {
     };
 
     return (
-        <Page title="Saved charts" withFixedContent withPaddedContent>
-            <Stack spacing="xl">
+        <Page
+            title="Saved charts"
+            withCenteredRoot
+            withCenteredContent
+            withXLargePaddedContent
+            withLargeContent
+        >
+            <Stack spacing="xxl" w="100%">
                 <Group position="apart">
                     <PageBreadcrumbs
                         items={[
