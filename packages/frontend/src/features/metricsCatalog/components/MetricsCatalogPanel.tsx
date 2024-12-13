@@ -1,17 +1,18 @@
 import { subject } from '@casl/ability';
 import {
-    ActionIcon,
     Anchor,
     Badge,
     Box,
+    Button,
     Group,
     Popover,
     Stack,
     Text,
     Tooltip,
     useMantineTheme,
+    type ButtonProps,
 } from '@mantine/core';
-import { IconInfoCircle, IconRefresh } from '@tabler/icons-react';
+import { IconRefresh, IconSparkles } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -32,13 +33,9 @@ import {
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
 
-const InfoPopover: FC = () => {
-    const canRefreshCatalog = useAppSelector(
-        (state) => state.metricsCatalog.abilities.canRefreshCatalog,
-    );
-
-    if (!canRefreshCatalog) return null;
-
+const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
+    buttonStyles,
+}) => {
     return (
         <Popover
             width={250}
@@ -50,14 +47,14 @@ const InfoPopover: FC = () => {
         >
             <Popover.Target>
                 <Tooltip variant="xs" label="Learn more" position="top">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray.8"
+                    <Button
                         size="xs"
-                        radius="xl"
+                        variant="default"
+                        leftIcon={<MantineIcon icon={IconSparkles} />}
+                        sx={buttonStyles}
                     >
-                        <MantineIcon icon={IconInfoCircle} />
-                    </ActionIcon>
+                        Learn more
+                    </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown>
@@ -224,6 +221,16 @@ export const MetricsCatalogPanel = () => {
         setLastDbtRefreshAt(new Date());
     };
 
+    const headerButtonStyles: ButtonProps['sx'] = {
+        borderRadius: theme.radius.md,
+        backgroundColor: '#FAFAFA',
+        border: `1px solid ${theme.colors.gray[2]}`,
+        padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
+        fontSize: theme.fontSizes.sm,
+        fontWeight: 500,
+        color: theme.colors.gray[7],
+    };
+
     return (
         <Stack w="100%" spacing="xxl">
             <Group position="apart">
@@ -245,8 +252,7 @@ export const MetricsCatalogPanel = () => {
                                 py="xxs"
                                 px="xs"
                                 sx={{
-                                    border: `1px solid ${theme.colors.indigo[2]}`,
-                                    cursor: 'pointer',
+                                    cursor: 'default',
                                     boxShadow:
                                         '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
                                 }}
@@ -269,15 +275,7 @@ export const MetricsCatalogPanel = () => {
                                 icon={IconRefresh}
                             />
                         }
-                        buttonStyles={{
-                            borderRadius: theme.radius.md,
-                            backgroundColor: '#FAFAFA',
-                            border: `1px solid ${theme.colors.gray[2]}`,
-                            padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
-                            fontSize: theme.fontSizes.sm,
-                            fontWeight: 500,
-                            color: theme.colors.gray[7],
-                        }}
+                        buttonStyles={headerButtonStyles}
                         defaultTextOverride={
                             lastDbtRefreshAt
                                 ? `Last refreshed ${timeAgo}`
@@ -285,7 +283,7 @@ export const MetricsCatalogPanel = () => {
                         }
                         refreshingTextOverride="Refreshing catalog"
                     />
-                    <InfoPopover />
+                    <LearnMorePopover buttonStyles={headerButtonStyles} />
                 </Group>
             </Group>
             <MetricsTable />
