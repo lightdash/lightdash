@@ -4,6 +4,7 @@ import {
     pbkdf2Sync,
     randomBytes,
     type BinaryLike,
+    type CipherKey,
 } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 
@@ -52,19 +53,14 @@ export class EncryptionUtil {
         const salt = randomBytes(this.saltLength);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt as BinaryLike,
+            salt,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
-        const cipher = createCipheriv(
-            this.algorithm,
-            key as BinaryLike,
-            iv as BinaryLike,
-            {
-                authTagLength: this.aesAuthTagLength,
-            },
-        );
+        const cipher = createCipheriv(this.algorithm, key, iv, {
+            authTagLength: this.aesAuthTagLength,
+        });
         const messageBuffer = Buffer.from(message, this.inputEncoding);
         const encrypted = Buffer.concat([
             cipher.update(messageBuffer),
@@ -81,19 +77,14 @@ export class EncryptionUtil {
         const encryptedMessage = encrypted.slice(this.messageOffset);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt as BinaryLike,
+            salt,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
-        const decipher = createDecipheriv(
-            this.algorithm,
-            key as BinaryLike,
-            iv as BinaryLike,
-            {
-                authTagLength: this.aesAuthTagLength,
-            },
-        );
+        const decipher = createDecipheriv(this.algorithm, key, iv, {
+            authTagLength: this.aesAuthTagLength,
+        });
         decipher.setAuthTag(tag);
         const decrypted = Buffer.concat([
             decipher.update(encryptedMessage),

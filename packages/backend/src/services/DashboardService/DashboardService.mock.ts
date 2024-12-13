@@ -12,6 +12,7 @@ import {
     Space,
     SpaceMemberRole,
     UpdateDashboard,
+    type MemberAbility,
 } from '@lightdash/common';
 import { SpaceTable } from '../../database/entities/spaces';
 
@@ -31,13 +32,13 @@ export const user: SessionUser = {
     ability: new Ability([
         {
             subject: 'Dashboard',
-            action: ['view', 'update', 'delete', 'create'],
+            action: ['view', 'update', 'delete', 'create'] as const,
         },
         {
             subject: 'Project',
-            action: ['manage'],
+            action: ['manage'] as const,
         },
-    ]),
+    ]) as MemberAbility,
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),

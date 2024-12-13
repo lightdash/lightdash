@@ -4,6 +4,7 @@ import {
     Organization,
     OrganizationMemberRole,
     SessionUser,
+    type MemberAbility,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
@@ -21,8 +22,11 @@ export const user: SessionUser = {
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability([
-        { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
-    ]),
+        {
+            subject: 'Dashboard',
+            action: ['update', 'delete', 'create'] as const,
+        },
+    ]) as MemberAbility,
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),

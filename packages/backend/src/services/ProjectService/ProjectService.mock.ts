@@ -31,6 +31,7 @@ import {
     TableSelectionType,
     WarehouseClient,
     WarehouseTypes,
+    type MemberAbility,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
@@ -49,11 +50,11 @@ export const user: SessionUser = {
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability([
-        { subject: 'Project', action: ['update', 'view'] },
-        { subject: 'Job', action: ['view'] },
-        { subject: 'SqlRunner', action: ['manage'] },
-        { subject: 'Explore', action: ['manage'] },
-    ]),
+        { subject: 'Project', action: ['update', 'view'] as const },
+        { subject: 'Job', action: ['view'] as const },
+        { subject: 'SqlRunner', action: ['manage'] as const },
+        { subject: 'Explore', action: ['manage'] as const },
+    ]) as MemberAbility,
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),
