@@ -46,8 +46,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     const { track } = useTracking();
     const { classes } = useSelectStyles();
 
-    const { projectUuid, organizationUuid } = useAppSelector(
-        (state) => state.metricsCatalog,
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
+
+    const projectUuid = useAppSelector(
+        (state) => state.metricsCatalog.projectUuid,
     );
 
     const { tableName, metricName } = useParams<{
