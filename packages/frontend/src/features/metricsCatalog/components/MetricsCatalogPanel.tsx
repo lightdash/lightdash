@@ -35,6 +35,8 @@ import {
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
 
+const LOCAL_STORAGE_KEY = 'metrics-catalog-learn-more-popover-closed';
+
 const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
     buttonStyles,
 }) => {
@@ -42,20 +44,24 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
     const buttonRef = useRef<HTMLButtonElement>(null);
     const ref = useClickOutside(close, null, [buttonRef.current]);
 
-    const handleButtonClick: React.MouseEventHandler<HTMLButtonElement> =
-        useCallback(
-            (event) => {
-                event.stopPropagation();
-                event.preventDefault();
+    useEffect(() => {
+        const hasPrevClosed = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!hasPrevClosed) {
+            open();
+        }
+    }, [open]);
 
-                if (opened) {
-                    close();
-                } else {
-                    open();
-                }
-            },
-            [opened, close, open],
-        );
+    const setLocalStorage = useCallback(() => {
+        const hasPrevClosed = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!hasPrevClosed) {
+            localStorage.setItem(LOCAL_STORAGE_KEY, 'true');
+        }
+    }, []);
+
+    const handleClose = useCallback(() => {
+        setLocalStorage();
+        close();
+    }, [close, setLocalStorage]);
 
     return (
         <Popover
@@ -66,6 +72,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
             }}
             position="bottom-start"
             opened={opened}
+            onClose={setLocalStorage}
         >
             <Popover.Target>
                 <Button
@@ -74,7 +81,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
                     variant="default"
                     leftIcon={<MantineIcon icon={IconSparkles} />}
                     sx={buttonStyles}
-                    onClick={handleButtonClick}
+                    onClick={opened ? handleClose : open}
                 >
                     Learn more
                 </Button>
@@ -96,12 +103,12 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
                         <ActionIcon
                             variant="transparent"
                             size="xs"
-                            onClick={close}
+                            onClick={handleClose}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     </Group>
-                    <LearnMoreContent width="100%" height="auto" />
+                    <LearnMoreContent width="100%" height="100%" />
                     <Text size={13} c="gray.3">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
