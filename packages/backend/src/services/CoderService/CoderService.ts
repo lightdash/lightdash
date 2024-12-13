@@ -305,8 +305,8 @@ export class CoderService extends BaseService {
             slugs,
         });
 
-        const dashboardPromises = dashboardSummaries.map((chart) =>
-            this.dashboardModel.getById(chart.uuid),
+        const dashboardPromises = dashboardSummaries.map((dash) =>
+            this.dashboardModel.getById(dash.uuid),
         );
         const dashboards = await Promise.all(dashboardPromises);
 
