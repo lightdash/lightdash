@@ -52,7 +52,7 @@ const dumpIntoFiles = async (
 ) => {
     const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
 
-    console.info(`Writting ${items.length} ${folder} into ${outputDir}`);
+    console.info(`Writing ${items.length} ${folder} into ${outputDir}`);
     // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
     if (created) console.info(`Created new folder: ${outputDir} `);
@@ -137,42 +137,55 @@ export const downloadHandler = async (
         );
     }
 
+    // If any filter is provided, we skip those items without filters
+    // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
+    const hasFilters =
+        options.charts.length > 0 || options.dashboards.length > 0;
+
     // Download charts
-    GlobalState.debug(`Downloading charts`);
-    const chartFilters = parseContentFilters(options.charts);
+    if (hasFilters && options.charts.length === 0) {
+        console.info(styles.warning(`No charts filters provided, skipping`));
+    } else {
+        GlobalState.debug(`Downloading charts`);
+        const chartFilters = parseContentFilters(options.charts);
 
-    const chartsAsCode = await lightdashApi<
-        ApiChartAsCodeListResponse['results']
-    >({
-        method: 'GET',
-        url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
-        body: undefined,
-    });
+        const chartsAsCode = await lightdashApi<
+            ApiChartAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
+            body: undefined,
+        });
 
-    chartsAsCode.missingIds.forEach((missingId) => {
-        console.warn(styles.warning(`No chart with id "${missingId}"`));
-    });
+        chartsAsCode.missingIds.forEach((missingId) => {
+            console.warn(styles.warning(`No chart with id "${missingId}"`));
+        });
 
-    await dumpIntoFiles('charts', chartsAsCode.charts);
-
+        await dumpIntoFiles('charts', chartsAsCode.charts);
+    }
     // Download dashboards
+    if (hasFilters && options.dashboards.length === 0) {
+        console.info(
+            styles.warning(`No dashboards filters provided, skipping`),
+        );
+    } else {
+        GlobalState.debug(`Downloading dashboards`);
+        const dashboardFilters = parseContentFilters(options.dashboards);
 
-    GlobalState.debug(`Downloading dashboards`);
-    const dashboardFilters = parseContentFilters(options.dashboards);
+        const dashboardsAsCode = await lightdashApi<
+            ApiDashboardAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/dashboards/code${dashboardFilters}`,
+            body: undefined,
+        });
 
-    const dashboardsAsCode = await lightdashApi<
-        ApiDashboardAsCodeListResponse['results']
-    >({
-        method: 'GET',
-        url: `/api/v1/projects/${projectId}/dashboards/code${dashboardFilters}`,
-        body: undefined,
-    });
+        dashboardsAsCode.missingIds.forEach((missingId) => {
+            console.warn(styles.warning(`No dashboard with id "${missingId}"`));
+        });
 
-    dashboardsAsCode.missingIds.forEach((missingId) => {
-        console.warn(styles.warning(`No dashboard with id "${missingId}"`));
-    });
-
-    await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+        await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+    }
 
     // TODO delete files if chart don't exist ?*/
 };
@@ -257,8 +270,14 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     for (const item of filteredItems) {
         // If a chart fails to update, we keep updating the rest
         try {
-            if (!force && !item.needsUpdating && !hasFilter) {
-                // If hasFilter, we force upload the charts/dashboards that match the slugs
+            if (!force && !item.needsUpdating) {
+                if (hasFilter) {
+                    console.warn(
+                        styles.warning(
+                            `Skipping ${type} "${item.slug}" with no local changes`,
+                        ),
+                    );
+                }
                 GlobalState.debug(
                     `Skipping ${type} "${item.slug}" with no local changes`,
                 );
