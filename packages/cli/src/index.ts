@@ -440,10 +440,14 @@ program
     .command('upload')
     .description('Uploads charts and dashboards as code')
     .option('--verbose', undefined, false)
-    .option('-c, --charts <charts...>', 'specify charts to upload', [])
+    .option(
+        '-c, --charts <charts...>',
+        'specify chart slugs to force upload',
+        [],
+    )
     .option(
         '-d, --dashboards <dashboards...>',
-        'specify dashboards to upload',
+        'specify dashboard slugs to force upload',
         [],
     )
     .option(

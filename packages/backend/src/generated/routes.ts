@@ -7268,47 +7268,47 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                description: { dataType: 'string' },
-                dashboardUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                slug: { dataType: 'string', required: true },
-                tableName: { dataType: 'string', required: true },
-                updatedAt: { dataType: 'datetime', required: true },
-                tableConfig: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        columnOrder: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
+    'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig-or-description__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    dashboardUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
                     },
-                    required: true,
+                    slug: { dataType: 'string', required: true },
+                    tableName: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
+                    tableConfig: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            columnOrder: {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                                required: true,
+                            },
+                        },
+                        required: true,
+                    },
+                    version: { dataType: 'double', required: true },
+                    spaceSlug: { dataType: 'string', required: true },
+                    downloadedAt: { dataType: 'datetime' },
                 },
-                version: { dataType: 'double', required: true },
-                spaceSlug: { dataType: 'string', required: true },
-                downloadedAt: { dataType: 'datetime' },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_ChartAsCode.metricQuery-or-chartConfig_': {
+    'Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__',
+            ref: 'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig-or-description__',
             validators: {},
         },
     },
@@ -16983,10 +16983,19 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'intersection',
                     subSchemas: [
-                        { ref: 'Omit_ChartAsCode.metricQuery-or-chartConfig_' },
+                        {
+                            ref: 'Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_',
+                        },
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                description: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                },
                                 metricQuery: {
                                     dataType: 'any',
                                     required: true,

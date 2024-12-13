@@ -865,9 +865,13 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        chart: Omit<ChartAsCode, 'metricQuery' | 'chartConfig'> & {
+        chart: Omit<
+            ChartAsCode,
+            'metricQuery' | 'chartConfig' | 'description'
+        > & {
             chartConfig: any;
             metricQuery: any;
+            description?: string | null; // Allow both undefined and null
         },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {

@@ -221,19 +221,44 @@ const logUploadChanges = (changes: Record<string, number>) => {
     });
 };
 
+/**
+ *
+ * @param slugs if slugs are provided, we only force upsert the charts/dashboards that match the slugs, if slugs are empty, we upload files that were locally updated
+ */
 const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     type: 'charts' | 'dashboards',
     projectId: string,
     changes: Record<string, number>,
     force: boolean,
+    slugs: string[],
 ) => {
     const items = await readCodeFiles<T>(type);
 
     console.info(`Found ${items.length} ${type} files`);
-    for (const item of items) {
+
+    const hasFilter = slugs.length > 0;
+    const filteredItems = hasFilter
+        ? items.filter((item) => slugs.includes(item.slug))
+        : items;
+    if (hasFilter) {
+        console.info(
+            `Filtered ${filteredItems.length} ${type} with slugs: ${slugs.join(
+                ', ',
+            )}`,
+        );
+        const missingItems = slugs.filter(
+            (slug) => !items.find((item) => item.slug === slug),
+        );
+        missingItems.forEach((slug) => {
+            console.warn(styles.warning(`No ${type} with slug: "${slug}"`));
+        });
+    }
+
+    for (const item of filteredItems) {
         // If a chart fails to update, we keep updating the rest
         try {
-            if (!force && !item.needsUpdating) {
+            if (!force && !item.needsUpdating && !hasFilter) {
+                // If hasFilter, we force upload the charts/dashboards that match the slugs
                 GlobalState.debug(
                     `Skipping ${type} "${item.slug}" with no local changes`,
                 );
@@ -291,12 +316,14 @@ export const uploadHandler = async (
         projectId,
         changes,
         options.force,
+        options.charts,
     );
     changes = await upsertResources<DashboardAsCode>(
         'dashboards',
         projectId,
         changes,
         options.force,
+        options.dashboards,
     );
 
     logUploadChanges(changes);
