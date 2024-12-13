@@ -1,3 +1,11 @@
+## [0.1417.1](https://github.com/lightdash/lightdash/compare/0.1417.0...0.1417.1) (2024-12-13)
+
+
+### Bug Fixes
+
+* remove tile uuid from dashboard as code ([#12883](https://github.com/lightdash/lightdash/issues/12883)) ([01a85a1](https://github.com/lightdash/lightdash/commit/01a85a109cca0ab6b3e608f2a13c3f16b960d30f))
+* space change on promote content ([#12881](https://github.com/lightdash/lightdash/issues/12881)) ([f14d155](https://github.com/lightdash/lightdash/commit/f14d155ed2b5a0cf715d64557f8392924c117cf2))
+
 # [0.1417.0](https://github.com/lightdash/lightdash/compare/0.1416.1...0.1417.0) (2024-12-13)
 
 
