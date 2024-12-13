@@ -1,3 +1,10 @@
+## [0.1416.1](https://github.com/lightdash/lightdash/compare/0.1416.0...0.1416.1) (2024-12-13)
+
+
+### Bug Fixes
+
+* capture all errors from gsheet, disable scheduler and notify ([#12847](https://github.com/lightdash/lightdash/issues/12847)) ([4cbf180](https://github.com/lightdash/lightdash/commit/4cbf180d41d069b9dac1d6893ac6ded35d8d5f0a))
+
 # [0.1416.0](https://github.com/lightdash/lightdash/compare/0.1415.2...0.1416.0) (2024-12-12)
 
 
