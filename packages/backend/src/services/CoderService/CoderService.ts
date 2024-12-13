@@ -124,7 +124,7 @@ export class CoderService extends BaseService {
                     ...tile,
                     properties: { ...tile.properties },
                 };
-
+                delete tileWithoutUuid.uuid;
                 if ('savedChartUuid' in tileWithoutUuid.properties) {
                     delete tileWithoutUuid.properties.savedChartUuid;
                 }
