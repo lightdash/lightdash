@@ -802,8 +802,10 @@ const MetricsVisualization: FC<Props> = ({
                                               value: results?.metric.label,
                                               angle: -90,
                                               position: 'left',
-                                              dy: -60,
+                                              // hardcoded value to align the label when the legend is shown
+                                              dy: showLegend ? -25 : 0,
                                               style: {
+                                                  textAnchor: 'middle',
                                                   fontSize: 14,
                                                   fill: colors.gray[7],
                                                   fontWeight: 500,
