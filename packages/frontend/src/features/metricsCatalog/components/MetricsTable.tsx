@@ -39,7 +39,10 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
+import {
+    MIN_METRICS_CATALOG_SEARCH_LENGTH,
+    useMetricsCatalog,
+} from '../hooks/useMetricsCatalog';
 import { useMetricsTree } from '../hooks/useMetricsTree';
 import {
     setCategoryFilters,
@@ -114,6 +117,22 @@ export const MetricsTable = () => {
             sortDirection: sorting[0].desc ? 'desc' : 'asc',
         }),
     });
+
+    useEffect(() => {
+        if (
+            deferredSearch &&
+            deferredSearch.length > MIN_METRICS_CATALOG_SEARCH_LENGTH &&
+            data
+        ) {
+            track({
+                name: EventName.METRICS_CATALOG_SEARCH_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
+    }, [deferredSearch, track, organizationUuid, projectUuid, data]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
