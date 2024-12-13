@@ -41,7 +41,11 @@ import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { useMetricsTree } from '../hooks/useMetricsTree';
-import { setCategoryFilters } from '../store/metricsCatalogSlice';
+import {
+    setCategoryFilters,
+    toggleMetricPeekModal,
+} from '../store/metricsCatalogSlice';
+import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import {
     MetricCatalogView,
@@ -66,14 +70,15 @@ export const MetricsTable = () => {
     const { canManageTags, canManageMetricsTree } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
     );
+    const isMetricPeekModalOpen = useAppSelector(
+        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
+    );
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
-
     const [metricCatalogView, setMetricCatalogView] =
         useState<MetricCatalogView>(MetricCatalogView.LIST);
 
@@ -86,6 +91,10 @@ export const MetricsTable = () => {
     ];
 
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
+
+    const onCloseMetricPeekModal = () => {
+        dispatch(toggleMetricPeekModal(undefined));
+    };
 
     const {
         data,
@@ -513,7 +522,18 @@ export const MetricsTable = () => {
 
     switch (metricCatalogView) {
         case MetricCatalogView.LIST:
-            return <MantineReactTable table={table} />;
+            return (
+                <>
+                    <MantineReactTable table={table} />
+                    {isMetricPeekModalOpen && (
+                        <MetricPeekModal
+                            opened={isMetricPeekModalOpen}
+                            onClose={onCloseMetricPeekModal}
+                            metrics={flatData}
+                        />
+                    )}
+                </>
+            );
         case MetricCatalogView.TREE:
             return (
                 <Paper {...mantinePaperProps}>

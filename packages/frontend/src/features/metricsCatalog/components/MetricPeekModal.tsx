@@ -4,12 +4,14 @@ import {
     isDimension,
     MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
     MetricExplorerComparison,
+    type CatalogField,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Box,
     Button,
@@ -24,10 +26,18 @@ import {
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconBoxAlignTopRight, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconInfoCircle,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { Blocks } from '../../../svgs/metricsCatalog';
+import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
@@ -37,10 +47,17 @@ import { useSelectStyles } from '../styles/useSelectStyles';
 import { MetricPeekComparison } from './MetricPeekComparison';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    metrics: CatalogField[];
+};
 
-export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
+export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
+    const { track } = useTracking();
     const { classes } = useSelectStyles();
+
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -52,12 +69,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     }>();
 
     const history = useHistory();
-
-    const metricQuery = useMetric({
-        projectUuid,
-        tableName,
-        metricName,
-    });
 
     const [query, setQuery] = useState<MetricExplorerQuery>({
         comparison: MetricExplorerComparison.NONE,
@@ -71,6 +82,60 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     const [timeDimensionOverride, setTimeDimensionOverride] = useState<
         TimeDimensionConfig | undefined
     >();
+
+    const resetQueryState = useCallback(() => {
+        setQuery({
+            comparison: MetricExplorerComparison.NONE,
+            segmentDimension: null,
+        });
+        setTimeDimensionOverride(undefined);
+        setDateRange(null);
+    }, [setQuery, setTimeDimensionOverride, setDateRange]);
+
+    const currentMetricIndex = useMemo(() => {
+        return metrics.findIndex(
+            (metric) =>
+                metric.name === metricName && metric.tableName === tableName,
+        );
+    }, [metrics, metricName, tableName]);
+
+    const nextMetricInList = useMemo(() => {
+        return metrics[currentMetricIndex + 1];
+    }, [currentMetricIndex, metrics]);
+
+    const previousMetricInList = useMemo(() => {
+        return metrics[currentMetricIndex - 1];
+    }, [currentMetricIndex, metrics]);
+
+    const navigateToMetric = useCallback(
+        (metric: CatalogField) => {
+            history.push({
+                pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
+                search: history.location.search,
+            });
+
+            resetQueryState();
+        },
+        [history, projectUuid, resetQueryState],
+    );
+
+    const handleGoToNextMetric = useCallback(() => {
+        if (nextMetricInList) {
+            navigateToMetric(nextMetricInList);
+        }
+    }, [navigateToMetric, nextMetricInList]);
+
+    const handleGoToPreviousMetric = useCallback(() => {
+        if (previousMetricInList) {
+            navigateToMetric(previousMetricInList);
+        }
+    }, [navigateToMetric, previousMetricInList]);
+
+    const metricQuery = useMetric({
+        projectUuid,
+        tableName,
+        metricName,
+    });
 
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
@@ -93,6 +158,19 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         );
     }, [query]);
 
+    const isQueryEnabled =
+        (!!projectUuid &&
+            !!tableName &&
+            !!metricName &&
+            !!query &&
+            !!dateRange &&
+            (query.comparison !== MetricExplorerComparison.DIFFERENT_METRIC ||
+                (query.comparison ===
+                    MetricExplorerComparison.DIFFERENT_METRIC &&
+                    query.metric.name !== '' &&
+                    query.metric.table !== ''))) ||
+        queryHasEmptyMetric;
+
     const metricResultsQuery = useRunMetricExplorerQuery(
         {
             projectUuid,
@@ -108,18 +186,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             timeDimensionOverride,
         },
         {
-            enabled:
-                !!projectUuid &&
-                !!tableName &&
-                !!metricName &&
-                !!query &&
-                !!dateRange &&
-                (query.comparison !==
-                    MetricExplorerComparison.DIFFERENT_METRIC ||
-                    (query.comparison ===
-                        MetricExplorerComparison.DIFFERENT_METRIC &&
-                        query.metric.name !== '' &&
-                        query.metric.table !== '')),
+            enabled: isQueryEnabled,
             keepPreviousData: true,
         },
     );
@@ -175,13 +242,24 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 );
             }
         },
-        [timeDimensionOverride, timeDimensionBaseField, dateRange],
+        [timeDimensionOverride, timeDimensionBaseField, dateRange, track],
     );
 
     const handleTimeIntervalChange = useCallback(
         function handleTimeIntervalChange(timeInterval: TimeFrames) {
             // Always reset the date range to the default range for the new interval
             setDateRange(getDefaultDateRangeFromInterval(timeInterval));
+
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    granularity: timeInterval,
+                },
+            });
 
             if (timeDimensionBaseField) {
                 setTimeDimensionOverride({
@@ -190,28 +268,128 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 });
             }
         },
-        [timeDimensionBaseField],
+        [
+            metricName,
+            organizationUuid,
+            projectUuid,
+            tableName,
+            timeDimensionBaseField,
+            track,
+        ],
     );
 
-    const handleSegmentDimensionChange = useCallback((value: string | null) => {
-        setQuery({
-            comparison: MetricExplorerComparison.NONE,
-            segmentDimension: value,
-        });
-    }, []);
+    const handleSegmentDimensionChange = useCallback(
+        (value: string | null) => {
+            setQuery({
+                comparison: MetricExplorerComparison.NONE,
+                segmentDimension: value,
+            });
+
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    segmentDimension: value,
+                },
+            });
+        },
+        [metricName, organizationUuid, projectUuid, tableName, track],
+    );
 
     const handleClose = useCallback(() => {
-        history.push(`/projects/${projectUuid}/metrics`);
-
-        setQuery({
-            comparison: MetricExplorerComparison.NONE,
-            segmentDimension: null,
+        history.push({
+            pathname: `/projects/${projectUuid}/metrics`,
+            search: history.location.search,
         });
-        setTimeDimensionOverride(undefined);
-        setDateRange(null);
+
+        resetQueryState();
 
         onClose();
-    }, [history, onClose, projectUuid]);
+    }, [history, onClose, projectUuid, resetQueryState]);
+
+    useEffect(() => {
+        if (timeDimensionOverride) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                },
+            });
+        }
+    }, [
+        timeDimensionOverride,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+    ]);
+
+    useEffect(() => {
+        if (dateRange) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                },
+            });
+        }
+    }, [
+        dateRange,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+    ]);
+
+    useEffect(() => {
+        if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                },
+            });
+        }
+
+        if (
+            !queryHasEmptyMetric &&
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
+        ) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    compareMetricName: query.metric.name,
+                    compareTableName: query.metric.table,
+                },
+            });
+        }
+    }, [
+        query,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+        queryHasEmptyMetric,
+    ]);
 
     return (
         <Modal.Root
@@ -241,6 +419,32 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     })}
                 >
                     <Group spacing="xs">
+                        <Group spacing="xxs">
+                            <ActionIcon
+                                variant="outline"
+                                size="sm"
+                                radius="sm"
+                                sx={(theme) => ({
+                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                })}
+                                onClick={handleGoToPreviousMetric}
+                                disabled={!previousMetricInList}
+                            >
+                                <MantineIcon icon={IconChevronUp} />
+                            </ActionIcon>
+                            <ActionIcon
+                                variant="outline"
+                                size="sm"
+                                radius="sm"
+                                sx={(theme) => ({
+                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                })}
+                                onClick={handleGoToNextMetric}
+                                disabled={!nextMetricInList}
+                            >
+                                <MantineIcon icon={IconChevronDown} />
+                            </ActionIcon>
+                        </Group>
                         <Text fw={600} fz="md" color="gray.8">
                             {metricQuery.data?.label}
                         </Text>
@@ -266,20 +470,54 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     mih={600}
                 >
                     <Stack py="md" px="lg" bg="offWhite.0" w={460}>
-                        <Stack spacing="xl">
-                            <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
-                                <Text fw={500} c="gray.7">
-                                    Segment
-                                </Text>
+                        <Stack spacing="xl" w="100%" sx={{ flexGrow: 1 }}>
+                            <Stack spacing="xs">
+                                <Group position="apart">
+                                    <Text fw={500} c="gray.7">
+                                        Segment
+                                    </Text>
+
+                                    <Button
+                                        variant="subtle"
+                                        compact
+                                        color="dark"
+                                        size="xs"
+                                        radius="md"
+                                        rightIcon={
+                                            <MantineIcon
+                                                icon={IconX}
+                                                color="gray.5"
+                                                size={12}
+                                            />
+                                        }
+                                        sx={(theme) => ({
+                                            visibility:
+                                                !(
+                                                    'segmentDimension' in query
+                                                ) || !query.segmentDimension
+                                                    ? 'hidden'
+                                                    : 'visible',
+                                            '&:hover': {
+                                                backgroundColor:
+                                                    theme.colors.gray[1],
+                                            },
+                                        })}
+                                        styles={{
+                                            rightIcon: {
+                                                marginLeft: 4,
+                                            },
+                                        }}
+                                        onClick={() =>
+                                            handleSegmentDimensionChange(null)
+                                        }
+                                    >
+                                        Clear
+                                    </Button>
+                                </Group>
 
                                 <Select
                                     placeholder="Segment by"
-                                    clearable
-                                    icon={
-                                        <MantineIcon
-                                            icon={IconBoxAlignTopRight}
-                                        />
-                                    }
+                                    icon={<Blocks />}
                                     radius="md"
                                     size="xs"
                                     data={
@@ -306,10 +544,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             <Loader size="xs" color="gray.5" />
                                         ) : undefined
                                     }
-                                    classNames={{
-                                        input: classes.input,
-                                        item: classes.item,
-                                    }}
+                                    classNames={classes}
                                 />
 
                                 {metricResultsQuery.isSuccess &&
@@ -319,25 +554,39 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             py="xs"
                                             px="sm"
                                             variant="light"
-                                            color="yellow"
+                                            color="blue"
                                             sx={(theme) => ({
                                                 borderStyle: 'dashed',
                                                 borderWidth: 1,
                                                 borderColor:
-                                                    theme.colors.yellow[4],
+                                                    theme.colors.blue[4],
                                             })}
+                                            styles={{
+                                                icon: {
+                                                    marginRight: 2,
+                                                },
+                                            }}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    color="blue.7"
+                                                    size={16}
+                                                />
+                                            }
                                         >
-                                            <Text size="sm" color="gray.7">
+                                            <Text size="xs" color="blue.7" span>
                                                 Only the first{' '}
                                                 {
                                                     MAX_SEGMENT_DIMENSION_UNIQUE_VALUES
                                                 }{' '}
-                                                unique values of the segment
-                                                dimension are shown.
+                                                series are displayed to maintain
+                                                a clear and readable chart.
                                             </Text>
                                         </Alert>
                                     )}
-
+                            </Stack>
+                            <Divider color="gray.2" />
+                            <Stack spacing="xs">
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">
                                         Comparison
@@ -367,6 +616,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                                 segmentDimension: null,
                                             })
                                         }
+                                        rightIcon={
+                                            <MantineIcon
+                                                icon={IconX}
+                                                color="gray.5"
+                                                size={12}
+                                            />
+                                        }
+                                        styles={{
+                                            rightIcon: {
+                                                marginLeft: 4,
+                                            },
+                                        }}
                                     >
                                         Clear
                                     </Button>

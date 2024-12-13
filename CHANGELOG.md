@@ -1,3 +1,58 @@
+# [0.1417.0](https://github.com/lightdash/lightdash/compare/0.1416.1...0.1417.0) (2024-12-13)
+
+
+### Bug Fixes
+
+* check if projectUuid in state is different from current projectUuid in the params ([#12892](https://github.com/lightdash/lightdash/issues/12892)) ([78fc23d](https://github.com/lightdash/lightdash/commit/78fc23ddaa41e84b2593b356d1d6930f6969e525))
+* revert previous changes ([#12895](https://github.com/lightdash/lightdash/issues/12895)) ([0cd064e](https://github.com/lightdash/lightdash/commit/0cd064ec7059637eb4b8e339fe4e64e3ff3e1d70))
+
+
+### Features
+
+* add metric navigation in modal ([#12873](https://github.com/lightdash/lightdash/issues/12873)) ([12b04cd](https://github.com/lightdash/lightdash/commit/12b04cddfb3f0515a97e005eb6ad84e427027fbb))
+
+## [0.1416.1](https://github.com/lightdash/lightdash/compare/0.1416.0...0.1416.1) (2024-12-13)
+
+
+### Bug Fixes
+
+* capture all errors from gsheet, disable scheduler and notify ([#12847](https://github.com/lightdash/lightdash/issues/12847)) ([4cbf180](https://github.com/lightdash/lightdash/commit/4cbf180d41d069b9dac1d6893ac6ded35d8d5f0a))
+
+# [0.1416.0](https://github.com/lightdash/lightdash/compare/0.1415.2...0.1416.0) (2024-12-12)
+
+
+### Features
+
+* update metrics catalog axes, tooltips, and general fixes ([#12871](https://github.com/lightdash/lightdash/issues/12871)) ([ec92497](https://github.com/lightdash/lightdash/commit/ec92497c3a2cfe318a6388f0309711e925932baf))
+
+## [0.1415.2](https://github.com/lightdash/lightdash/compare/0.1415.1...0.1415.2) (2024-12-12)
+
+
+### Bug Fixes
+
+* keep custom metric formatting in BigValue ([#12869](https://github.com/lightdash/lightdash/issues/12869)) ([1671304](https://github.com/lightdash/lightdash/commit/16713042cab8c9e1179ea71c761d180418e6bdf7))
+
+## [0.1415.1](https://github.com/lightdash/lightdash/compare/0.1415.0...0.1415.1) (2024-12-12)
+
+
+### Bug Fixes
+
+* update date zoom button styling and add removal functionality ([#12870](https://github.com/lightdash/lightdash/issues/12870)) ([68ec2e5](https://github.com/lightdash/lightdash/commit/68ec2e570e0c1d5c9f56329a472c5c7bae094079))
+
+# [0.1415.0](https://github.com/lightdash/lightdash/compare/0.1414.0...0.1415.0) (2024-12-12)
+
+
+### Features
+
+* add priority levels to job queue ([#12841](https://github.com/lightdash/lightdash/issues/12841)) ([66191c6](https://github.com/lightdash/lightdash/commit/66191c6b25884f53839c930e5eb711a806481d92))
+
+# [0.1414.0](https://github.com/lightdash/lightdash/compare/0.1413.3...0.1414.0) (2024-12-12)
+
+
+### Features
+
+* metrics explorer categories in the url ([#12865](https://github.com/lightdash/lightdash/issues/12865)) ([e213e9f](https://github.com/lightdash/lightdash/commit/e213e9f2164cf722361e7160095ef8325a080774))
+
 ## [0.1413.3](https://github.com/lightdash/lightdash/compare/0.1413.2...0.1413.3) (2024-12-12)
 
 

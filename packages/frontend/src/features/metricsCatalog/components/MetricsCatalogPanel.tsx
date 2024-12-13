@@ -14,10 +14,11 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
+import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
 import { MetricsCatalogIcon } from '../../../svgs/metricsCatalog';
@@ -25,12 +26,12 @@ import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
     setActiveMetric,
+    setCategoryFilters,
     setOrganizationUuid,
     setProjectUuid,
     toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
-import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsTable } from './MetricsTable';
 
 const InfoPopover: FC = () => {
@@ -104,6 +105,12 @@ export const MetricsCatalogPanel = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const history = useHistory();
+    const categoriesParam = useSearchParams('categories');
+    const categories = useAppSelector(
+        (state) => state.metricsCatalog.categoryFilters,
+    );
+
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
@@ -119,31 +126,49 @@ export const MetricsCatalogPanel = () => {
     const isMetricUsageModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.chartUsageModal.isOpen,
     );
+
     const onCloseMetricUsageModal = () => {
         dispatch(setActiveMetric(undefined));
     };
-    const isMetricPeekModalOpen = useAppSelector(
-        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
-    );
-    const onCloseMetricPeekModal = () => {
-        dispatch(toggleMetricPeekModal(undefined));
-    };
+
     const { tableName, metricName } = useParams<{
         tableName: string;
         metricName: string;
     }>();
 
     useEffect(() => {
-        if (!projectUuid && params.projectUuid) {
+        if (!projectUuid || projectUuid !== params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [params.projectUuid, dispatch, projectUuid]);
 
     useEffect(() => {
-        if (!organizationUuid && project?.organizationUuid) {
+        if (
+            project &&
+            (!organizationUuid || organizationUuid !== project.organizationUuid)
+        ) {
             dispatch(setOrganizationUuid(project.organizationUuid));
         }
     }, [project, dispatch, organizationUuid]);
+
+    useEffect(() => {
+        const urlCategories =
+            categoriesParam?.split(',').map(decodeURIComponent) || [];
+        dispatch(setCategoryFilters(urlCategories));
+    }, [categoriesParam, dispatch]);
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        if (categories.length > 0) {
+            queryParams.set(
+                'categories',
+                categories.map(encodeURIComponent).join(','),
+            );
+        } else {
+            queryParams.delete('categories');
+        }
+        history.replace({ search: queryParams.toString() });
+    }, [categories, history]);
 
     useEffect(
         function handleAbilities() {
@@ -273,12 +298,6 @@ export const MetricsCatalogPanel = () => {
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}
             />
-            {isMetricPeekModalOpen && (
-                <MetricPeekModal
-                    opened={isMetricPeekModalOpen}
-                    onClose={onCloseMetricPeekModal}
-                />
-            )}
         </Stack>
     );
 };

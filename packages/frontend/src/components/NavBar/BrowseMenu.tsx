@@ -6,10 +6,13 @@ import {
     IconFolders,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import { Link } from 'react-router-dom';
+import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
+import { useTracking } from '../../providers/TrackingProvider';
 import { Hash } from '../../svgs/metricsCatalog';
+import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 
 interface Props {
@@ -21,6 +24,21 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         projectUuid,
         true,
     );
+
+    const { data: project } = useProject(projectUuid);
+    const { track } = useTracking();
+
+    const handleMetricsCatalogClick = useCallback(() => {
+        if (project) {
+            track({
+                name: EventName.METRICS_CATALOG_CLICKED,
+                properties: {
+                    organizationId: project.organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
+    }, [project, projectUuid, track]);
 
     return (
         <Menu
@@ -71,6 +89,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     component={Link}
                     to={`/projects/${projectUuid}/metrics`}
                     icon={<Hash />}
+                    onClick={handleMetricsCatalogClick}
                 >
                     Metrics Catalog
                 </Menu.Item>

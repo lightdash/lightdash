@@ -120,6 +120,7 @@ export enum EventName {
     DASHBOARD_AUTO_REFRESH_UPDATED = 'dashboard_auto_refresh.updated',
 
     // Metrics Catalog
+    METRICS_CATALOG_CLICKED = 'metrics_catalog.clicked',
     METRICS_CATALOG_CHART_USAGE_CLICKED = 'metrics_catalog_chart_usage.clicked',
     METRICS_CATALOG_CHART_USAGE_CHART_CLICKED = 'metrics_catalog_chart_usage_chart.clicked',
     METRICS_CATALOG_EXPLORE_CLICKED = 'metrics_catalog_explore.clicked',
@@ -127,4 +128,10 @@ export enum EventName {
     METRICS_CATALOG_CATEGORY_CLICKED = 'metrics_catalog_category.clicked',
     METRICS_CATALOG_CATEGORY_FILTER_APPLIED = 'metrics_catalog_category_filter.applied',
     METRICS_CATALOG_ICON_APPLIED = 'metrics_catalog_icon.applied',
+    METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD = 'metrics_catalog_explore_compare.last_period',
+    METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC = 'metrics_catalog_explore_compare.another_metric',
+    METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED = 'metrics_catalog_explore_date_filter.applied',
+    METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED = 'metrics_catalog_explore_granularity.applied',
+    METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED = 'metrics_catalog_explore_segment_by.applied',
+    METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED = 'metrics_catalog_explore_time_dimension_override.applied',
 }

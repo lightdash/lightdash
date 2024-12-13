@@ -132,7 +132,7 @@ export class CoderService extends BaseService {
                     ...tile,
                     properties: { ...tile.properties },
                 };
-
+                delete tileWithoutUuid.uuid;
                 if ('savedChartUuid' in tileWithoutUuid.properties) {
                     delete tileWithoutUuid.properties.savedChartUuid;
                 }
@@ -423,7 +423,13 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information it is not available in ChartAsCode, and other uuids
         if (chart === undefined) {
-            // TODO create space if does not exist using PromoteService upsertSpaces
+            const { space, created: spaceCreated } =
+                await this.getOrCreateSpace(
+                    projectUuid,
+                    chartAsCode.spaceSlug,
+                    user,
+                );
+
             console.info(
                 `Creating chart "${chartAsCode.name}" on project ${projectUuid}`,
             );
@@ -434,6 +440,7 @@ export class CoderService extends BaseService {
                 forceSlug: boolean;
             } = {
                 ...chartAsCode,
+                spaceUuid: space.uuid,
                 dashboardUuid: undefined, // TODO for charts within dashboards, we need to create the dashboard first, use promotion for that
                 updatedByUser: user,
                 forceSlug: true, // do not generate a new unique slug, use the one from chart as code , at this point we know it is going to be unique on this project
@@ -459,7 +466,9 @@ export class CoderService extends BaseService {
                         },
                     },
                 ],
-                spaces: [], // TODO create space if does not exist using PromoteService upsertSpaces
+                spaces: spaceCreated
+                    ? [{ action: PromotionAction.CREATE, data: space }]
+                    : [],
                 dashboards: [],
             };
             return promotionChanges;
@@ -467,7 +476,14 @@ export class CoderService extends BaseService {
         console.info(
             `Updating chart "${chartAsCode.name}" on project ${projectUuid}`,
         );
-
+        // Although, promotionService already upsertSpaces
+        // We want to create a new space based on the slug, not the uuid
+        // Then there is no need to do promoteService.upsertSpaces
+        const { space } = await this.getOrCreateSpace(
+            projectUuid,
+            chartAsCode.spaceSlug,
+            user,
+        );
         const { promotedChart, upstreamChart } =
             await this.promoteService.getPromoteCharts(
                 user,
@@ -484,14 +500,13 @@ export class CoderService extends BaseService {
             },
         };
 
+        //  we force the new space on the upstreamChart
+        if (upstreamChart.chart) upstreamChart.chart.spaceUuid = space.uuid;
         let promotionChanges: PromotionChanges = PromoteService.getChartChanges(
             updatedChart,
             upstreamChart,
         );
-        promotionChanges = await this.promoteService.upsertSpaces(
-            user,
-            promotionChanges,
-        );
+
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -502,6 +517,38 @@ export class CoderService extends BaseService {
         );
 
         return promotionChanges;
+    }
+
+    async getOrCreateSpace(
+        projectUuid: string,
+        spaceSlug: string,
+        user: SessionUser,
+    ): Promise<{ space: Omit<SpaceSummary, 'userAccess'>; created: boolean }> {
+        const [space] = await this.spaceModel.find({
+            slug: spaceSlug,
+            projectUuid,
+        });
+
+        if (space !== undefined) return { space, created: false };
+
+        console.info(`Creating new public space with slug ${spaceSlug}`);
+        const newSpace = await this.spaceModel.createSpace(
+            projectUuid,
+            friendlyName(spaceSlug),
+            user.userId,
+            false,
+            spaceSlug,
+            true, // forceSameSlug
+        );
+        return {
+            space: {
+                ...newSpace,
+                chartCount: 0,
+                dashboardCount: 0,
+                access: [],
+            },
+            created: true,
+        };
     }
 
     async upsertDashboard(
@@ -534,25 +581,12 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information it is not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
-            let [space]: Pick<SpaceSummary, 'uuid'>[] =
-                await this.spaceModel.find({
-                    slug: dashboardAsCode.spaceSlug,
+            const { space, created: spaceCreated } =
+                await this.getOrCreateSpace(
                     projectUuid,
-                });
-
-            if (!space) {
-                console.info(
-                    `Creating new public space with slug ${dashboardAsCode.spaceSlug}`,
-                );
-                space = await this.spaceModel.createSpace(
-                    projectUuid,
-                    friendlyName(dashboardAsCode.spaceSlug),
-                    user.userId,
-                    false,
                     dashboardAsCode.spaceSlug,
-                    true, // forceSameSlug
+                    user,
                 );
-            }
 
             const tilesWithUuids = await this.convertTileWithSlugsToUuids(
                 projectUuid,
@@ -580,7 +614,9 @@ export class CoderService extends BaseService {
                     },
                 ],
                 charts: [],
-                spaces: [],
+                spaces: spaceCreated
+                    ? [{ action: PromotionAction.CREATE, data: space }]
+                    : [],
             };
         }
         // Use promote service to update existing dashboard
@@ -618,6 +654,18 @@ export class CoderService extends BaseService {
             upstreamDashboard,
         );
 
+        // Although, promotionService already upsertSpaces
+        // We want to create a new space based on the slug, not the uuid
+        const { space } = await this.getOrCreateSpace(
+            projectUuid,
+            dashboardAsCode.spaceSlug,
+            user,
+        );
+
+        //  we force the new space on the upstreamDashboard
+        if (upstreamDashboard.dashboard)
+            upstreamDashboard.dashboard.spaceUuid = space.uuid;
+
         // TODO Check permissions for all chart tiles
         // eslint-disable-next-line prefer-const
         let [promotionChanges, promotedCharts] =
@@ -629,11 +677,6 @@ export class CoderService extends BaseService {
 
         // TODO Right now dashboards on promote service always update dashboards
         // See isDashboardUpdated for more details
-
-        promotionChanges = await this.promoteService.upsertSpaces(
-            user,
-            promotionChanges,
-        );
 
         promotionChanges = await this.promoteService.getOrCreateDashboard(
             user,

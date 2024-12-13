@@ -487,7 +487,8 @@ export const getAvailableSegmentDimensions = (
             (d) =>
                 d.type !== DimensionType.DATE &&
                 d.type !== DimensionType.TIMESTAMP &&
-                d.type !== DimensionType.NUMBER,
+                d.type !== DimensionType.NUMBER &&
+                !d.timeIntervalBaseDimensionName,
         );
 
 export const getAvailableCompareMetrics = (
