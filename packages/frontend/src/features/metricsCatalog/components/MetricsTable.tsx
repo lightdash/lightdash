@@ -403,6 +403,10 @@ export const MetricsTable = () => {
                 props.table.getAllColumns().length - 1;
 
             const isLastRow = flatData.length === props.row.index + 1;
+            const hasScroll = tableContainerRef.current
+                ? tableContainerRef.current.scrollHeight >
+                  tableContainerRef.current.clientHeight
+                : false;
 
             return {
                 h: 72,
@@ -413,9 +417,10 @@ export const MetricsTable = () => {
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
                     // This is needed to remove the bottom border of the last row when there are rows
-                    borderBottom: isLastRow
-                        ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom:
+                        isLastRow && hasScroll
+                            ? 'none'
+                            : `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
