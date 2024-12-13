@@ -880,7 +880,10 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .upsertChart(req.user!, projectUuid, slug, chart),
+                .upsertChart(req.user!, projectUuid, slug, {
+                    ...chart,
+                    description: chart.description ?? undefined,
+                }),
         };
     }
 
