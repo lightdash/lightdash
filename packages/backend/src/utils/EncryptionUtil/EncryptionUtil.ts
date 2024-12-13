@@ -56,9 +56,14 @@ export class EncryptionUtil {
             this.keyLength,
             this.keyDigest,
         );
-        const cipher = createCipheriv(this.algorithm, key, iv, {
-            authTagLength: this.aesAuthTagLength,
-        });
+        const cipher = createCipheriv(
+            this.algorithm,
+            key as Buffer,
+            iv as Buffer,
+            {
+                authTagLength: this.aesAuthTagLength,
+            },
+        );
         const encrypted: Buffer = Buffer.concat([
             cipher.update(message, this.inputEncoding),
             cipher.final(),
@@ -74,14 +79,19 @@ export class EncryptionUtil {
         const encryptedMessage = encrypted.slice(this.messageOffset);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt,
+            salt as Buffer,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
-        const decipher = createDecipheriv(this.algorithm, key, iv, {
-            authTagLength: this.aesAuthTagLength,
-        });
+        const decipher = createDecipheriv(
+            this.algorithm,
+            key as Buffer,
+            iv as Buffer,
+            {
+                authTagLength: this.aesAuthTagLength,
+            },
+        );
         decipher.setAuthTag(tag);
         const message = `${decipher.update(
             encryptedMessage,

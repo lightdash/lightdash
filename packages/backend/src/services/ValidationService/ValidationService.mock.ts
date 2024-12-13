@@ -16,6 +16,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     type DashboardFilters,
+    type MemberAbility,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type SavedChartModel } from '../../models/SavedChartModel';
@@ -44,7 +45,7 @@ export const user: SessionUser = {
             subject: 'Validation',
             action: ['manage'],
         },
-    ]),
+    ]) as MemberAbility,
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),
