@@ -349,3 +349,17 @@ export class SlackInstallationNotFoundError extends LightdashError {
         });
     }
 }
+
+export class UnexpectedGoogleSheetsError extends LightdashError {
+    constructor(
+        message = 'Unexpected error in Google sheets client',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'UnexpectedGoogleSheetsError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
