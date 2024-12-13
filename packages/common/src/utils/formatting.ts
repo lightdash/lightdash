@@ -158,7 +158,7 @@ function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const hasCurrency =
         format?.type === CustomFormatType.CURRENCY && format?.currency;
     const currencyOptions = hasCurrency
-        ? { style: 'currency', currency: format.currency }
+        ? { style: 'currency' as const, currency: format.currency }
         : {};
 
     const round = format?.round;
@@ -205,20 +205,31 @@ export function formatNumberValue(
     const separator = format?.separator || NumberSeparator.DEFAULT;
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
-            return value.toLocaleString('en-US', options);
+            return value.toLocaleString(
+                'en-US',
+                options as Intl.NumberFormatOptions,
+            );
         case NumberSeparator.SPACE_PERIOD:
-            return value.toLocaleString('en-US', options).replace(/,/g, ' ');
+            return value
+                .toLocaleString('en-US', options as Intl.NumberFormatOptions)
+                .replace(/,/g, ' ');
         case NumberSeparator.PERIOD_COMMA:
             // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
-            return value.toLocaleString('de-DE', options);
+            return value.toLocaleString(
+                'de-DE',
+                options as Intl.NumberFormatOptions,
+            );
         case NumberSeparator.NO_SEPARATOR_PERIOD:
             return value.toLocaleString('en-US', {
                 ...options,
                 useGrouping: false,
-            });
+            } as Intl.NumberFormatOptions);
         case NumberSeparator.DEFAULT:
             // This will apply the default style for each currency
-            return value.toLocaleString(undefined, options);
+            return value.toLocaleString(
+                undefined,
+                options as Intl.NumberFormatOptions,
+            );
         default:
             return assertUnreachable(separator, 'Unknown separator');
     }
