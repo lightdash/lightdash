@@ -108,9 +108,13 @@ export const MetricsCatalogPanel = () => {
     );
     const history = useHistory();
     const categoriesParam = useSearchParams('categories');
+    const metricsCatalogState = useAppSelector((state) => state.metricsCatalog);
+
+    console.log(metricsCatalogState);
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
     );
+
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
@@ -141,13 +145,16 @@ export const MetricsCatalogPanel = () => {
     }>();
 
     useEffect(() => {
-        if (!projectUuid && params.projectUuid) {
+        if (!projectUuid || projectUuid !== params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [params.projectUuid, dispatch, projectUuid]);
 
     useEffect(() => {
-        if (!organizationUuid && project?.organizationUuid) {
+        if (
+            project &&
+            (!organizationUuid || organizationUuid !== project.organizationUuid)
+        ) {
             dispatch(setOrganizationUuid(project.organizationUuid));
         }
     }, [project, dispatch, organizationUuid]);
