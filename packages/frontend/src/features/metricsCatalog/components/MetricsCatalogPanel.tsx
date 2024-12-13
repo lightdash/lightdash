@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -39,7 +39,23 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
     buttonStyles,
 }) => {
     const [opened, { close, open }] = useDisclosure(false);
-    const ref = useClickOutside(close);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const ref = useClickOutside(close, null, [buttonRef.current]);
+
+    const handleButtonClick: React.MouseEventHandler<HTMLButtonElement> =
+        useCallback(
+            (event) => {
+                event.stopPropagation();
+                event.preventDefault();
+
+                if (opened) {
+                    close();
+                } else {
+                    open();
+                }
+            },
+            [opened, close, open],
+        );
 
     return (
         <Popover
@@ -53,11 +69,12 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
         >
             <Popover.Target>
                 <Button
+                    ref={buttonRef}
                     size="xs"
                     variant="default"
                     leftIcon={<MantineIcon icon={IconSparkles} />}
                     sx={buttonStyles}
-                    onClick={open}
+                    onClick={handleButtonClick}
                 >
                     Learn more
                 </Button>
