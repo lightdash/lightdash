@@ -87,7 +87,10 @@ export class MetricsExplorerService<
         fields: ItemsMap;
         dimension: Dimension;
     }> {
-        const oneYearBack = getDateCalcUtils(TimeFrames.YEAR).back;
+        const oneYearBack = getDateCalcUtils(
+            TimeFrames.YEAR,
+            timeDimensionConfig.interval,
+        ).back;
         const forwardBackDateRange: MetricExplorerDateRange = [
             oneYearBack(dateRange[0]),
             oneYearBack(dateRange[1]),
@@ -427,6 +430,7 @@ export class MetricsExplorerService<
                     currentResults,
                     comparisonResults,
                     query,
+                    timeDimensionConfig.interval,
                 );
 
             dataPoints = metricExplorerDataPointsWithCompare;

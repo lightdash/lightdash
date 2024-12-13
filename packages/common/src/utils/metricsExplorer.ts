@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import { groupBy, mapKeys } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
@@ -26,6 +27,8 @@ import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
+
+dayjs.extend(isoWeek);
 
 type DateFilter = FilterRule<
     ConditionalOperator,
@@ -93,7 +96,7 @@ export const getFieldIdForDateDimension = (
     }
 };
 
-export const getDateCalcUtils = (timeFrame: TimeFrames) => {
+export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
     switch (timeFrame) {
         case TimeFrames.DAY:
             return {
@@ -111,6 +114,18 @@ export const getDateCalcUtils = (timeFrame: TimeFrames) => {
                 back: (date: Date) => dayjs(date).subtract(1, 'month').toDate(),
             };
         case TimeFrames.YEAR:
+            // Handle week shift for previous year comparison
+            if (grain === TimeFrames.WEEK) {
+                return {
+                    forward: (date: Date) =>
+                        dayjs(date).add(1, 'year').startOf('isoWeek').toDate(),
+                    back: (date: Date) =>
+                        dayjs(date)
+                            .subtract(1, 'year')
+                            .startOf('isoWeek')
+                            .toDate(),
+                };
+            }
             return {
                 forward: (date: Date) => dayjs(date).add(1, 'year').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
@@ -267,6 +282,7 @@ export const getMetricExplorerDataPointsWithCompare = (
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
     query: MetricExplorerQuery,
+    timeFrame: TimeFrames,
 ): {
     dataPoints: Array<MetricExploreDataPoint>;
 } => {
@@ -290,7 +306,7 @@ export const getMetricExplorerDataPointsWithCompare = (
         groupByCompareMetricRows,
         (_, date) =>
             query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD
-                ? getDateCalcUtils(TimeFrames.YEAR)
+                ? getDateCalcUtils(TimeFrames.YEAR, timeFrame)
                       .forward(new Date(date))
                       .toISOString()
                 : date,
@@ -364,7 +380,7 @@ export const getDefaultDateRangeFromInterval = (
             ];
         case TimeFrames.WEEK:
             return [
-                now.subtract(11, 'week').startOf('week').toDate(),
+                now.subtract(11, 'week').startOf('isoWeek').toDate(),
                 now.toDate(),
             ];
         case TimeFrames.MONTH:
@@ -391,7 +407,10 @@ export const getDefaultDateRangeForMetricTotal = (
         case TimeFrames.DAY:
             return [now.startOf('day').toDate(), now.endOf('day').toDate()];
         case TimeFrames.WEEK:
-            return [now.startOf('week').toDate(), now.endOf('week').toDate()];
+            return [
+                now.startOf('isoWeek').toDate(),
+                now.endOf('isoWeek').toDate(),
+            ];
         case TimeFrames.MONTH:
             return [now.startOf('month').toDate(), now.endOf('month').toDate()];
         case TimeFrames.YEAR:

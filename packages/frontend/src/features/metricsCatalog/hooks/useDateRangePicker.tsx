@@ -11,8 +11,11 @@ import {
     type YearPickerProps,
 } from '@mantine/dates';
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatDate, getDateRangePresets } from '../utils/metricPeekDate';
+
+dayjs.extend(isoWeek);
 
 type DateRange = MetricExplorerPartialDateRange;
 
@@ -314,10 +317,10 @@ export const useDateRangePicker = ({
 
                             const getWeekBoundaries = (date: Date) => {
                                 const weekStart = dayjs(date)
-                                    .startOf('week')
+                                    .startOf('isoWeek')
                                     .toDate();
                                 const weekEnd = dayjs(date)
-                                    .endOf('week')
+                                    .endOf('isoWeek')
                                     .toDate();
                                 return { weekStart, weekEnd };
                             };
@@ -367,26 +370,31 @@ export const useDateRangePicker = ({
                             }
                         },
                         numberOfColumns: 2,
-                        firstDayOfWeek: 0,
+                        firstDayOfWeek: 1,
                         hideOutsideDates: true,
                         // Highlight the week of the selected date
                         getDayProps: (date) => {
+                            const today = dayjs().endOf('day');
+                            const isInFuture = dayjs(date).isAfter(today);
+
                             const isSelected = Boolean(
                                 tempDateRange[0] &&
                                     tempDateRange[1] &&
                                     date >=
                                         dayjs(tempDateRange[0])
-                                            .startOf('week')
+                                            .startOf('isoWeek')
                                             .toDate() &&
                                     date <=
                                         dayjs(tempDateRange[1])
-                                            .endOf('week')
-                                            .toDate(),
+                                            .endOf('isoWeek')
+                                            .toDate() &&
+                                    !isInFuture, // Don't highlight future dates
                             );
+
                             return {
                                 inRange: isSelected,
-                                firstInRange: date.getDay() === 0 && isSelected, // Highlight the first day of the week
-                                lastInRange: date.getDay() === 6 && isSelected, // Highlight the last day of the week
+                                firstInRange: date.getDay() === 1 && isSelected,
+                                lastInRange: date.getDay() === 0 && isSelected,
                             };
                         },
                         styles: getCommonCalendarStyles,
