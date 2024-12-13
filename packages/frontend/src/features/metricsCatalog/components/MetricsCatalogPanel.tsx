@@ -108,9 +108,6 @@ export const MetricsCatalogPanel = () => {
     );
     const history = useHistory();
     const categoriesParam = useSearchParams('categories');
-    const metricsCatalogState = useAppSelector((state) => state.metricsCatalog);
-
-    console.log(metricsCatalogState);
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
     );
