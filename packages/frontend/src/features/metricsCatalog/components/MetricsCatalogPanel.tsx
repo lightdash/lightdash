@@ -32,7 +32,6 @@ import {
     toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
-import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsTable } from './MetricsTable';
 
 const InfoPopover: FC = () => {
@@ -127,15 +126,11 @@ export const MetricsCatalogPanel = () => {
     const isMetricUsageModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.chartUsageModal.isOpen,
     );
+
     const onCloseMetricUsageModal = () => {
         dispatch(setActiveMetric(undefined));
     };
-    const isMetricPeekModalOpen = useAppSelector(
-        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
-    );
-    const onCloseMetricPeekModal = () => {
-        dispatch(toggleMetricPeekModal(undefined));
-    };
+
     const { tableName, metricName } = useParams<{
         tableName: string;
         metricName: string;
@@ -303,12 +298,6 @@ export const MetricsCatalogPanel = () => {
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}
             />
-            {isMetricPeekModalOpen && (
-                <MetricPeekModal
-                    opened={isMetricPeekModalOpen}
-                    onClose={onCloseMetricPeekModal}
-                />
-            )}
         </Stack>
     );
 };

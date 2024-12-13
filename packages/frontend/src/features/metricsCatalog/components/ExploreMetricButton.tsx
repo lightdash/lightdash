@@ -22,6 +22,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+
     const { track } = useTracking();
 
     const handleExploreClick = useCallback(() => {
@@ -35,9 +36,10 @@ export const ExploreMetricButton = ({ row }: Props) => {
             },
         });
 
-        history.push(
-            `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
-        );
+        history.push({
+            pathname: `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
+            search: history.location.search,
+        });
 
         dispatch(
             toggleMetricPeekModal({
