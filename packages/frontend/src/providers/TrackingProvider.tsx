@@ -62,6 +62,7 @@ type GenericEvent = {
         | EventName.DOWNLOAD_IMAGE_CLICKED
         | EventName.NOTIFICATIONS_COMMENTS_ITEM_CLICKED
         | EventName.DASHBOARD_AUTO_REFRESH_UPDATED
+        | EventName.METRICS_CATALOG_CLICKED
         | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
         | EventName.METRICS_CATALOG_METRIC_NAME_CLICKED
@@ -183,6 +184,14 @@ export type DashboardAutoRefreshUpdateEvent = {
         projectId: string;
         dashboardId: string;
         frequency: string;
+    };
+};
+
+type MetricsCatalogClickedEvent = {
+    name: EventName.METRICS_CATALOG_CLICKED;
+    properties: {
+        organizationId: string;
+        projectId: string;
     };
 };
 
@@ -331,6 +340,7 @@ export type EventData =
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent
     | DashboardAutoRefreshUpdateEvent
+    | MetricsCatalogClickedEvent
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
     | MetricsCatalogChartUsageChartClickedEvent
