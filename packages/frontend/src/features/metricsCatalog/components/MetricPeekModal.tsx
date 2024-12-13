@@ -264,7 +264,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     projectId: projectUuid,
                     metricName,
                     tableName,
-                    timeDimensionOverride: timeDimensionOverride,
                 },
             });
         }
@@ -286,7 +285,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     projectId: projectUuid,
                     metricName,
                     tableName,
-                    dateRange: dateRange,
                 },
             });
         }

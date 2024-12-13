@@ -1,8 +1,4 @@
-import {
-    LightdashMode,
-    type TimeDimensionConfig,
-    type TimeFrames,
-} from '@lightdash/common';
+import { LightdashMode, type TimeFrames } from '@lightdash/common';
 import {
     createContext,
     memo,
@@ -287,7 +283,6 @@ type MetricsCatalogExploreDateFilterAppliedEvent = {
         projectId: string;
         metricName: string;
         tableName: string;
-        dateFilter: string;
     };
 };
 
@@ -320,7 +315,6 @@ type MetricsCatalogExploreTimeDimensionOverrideAppliedEvent = {
         projectId: string;
         metricName: string;
         tableName: string;
-        timeDimensionOverride: TimeDimensionConfig;
     };
 };
 
