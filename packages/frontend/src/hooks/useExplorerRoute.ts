@@ -2,20 +2,14 @@ import {
     ChartType,
     CustomDimensionType,
     DateGranularity,
-    getDefaultDateRangeFromInterval,
-    getFieldIdForDateDimension,
-    getItemId,
-    getMetricExplorerDateRangeFilters,
     isCartesianChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
     type CustomDimension,
     type MetricQuery,
-    type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import {
     ExplorerSection,
     useExplorerContext,
@@ -46,66 +40,67 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     },
 };
 
-export const createMetricPreviewUnsavedChartVersion = (
-    metric: MetricWithAssociatedTimeDimension,
-): CreateSavedChartVersion => {
-    const timeDimension = metric.timeDimension;
+// ! Uncomment to open old explorer on name click
+// export const createMetricPreviewUnsavedChartVersion = (
+//     metric: MetricWithAssociatedTimeDimension,
+// ): CreateSavedChartVersion => {
+//     const timeDimension = metric.timeDimension;
 
-    const defaultTimeFilters =
-        timeDimension && timeDimension.interval
-            ? getMetricExplorerDateRangeFilters(
-                  timeDimension,
-                  getDefaultDateRangeFromInterval(timeDimension.interval),
-              )
-            : [];
+//     const defaultTimeFilters =
+//         timeDimension && timeDimension.interval
+//             ? getMetricExplorerDateRangeFilters(
+//                   timeDimension,
+//                   getDefaultDateRangeFromInterval(timeDimension.interval),
+//               )
+//             : [];
 
-    let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
+//     let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
 
-    // If there is no default time dimension, we want to default to a big number chart because there is no time dimension to plot a chart
-    if (!timeDimension) {
-        chartConfig = {
-            type: ChartType.BIG_NUMBER,
-            config: {},
-        };
-    }
+//     // If there is no default time dimension, we want to default to a big number chart because there is no time dimension to plot a chart
+//     if (!timeDimension) {
+//         chartConfig = {
+//             type: ChartType.BIG_NUMBER,
+//             config: {},
+//         };
+//     }
 
-    return {
-        ...DEFAULT_EMPTY_EXPLORE_CONFIG,
-        tableName: metric.table,
-        chartConfig,
-        metricQuery: {
-            ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
-            exploreName: metric.table,
-            dimensions: timeDimension
-                ? [
-                      getItemId({
-                          table: timeDimension.table,
-                          name: getFieldIdForDateDimension(
-                              timeDimension.field,
-                              timeDimension.interval,
-                          ),
-                      }),
-                  ]
-                : [],
-            metrics: [
-                getItemId({
-                    name: metric.name,
-                    table: metric.table,
-                }),
-            ],
-            ...(defaultTimeFilters
-                ? {
-                      filters: {
-                          dimensions: {
-                              id: uuidv4(),
-                              or: defaultTimeFilters,
-                          },
-                      },
-                  }
-                : null),
-        },
-    };
-};
+//     return {
+//         ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+//         tableName: metric.table,
+//         chartConfig,
+//         metricQuery: {
+//             ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+//             exploreName: metric.table,
+//             dimensions: timeDimension
+//                 ? [
+//                       getItemId({
+//                           table: timeDimension.table,
+//                           name: getFieldIdForDateDimension(
+//                               timeDimension.field,
+//                               timeDimension.interval,
+//                           ),
+//                       }),
+//                   ]
+//                 : [],
+//             metrics: [
+//                 getItemId({
+//                     name: metric.name,
+//                     table: metric.table,
+//                 }),
+//             ],
+//             ...(defaultTimeFilters
+//                 ? {
+//                       filters: {
+//                           dimensions: {
+//                               id: uuidv4(),
+//                               or: defaultTimeFilters,
+//                           },
+//                       },
+//                   }
+//                 : null),
+//         },
+//     };
+// };
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,

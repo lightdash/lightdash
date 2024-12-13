@@ -27,13 +27,6 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 
-import {
-    createMetricPreviewUnsavedChartVersion,
-    getExplorerUrlFromCreateSavedChartVersion,
-} from '../../../hooks/useExplorerRoute';
-import '../../../styles/emoji-picker-react.css';
-import { useMetric } from '../hooks/useMetricsCatalog';
-
 const PICKER_HEIGHT = 300;
 const PICKER_WIDTH = 350;
 
@@ -121,7 +114,8 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
         } | null>(null);
         const [iconRef, setIconRef] = useState<HTMLButtonElement | null>(null);
         const [pickerRef, setPickerRef] = useState<HTMLDivElement | null>(null);
-        const [shouldFetch, setShouldFetch] = useState(false);
+        // ! Uncomment to open old explorer on name click
+        // const [shouldFetch, setShouldFetch] = useState(false);
 
         useEffect(
             function lockScroll() {
@@ -170,55 +164,59 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
             setIsPickerOpen(true);
         };
 
-        const metricQuery = useMetric({
-            projectUuid,
-            tableName: row.original.tableName,
-            metricName: row.original.name,
-            enabled: shouldFetch,
-        });
+        // ! Uncomment to open old explorer on name click
+        // const metricQuery = useMetric({
+        //     projectUuid,
+        //     tableName: row.original.tableName,
+        //     metricName: row.original.name,
+        //     enabled: shouldFetch,
+        // });
 
-        useEffect(() => {
-            if (!shouldFetch) return;
-            if (!projectUuid || !metricQuery.isSuccess) return;
+        // ! Uncomment to open old explorer on name click
+        // useEffect(() => {
+        //     if (!shouldFetch) return;
+        //     if (!projectUuid || !metricQuery.isSuccess) return;
 
-            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
-                metricQuery.data,
-            );
+        //     const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
+        //         metricQuery.data,
+        //     );
 
-            const { pathname, search } =
-                getExplorerUrlFromCreateSavedChartVersion(
-                    projectUuid,
-                    unsavedChartVersion,
-                );
+        //     const { pathname, search } =
+        //         getExplorerUrlFromCreateSavedChartVersion(
+        //             projectUuid,
+        //             unsavedChartVersion,
+        //         );
 
-            const url = new URL(pathname, window.location.origin);
-            url.search = new URLSearchParams(search).toString();
+        //     const url = new URL(pathname, window.location.origin);
+        //     url.search = new URLSearchParams(search).toString();
 
-            window.open(url.href, '_blank');
+        //     window.open(url.href, '_blank');
 
-            setShouldFetch(false); // Reset the fetch trigger
-        }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
+        //     setShouldFetch(false); // Reset the fetch trigger
+        // }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
 
-        const handleMetricClick = useCallback(() => {
-            track({
-                name: EventName.METRICS_CATALOG_METRIC_NAME_CLICKED,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    metricName: row.original.name,
-                    tableName: row.original.tableName,
-                },
-            });
+        // ! Uncomment to open old explorer on name click
+        // const handleMetricClick = useCallback(() => {
+        //     track({
+        //         name: EventName.METRICS_CATALOG_METRIC_NAME_CLICKED,
+        //         properties: {
+        //             organizationId: organizationUuid,
+        //             projectId: projectUuid,
+        //             metricName: row.original.name,
+        //             tableName: row.original.tableName,
+        //         },
+        //     });
 
-            // Trigger the fetch
-            setShouldFetch(true);
-        }, [
-            organizationUuid,
-            projectUuid,
-            row.original.name,
-            row.original.tableName,
-            track,
-        ]);
+        // ! Uncomment to open old explorer on name click
+        //     // Trigger the fetch
+        //     setShouldFetch(true);
+        // }, [
+        //     organizationUuid,
+        //     projectUuid,
+        //     row.original.name,
+        //     row.original.tableName,
+        //     track,
+        // ]);
 
         const handleOnClick = (emoji: EmojiClickData | null) => {
             if (!projectUuid) return;
@@ -298,7 +296,12 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         variant="xs"
                         openDelay={300}
                     >
-                        <UnstyledButton onClick={handleMetricClick}>
+                        <UnstyledButton
+                            // ! Uncomment to open old explorer on name click
+                            /*onClick={handleMetricClick}*/ sx={{
+                                cursor: 'default',
+                            }}
+                        >
                             <Highlight
                                 highlight={table.getState().globalFilter || ''}
                                 c="dark.9"
