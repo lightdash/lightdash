@@ -237,7 +237,7 @@ export class UnfurlService extends BaseService {
         // Converts an image to PDF format,
         // The PDF has the size of the image, not DIN A4
         const pdfDoc = await PDFDocument.create();
-        const pngImage = await pdfDoc.embedPng(buffer);
+        const pngImage = await pdfDoc.embedPng(Buffer.from(buffer));
         const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
         page.drawImage(pngImage);
         const path = `/tmp/${imageId}.pdf`;

@@ -51,25 +51,30 @@ export class EncryptionUtil {
         const salt = randomBytes(this.saltLength);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt,
+            salt as Uint8Array,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
         const cipher = createCipheriv(
             this.algorithm,
-            key as Buffer,
-            iv as Buffer,
+            Buffer.from(key),
+            Buffer.from(iv),
             {
                 authTagLength: this.aesAuthTagLength,
             },
         );
-        const encrypted: Buffer = Buffer.concat([
-            cipher.update(message, this.inputEncoding),
-            cipher.final(),
+        const encrypted = Buffer.concat([
+            Buffer.from(cipher.update(message, this.inputEncoding)),
+            Buffer.from(cipher.final()),
         ]);
         const tag = cipher.getAuthTag();
-        return Buffer.concat([salt, tag, iv, encrypted]);
+        return Buffer.concat([
+            Buffer.from(salt),
+            Buffer.from(tag),
+            Buffer.from(iv),
+            encrypted,
+        ]);
     }
 
     decrypt(encrypted: Buffer): string {
@@ -79,25 +84,25 @@ export class EncryptionUtil {
         const encryptedMessage = encrypted.slice(this.messageOffset);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt as Buffer,
+            salt as Uint8Array,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
         const decipher = createDecipheriv(
             this.algorithm,
-            key as Buffer,
-            iv as Buffer,
+            Buffer.from(key),
+            Buffer.from(iv),
             {
                 authTagLength: this.aesAuthTagLength,
             },
         );
-        decipher.setAuthTag(tag);
+        decipher.setAuthTag(Buffer.from(tag));
         const message = `${decipher.update(
             encryptedMessage,
             undefined,
             this.inputEncoding,
-        )}${decipher.final()}`;
+        )}${decipher.final(this.inputEncoding)}`;
         return message;
     }
 }

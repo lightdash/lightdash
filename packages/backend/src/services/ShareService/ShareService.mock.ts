@@ -4,6 +4,7 @@ import {
     OrganizationMemberRole,
     SessionUser,
     ShareUrl,
+    type MemberAbility,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
@@ -28,10 +29,10 @@ export const User: SessionUser = {
     ability: new Ability([
         {
             subject: 'OrganizationMemberProfile',
-            action: ['view'],
+            action: ['view'] as const,
             conditions: { organizationUuid: 'organizationUuid' },
         },
-    ]),
+    ]) as MemberAbility,
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),
@@ -44,10 +45,10 @@ export const UserFromAnotherOrg: SessionUser = {
     ability: new Ability([
         {
             subject: 'OrganizationMemberProfile',
-            action: ['view'],
+            action: ['view'] as const,
             conditions: { organizationUuid: 'anotherOrg' },
         },
-    ]),
+    ]) as MemberAbility,
 };
 
 export const SampleShareUrl: ShareUrl = {
