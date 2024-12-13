@@ -1,3 +1,16 @@
+# [0.1417.0](https://github.com/lightdash/lightdash/compare/0.1416.1...0.1417.0) (2024-12-13)
+
+
+### Bug Fixes
+
+* check if projectUuid in state is different from current projectUuid in the params ([#12892](https://github.com/lightdash/lightdash/issues/12892)) ([78fc23d](https://github.com/lightdash/lightdash/commit/78fc23ddaa41e84b2593b356d1d6930f6969e525))
+* revert previous changes ([#12895](https://github.com/lightdash/lightdash/issues/12895)) ([0cd064e](https://github.com/lightdash/lightdash/commit/0cd064ec7059637eb4b8e339fe4e64e3ff3e1d70))
+
+
+### Features
+
+* add metric navigation in modal ([#12873](https://github.com/lightdash/lightdash/issues/12873)) ([12b04cd](https://github.com/lightdash/lightdash/commit/12b04cddfb3f0515a97e005eb6ad84e427027fbb))
+
 ## [0.1416.1](https://github.com/lightdash/lightdash/compare/0.1416.0...0.1416.1) (2024-12-13)
 
 
