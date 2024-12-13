@@ -61,7 +61,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
         <Tooltip
             withinPortal
             variant="xs"
-            label="Click to explore this metric in more detail"
+            label="Click to view this in the Metrics Explorer"
         >
             <Button
                 compact
@@ -70,7 +70,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 onClick={handleExploreClick}
                 py="xxs"
                 px={10}
-                h={28}
+                h={32}
                 fz="sm"
                 fw={500}
                 sx={{
