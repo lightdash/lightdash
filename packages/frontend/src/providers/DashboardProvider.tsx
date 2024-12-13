@@ -15,7 +15,7 @@ import {
     type SchedulerFilterRule,
     type SortField,
 } from '@lightdash/common';
-import min from 'lodash/min';
+import { min } from 'lodash';
 import React, {
     useCallback,
     useEffect,

@@ -43,8 +43,7 @@ import {
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
 } from 'echarts';
-import groupBy from 'lodash/groupBy';
-import toNumber from 'lodash/toNumber';
+import { groupBy, toNumber } from 'lodash';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';

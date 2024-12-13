@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
-import lodash from 'lodash';
+import { merge } from 'lodash';
 import * as os from 'os';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -137,6 +137,6 @@ export const setAnswer = async (answer: Config['answers']) => {
     const config = await getRawConfig();
     await setConfig({
         ...config,
-        answers: lodash.merge(config.answers, answer),
+        answers: merge(config.answers, answer),
     });
 };

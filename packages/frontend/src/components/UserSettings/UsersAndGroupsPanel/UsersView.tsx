@@ -34,7 +34,7 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
+import { capitalize } from 'lodash';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';

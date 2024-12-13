@@ -2,7 +2,7 @@ import {
     ConditionalOperator,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'lodash';
 
 const noValueRequiredOperators = [
     ConditionalOperator.NULL,

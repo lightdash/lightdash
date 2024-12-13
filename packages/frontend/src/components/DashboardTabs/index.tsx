@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Group, Tabs } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import cloneDeep from 'lodash/cloneDeep';
+import { cloneDeep } from 'lodash';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useHistory, useLocation } from 'react-router-dom';

@@ -8,7 +8,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import intersectionBy from 'lodash/intersectionBy';
+import { intersectionBy } from 'lodash';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';
@@ -56,10 +56,6 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
     const description = node.description;
     const label = node.label;
 
-    /**
-     * Handles putting together and opening the shared modal for a groups
-     * detailed description.
-     */
     const onOpenDescriptionView = () => {
         toggleHover(false);
 
@@ -81,8 +77,6 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
         <NavLink
             opened={isNavLinkOpen}
             onClick={toggleOpen}
-            // --start moves chevron to the left
-            // mostly hardcoded, to match mantine's internal sizes
             disableRightSectionRotation
             rightSection={<></>}
             icon={
@@ -96,7 +90,6 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                     }}
                 />
             }
-            // --end
             onMouseEnter={() => toggleHover(true)}
             onMouseLeave={() => toggleHover(false)}
             label={
@@ -112,7 +105,6 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                         withArrow
                         disabled={!description}
                         position="right"
-                        /** Ensures the hover card does not overlap with the right-hand menu. */
                         offset={80}
                     >
                         <HoverCard.Target>
@@ -127,15 +119,7 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                         <HoverCard.Dropdown
                             hidden={!isHover}
                             p="xs"
-                            /**
-                             * Takes up space to the right, so it's OK to go fairly wide in the interest
-                             * of readability.
-                             */
                             maw={500}
-                            /**
-                             * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
-                             * while interacting with the hovercard.
-                             */
                             onClick={(event) => event.stopPropagation()}
                         >
                             <ItemDetailPreview

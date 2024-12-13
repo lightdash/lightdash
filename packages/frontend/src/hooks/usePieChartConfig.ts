@@ -18,12 +18,7 @@ import {
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
-import isEmpty from 'lodash/isEmpty';
-import isEqual from 'lodash/isEqual';
-import mapValues from 'lodash/mapValues';
-import omitBy from 'lodash/omitBy';
-import pick from 'lodash/pick';
-import pickBy from 'lodash/pickBy';
+import { isEmpty, isEqual, mapValues, omitBy, pick, pickBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
 

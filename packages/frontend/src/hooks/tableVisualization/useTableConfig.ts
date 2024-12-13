@@ -17,7 +17,7 @@ import {
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
-import uniq from 'lodash/uniq';
+import { uniq } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     type TableColumn,

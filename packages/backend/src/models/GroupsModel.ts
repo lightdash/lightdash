@@ -15,8 +15,7 @@ import {
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { uniq } from 'lodash';
-import differenceBy from 'lodash/differenceBy';
+import { uniq, differenceBy } from 'lodash';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
     DbGroupMembership,

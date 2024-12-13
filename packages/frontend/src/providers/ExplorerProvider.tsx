@@ -31,7 +31,7 @@ import {
     type TimeZone,
 } from '@lightdash/common';
 import { produce } from 'immer';
-import cloneDeep from 'lodash/cloneDeep';
+import { cloneDeep } from 'lodash';
 import {
     useCallback,
     useEffect,
