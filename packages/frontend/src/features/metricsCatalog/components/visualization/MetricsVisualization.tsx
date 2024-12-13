@@ -924,6 +924,7 @@ const MetricsVisualization: FC<Props> = ({
                                 cursor={{
                                     stroke: colors.gray[4],
                                 }}
+                                isAnimationActive={false}
                             />
 
                             {segmentedData.map((segment) => (
