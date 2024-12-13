@@ -12,6 +12,7 @@ export const useSelectStyles = createStyles((theme) => ({
         color: theme.colors.dark[7],
         '&:hover': {
             backgroundColor: theme.colors.gray[0],
+            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
         },
         '&[value=""]': {
             border: `1px dashed ${theme.colors.gray[4]}`,
@@ -29,6 +30,7 @@ export const useSelectStyles = createStyles((theme) => ({
         },
         '&:hover': {
             backgroundColor: theme.colors.gray[0],
+            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
         },
     },
     dropdown: {

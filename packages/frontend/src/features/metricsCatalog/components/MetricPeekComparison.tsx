@@ -148,6 +148,7 @@ export const MetricPeekComparison: FC<Props> = ({
                             py="sm"
                             sx={(theme) => ({
                                 cursor: 'pointer',
+                                transition: `all ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                                 '&[data-with-border="true"]': {
                                     border:
                                         query.comparison === comparison.type
