@@ -1,3 +1,10 @@
+# [0.1418.0](https://github.com/lightdash/lightdash/compare/0.1417.1...0.1418.0) (2024-12-13)
+
+
+### Features
+
+* metrics explorer interactive legends ([#12899](https://github.com/lightdash/lightdash/issues/12899)) ([581bbe9](https://github.com/lightdash/lightdash/commit/581bbe9b0109edb42c27210ec350da2b446ff1b8))
+
 ## [0.1417.1](https://github.com/lightdash/lightdash/compare/0.1417.0...0.1417.1) (2024-12-13)
 
 
