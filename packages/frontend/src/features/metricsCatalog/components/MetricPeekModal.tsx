@@ -85,21 +85,27 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         return metrics[currentMetricIndex - 1];
     }, [currentMetricIndex, metrics]);
 
+    const navigateToMetric = useCallback(
+        (metric: CatalogField) => {
+            history.push({
+                pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
+                search: history.location.search,
+            });
+        },
+        [history, projectUuid],
+    );
+
     const handleGoToNextMetric = useCallback(() => {
         if (nextMetricInList) {
-            history.push(
-                `/projects/${projectUuid}/metrics/peek/${nextMetricInList.tableName}/${nextMetricInList.name}`,
-            );
+            navigateToMetric(nextMetricInList);
         }
-    }, [history, nextMetricInList, projectUuid]);
+    }, [navigateToMetric, nextMetricInList]);
 
     const handleGoToPreviousMetric = useCallback(() => {
         if (previousMetricInList) {
-            history.push(
-                `/projects/${projectUuid}/metrics/peek/${previousMetricInList.tableName}/${previousMetricInList.name}`,
-            );
+            navigateToMetric(previousMetricInList);
         }
-    }, [history, previousMetricInList, projectUuid]);
+    }, [navigateToMetric, previousMetricInList]);
 
     const metricQuery = useMetric({
         projectUuid,
@@ -283,7 +289,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     );
 
     const handleClose = useCallback(() => {
-        history.push(`/projects/${projectUuid}/metrics`);
+        history.push({
+            pathname: `/projects/${projectUuid}/metrics`,
+            search: history.location.search,
+        });
 
         setQuery({
             comparison: MetricExplorerComparison.NONE,
