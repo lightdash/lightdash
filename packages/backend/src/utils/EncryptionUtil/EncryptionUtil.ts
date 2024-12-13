@@ -3,6 +3,7 @@ import {
     createDecipheriv,
     pbkdf2Sync,
     randomBytes,
+    type BinaryLike,
 } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 
@@ -51,30 +52,26 @@ export class EncryptionUtil {
         const salt = randomBytes(this.saltLength);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt as Uint8Array,
+            salt as BinaryLike,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
         const cipher = createCipheriv(
             this.algorithm,
-            Buffer.from(key),
-            Buffer.from(iv),
+            key as BinaryLike,
+            iv as BinaryLike,
             {
                 authTagLength: this.aesAuthTagLength,
             },
         );
+        const messageBuffer = Buffer.from(message, this.inputEncoding);
         const encrypted = Buffer.concat([
-            Buffer.from(cipher.update(message, this.inputEncoding)),
-            Buffer.from(cipher.final()),
+            cipher.update(messageBuffer),
+            cipher.final(),
         ]);
         const tag = cipher.getAuthTag();
-        return Buffer.concat([
-            Buffer.from(salt),
-            Buffer.from(tag),
-            Buffer.from(iv),
-            encrypted,
-        ]);
+        return Buffer.concat([salt, tag, iv, encrypted]);
     }
 
     decrypt(encrypted: Buffer): string {
@@ -84,25 +81,24 @@ export class EncryptionUtil {
         const encryptedMessage = encrypted.slice(this.messageOffset);
         const key = pbkdf2Sync(
             this.lightdashConfig.lightdashSecret,
-            salt as Uint8Array,
+            salt as BinaryLike,
             this.keyIterations,
             this.keyLength,
             this.keyDigest,
         );
         const decipher = createDecipheriv(
             this.algorithm,
-            Buffer.from(key),
-            Buffer.from(iv),
+            key as BinaryLike,
+            iv as BinaryLike,
             {
                 authTagLength: this.aesAuthTagLength,
             },
         );
-        decipher.setAuthTag(Buffer.from(tag));
-        const message = `${decipher.update(
-            encryptedMessage,
-            undefined,
-            this.inputEncoding,
-        )}${decipher.final(this.inputEncoding)}`;
-        return message;
+        decipher.setAuthTag(tag);
+        const decrypted = Buffer.concat([
+            decipher.update(encryptedMessage),
+            decipher.final(),
+        ]);
+        return decrypted.toString(this.inputEncoding);
     }
 }
