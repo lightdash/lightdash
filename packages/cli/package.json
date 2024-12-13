@@ -38,7 +38,8 @@
         "@types/inquirer": "^8.2.1",
         "@types/lodash": "^4.14.185",
         "@types/nunjucks": "^3.2.1",
-        "@types/parse-node-version": "^1.0.0"
+        "@types/parse-node-version": "^1.0.0",
+        "typescript": "workspace:*"
     },
     "scripts": {
         "test": "jest",

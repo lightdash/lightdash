@@ -25,7 +25,8 @@
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0",
-        "ts-node": "^10.9.2"
+        "ts-node": "^10.9.2",
+        "typescript": "workspace:*"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.529.0",
