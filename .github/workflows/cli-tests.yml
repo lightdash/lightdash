@@ -87,23 +87,26 @@ jobs:
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle-${{strategy.job-index}}
       # Install packages
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: pnpm common-build
       - name: Build packages/warehouses module
-        run: yarn warehouses-build
+        run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && yarn build && npm i -g
+        run: cd packages/cli && pnpm build && npm i -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
-          package_version=$(yarn workspace @lightdash/cli versions | grep '@lightdash/cli' | cut -d"'" -f 4)
+          package_version=$(pnpm --filter @lightdash/cli exec -- node -p "require('./package.json').version")
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
 
       # Run cypress tests

@@ -52,15 +52,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       # Install packages
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build      
+        run: pnpm common-build
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@v1.2.2
@@ -136,15 +139,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       # Install packages
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: pnpm common-build
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
@@ -207,15 +213,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       # Install packages
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'pnpm'
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: pnpm common-build
       # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json

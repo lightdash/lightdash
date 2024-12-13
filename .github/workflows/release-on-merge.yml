@@ -14,13 +14,17 @@ jobs:
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build
-        run: yarn build-published-packages
+        run: pnpm build-published-packages
       - name: Semantic Release
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
