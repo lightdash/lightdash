@@ -316,6 +316,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         py="sm"
                         px="xs"
                         tt="none"
+                        h={32}
                     >
                         <Group spacing={6}>
                             <TotalMetricsDot />

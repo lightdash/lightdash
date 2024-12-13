@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    Anchor,
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -12,7 +12,8 @@ import {
     useMantineTheme,
     type ButtonProps,
 } from '@mantine/core';
-import { IconRefresh, IconSparkles } from '@tabler/icons-react';
+import { useClickOutside, useDisclosure } from '@mantine/hooks';
+import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -21,6 +22,7 @@ import { useProject } from '../../../hooks/useProject';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
+import { LearnMoreContent } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
@@ -36,58 +38,93 @@ import { MetricsTable } from './MetricsTable';
 const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
     buttonStyles,
 }) => {
+    const [opened, { close, open }] = useDisclosure(false);
+    const ref = useClickOutside(close);
+
     return (
         <Popover
-            width={250}
+            width={280}
             offset={{
                 mainAxis: 10,
                 crossAxis: -100,
             }}
             position="bottom-start"
+            opened={opened}
         >
             <Popover.Target>
-                <Tooltip variant="xs" label="Learn more" position="top">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftIcon={<MantineIcon icon={IconSparkles} />}
-                        sx={buttonStyles}
-                    >
-                        Learn more
-                    </Button>
-                </Tooltip>
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftIcon={<MantineIcon icon={IconSparkles} />}
+                    sx={buttonStyles}
+                    onClick={open}
+                >
+                    Learn more
+                </Button>
             </Popover.Target>
-            <Popover.Dropdown>
-                <Stack spacing="sm">
-                    <Stack spacing="xs">
-                        <Text fw={600} size="sm">
-                            Metrics Catalog
+            <Popover.Dropdown
+                bg="dark.6"
+                c="white"
+                p={16}
+                sx={{
+                    borderRadius: 12,
+                    alignItems: 'flex-start',
+                }}
+            >
+                <Stack spacing="sm" w="100%" ref={ref}>
+                    <Group position="apart">
+                        <Text fw={600} size={14}>
+                            ✨ Lightdash Spotlight is here!
                         </Text>
-                        <Text size="xs" c="gray.6">
-                            Explore metrics tailored to your access with
-                            permissions inherited from tables and user
-                            attributes.
-                        </Text>
-                    </Stack>
-                    <Stack spacing="xs">
-                        <Text fw={600} size="sm">
-                            Set Default Time Dimensions for Metrics
-                        </Text>
-                        <Text size="xs" c="gray.6">
-                            Enhance the metrics catalog experience by setting a
-                            default time dimension in your model .yml files.
-                            Metrics will open in the explorer with the correct
-                            time dimension pre-applied, ensuring your users
-                            start with the right context every time.
-                        </Text>
-                        <Anchor
-                            href="https://docs.lightdash.com/guides/metrics-catalog"
-                            target="_blank"
+                        <ActionIcon
+                            variant="transparent"
                             size="xs"
+                            onClick={close}
                         >
-                            Learn how to configure default time dimensions →
-                        </Anchor>
-                    </Stack>
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Group>
+                    <LearnMoreContent width="100%" height="auto" />
+                    <Text size={13} c="gray.3">
+                        Explore and curate your key Metrics in the{' '}
+                        <Text span fw={600} inherit>
+                            Catalog
+                        </Text>{' '}
+                        and click to visualize them over time in the{' '}
+                        <Text span fw={600} inherit>
+                            Explorer
+                        </Text>
+                        .
+                    </Text>
+                    <Group spacing="xs">
+                        <Button
+                            variant="outline"
+                            radius="md"
+                            bg="dark.4"
+                            c="gray.0"
+                            hidden={true}
+                            disabled={true}
+                            sx={(theme) => ({
+                                display: 'none', // ! Disabled for now
+                                border: 'none',
+                                flexGrow: 1,
+                                '&:hover': {
+                                    backgroundColor: theme.colors.dark[5],
+                                },
+                            })}
+                        >
+                            View Demo
+                        </Button>
+                        <Button
+                            component="a"
+                            href="https://docs.lightdash.com/guides/metrics-catalog/"
+                            target="_blank"
+                            radius="md"
+                            sx={{ border: 'none', flexGrow: 1 }}
+                        >
+                            Learn more
+                        </Button>
+                    </Group>
                 </Stack>
             </Popover.Dropdown>
         </Popover>
@@ -242,7 +279,7 @@ export const MetricsCatalogPanel = () => {
                         <Tooltip
                             variant="xs"
                             label="This feature is in beta. We're actively testing and improving it—your feedback is welcome!"
-                            position="top"
+                            position="right"
                         >
                             <Badge
                                 variant="filled"
