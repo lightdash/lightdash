@@ -494,19 +494,14 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
                 history.push(getResourceUrl(filters.projectUuid, row.original));
             },
         }),
-        mantineTableBodyCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
+        mantineTableBodyCellProps: () => {
             return {
                 h: 72,
                 // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: isLastColumn
-                        ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: 'none',
+                    borderLeft: 'none',
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
                 },
