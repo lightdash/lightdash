@@ -70,6 +70,28 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const history = useHistory();
 
+    const [query, setQuery] = useState<MetricExplorerQuery>({
+        comparison: MetricExplorerComparison.NONE,
+        segmentDimension: null,
+    });
+
+    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
+        null,
+    );
+
+    const [timeDimensionOverride, setTimeDimensionOverride] = useState<
+        TimeDimensionConfig | undefined
+    >();
+
+    const resetQueryState = useCallback(() => {
+        setQuery({
+            comparison: MetricExplorerComparison.NONE,
+            segmentDimension: null,
+        });
+        setTimeDimensionOverride(undefined);
+        setDateRange(null);
+    }, [setQuery, setTimeDimensionOverride, setDateRange]);
+
     const currentMetricIndex = useMemo(() => {
         return metrics.findIndex(
             (metric) =>
@@ -91,8 +113,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                 pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
                 search: history.location.search,
             });
+
+            resetQueryState();
         },
-        [history, projectUuid],
+        [history, projectUuid, resetQueryState],
     );
 
     const handleGoToNextMetric = useCallback(() => {
@@ -112,19 +136,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         tableName,
         metricName,
     });
-
-    const [query, setQuery] = useState<MetricExplorerQuery>({
-        comparison: MetricExplorerComparison.NONE,
-        segmentDimension: null,
-    });
-
-    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
-        null,
-    );
-
-    const [timeDimensionOverride, setTimeDimensionOverride] = useState<
-        TimeDimensionConfig | undefined
-    >();
 
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
@@ -294,15 +305,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             search: history.location.search,
         });
 
-        setQuery({
-            comparison: MetricExplorerComparison.NONE,
-            segmentDimension: null,
-        });
-        setTimeDimensionOverride(undefined);
-        setDateRange(null);
+        resetQueryState();
 
         onClose();
-    }, [history, onClose, projectUuid]);
+    }, [history, onClose, projectUuid, resetQueryState]);
 
     useEffect(() => {
         if (timeDimensionOverride) {
