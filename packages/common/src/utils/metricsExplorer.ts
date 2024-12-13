@@ -495,7 +495,7 @@ export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],
 ): MetricWithAssociatedTimeDimension[] =>
     metrics
-        .filter((metric) => !!metric.defaultTimeDimension)
+        .filter((metric) => !!metric.timeDimension)
         .filter(
             (metric) =>
                 metric.type !== MetricType.STRING &&
