@@ -437,8 +437,7 @@ export class PromoteService extends BaseService {
         return (
             promotedChart.updatedAt > upstreamChart.updatedAt ||
             promotedChart.name !== upstreamChart.name ||
-            promotedChart.description !== upstreamChart.description ||
-            promotedChart.spaceUuid !== upstreamChart.spaceUuid
+            promotedChart.description !== upstreamChart.description
         );
     }
 
