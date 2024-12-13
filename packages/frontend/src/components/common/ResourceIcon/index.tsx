@@ -126,49 +126,6 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     }
 };
 
-interface ResourceTypeIconProps {
-    type: ResourceViewItemType;
-}
-
-const COMMON_ICON_PROPS = {
-    size: 'xl',
-    fillOpacity: 0.1,
-};
-
-export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
-    switch (type) {
-        case ResourceViewItemType.DASHBOARD:
-            return (
-                <MantineIcon
-                    icon={IconLayoutDashboard}
-                    {...COMMON_ICON_PROPS}
-                    fill="green.8"
-                    color="green.8"
-                />
-            );
-        case ResourceViewItemType.SPACE:
-            return (
-                <MantineIcon
-                    icon={IconFolder}
-                    {...COMMON_ICON_PROPS}
-                    fill="violet.8"
-                    color="violet.8"
-                />
-            );
-        case ResourceViewItemType.CHART:
-            return (
-                <MantineIcon
-                    icon={IconChartBar}
-                    {...COMMON_ICON_PROPS}
-                    fill="blue.8"
-                    color="blue.8"
-                />
-            );
-        default:
-            return assertUnreachable(type, 'Resource type not supported');
-    }
-};
-
 export const ResourceIndicator: FC<
     React.PropsWithChildren<
         {

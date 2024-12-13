@@ -4,6 +4,7 @@ import {
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
+    type ContentType,
     type ResourceViewItem,
 } from '@lightdash/common';
 import {
@@ -52,6 +53,7 @@ import { useValidationUserAbility } from '../../../hooks/validation/useValidatio
 import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
+import ContentTypeMultiSelect from './ContentTypeMultiSelect';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     type ResourceViewItemActionState,
@@ -274,6 +276,9 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
     ];
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
     const [search, setSearch] = useState<string | undefined>(undefined);
+    const [selectedContentTypes, setSelectedContentTypes] = useState<
+        ContentType[]
+    >([]);
     const clearSearch = useCallback(() => setSearch(''), [setSearch]);
     const deferredSearch = useDeferredValue(search);
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -282,7 +287,11 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteContent(
             {
-                ...filters,
+                spaceUuids: filters.spaceUuids,
+                contentTypes:
+                    selectedContentTypes.length > 0
+                        ? selectedContentTypes
+                        : filters.contentTypes,
                 projectUuids: [filters.projectUuid],
                 page: 1,
                 pageSize: 25,
@@ -548,7 +557,7 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
                                 })}
                                 type="search"
                                 variant="default"
-                                placeholder="Search by name or description"
+                                placeholder="Search by name"
                                 value={search ?? ''}
                                 icon={
                                     <MantineIcon
@@ -572,6 +581,31 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
                                 }
                             />
                         </Tooltip>
+                        {filters.contentTypes &&
+                            filters.contentTypes?.length > 1 && (
+                                <>
+                                    <Divider
+                                        orientation="vertical"
+                                        w={1}
+                                        h={20}
+                                        sx={{
+                                            alignSelf: 'center',
+                                            borderColor: '#DEE2E6',
+                                        }}
+                                    />
+                                    <ContentTypeMultiSelect
+                                        value={selectedContentTypes}
+                                        onChange={(values) =>
+                                            setSelectedContentTypes(
+                                                values as ContentType[],
+                                            )
+                                        }
+                                        optionsContentTypes={
+                                            filters.contentTypes
+                                        }
+                                    />
+                                </>
+                            )}
                     </Group>
                 </Group>
                 <Divider color="gray.2" />
