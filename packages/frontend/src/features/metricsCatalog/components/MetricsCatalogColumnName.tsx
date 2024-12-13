@@ -9,7 +9,6 @@ import {
     Paper,
     Portal,
     Tooltip,
-    UnstyledButton,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTable, IconTrash } from '@tabler/icons-react';
@@ -114,8 +113,6 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
         } | null>(null);
         const [iconRef, setIconRef] = useState<HTMLButtonElement | null>(null);
         const [pickerRef, setPickerRef] = useState<HTMLDivElement | null>(null);
-        // ! Uncomment to open old explorer on name click
-        // const [shouldFetch, setShouldFetch] = useState(false);
 
         useEffect(
             function lockScroll() {
@@ -163,60 +160,6 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
             });
             setIsPickerOpen(true);
         };
-
-        // ! Uncomment to open old explorer on name click
-        // const metricQuery = useMetric({
-        //     projectUuid,
-        //     tableName: row.original.tableName,
-        //     metricName: row.original.name,
-        //     enabled: shouldFetch,
-        // });
-
-        // ! Uncomment to open old explorer on name click
-        // useEffect(() => {
-        //     if (!shouldFetch) return;
-        //     if (!projectUuid || !metricQuery.isSuccess) return;
-
-        //     const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
-        //         metricQuery.data,
-        //     );
-
-        //     const { pathname, search } =
-        //         getExplorerUrlFromCreateSavedChartVersion(
-        //             projectUuid,
-        //             unsavedChartVersion,
-        //         );
-
-        //     const url = new URL(pathname, window.location.origin);
-        //     url.search = new URLSearchParams(search).toString();
-
-        //     window.open(url.href, '_blank');
-
-        //     setShouldFetch(false); // Reset the fetch trigger
-        // }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
-
-        // ! Uncomment to open old explorer on name click
-        // const handleMetricClick = useCallback(() => {
-        //     track({
-        //         name: EventName.METRICS_CATALOG_METRIC_NAME_CLICKED,
-        //         properties: {
-        //             organizationId: organizationUuid,
-        //             projectId: projectUuid,
-        //             metricName: row.original.name,
-        //             tableName: row.original.tableName,
-        //         },
-        //     });
-
-        // ! Uncomment to open old explorer on name click
-        //     // Trigger the fetch
-        //     setShouldFetch(true);
-        // }, [
-        //     organizationUuid,
-        //     projectUuid,
-        //     row.original.name,
-        //     row.original.tableName,
-        //     track,
-        // ]);
 
         const handleOnClick = (emoji: EmojiClickData | null) => {
             if (!projectUuid) return;
@@ -296,22 +239,18 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         variant="xs"
                         openDelay={300}
                     >
-                        <UnstyledButton
-                            // ! Uncomment to open old explorer on name click
-                            /*onClick={handleMetricClick}*/ sx={{
+                        <Highlight
+                            highlight={table.getState().globalFilter || ''}
+                            c="dark.9"
+                            fw={500}
+                            fz="sm"
+                            lh="150%"
+                            sx={{
                                 cursor: 'default',
                             }}
                         >
-                            <Highlight
-                                highlight={table.getState().globalFilter || ''}
-                                c="dark.9"
-                                fw={500}
-                                fz="sm"
-                                lh="150%"
-                            >
-                                {row.original.label}
-                            </Highlight>
-                        </UnstyledButton>
+                            {row.original.label}
+                        </Highlight>
                     </Tooltip>
                 </Group>
                 <SharedEmojiPicker

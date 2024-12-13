@@ -40,68 +40,6 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     },
 };
 
-// ! Uncomment to open old explorer on name click
-// export const createMetricPreviewUnsavedChartVersion = (
-//     metric: MetricWithAssociatedTimeDimension,
-// ): CreateSavedChartVersion => {
-//     const timeDimension = metric.timeDimension;
-
-//     const defaultTimeFilters =
-//         timeDimension && timeDimension.interval
-//             ? getMetricExplorerDateRangeFilters(
-//                   timeDimension,
-//                   getDefaultDateRangeFromInterval(timeDimension.interval),
-//               )
-//             : [];
-
-//     let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
-
-//     // If there is no default time dimension, we want to default to a big number chart because there is no time dimension to plot a chart
-//     if (!timeDimension) {
-//         chartConfig = {
-//             type: ChartType.BIG_NUMBER,
-//             config: {},
-//         };
-//     }
-
-//     return {
-//         ...DEFAULT_EMPTY_EXPLORE_CONFIG,
-//         tableName: metric.table,
-//         chartConfig,
-//         metricQuery: {
-//             ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
-//             exploreName: metric.table,
-//             dimensions: timeDimension
-//                 ? [
-//                       getItemId({
-//                           table: timeDimension.table,
-//                           name: getFieldIdForDateDimension(
-//                               timeDimension.field,
-//                               timeDimension.interval,
-//                           ),
-//                       }),
-//                   ]
-//                 : [],
-//             metrics: [
-//                 getItemId({
-//                     name: metric.name,
-//                     table: metric.table,
-//                 }),
-//             ],
-//             ...(defaultTimeFilters
-//                 ? {
-//                       filters: {
-//                           dimensions: {
-//                               id: uuidv4(),
-//                               or: defaultTimeFilters,
-//                           },
-//                       },
-//                   }
-//                 : null),
-//         },
-//     };
-// };
-
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     createSavedChart: CreateSavedChartVersion,
