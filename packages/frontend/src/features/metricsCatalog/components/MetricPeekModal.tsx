@@ -26,7 +26,6 @@ import {
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -392,9 +391,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         queryHasEmptyMetric,
     ]);
 
-    const { ref: segmentByRef, hovered: segmentByHovered } =
-        useHover<HTMLInputElement>();
-
     const segmentByData = useMemo(() => {
         return (
             segmentDimensionsQuery.data?.map((dimension) => ({
@@ -528,52 +524,53 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     </Button>
                                 </Group>
 
-                                <Box
-                                    /* Box needed because hover events are not fired on disabled elements */
-                                    ref={segmentByRef}
+                                <Tooltip
+                                    label="There are no available
+                                                    fields to segment this
+                                                    metric by"
+                                    disabled={segmentByData.length > 0}
+                                    position="right"
                                 >
-                                    <Select
-                                        placeholder="Segment by"
-                                        icon={<Blocks />}
-                                        radius="md"
-                                        size="xs"
-                                        data={segmentByData}
-                                        disabled={segmentByData.length === 0}
-                                        value={
-                                            query.comparison ===
-                                            MetricExplorerComparison.NONE
-                                                ? query.segmentDimension
-                                                : null
-                                        }
-                                        onChange={handleSegmentDimensionChange}
-                                        // this does not work as expected in Mantine 6
-                                        data-disabled={
-                                            !segmentDimensionsQuery.isSuccess
-                                        }
-                                        rightSection={
-                                            segmentDimensionsQuery.isLoading ? (
-                                                <Loader
-                                                    size="xs"
-                                                    color="gray.5"
-                                                />
-                                            ) : undefined
-                                        }
-                                        classNames={classes}
-                                        sx={{
-                                            '&:hover': {
-                                                cursor: 'not-allowed',
-                                            },
-                                        }}
-                                    />
-                                </Box>
-
-                                {segmentByHovered &&
-                                    segmentByData.length === 0 && (
-                                        <Text size="xs" color="red">
-                                            There are no available fields to
-                                            segment this metric by
-                                        </Text>
-                                    )}
+                                    <Box>
+                                        <Select
+                                            placeholder="Segment by"
+                                            icon={<Blocks />}
+                                            radius="md"
+                                            size="xs"
+                                            data={segmentByData}
+                                            disabled={
+                                                segmentByData.length === 0
+                                            }
+                                            value={
+                                                query.comparison ===
+                                                MetricExplorerComparison.NONE
+                                                    ? query.segmentDimension
+                                                    : null
+                                            }
+                                            onChange={
+                                                handleSegmentDimensionChange
+                                            }
+                                            // this does not work as expected in Mantine 6
+                                            data-disabled={
+                                                !segmentDimensionsQuery.isSuccess
+                                            }
+                                            rightSection={
+                                                segmentDimensionsQuery.isLoading ? (
+                                                    <Loader
+                                                        size="xs"
+                                                        color="gray.5"
+                                                    />
+                                                ) : undefined
+                                            }
+                                            classNames={classes}
+                                            sx={{
+                                                '&:hover': {
+                                                    cursor: 'not-allowed',
+                                                },
+                                            }}
+                                        />
+                                    </Box>
+                                </Tooltip>
 
                                 {metricResultsQuery.isSuccess &&
                                     metricResultsQuery.data
