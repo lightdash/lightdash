@@ -43,6 +43,8 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
 };
 
+const MAX_RESULTS = 10;
+
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
 
@@ -262,6 +264,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dashboardIds: string[] | undefined,
+        offset?: number,
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -293,6 +296,8 @@ export class CoderService extends BaseService {
             return {
                 dashboards: [],
                 missingIds: dashboardIds || [],
+                total: 0,
+                offset: 0,
             };
         }
 
@@ -304,8 +309,17 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
         });
+        const offsetIndex = offset || 0;
+        const newOffset = Math.min(
+            offsetIndex + MAX_RESULTS,
+            dashboardSummaries.length,
+        );
+        const limitedDashboardSummaries = dashboardSummaries.slice(
+            offsetIndex,
+            newOffset,
+        );
 
-        const dashboardPromises = dashboardSummaries.map((dash) =>
+        const dashboardPromises = limitedDashboardSummaries.map((dash) =>
             this.dashboardModel.getById(dash.uuid),
         );
         const dashboards = await Promise.all(dashboardPromises);
@@ -327,6 +341,8 @@ export class CoderService extends BaseService {
                 CoderService.transformDashboard(dashboard, spaces),
             ),
             missingIds,
+            total: dashboardSummaries.length,
+            offset: newOffset,
         };
     }
 
@@ -334,6 +350,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         chartIds?: string[],
+        offset?: number,
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -364,6 +381,8 @@ export class CoderService extends BaseService {
             return {
                 charts: [],
                 missingIds: chartIds || [],
+                total: 0,
+                offset: 0,
             };
         }
 
@@ -376,7 +395,18 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
         });
-        const chartPromises = chartSummaries.map((chart) =>
+
+        // Apply offset and limit to chart summaries
+        const offsetIndex = offset || 0;
+        const newOffset = Math.min(
+            offsetIndex + MAX_RESULTS,
+            chartSummaries.length,
+        );
+        const limitedChartSummaries = chartSummaries.slice(
+            offsetIndex,
+            newOffset,
+        );
+        const chartPromises = limitedChartSummaries.map((chart) =>
             this.savedChartModel.get(chart.uuid),
         );
         const charts = await Promise.all(chartPromises);
@@ -391,6 +421,8 @@ export class CoderService extends BaseService {
                 CoderService.transformChart(chart, spaces),
             ),
             missingIds,
+            total: chartSummaries.length,
+            offset: newOffset,
         };
     }
 

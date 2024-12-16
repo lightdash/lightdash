@@ -146,22 +146,32 @@ export const downloadHandler = async (
     if (hasFilters && options.charts.length === 0) {
         console.info(styles.warning(`No charts filters provided, skipping`));
     } else {
-        GlobalState.debug(`Downloading charts`);
-        const chartFilters = parseContentFilters(options.charts);
+        let chartsAsCode: ApiChartAsCodeListResponse['results'];
+        let offset = 0;
+        do {
+            GlobalState.debug(`Downloading charts`);
+            const chartFilters = parseContentFilters(options.charts);
 
-        const chartsAsCode = await lightdashApi<
-            ApiChartAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
-            body: undefined,
-        });
+            const queryParams = chartFilters
+                ? `${chartFilters}&offset=${offset}`
+                : `?offset=${offset}`;
+            chartsAsCode = await lightdashApi<
+                ApiChartAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/charts/code${queryParams}`,
+                body: undefined,
+            });
+            console.info(
+                `Downloaded ${chartsAsCode.offset} of ${chartsAsCode.total} charts`,
+            );
+            chartsAsCode.missingIds.forEach((missingId) => {
+                console.warn(styles.warning(`No chart with id "${missingId}"`));
+            });
 
-        chartsAsCode.missingIds.forEach((missingId) => {
-            console.warn(styles.warning(`No chart with id "${missingId}"`));
-        });
-
-        await dumpIntoFiles('charts', chartsAsCode.charts);
+            await dumpIntoFiles('charts', chartsAsCode.charts);
+            offset = chartsAsCode.offset;
+        } while (chartsAsCode.offset < chartsAsCode.total);
     }
     // Download dashboards
     if (hasFilters && options.dashboards.length === 0) {
@@ -171,20 +181,31 @@ export const downloadHandler = async (
     } else {
         GlobalState.debug(`Downloading dashboards`);
         const dashboardFilters = parseContentFilters(options.dashboards);
+        let offset = 0;
+        let dashboardsAsCode: ApiDashboardAsCodeListResponse['results'];
+        do {
+            const queryParams = dashboardFilters
+                ? `${dashboardFilters}&offset=${offset}`
+                : `?offset=${offset}`;
+            dashboardsAsCode = await lightdashApi<
+                ApiDashboardAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/dashboards/code${queryParams}`,
+                body: undefined,
+            });
+            console.info(
+                `Downloaded ${dashboardsAsCode.offset} of ${dashboardsAsCode.total} dashboards`,
+            );
+            dashboardsAsCode.missingIds.forEach((missingId) => {
+                console.warn(
+                    styles.warning(`No dashboard with id "${missingId}"`),
+                );
+            });
 
-        const dashboardsAsCode = await lightdashApi<
-            ApiDashboardAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `/api/v1/projects/${projectId}/dashboards/code${dashboardFilters}`,
-            body: undefined,
-        });
-
-        dashboardsAsCode.missingIds.forEach((missingId) => {
-            console.warn(styles.warning(`No dashboard with id "${missingId}"`));
-        });
-
-        await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+            await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+            offset = dashboardsAsCode.offset;
+        } while (dashboardsAsCode.offset < dashboardsAsCode.total);
     }
 
     // TODO delete files if chart don't exist ?*/
