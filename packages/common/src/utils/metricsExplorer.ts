@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { groupBy, mapKeys } from 'lodash';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import { groupBy, mapKeys, type Dictionary } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
@@ -29,6 +30,7 @@ import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
 
 dayjs.extend(isoWeek);
+dayjs.extend(weekOfYear);
 
 type DateFilter = FilterRule<
     ConditionalOperator,
@@ -277,6 +279,28 @@ export const getMetricExplorerDataPoints = (
     };
 };
 
+function adjustCompareDates(
+    groupByCompareMetricRows: Dictionary<ResultRow[]>,
+    timeFrame: TimeFrames,
+) {
+    return Object.fromEntries(
+        Object.keys(groupByCompareMetricRows).map((compareDate) => {
+            const compareDateWeek = dayjs(compareDate).week();
+            const compareDateNextYear = getDateCalcUtils(
+                TimeFrames.YEAR,
+                timeFrame,
+            ).forward(new Date(compareDate));
+
+            const adjustedCompareDate = dayjs(compareDateNextYear)
+                .week(compareDateWeek)
+                .startOf('isoWeek')
+                .toISOString();
+
+            return [compareDate, adjustedCompareDate];
+        }),
+    );
+}
+
 export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
     compareDimension: Dimension,
@@ -306,12 +330,21 @@ export const getMetricExplorerDataPointsWithCompare = (
 
     const offsetGroupByCompareMetricRows = mapKeys(
         groupByCompareMetricRows,
-        (_, date) =>
-            query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD
-                ? getDateCalcUtils(TimeFrames.YEAR, timeFrame)
-                      .forward(new Date(date))
-                      .toISOString()
-                : date,
+        (_, date) => {
+            if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+                if (timeFrame === TimeFrames.WEEK) {
+                    return adjustCompareDates(
+                        groupByCompareMetricRows,
+                        timeFrame,
+                    )[date];
+                }
+
+                return getDateCalcUtils(TimeFrames.YEAR, timeFrame)
+                    .forward(new Date(date))
+                    .toISOString();
+            }
+            return date;
+        },
     );
 
     const dates = new Set([
