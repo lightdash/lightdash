@@ -318,6 +318,9 @@ export const MetricsCatalogPanel = () => {
                                     cursor: 'default',
                                     boxShadow:
                                         '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
+                                    '&:hover': {
+                                        cursor: 'pointer',
+                                    },
                                 }}
                                 onClick={() => {
                                     // @ts-ignore
