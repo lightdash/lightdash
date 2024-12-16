@@ -144,17 +144,11 @@ export class PromoteService extends BaseService {
         const promotedSpace = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const upstreamCharts = await this.savedChartModel.find({
-            projectUuid: upstreamProjectUuid,
-            slug: savedChart.slug,
-        });
-        if (upstreamCharts.length > 1) {
-            throw new AlreadyExistsError(
-                `There are multiple charts with the same identifier ${savedChart.slug}`,
-            );
-        }
-        const upstreamChart =
-            upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
+        const [upstreamChart] = await this.savedChartModel.getChartsForProject(
+            upstreamProjectUuid,
+            { slugs: [savedChart.slug] },
+        );
+
         const upstreamSpaces = await this.spaceModel.find({
             projectUuid: upstreamProjectUuid,
             slug: promotedSpace.slug,

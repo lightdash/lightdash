@@ -14,7 +14,7 @@ import {
     ParseError,
     PullRequestCreated,
     QueryExecutionContext,
-    SavedChart,
+    SavedChartDAO,
     SessionUser,
     snakeCaseName,
     UnexpectedServerError,
@@ -210,7 +210,7 @@ export class GitIntegrationService extends BaseService {
         repo: string;
         mainBranch: string;
         branchName: string;
-        chart?: SavedChart;
+        chart?: SavedChartDAO;
         projectUuid: string;
     }): Promise<PullRequestCreated> {
         const prTitle = chart
@@ -219,13 +219,13 @@ export class GitIntegrationService extends BaseService {
 
         // TODO should we use the api to get the link to the PR ?
         const prBody = `Created by Lightdash, this PR adds ${customMetrics.length} custom metrics to the dbt model
-            
+
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 `;
 
         const chartDetails = chart
             ? `
-Affected charts: 
+Affected charts:
 - [${chart.name}](${
                   new URL(
                       `/projects/${projectUuid}/charts/${chart.uuid}`,
@@ -445,47 +445,46 @@ Affected charts:
         customMetricsIds: string[],
         quoteChar: `"` | `'`,
     ): Promise<PullRequestCreated> {
-        const chartSummaries = await this.savedChartModel.find({
+        const charts = await this.savedChartModel.getChartsForProject(
             projectUuid,
-        });
-        const chartPromises = chartSummaries.map((summary) =>
-            this.savedChartModel.get(summary.uuid, undefined),
         );
-        const charts = await Promise.all(chartPromises);
 
-        const chartsHasAccess = charts.map(async (chart) => {
-            const space = await this.spaceModel.getSpaceSummary(
-                chart.spaceUuid,
-            );
-            const access = this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                chart.spaceUuid,
-            );
-            return user.ability.can(
-                'manage',
-                subject('SavedChart', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
-            );
-        });
+        const chartsHasAccess = await Promise.all(
+            charts.map(async (chart: SavedChartDAO) => {
+                const space = await this.spaceModel.getSpaceSummary(
+                    chart.spaceUuid,
+                );
+                const access = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    chart.spaceUuid,
+                );
+                return user.ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: user.organizationUuid!,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access,
+                    }),
+                );
+            }),
+        );
 
-        if (chartsHasAccess.some((hasAccess) => !hasAccess))
+        if (chartsHasAccess.some((hasAccess: boolean) => !hasAccess)) {
             throw new ForbiddenError('User does not have access to all charts');
+        }
 
         const allCustomMetrics = charts.reduce<AdditionalMetric[]>(
-            (acc, chart) => [
+            (acc: AdditionalMetric[], chart: SavedChartDAO) => [
                 ...acc,
                 ...(chart.metricQuery.additionalMetrics || []),
             ],
             [],
         );
 
-        // TODO does metrics have uuid ?
-        const customMetrics = allCustomMetrics.filter((metric) =>
-            customMetricsIds.includes(metric.uuid!),
+        const customMetrics = allCustomMetrics.filter(
+            (metric: AdditionalMetric) =>
+                customMetricsIds.includes(metric.uuid!),
         );
         if (customMetrics.length === 0)
             throw new Error('Missing custom metrics');

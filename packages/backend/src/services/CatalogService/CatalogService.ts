@@ -654,14 +654,16 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const chartSummaries = await this.savedChartModel.find({
+        const charts = await this.savedChartModel.getChartsForProject(
             projectUuid,
-            exploreName: table,
-        });
+            {
+                exploreName: table,
+            },
+        );
         const chartsWithAccess = await this.filterChartsWithAccess(
             user,
             projectUuid,
-            chartSummaries,
+            charts,
         );
         const chartAnalytics: CatalogAnalytics['charts'] = chartsWithAccess.map(
             (chart) => ({
