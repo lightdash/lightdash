@@ -1,3 +1,10 @@
+# [0.1420.0](https://github.com/lightdash/lightdash/compare/0.1419.1...0.1420.0) (2024-12-16)
+
+
+### Features
+
+* space and dashboard page new table ([#12898](https://github.com/lightdash/lightdash/issues/12898)) ([05db685](https://github.com/lightdash/lightdash/commit/05db68535c8a8fdd52b9028b8f7401da62d8bb84))
+
 ## [0.1419.1](https://github.com/lightdash/lightdash/compare/0.1419.0...0.1419.1) (2024-12-16)
 
 
