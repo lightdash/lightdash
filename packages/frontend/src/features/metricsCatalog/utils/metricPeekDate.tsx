@@ -5,8 +5,11 @@ import {
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import { type NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { type DateRangePreset } from '../hooks/useDateRangePicker';
+
+dayjs.extend(isoWeek);
 
 const DATE_FORMAT = 'MMM D, YYYY';
 export const formatDate = (date: Date | null): string | undefined => {
@@ -96,7 +99,7 @@ export const getDateRangePresets = (
                     label: 'This week',
                     controlLabel: 'This week',
                     getValue: () => [
-                        today.startOf('week').toDate(),
+                        today.startOf('isoWeek').toDate(),
                         now.toDate(),
                     ],
                 },
@@ -104,7 +107,7 @@ export const getDateRangePresets = (
                     label: 'Past 1 week',
                     controlLabel: '1W',
                     getValue: () => [
-                        today.subtract(1, 'week').startOf('week').toDate(),
+                        today.subtract(1, 'week').startOf('isoWeek').toDate(),
                         now.toDate(),
                     ],
                 },
@@ -112,7 +115,7 @@ export const getDateRangePresets = (
                     label: 'Past 4 weeks',
                     controlLabel: '4W',
                     getValue: () => [
-                        today.subtract(4, 'week').startOf('week').toDate(),
+                        today.subtract(4, 'week').startOf('isoWeek').toDate(),
                         now.toDate(),
                     ],
                 },
