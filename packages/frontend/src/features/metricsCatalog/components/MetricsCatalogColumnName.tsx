@@ -26,6 +26,8 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 
+import '../../../styles/emoji-picker-react.css';
+
 const PICKER_HEIGHT = 300;
 const PICKER_WIDTH = 350;
 
