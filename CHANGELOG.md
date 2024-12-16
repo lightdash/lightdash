@@ -1,3 +1,10 @@
+## [0.1419.1](https://github.com/lightdash/lightdash/compare/0.1419.0...0.1419.1) (2024-12-16)
+
+
+### Bug Fixes
+
+* use isoWeek and offset weeks correctly on PoP ([#12904](https://github.com/lightdash/lightdash/issues/12904)) ([f0c0089](https://github.com/lightdash/lightdash/commit/f0c0089bf5a5fe4b3158e67900dca2ebe07972b8))
+
 # [0.1419.0](https://github.com/lightdash/lightdash/compare/0.1418.2...0.1419.0) (2024-12-16)
 
 
