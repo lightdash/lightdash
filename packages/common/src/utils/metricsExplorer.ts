@@ -279,9 +279,9 @@ export const getMetricExplorerDataPoints = (
     };
 };
 
-function adjustCompareDates(
+function offsetWeekCompareDates(
     groupByCompareMetricRows: Dictionary<ResultRow[]>,
-    timeFrame: TimeFrames,
+    timeFrame: TimeFrames.WEEK,
 ) {
     return Object.fromEntries(
         Object.keys(groupByCompareMetricRows).map((compareDate) => {
@@ -333,7 +333,7 @@ export const getMetricExplorerDataPointsWithCompare = (
         (_, date) => {
             if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
                 if (timeFrame === TimeFrames.WEEK) {
-                    return adjustCompareDates(
+                    return offsetWeekCompareDates(
                         groupByCompareMetricRows,
                         timeFrame,
                     )[date];
