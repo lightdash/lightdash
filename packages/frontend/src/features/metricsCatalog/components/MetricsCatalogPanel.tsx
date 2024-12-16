@@ -16,6 +16,7 @@ import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { useIntercom } from 'react-use-intercom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
@@ -158,6 +159,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
 export const MetricsCatalogPanel = () => {
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const { show: showIntercom } = useIntercom();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -316,6 +318,15 @@ export const MetricsCatalogPanel = () => {
                                     cursor: 'default',
                                     boxShadow:
                                         '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
+                                }}
+                                onClick={() => {
+                                    // @ts-ignore
+                                    if (window.Pylon) {
+                                        // @ts-ignore
+                                        window.Pylon('show');
+                                    } else {
+                                        showIntercom();
+                                    }
                                 }}
                             >
                                 Beta
