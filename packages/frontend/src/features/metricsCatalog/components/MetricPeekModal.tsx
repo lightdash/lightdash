@@ -391,6 +391,15 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         queryHasEmptyMetric,
     ]);
 
+    const segmentByData = useMemo(() => {
+        return (
+            segmentDimensionsQuery.data?.map((dimension) => ({
+                value: getItemId(dimension),
+                label: dimension.label,
+            })) ?? []
+        );
+    }, [segmentDimensionsQuery.data]);
+
     return (
         <Modal.Root
             opened={opened}
@@ -515,37 +524,53 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     </Button>
                                 </Group>
 
-                                <Select
-                                    placeholder="Segment by"
-                                    icon={<Blocks />}
-                                    radius="md"
-                                    size="xs"
-                                    data={
-                                        segmentDimensionsQuery.data?.map(
-                                            (dimension) => ({
-                                                value: getItemId(dimension),
-                                                label: dimension.label,
-                                            }),
-                                        ) ?? []
-                                    }
-                                    value={
-                                        query.comparison ===
-                                        MetricExplorerComparison.NONE
-                                            ? query.segmentDimension
-                                            : null
-                                    }
-                                    onChange={handleSegmentDimensionChange}
-                                    // this does not work as expected in Mantine 6
-                                    data-disabled={
-                                        !segmentDimensionsQuery.isSuccess
-                                    }
-                                    rightSection={
-                                        segmentDimensionsQuery.isLoading ? (
-                                            <Loader size="xs" color="gray.5" />
-                                        ) : undefined
-                                    }
-                                    classNames={classes}
-                                />
+                                <Tooltip
+                                    label="There are no available
+                                                    fields to segment this
+                                                    metric by"
+                                    disabled={segmentByData.length > 0}
+                                    position="right"
+                                >
+                                    <Box>
+                                        <Select
+                                            placeholder="Segment by"
+                                            icon={<Blocks />}
+                                            radius="md"
+                                            size="xs"
+                                            data={segmentByData}
+                                            disabled={
+                                                segmentByData.length === 0
+                                            }
+                                            value={
+                                                query.comparison ===
+                                                MetricExplorerComparison.NONE
+                                                    ? query.segmentDimension
+                                                    : null
+                                            }
+                                            onChange={
+                                                handleSegmentDimensionChange
+                                            }
+                                            // this does not work as expected in Mantine 6
+                                            data-disabled={
+                                                !segmentDimensionsQuery.isSuccess
+                                            }
+                                            rightSection={
+                                                segmentDimensionsQuery.isLoading ? (
+                                                    <Loader
+                                                        size="xs"
+                                                        color="gray.5"
+                                                    />
+                                                ) : undefined
+                                            }
+                                            classNames={classes}
+                                            sx={{
+                                                '&:hover': {
+                                                    cursor: 'not-allowed',
+                                                },
+                                            }}
+                                        />
+                                    </Box>
+                                </Tooltip>
 
                                 {metricResultsQuery.isSuccess &&
                                     metricResultsQuery.data
