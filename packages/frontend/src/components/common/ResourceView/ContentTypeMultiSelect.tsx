@@ -18,26 +18,26 @@ const ContentTypeOptions = [
     {
         value: ContentType.CHART,
         label: 'Chart',
-        colour: 'blue.8',
+        color: 'blue.8',
         icon: IconChartBar,
     },
 ];
 
 interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     label: string;
-    colour: string;
+    color: string;
     icon: Icon;
 }
 
 const ContentTypeSelectOption = forwardRef<HTMLDivElement, ItemProps>(
-    ({ label, icon, colour, ...others }: ItemProps, ref) => (
+    ({ label, icon, color, ...others }: ItemProps, ref) => (
         <div ref={ref} {...others}>
             <Group spacing={'xs'}>
                 <MantineIcon
                     icon={icon}
                     fillOpacity={0.1}
-                    fill={colour}
-                    color={colour}
+                    fill={color}
+                    color={color}
                 />
                 <Text size="sm">{label}</Text>
             </Group>
