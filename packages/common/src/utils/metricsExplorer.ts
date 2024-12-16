@@ -98,30 +98,29 @@ export const getFieldIdForDateDimension = (
 
 export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
     switch (timeFrame) {
-        case TimeFrames.DAY:
-            return {
-                forward: (date: Date) => dayjs(date).add(1, 'day').toDate(),
-                back: (date: Date) => dayjs(date).subtract(1, 'day').toDate(),
-            };
-        case TimeFrames.WEEK:
-            return {
-                forward: (date: Date) => dayjs(date).add(1, 'week').toDate(),
-                back: (date: Date) => dayjs(date).subtract(1, 'week').toDate(),
-            };
         case TimeFrames.MONTH:
+            if (grain)
+                throw new Error(
+                    `Timeframe "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
+                );
             return {
                 forward: (date: Date) => dayjs(date).add(1, 'month').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'month').toDate(),
             };
         case TimeFrames.YEAR:
-            // Handle week shift for previous year comparison
+            // Handle week shift for previous year comparison and subtract what the amount of weeks is in a year
             if (grain === TimeFrames.WEEK) {
                 return {
                     forward: (date: Date) =>
-                        dayjs(date).add(1, 'year').startOf('isoWeek').toDate(),
+                        dayjs(date)
+                            // 52 weeks in a year
+                            .add(52, 'weeks')
+                            .startOf('isoWeek')
+                            .toDate(),
                     back: (date: Date) =>
                         dayjs(date)
-                            .subtract(1, 'year')
+                            // 52 weeks in a year
+                            .subtract(52, 'weeks')
                             .startOf('isoWeek')
                             .toDate(),
                 };
@@ -130,6 +129,9 @@ export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
                 forward: (date: Date) => dayjs(date).add(1, 'year').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
             };
+        case TimeFrames.DAY:
+        case TimeFrames.WEEK:
+            throw new Error(`Timeframe "${timeFrame}" is not supported yet`);
         default:
             return assertUnimplementedTimeframe(timeFrame);
     }
