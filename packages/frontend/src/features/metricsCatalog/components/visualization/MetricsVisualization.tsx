@@ -743,6 +743,50 @@ const MetricsVisualization: FC<Props> = ({
         resetLegendState();
     }, [query.comparison, resetLegendState]);
 
+    const timeDimensionTooltipLabel = useMemo(() => {
+        if (results?.metric.availableTimeDimensions) {
+            return;
+        }
+
+        const metricTimeDimensionFriendlyName = friendlyName(
+            results?.metric.timeDimension?.field ?? '',
+        );
+
+        if (query.comparison === MetricExplorerComparison.DIFFERENT_METRIC) {
+            const compareMetricTimeDimensionFriendlyName = friendlyName(
+                results?.compareMetric?.timeDimension?.field ?? '',
+            );
+            return (
+                <Text>
+                    X-axis is set to{' '}
+                    <Text span fw={600}>
+                        {metricTimeDimensionFriendlyName}
+                    </Text>{' '}
+                    and{' '}
+                    <Text span fw={600}>
+                        {compareMetricTimeDimensionFriendlyName}
+                    </Text>
+                    , as defined in the .yml files.
+                </Text>
+            );
+        }
+
+        return (
+            <Text>
+                X-axis is set to{' '}
+                <Text span fw={600}>
+                    {metricTimeDimensionFriendlyName}
+                </Text>
+                , as defined in the .yml file.
+            </Text>
+        );
+    }, [
+        query.comparison,
+        results?.compareMetric?.timeDimension?.field,
+        results?.metric.availableTimeDimensions,
+        results?.metric.timeDimension?.field,
+    ]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -1009,10 +1053,8 @@ const MetricsVisualization: FC<Props> = ({
                 <Group align="center" noWrap spacing="xs">
                     <Tooltip
                         variant="xs"
-                        label={friendlyName(
-                            results?.metric.timeDimension?.field ?? '',
-                        )}
-                        disabled={!!results?.metric.availableTimeDimensions}
+                        label={timeDimensionTooltipLabel}
+                        disabled={!timeDimensionTooltipLabel}
                     >
                         <Text fw={500} c="gray.7" fz={14}>
                             Date ({capitalize(timeDimensionBaseField.interval)})
