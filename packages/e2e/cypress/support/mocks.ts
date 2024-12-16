@@ -2,6 +2,7 @@ import {
     ChartType,
     CreateDashboard,
     CreateSavedChart,
+    currentVersion,
 } from '@lightdash/common';
 
 export const chartMock: CreateSavedChart = {
@@ -22,6 +23,14 @@ export const chartMock: CreateSavedChart = {
     tableConfig: {
         columnOrder: [],
     },
+};
+
+export const contentAsCodeChartMock = {
+    ...chartMock,
+    spaceUuid: 'test-space-uuid',
+    dashboardUuid: null,
+    version: currentVersion,
+    spaceSlug: 'test-space',
 };
 
 export const dashboardMock: CreateDashboard = {

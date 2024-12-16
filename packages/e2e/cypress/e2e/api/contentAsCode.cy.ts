@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { chartMock } from '../../support/mocks';
+import { contentAsCodeChartMock } from '../../support/mocks';
 
 describe('Content as Code API', () => {
     beforeEach(() => {
@@ -20,7 +20,7 @@ describe('Content as Code API', () => {
 
     it('should upload chart as code', () => {
         const chartCode = {
-            ...chartMock,
+            ...contentAsCodeChartMock,
             name: 'Test Chart Code',
             description: 'Test chart description for content as code',
             updatedAt: new Date().toISOString(),
@@ -40,8 +40,8 @@ describe('Content as Code API', () => {
                 'action',
             );
             cy.wrap(response.body.results.charts[0].action).should('be.oneOf', [
-                'created',
-                'updated',
+                'create',
+                'update',
             ]);
         });
     });
