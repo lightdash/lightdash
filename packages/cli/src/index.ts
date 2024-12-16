@@ -425,11 +425,31 @@ program
     .command('download')
     .description('Downloads charts and dashboards as code')
     .option('--verbose', undefined, false)
+    .option(
+        '-c, --charts <charts...>',
+        'specify chart slugs, uuids, or urls to download',
+        [],
+    )
+    .option(
+        '-d, --dashboards <dashboards...>',
+        'specify dashboard slugs, uuids or urls to download',
+        [],
+    )
     .action(downloadHandler);
 program
     .command('upload')
     .description('Uploads charts and dashboards as code')
     .option('--verbose', undefined, false)
+    .option(
+        '-c, --charts <charts...>',
+        'specify chart slugs to force upload',
+        [],
+    )
+    .option(
+        '-d, --dashboards <dashboards...>',
+        'specify dashboard slugs to force upload',
+        [],
+    )
     .option(
         '--force',
         'Force upload even if local files have not changed, use this when you want to upload files to a new project',

@@ -7918,10 +7918,22 @@
             "ApiChartAsCodeListResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/ChartAsCode"
+                        "properties": {
+                            "missingIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "charts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ChartAsCode"
+                                },
+                                "type": "array"
+                            }
                         },
-                        "type": "array"
+                        "required": ["missingIds", "charts"],
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -8059,10 +8071,22 @@
             "ApiDashboardAsCodeListResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardAsCode"
+                        "properties": {
+                            "missingIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "dashboards": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardAsCode"
+                                },
+                                "type": "array"
+                            }
                         },
-                        "type": "array"
+                        "required": ["missingIds", "dashboards"],
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -8087,12 +8111,9 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__": {
+            "Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig-or-description__": {
                 "properties": {
                     "name": {
-                        "type": "string"
-                    },
-                    "description": {
                         "type": "string"
                     },
                     "dashboardUuid": {
@@ -8146,8 +8167,8 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_ChartAsCode.metricQuery-or-chartConfig_": {
-                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__",
+            "Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_": {
+                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig-or-description__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "ApiDashboardAsCodeUpsertResponse": {
@@ -12387,7 +12408,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1413.0",
+        "version": "0.1413.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17090,6 +17111,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
                     }
                 ]
             }
@@ -17128,6 +17160,17 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ]
@@ -17185,10 +17228,14 @@
                             "schema": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Omit_ChartAsCode.metricQuery-or-chartConfig_"
+                                        "$ref": "#/components/schemas/Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_"
                                     },
                                     {
                                         "properties": {
+                                            "description": {
+                                                "type": "string",
+                                                "nullable": true
+                                            },
                                             "metricQuery": {},
                                             "chartConfig": {}
                                         },

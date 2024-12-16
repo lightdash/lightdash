@@ -1158,6 +1158,13 @@ export class SavedChartModel {
         );
     }
 
+    async getSlugsForUuids(uuids: string[]): Promise<string[]> {
+        const charts = await this.database('saved_queries')
+            .whereIn('saved_queries.saved_query_uuid', uuids)
+            .select('saved_queries.slug');
+        return charts.map((chart) => chart.slug);
+    }
+
     async find(filters: {
         projectUuid?: string;
         spaceUuids?: string[];
@@ -1244,6 +1251,7 @@ export class SavedChartModel {
                 if (filters.slugs) {
                     void query.whereIn('saved_queries.slug', filters.slugs);
                 }
+
                 if (filters.exploreName) {
                     // TODO: Explore name is not an index in saved_queries_versions
                     // This is something we could easily optimize (requires migration)
