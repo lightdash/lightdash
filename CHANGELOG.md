@@ -1,3 +1,67 @@
+# [0.1420.0](https://github.com/lightdash/lightdash/compare/0.1419.1...0.1420.0) (2024-12-16)
+
+
+### Features
+
+* space and dashboard page new table ([#12898](https://github.com/lightdash/lightdash/issues/12898)) ([05db685](https://github.com/lightdash/lightdash/commit/05db68535c8a8fdd52b9028b8f7401da62d8bb84))
+
+## [0.1419.1](https://github.com/lightdash/lightdash/compare/0.1419.0...0.1419.1) (2024-12-16)
+
+
+### Bug Fixes
+
+* use isoWeek and offset weeks correctly on PoP ([#12904](https://github.com/lightdash/lightdash/issues/12904)) ([f0c0089](https://github.com/lightdash/lightdash/commit/f0c0089bf5a5fe4b3158e67900dca2ebe07972b8))
+
+# [0.1419.0](https://github.com/lightdash/lightdash/compare/0.1418.2...0.1419.0) (2024-12-16)
+
+
+### Features
+
+* chart selector as code ([#12872](https://github.com/lightdash/lightdash/issues/12872)) ([dbd40e8](https://github.com/lightdash/lightdash/commit/dbd40e84562b78c5653aef7adba3652cd122fdd3))
+
+## [0.1418.2](https://github.com/lightdash/lightdash/compare/0.1418.1...0.1418.2) (2024-12-16)
+
+
+### Bug Fixes
+
+* hovering on the right side of datapoint not showing correct segments in tooltip ([#12914](https://github.com/lightdash/lightdash/issues/12914)) ([0c6face](https://github.com/lightdash/lightdash/commit/0c6face237b2b7244994bbe5eb67bbd6abf26d78))
+* readd css import to override eomoji picker style ([#12913](https://github.com/lightdash/lightdash/issues/12913)) ([31674c5](https://github.com/lightdash/lightdash/commit/31674c5de3ea8deb87e81e9085a0d00dcc1abeb9))
+
+## [0.1418.1](https://github.com/lightdash/lightdash/compare/0.1418.0...0.1418.1) (2024-12-13)
+
+
+### Bug Fixes
+
+* metrics explorer y label align center ([#12901](https://github.com/lightdash/lightdash/issues/12901)) ([3bcc9b6](https://github.com/lightdash/lightdash/commit/3bcc9b6998067163a1f6a9e8ea693bec49199856))
+
+# [0.1418.0](https://github.com/lightdash/lightdash/compare/0.1417.1...0.1418.0) (2024-12-13)
+
+
+### Features
+
+* metrics explorer interactive legends ([#12899](https://github.com/lightdash/lightdash/issues/12899)) ([581bbe9](https://github.com/lightdash/lightdash/commit/581bbe9b0109edb42c27210ec350da2b446ff1b8))
+
+## [0.1417.1](https://github.com/lightdash/lightdash/compare/0.1417.0...0.1417.1) (2024-12-13)
+
+
+### Bug Fixes
+
+* remove tile uuid from dashboard as code ([#12883](https://github.com/lightdash/lightdash/issues/12883)) ([01a85a1](https://github.com/lightdash/lightdash/commit/01a85a109cca0ab6b3e608f2a13c3f16b960d30f))
+* space change on promote content ([#12881](https://github.com/lightdash/lightdash/issues/12881)) ([f14d155](https://github.com/lightdash/lightdash/commit/f14d155ed2b5a0cf715d64557f8392924c117cf2))
+
+# [0.1417.0](https://github.com/lightdash/lightdash/compare/0.1416.1...0.1417.0) (2024-12-13)
+
+
+### Bug Fixes
+
+* check if projectUuid in state is different from current projectUuid in the params ([#12892](https://github.com/lightdash/lightdash/issues/12892)) ([78fc23d](https://github.com/lightdash/lightdash/commit/78fc23ddaa41e84b2593b356d1d6930f6969e525))
+* revert previous changes ([#12895](https://github.com/lightdash/lightdash/issues/12895)) ([0cd064e](https://github.com/lightdash/lightdash/commit/0cd064ec7059637eb4b8e339fe4e64e3ff3e1d70))
+
+
+### Features
+
+* add metric navigation in modal ([#12873](https://github.com/lightdash/lightdash/issues/12873)) ([12b04cd](https://github.com/lightdash/lightdash/commit/12b04cddfb3f0515a97e005eb6ad84e427027fbb))
+
 ## [0.1416.1](https://github.com/lightdash/lightdash/compare/0.1416.0...0.1416.1) (2024-12-13)
 
 

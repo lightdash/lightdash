@@ -590,12 +590,22 @@ export class DashboardModel {
         );
     }
 
+    async getSlugsForUuids(uuids: string[]): Promise<string[]> {
+        // Uuids are globally unique, so no need to filter by project
+        const dashboards = await this.database(DashboardsTableName)
+            .select('slug')
+            .whereIn('dashboard_uuid', uuids);
+        return dashboards.map((dashboard) => dashboard.slug);
+    }
+
     async find({
         slug,
+        slugs,
         projectUuid,
     }: {
         projectUuid?: string;
         slug?: string;
+        slugs?: string[];
     }): Promise<
         Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>[]
     > {
@@ -625,6 +635,10 @@ export class DashboardModel {
 
         if (slug) {
             void query.where(`${DashboardsTableName}.slug`, slug);
+        }
+
+        if (slugs) {
+            void query.whereIn(`${DashboardsTableName}.slug`, slugs);
         }
 
         const dashboards = await query;

@@ -22,6 +22,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+
     const { track } = useTracking();
 
     const handleExploreClick = useCallback(() => {
@@ -35,9 +36,10 @@ export const ExploreMetricButton = ({ row }: Props) => {
             },
         });
 
-        history.push(
-            `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
-        );
+        history.push({
+            pathname: `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
+            search: history.location.search,
+        });
 
         dispatch(
             toggleMetricPeekModal({
@@ -59,7 +61,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
         <Tooltip
             withinPortal
             variant="xs"
-            label="Click to explore this metric in more detail"
+            label="Click to view this in the Metrics Explorer"
         >
             <Button
                 compact
@@ -68,7 +70,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 onClick={handleExploreClick}
                 py="xxs"
                 px={10}
-                h={28}
+                h={32}
                 fz="sm"
                 fw={500}
                 sx={{

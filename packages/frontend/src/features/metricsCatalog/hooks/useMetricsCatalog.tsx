@@ -16,6 +16,8 @@ type UseMetricsCatalogOptions = {
     sortDirection?: ApiSort['order'];
 };
 
+export const MIN_METRICS_CATALOG_SEARCH_LENGTH = 2;
+
 const getMetricsCatalog = async ({
     projectUuid,
     search,
@@ -95,7 +97,11 @@ export const useMetricsCatalog = ({
                     : undefined;
             }
         },
-        enabled: !!projectUuid && (!!search ? search.length > 2 : true),
+        enabled:
+            !!projectUuid &&
+            (!!search
+                ? search.length > MIN_METRICS_CATALOG_SEARCH_LENGTH
+                : true),
         keepPreviousData: true,
     });
 };

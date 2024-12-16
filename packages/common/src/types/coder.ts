@@ -28,7 +28,7 @@ export type ChartAsCode = Pick<
 
 export type ApiChartAsCodeListResponse = {
     status: 'ok';
-    results: ChartAsCode[];
+    results: { charts: ChartAsCode[]; missingIds: string[] };
 };
 
 export type ApiChartAsCodeUpsertResponse = {
@@ -36,7 +36,11 @@ export type ApiChartAsCodeUpsertResponse = {
     results: PromotionChanges;
 };
 
-export type DashboardTileWithoutUuids = Omit<DashboardTile, 'properties'> & {
+export type DashboardTileWithoutUuids = Omit<
+    DashboardTile,
+    'properties' | 'uuid'
+> & {
+    uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
     properties: Omit<
         DashboardTile['properties'],
         'savedChartUuid' | 'savedSqlUuid' | 'savedSemanticViewerChartUuid'
@@ -55,7 +59,7 @@ export type DashboardAsCode = Pick<
 
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
-    results: DashboardAsCode[];
+    results: { dashboards: DashboardAsCode[]; missingIds: string[] };
 };
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';

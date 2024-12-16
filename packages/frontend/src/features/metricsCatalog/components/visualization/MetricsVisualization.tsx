@@ -38,7 +38,7 @@ import {
 } from 'd3-time';
 import dayjs from 'dayjs';
 import { uniqBy } from 'lodash';
-import { useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import {
     CartesianGrid,
     Legend,
@@ -681,6 +681,112 @@ const MetricsVisualization: FC<Props> = ({
         allowDataOverflow: false,
     };
 
+    const [hoveringLegend, setHoveringLegend] = useState<string | null>(null);
+    const [activeLegends, setActiveLegends] = useState<string[]>([]);
+
+    const handleToggleLegend = useCallback(
+        (name: string) => {
+            setActiveLegends((prev) => {
+                if (prev.includes(name)) {
+                    return prev.filter((n) => n !== name);
+                } else {
+                    return [...prev, name];
+                }
+            });
+        },
+        [setActiveLegends],
+    );
+
+    const getLineProps = useCallback(
+        (name: string) => {
+            const legendIsActive =
+                activeLegends.length === 0 || activeLegends.includes(name);
+            const hoveredIsActive =
+                hoveringLegend === null ||
+                activeLegends.includes(hoveringLegend);
+
+            let opacity = 1;
+            if (hoveringLegend && hoveredIsActive) {
+                opacity = name === hoveringLegend ? 1 : 0.3;
+            }
+
+            return {
+                name,
+                hide: !legendIsActive,
+                strokeWidth:
+                    legendIsActive && name === hoveringLegend ? 2.4 : 1.4,
+                opacity,
+            };
+        },
+        [activeLegends, hoveringLegend],
+    );
+
+    const getLegendProps = useCallback(
+        (name: string) => {
+            return {
+                opacity:
+                    activeLegends.length === 0 || activeLegends.includes(name)
+                        ? 1
+                        : 0.3,
+            };
+        },
+        [activeLegends],
+    );
+
+    const resetLegendState = useCallback(() => {
+        setActiveLegends([]);
+        setHoveringLegend(null);
+    }, [setActiveLegends, setHoveringLegend]);
+
+    useEffect(() => {
+        // Reset legend state when the comparison changes
+        resetLegendState();
+    }, [query.comparison, resetLegendState]);
+
+    const timeDimensionTooltipLabel = useMemo(() => {
+        if (results?.metric.availableTimeDimensions) {
+            return;
+        }
+
+        const metricTimeDimensionFriendlyName = friendlyName(
+            results?.metric.timeDimension?.field ?? '',
+        );
+
+        if (query.comparison === MetricExplorerComparison.DIFFERENT_METRIC) {
+            const compareMetricTimeDimensionFriendlyName = friendlyName(
+                results?.compareMetric?.timeDimension?.field ?? '',
+            );
+            return (
+                <Text>
+                    X-axis is set to{' '}
+                    <Text span fw={600}>
+                        {metricTimeDimensionFriendlyName}
+                    </Text>{' '}
+                    and{' '}
+                    <Text span fw={600}>
+                        {compareMetricTimeDimensionFriendlyName}
+                    </Text>
+                    , as defined in the .yml files.
+                </Text>
+            );
+        }
+
+        return (
+            <Text>
+                X-axis is set to{' '}
+                <Text span fw={600}>
+                    {metricTimeDimensionFriendlyName}
+                </Text>
+                , as defined in the .yml file.
+            </Text>
+        );
+    }, [
+        query.comparison,
+        results?.compareMetric?.timeDimension?.field,
+        results?.metric.availableTimeDimensions,
+        results?.metric.timeDimension?.field,
+    ]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -767,12 +873,25 @@ const MetricsVisualization: FC<Props> = ({
                                     verticalAlign="top"
                                     height={50}
                                     margin={{ bottom: 20 }}
+                                    onMouseEnter={(legend) => {
+                                        setHoveringLegend(legend.value);
+                                    }}
+                                    onMouseLeave={() => {
+                                        setHoveringLegend(null);
+                                    }}
+                                    onClick={(legend) => {
+                                        handleToggleLegend(legend.value);
+                                    }}
+                                    wrapperStyle={{
+                                        cursor: 'pointer',
+                                    }}
                                     formatter={(value: string) => (
                                         <Text
                                             span
                                             c="dark.4"
                                             size={14}
                                             fw={500}
+                                            {...getLegendProps(value)}
                                         >
                                             {legendConfig &&
                                             typeof value === 'string' &&
@@ -802,8 +921,10 @@ const MetricsVisualization: FC<Props> = ({
                                               value: results?.metric.label,
                                               angle: -90,
                                               position: 'left',
-                                              dy: -60,
+                                              // hardcoded value to align the label when the legend is shown
+                                              dy: showLegend ? -25 : 0,
                                               style: {
+                                                  textAnchor: 'middle',
                                                   fontSize: 14,
                                                   fill: colors.gray[7],
                                                   fontWeight: 500,
@@ -828,6 +949,7 @@ const MetricsVisualization: FC<Props> = ({
                                 tickLine={false}
                                 fontSize={11}
                                 style={{ userSelect: 'none' }}
+                                allowDuplicatedCategory={false}
                             />
 
                             <RechartsTooltip
@@ -847,18 +969,20 @@ const MetricsVisualization: FC<Props> = ({
                                 cursor={{
                                     stroke: colors.gray[4],
                                 }}
+                                isAnimationActive={false}
                             />
 
                             {segmentedData.map((segment) => (
                                 <Line
                                     key={segment.segment ?? 'metric'}
+                                    {...getLineProps(
+                                        segment.segment ?? 'metric',
+                                    )}
                                     type="linear"
                                     yAxisId="metric"
-                                    name={segment.segment ?? 'metric'}
                                     data={segment.data}
                                     dataKey="metric.value"
                                     stroke={segment.color}
-                                    strokeWidth={1.4}
                                     dot={false}
                                     legendType="plainline"
                                     isAnimationActive={false}
@@ -885,7 +1009,7 @@ const MetricsVisualization: FC<Props> = ({
                                     )}
 
                                     <Line
-                                        name="compareMetric"
+                                        {...getLineProps('compareMetric')}
                                         yAxisId={
                                             shouldSplitYAxis
                                                 ? 'compareMetric'
@@ -896,7 +1020,6 @@ const MetricsVisualization: FC<Props> = ({
                                         data={segmentedData[0].data}
                                         stroke={colors.indigo[9]}
                                         strokeDasharray={'3 4'}
-                                        strokeWidth={1.6}
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
@@ -930,10 +1053,8 @@ const MetricsVisualization: FC<Props> = ({
                 <Group align="center" noWrap spacing="xs">
                     <Tooltip
                         variant="xs"
-                        label={friendlyName(
-                            results?.metric.timeDimension?.field ?? '',
-                        )}
-                        disabled={!!results?.metric.availableTimeDimensions}
+                        label={timeDimensionTooltipLabel}
+                        disabled={!timeDimensionTooltipLabel}
                     >
                         <Text fw={500} c="gray.7" fz={14}>
                             Date ({capitalize(timeDimensionBaseField.interval)})

@@ -39,9 +39,16 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
+import {
+    MIN_METRICS_CATALOG_SEARCH_LENGTH,
+    useMetricsCatalog,
+} from '../hooks/useMetricsCatalog';
 import { useMetricsTree } from '../hooks/useMetricsTree';
-import { setCategoryFilters } from '../store/metricsCatalogSlice';
+import {
+    setCategoryFilters,
+    toggleMetricPeekModal,
+} from '../store/metricsCatalogSlice';
+import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import {
     MetricCatalogView,
@@ -66,14 +73,15 @@ export const MetricsTable = () => {
     const { canManageTags, canManageMetricsTree } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
     );
+    const isMetricPeekModalOpen = useAppSelector(
+        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
+    );
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
-
     const [metricCatalogView, setMetricCatalogView] =
         useState<MetricCatalogView>(MetricCatalogView.LIST);
 
@@ -86,6 +94,10 @@ export const MetricsTable = () => {
     ];
 
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
+
+    const onCloseMetricPeekModal = () => {
+        dispatch(toggleMetricPeekModal(undefined));
+    };
 
     const {
         data,
@@ -105,6 +117,22 @@ export const MetricsTable = () => {
             sortDirection: sorting[0].desc ? 'desc' : 'asc',
         }),
     });
+
+    useEffect(() => {
+        if (
+            deferredSearch &&
+            deferredSearch.length > MIN_METRICS_CATALOG_SEARCH_LENGTH &&
+            data
+        ) {
+            track({
+                name: EventName.METRICS_CATALOG_SEARCH_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
+    }, [deferredSearch, track, organizationUuid, projectUuid, data]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
@@ -394,6 +422,10 @@ export const MetricsTable = () => {
                 props.table.getAllColumns().length - 1;
 
             const isLastRow = flatData.length === props.row.index + 1;
+            const hasScroll = tableContainerRef.current
+                ? tableContainerRef.current.scrollHeight >
+                  tableContainerRef.current.clientHeight
+                : false;
 
             return {
                 h: 72,
@@ -404,9 +436,10 @@ export const MetricsTable = () => {
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
                     // This is needed to remove the bottom border of the last row when there are rows
-                    borderBottom: isLastRow
-                        ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom:
+                        isLastRow && hasScroll
+                            ? 'none'
+                            : `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
@@ -513,7 +546,18 @@ export const MetricsTable = () => {
 
     switch (metricCatalogView) {
         case MetricCatalogView.LIST:
-            return <MantineReactTable table={table} />;
+            return (
+                <>
+                    <MantineReactTable table={table} />
+                    {isMetricPeekModalOpen && (
+                        <MetricPeekModal
+                            opened={isMetricPeekModalOpen}
+                            onClose={onCloseMetricPeekModal}
+                            metrics={flatData}
+                        />
+                    )}
+                </>
+            );
         case MetricCatalogView.TREE:
             return (
                 <Paper {...mantinePaperProps}>

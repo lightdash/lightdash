@@ -75,7 +75,8 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED
         | EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED
         | EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED
-        | EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED;
+        | EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED
+        | EventName.METRICS_CATALOG_SEARCH_APPLIED;
     properties?: {};
 };
 
@@ -290,8 +291,6 @@ type MetricsCatalogExploreDateFilterAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
-        metricName: string;
-        tableName: string;
     };
 };
 
@@ -327,6 +326,14 @@ type MetricsCatalogExploreTimeDimensionOverrideAppliedEvent = {
     };
 };
 
+type MetricsCatalogSearchAppliedEvent = {
+    name: EventName.METRICS_CATALOG_SEARCH_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -353,7 +360,8 @@ export type EventData =
     | MetricsCatalogExploreDateFilterAppliedEvent
     | MetricsCatalogExploreGranularityAppliedEvent
     | MetricsCatalogExploreSegmentByAppliedEvent
-    | MetricsCatalogExploreTimeDimensionOverrideAppliedEvent;
+    | MetricsCatalogExploreTimeDimensionOverrideAppliedEvent
+    | MetricsCatalogSearchAppliedEvent;
 
 type IdentifyData = {
     id: string;

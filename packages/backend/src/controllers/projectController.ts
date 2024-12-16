@@ -828,13 +828,14 @@ export class ProjectController extends BaseController {
     async getChartsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() ids?: string[],
     ): Promise<ApiChartAsCodeListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .getCharts(req.user!, projectUuid),
+                .getCharts(req.user!, projectUuid, ids),
         };
     }
 
@@ -845,13 +846,14 @@ export class ProjectController extends BaseController {
     async getDashboardsAsCode(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() ids?: string[],
     ): Promise<ApiDashboardAsCodeListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .getDashboards(req.user!, projectUuid),
+                .getDashboards(req.user!, projectUuid, ids),
         };
     }
 
@@ -863,9 +865,13 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        chart: Omit<ChartAsCode, 'metricQuery' | 'chartConfig'> & {
+        chart: Omit<
+            ChartAsCode,
+            'metricQuery' | 'chartConfig' | 'description'
+        > & {
             chartConfig: any;
             metricQuery: any;
+            description?: string | null; // Allow both undefined and null
         },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
@@ -874,7 +880,10 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .upsertChart(req.user!, projectUuid, slug, chart),
+                .upsertChart(req.user!, projectUuid, slug, {
+                    ...chart,
+                    description: chart.description ?? undefined,
+                }),
         };
     }
 

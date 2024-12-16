@@ -15,12 +15,35 @@ import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
+import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
 const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
+    charts: string[]; // These can be slugs, uuids or urls
+    dashboards: string[]; // These can be slugs, uuids or urls
     force: boolean;
+};
+
+/* 
+    This function is used to parse the content filters.
+    It can be slugs, uuids or urls
+    We remove the URL part (if any) and return a list of `slugs or uuids` that can be used in the API call
+*/
+const parseContentFilters = (items: string[]): string => {
+    if (items.length === 0) return '';
+
+    const parsedItems = items.map((item) => {
+        const uuidMatch = item.match(
+            /https?:\/\/.+\/(?:saved|dashboards)\/([a-f0-9-]+)/i,
+        );
+        return uuidMatch ? uuidMatch[1] : item;
+    });
+
+    return `?${new URLSearchParams(
+        parsedItems.map((item) => ['ids', item] as [string, string]),
+    ).toString()}`;
 };
 
 const dumpIntoFiles = async (
@@ -29,7 +52,7 @@ const dumpIntoFiles = async (
 ) => {
     const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
 
-    console.info(`Writting ${items.length} ${folder} into ${outputDir}`);
+    console.info(`Writing ${items.length} ${folder} into ${outputDir}`);
     // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
     if (created) console.info(`Created new folder: ${outputDir} `);
@@ -114,28 +137,55 @@ export const downloadHandler = async (
         );
     }
 
+    // If any filter is provided, we skip those items without filters
+    // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
+    const hasFilters =
+        options.charts.length > 0 || options.dashboards.length > 0;
+
     // Download charts
-    GlobalState.debug('Downloading charts');
-    const chartsAsCode = await lightdashApi<
-        ApiChartAsCodeListResponse['results']
-    >({
-        method: 'GET',
-        url: `/api/v1/projects/${projectId}/charts/code`,
-        body: undefined,
-    });
-    await dumpIntoFiles('charts', chartsAsCode);
+    if (hasFilters && options.charts.length === 0) {
+        console.info(styles.warning(`No charts filters provided, skipping`));
+    } else {
+        GlobalState.debug(`Downloading charts`);
+        const chartFilters = parseContentFilters(options.charts);
 
+        const chartsAsCode = await lightdashApi<
+            ApiChartAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
+            body: undefined,
+        });
+
+        chartsAsCode.missingIds.forEach((missingId) => {
+            console.warn(styles.warning(`No chart with id "${missingId}"`));
+        });
+
+        await dumpIntoFiles('charts', chartsAsCode.charts);
+    }
     // Download dashboards
-    GlobalState.debug('Downloading dashboards');
-    const dashboardsAsCode = await lightdashApi<
-        ApiDashboardAsCodeListResponse['results']
-    >({
-        method: 'GET',
-        url: `/api/v1/projects/${projectId}/dashboards/code`,
-        body: undefined,
-    });
+    if (hasFilters && options.dashboards.length === 0) {
+        console.info(
+            styles.warning(`No dashboards filters provided, skipping`),
+        );
+    } else {
+        GlobalState.debug(`Downloading dashboards`);
+        const dashboardFilters = parseContentFilters(options.dashboards);
 
-    await dumpIntoFiles('dashboards', dashboardsAsCode);
+        const dashboardsAsCode = await lightdashApi<
+            ApiDashboardAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/dashboards/code${dashboardFilters}`,
+            body: undefined,
+        });
+
+        dashboardsAsCode.missingIds.forEach((missingId) => {
+            console.warn(styles.warning(`No dashboard with id "${missingId}"`));
+        });
+
+        await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+    }
 
     // TODO delete files if chart don't exist ?*/
 };
@@ -184,19 +234,50 @@ const logUploadChanges = (changes: Record<string, number>) => {
     });
 };
 
+/**
+ *
+ * @param slugs if slugs are provided, we only force upsert the charts/dashboards that match the slugs, if slugs are empty, we upload files that were locally updated
+ */
 const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     type: 'charts' | 'dashboards',
     projectId: string,
     changes: Record<string, number>,
     force: boolean,
+    slugs: string[],
 ) => {
     const items = await readCodeFiles<T>(type);
 
     console.info(`Found ${items.length} ${type} files`);
-    for (const item of items) {
+
+    const hasFilter = slugs.length > 0;
+    const filteredItems = hasFilter
+        ? items.filter((item) => slugs.includes(item.slug))
+        : items;
+    if (hasFilter) {
+        console.info(
+            `Filtered ${filteredItems.length} ${type} with slugs: ${slugs.join(
+                ', ',
+            )}`,
+        );
+        const missingItems = slugs.filter(
+            (slug) => !items.find((item) => item.slug === slug),
+        );
+        missingItems.forEach((slug) => {
+            console.warn(styles.warning(`No ${type} with slug: "${slug}"`));
+        });
+    }
+
+    for (const item of filteredItems) {
         // If a chart fails to update, we keep updating the rest
         try {
             if (!force && !item.needsUpdating) {
+                if (hasFilter) {
+                    console.warn(
+                        styles.warning(
+                            `Skipping ${type} "${item.slug}" with no local changes`,
+                        ),
+                    );
+                }
                 GlobalState.debug(
                     `Skipping ${type} "${item.slug}" with no local changes`,
                 );
@@ -254,12 +335,14 @@ export const uploadHandler = async (
         projectId,
         changes,
         options.force,
+        options.charts,
     );
     changes = await upsertResources<DashboardAsCode>(
         'dashboards',
         projectId,
         changes,
         options.force,
+        options.dashboards,
     );
 
     logUploadChanges(changes);

@@ -1,5 +1,7 @@
 import dayjs from 'dayjs';
-import { groupBy, mapKeys } from 'lodash';
+import isoWeek from 'dayjs/plugin/isoWeek';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import { groupBy, mapKeys, type Dictionary } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
@@ -26,6 +28,9 @@ import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
+
+dayjs.extend(isoWeek);
+dayjs.extend(weekOfYear);
 
 type DateFilter = FilterRule<
     ConditionalOperator,
@@ -93,28 +98,42 @@ export const getFieldIdForDateDimension = (
     }
 };
 
-export const getDateCalcUtils = (timeFrame: TimeFrames) => {
+export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
     switch (timeFrame) {
-        case TimeFrames.DAY:
-            return {
-                forward: (date: Date) => dayjs(date).add(1, 'day').toDate(),
-                back: (date: Date) => dayjs(date).subtract(1, 'day').toDate(),
-            };
-        case TimeFrames.WEEK:
-            return {
-                forward: (date: Date) => dayjs(date).add(1, 'week').toDate(),
-                back: (date: Date) => dayjs(date).subtract(1, 'week').toDate(),
-            };
         case TimeFrames.MONTH:
+            if (grain)
+                throw new Error(
+                    `Timeframe "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
+                );
             return {
                 forward: (date: Date) => dayjs(date).add(1, 'month').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'month').toDate(),
             };
         case TimeFrames.YEAR:
+            // Handle week shift for previous year comparison and subtract what the amount of weeks is in a year
+            if (grain === TimeFrames.WEEK) {
+                return {
+                    forward: (date: Date) =>
+                        dayjs(date)
+                            // 52 weeks in a year
+                            .add(52, 'weeks')
+                            .startOf('isoWeek')
+                            .toDate(),
+                    back: (date: Date) =>
+                        dayjs(date)
+                            // 52 weeks in a year
+                            .subtract(52, 'weeks')
+                            .startOf('isoWeek')
+                            .toDate(),
+                };
+            }
             return {
                 forward: (date: Date) => dayjs(date).add(1, 'year').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
             };
+        case TimeFrames.DAY:
+        case TimeFrames.WEEK:
+            throw new Error(`Timeframe "${timeFrame}" is not supported yet`);
         default:
             return assertUnimplementedTimeframe(timeFrame);
     }
@@ -260,6 +279,28 @@ export const getMetricExplorerDataPoints = (
     };
 };
 
+function offsetWeekCompareDates(
+    groupByCompareMetricRows: Dictionary<ResultRow[]>,
+    timeFrame: TimeFrames.WEEK,
+) {
+    return Object.fromEntries(
+        Object.keys(groupByCompareMetricRows).map((compareDate) => {
+            const compareDateWeek = dayjs(compareDate).week();
+            const compareDateNextYear = getDateCalcUtils(
+                TimeFrames.YEAR,
+                timeFrame,
+            ).forward(new Date(compareDate));
+
+            const adjustedCompareDate = dayjs(compareDateNextYear)
+                .week(compareDateWeek)
+                .startOf('isoWeek')
+                .toISOString();
+
+            return [compareDate, adjustedCompareDate];
+        }),
+    );
+}
+
 export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
     compareDimension: Dimension,
@@ -267,6 +308,7 @@ export const getMetricExplorerDataPointsWithCompare = (
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
     query: MetricExplorerQuery,
+    timeFrame: TimeFrames,
 ): {
     dataPoints: Array<MetricExploreDataPoint>;
 } => {
@@ -288,12 +330,21 @@ export const getMetricExplorerDataPointsWithCompare = (
 
     const offsetGroupByCompareMetricRows = mapKeys(
         groupByCompareMetricRows,
-        (_, date) =>
-            query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD
-                ? getDateCalcUtils(TimeFrames.YEAR)
-                      .forward(new Date(date))
-                      .toISOString()
-                : date,
+        (_, date) => {
+            if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+                if (timeFrame === TimeFrames.WEEK) {
+                    return offsetWeekCompareDates(
+                        groupByCompareMetricRows,
+                        timeFrame,
+                    )[date];
+                }
+
+                return getDateCalcUtils(TimeFrames.YEAR, timeFrame)
+                    .forward(new Date(date))
+                    .toISOString();
+            }
+            return date;
+        },
     );
 
     const dates = new Set([
@@ -364,7 +415,7 @@ export const getDefaultDateRangeFromInterval = (
             ];
         case TimeFrames.WEEK:
             return [
-                now.subtract(11, 'week').startOf('week').toDate(),
+                now.subtract(11, 'week').startOf('isoWeek').toDate(),
                 now.toDate(),
             ];
         case TimeFrames.MONTH:
@@ -391,7 +442,10 @@ export const getDefaultDateRangeForMetricTotal = (
         case TimeFrames.DAY:
             return [now.startOf('day').toDate(), now.endOf('day').toDate()];
         case TimeFrames.WEEK:
-            return [now.startOf('week').toDate(), now.endOf('week').toDate()];
+            return [
+                now.startOf('isoWeek').toDate(),
+                now.endOf('isoWeek').toDate(),
+            ];
         case TimeFrames.MONTH:
             return [now.startOf('month').toDate(), now.endOf('month').toDate()];
         case TimeFrames.YEAR:
@@ -495,7 +549,7 @@ export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],
 ): MetricWithAssociatedTimeDimension[] =>
     metrics
-        .filter((metric) => !!metric.defaultTimeDimension)
+        .filter((metric) => !!metric.timeDimension)
         .filter(
             (metric) =>
                 metric.type !== MetricType.STRING &&
