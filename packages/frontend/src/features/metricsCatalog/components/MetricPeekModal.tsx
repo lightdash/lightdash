@@ -332,27 +332,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     ]);
 
     useEffect(() => {
-        if (dateRange) {
-            track({
-                name: EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    metricName,
-                    tableName,
-                },
-            });
-        }
-    }, [
-        dateRange,
-        organizationUuid,
-        projectUuid,
-        metricName,
-        tableName,
-        track,
-    ]);
-
-    useEffect(() => {
         if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
             track({
                 name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD,

@@ -291,8 +291,6 @@ type MetricsCatalogExploreDateFilterAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
-        metricName: string;
-        tableName: string;
     };
 };
 
