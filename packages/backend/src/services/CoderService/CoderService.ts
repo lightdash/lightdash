@@ -173,10 +173,10 @@ export class CoderService extends BaseService {
                 isChartTile(tile) ? [...acc, tile.properties.chartSlug] : acc,
             [],
         );
-        const charts = await this.savedChartModel.find({
-            slugs: chartSlugs,
+        const charts = await this.savedChartModel.getChartsForProject(
             projectUuid,
-        });
+            { slugs: chartSlugs },
+        );
 
         return tiles.map((tile) => {
             if (isChartTile(tile)) {
@@ -262,14 +262,12 @@ export class CoderService extends BaseService {
         // TODO
         // We need to get the charts and all the chart config
         // At the moment we are going to fetch them all in individual queries
-        // But in the future we should fetch them in a single query for optimiziation purposes
-        const chartSummaries = await this.savedChartModel.find({ projectUuid });
-        const chartPromises = chartSummaries.map((chart) =>
-            this.savedChartModel.get(chart.uuid),
+        // But in the future we should fetch them in a single query for optimization purposes
+        const charts = await this.savedChartModel.getChartsForProject(
+            projectUuid,
         );
-        const charts = await Promise.all(chartPromises);
 
-        // get all spaces to map  spaceSlug
+        // get all spaces to map spaceSlug
         const spaceUuids = charts.map((chart) => chart.spaceUuid);
         const spaces = await this.spaceModel.find({ spaceUuids });
         return charts.map((chart) =>
@@ -298,10 +296,10 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const [chart] = await this.savedChartModel.find({
-            slug,
+        const [chart] = await this.savedChartModel.getChartsForProject(
             projectUuid,
-        });
+            { slugs: [slug] },
+        );
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information it is not available in ChartAsCode, and other uuids

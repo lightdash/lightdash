@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    AdditionalMetric,
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
@@ -88,6 +89,8 @@ import {
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
+    SavedChart,
+    SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
@@ -4009,8 +4012,7 @@ export class ProjectService extends BaseService {
             )
             .map((space) => space.uuid);
 
-        return this.savedChartModel.find({
-            projectUuid,
+        return this.savedChartModel.getChartsForProject(projectUuid, {
             spaceUuids: allowedSpaceUuids,
             excludeChartsSavedInDashboard,
         });
@@ -4721,35 +4723,34 @@ export class ProjectService extends BaseService {
         }[]
     > {
         // TODO implement permissions
-        const chartSummaries = await this.savedChartModel.find({
+        const charts = await this.savedChartModel.getChartsForProject(
             projectUuid,
-        });
-        const chartPromises = chartSummaries.map((summary) =>
-            this.savedChartModel.get(summary.uuid, undefined),
         );
 
-        const charts = await Promise.all(chartPromises);
+        return charts.reduce<
+            Array<{
+                name: string;
+                label: string;
+                modelName: string;
+                yml: string;
+                chartLabel: string;
+                chartUrl: string;
+            }>
+        >((acc, chart) => {
+            const additionalMetrics =
+                chart.metricQuery?.additionalMetrics || [];
 
-        return charts.reduce<any[]>((acc, chart) => {
-            const customMetrics = chart.metricQuery.additionalMetrics;
-
-            if (customMetrics === undefined || customMetrics.length === 0)
-                return acc;
-            const metrics = [
+            return [
                 ...acc,
-                ...customMetrics.map((metric) => ({
-                    name: metric.uuid,
-                    label: metric.label,
-                    modelName: metric.table,
-                    yml: yaml.dump(convertCustomMetricToDbt(metric), {
-                        quotingType: "'",
-                    }),
-                    chartLabel: chart.name,
-                    chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                ...additionalMetrics.map((metric: AdditionalMetric) => ({
+                    name: metric.name || '',
+                    label: metric.label || '',
+                    modelName: chart.tableName,
+                    yml: metric.sql,
+                    chartLabel: chart.name || '',
+                    chartUrl: `/projects/${chart.projectUuid}/charts/${chart.uuid}`,
                 })),
             ];
-
-            return metrics;
         }, []);
     }
 

@@ -1158,112 +1158,463 @@ export class SavedChartModel {
         );
     }
 
-    async find(filters: {
-        projectUuid?: string;
-        spaceUuids?: string[];
-        slug?: string;
-        slugs?: string[];
-        exploreName?: string;
-        excludeChartsSavedInDashboard?: boolean;
-    }): Promise<(ChartSummary & { updatedAt: Date })[]> {
+    async getChartsForProject(
+        projectUuid: string,
+        options?: {
+            slugs?: string[];
+            spaceUuids?: string[];
+            excludeChartsSavedInDashboard?: boolean;
+            exploreName?: string;
+        },
+    ): Promise<SavedChartDAO[]> {
         return Sentry.startSpan(
             {
-                op: 'SavedChartModel.find',
-                name: 'SavedChartModel.find',
+                op: 'SavedChartModel.getChartsForProject',
+                name: 'Get all charts for project',
             },
             async () => {
-                const query = this.getChartSummaryQuery();
-                if (filters.projectUuid) {
-                    void query.where(
-                        'projects.project_uuid',
-                        filters.projectUuid,
+                const knex = this.database;
+                const chartQuery = knex
+                    .from(SavedChartsTableName)
+                    .leftJoin(
+                        DashboardsTableName,
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${SavedChartsTableName}.dashboard_uuid`,
+                    )
+                    .innerJoin(SpaceTableName, function spaceJoin() {
+                        this.on(
+                            `${SpaceTableName}.space_id`,
+                            '=',
+                            `${DashboardsTableName}.space_id`,
+                        ).orOn(
+                            `${SpaceTableName}.space_id`,
+                            '=',
+                            `${SavedChartsTableName}.space_id`,
+                        );
+                    })
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .innerJoin(
+                        OrganizationTableName,
+                        `${OrganizationTableName}.organization_id`,
+                        `${ProjectTableName}.organization_id`,
+                    )
+                    .innerJoin(
+                        SavedChartVersionsTableName,
+                        function versionJoin(this: Knex.JoinClause) {
+                            const maxCreatedAtSubquery = knex.raw(`(
+                                SELECT MAX(created_at)
+                                FROM ${SavedChartVersionsTableName} as v2
+                                WHERE v2.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                            )`);
+
+                            this.on(
+                                `${SavedChartVersionsTableName}.saved_query_id`,
+                                '=',
+                                `${SavedChartsTableName}.saved_query_id`,
+                            ).andOn(
+                                `${SavedChartVersionsTableName}.created_at`,
+                                '=',
+                                maxCreatedAtSubquery,
+                            );
+                        },
+                    )
+                    .leftJoin(
+                        UserTableName,
+                        `${SavedChartVersionsTableName}.updated_by_user_uuid`,
+                        `${UserTableName}.user_uuid`,
+                    )
+                    .leftJoin(
+                        PinnedChartTableName,
+                        `${PinnedChartTableName}.saved_chart_uuid`,
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                    )
+                    .leftJoin(
+                        PinnedListTableName,
+                        `${PinnedListTableName}.pinned_list_uuid`,
+                        `${PinnedChartTableName}.pinned_list_uuid`,
+                    )
+                    .select([
+                        `${ProjectTableName}.project_uuid`,
+                        `${SavedChartsTableName}.saved_query_id`,
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        `${SavedChartsTableName}.name`,
+                        `${SavedChartsTableName}.description`,
+                        `${SavedChartsTableName}.dashboard_uuid`,
+                        `${SavedChartsTableName}.slug`,
+                        `${SavedChartsTableName}.views_count`,
+                        `${DashboardsTableName}.name as dashboardName`,
+                        `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                        `${SavedChartVersionsTableName}.explore_name`,
+                        `${SavedChartVersionsTableName}.filters`,
+                        `${SavedChartVersionsTableName}.row_limit`,
+                        `${SavedChartVersionsTableName}.chart_type`,
+                        `${SavedChartVersionsTableName}.created_at`,
+                        `${SavedChartVersionsTableName}.chart_config`,
+                        `${SavedChartVersionsTableName}.pivot_dimensions`,
+                        `${SavedChartVersionsTableName}.timezone`,
+                        `${OrganizationTableName}.organization_uuid`,
+                        `${OrganizationTableName}.chart_colors`,
+                        `${UserTableName}.user_uuid`,
+                        `${UserTableName}.first_name`,
+                        `${UserTableName}.last_name`,
+                        `${SpaceTableName}.space_uuid`,
+                        `${SpaceTableName}.name as spaceName`,
+                        `${PinnedListTableName}.pinned_list_uuid`,
+                    ])
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+                if (options?.slugs) {
+                    void chartQuery.whereIn(
+                        `${SavedChartsTableName}.slug`,
+                        options.slugs,
                     );
                 }
 
-                if (filters.excludeChartsSavedInDashboard) {
-                    void query.whereNotNull(`${SavedChartsTableName}.space_id`); // Note: charts saved in dashboards have saved_queries.space_id = null
-                } else {
-                    // Get charts not saved in a dashboard OR the charts saved a dashboard AND used in the latest dashboard version
-                    void query
-                        .leftJoin(
-                            DashboardVersionsTableName,
-                            `${DashboardVersionsTableName}.dashboard_id`,
-                            '=',
-                            `${DashboardsTableName}.dashboard_id`,
-                        )
-                        .leftJoin(
-                            DashboardTileChartTableName,
-                            function chartsJoin() {
-                                this.on(
-                                    `${DashboardTileChartTableName}.dashboard_version_id`,
-                                    '=',
-                                    `${DashboardVersionsTableName}.dashboard_version_id`,
-                                );
-                                this.andOn(
-                                    `${DashboardTileChartTableName}.saved_chart_id`,
-                                    '=',
-                                    `${SavedChartsTableName}.saved_query_id`,
-                                );
-                            },
-                        )
-                        .where((whereBuilder) => {
-                            void whereBuilder
-                                .whereNull(
-                                    `${DashboardsTableName}.dashboard_id`,
-                                )
-                                .orWhere((orWhereBuilder) => {
-                                    void orWhereBuilder
-                                        .whereNotNull(
-                                            `${DashboardTileChartTableName}.saved_chart_id`,
-                                        )
-                                        .andWhere(
-                                            `${DashboardVersionsTableName}.created_at`,
-                                            '=',
-                                            this.database
-                                                .from(
-                                                    DashboardVersionsTableName,
-                                                )
-                                                .max('created_at')
-                                                .where(
-                                                    `${DashboardVersionsTableName}.dashboard_id`,
-                                                    this.database.ref(
-                                                        `${DashboardsTableName}.dashboard_id`,
-                                                    ),
-                                                ),
-                                        );
-                                });
-                        });
+                if (options?.spaceUuids) {
+                    void chartQuery.whereIn(
+                        `${SpaceTableName}.uuid`,
+                        options.spaceUuids,
+                    );
                 }
 
-                if (filters.spaceUuids) {
-                    void query.whereIn('spaces.space_uuid', filters.spaceUuids);
+                if (options?.excludeChartsSavedInDashboard) {
+                    void chartQuery.whereNull(`${DashboardsTableName}.uuid`);
                 }
-                if (filters.slug) {
-                    void query.where('saved_queries.slug', filters.slug);
+
+                if (options?.exploreName) {
+                    void chartQuery.where(
+                        `${SavedChartVersionsTableName}.explore_name`,
+                        options.exploreName,
+                    );
                 }
-                if (filters.slugs) {
-                    void query.whereIn('saved_queries.slug', filters.slugs);
+
+                const savedQueries = await chartQuery;
+
+                if (savedQueries.length === 0) {
+                    return [];
                 }
-                if (filters.exploreName) {
-                    // TODO: Explore name is not an index in saved_queries_versions
-                    // This is something we could easily optimize (requires migration)
-                    void query
-                        .leftJoin(
-                            SavedChartVersionsTableName,
-                            `${SavedChartVersionsTableName}.saved_query_id`,
-                            `${SavedChartsTableName}.saved_query_id`,
+
+                // Get related data in parallel for all charts
+                const [
+                    fields,
+                    sorts,
+                    tableCalculations,
+                    additionalMetricsRows,
+                    customBinDimensionsRows,
+                    customSqlDimensionsRows,
+                ] = await Promise.all([
+                    this.database('saved_queries_version_fields')
+                        .select([
+                            'saved_queries_version_id',
+                            'name',
+                            'field_type',
+                            'order',
+                        ])
+                        .whereIn(
+                            'saved_queries_version_id',
+                            savedQueries.map((q) => q.saved_queries_version_id),
                         )
-                        .where(
-                            'saved_queries_versions.explore_name',
-                            filters.exploreName,
+                        .orderBy('order', 'asc'),
+                    this.database('saved_queries_version_sorts')
+                        .select([
+                            'saved_queries_version_id',
+                            'field_name',
+                            'descending',
+                        ])
+                        .whereIn(
+                            'saved_queries_version_id',
+                            savedQueries.map((q) => q.saved_queries_version_id),
                         )
-                        .distinctOn('saved_queries.saved_query_uuid');
-                }
-                const chartSummaries = await query;
-                return chartSummaries.map((chart) => ({
-                    ...chart,
-                    chartType: getChartType(chart.chartKind),
-                }));
+                        .orderBy('order', 'asc'),
+                    this.database('saved_queries_version_table_calculations')
+                        .select([
+                            'saved_queries_version_id',
+                            'name',
+                            'display_name',
+                            'calculation_raw_sql',
+                            'order',
+                            'format',
+                            'type',
+                        ])
+                        .whereIn(
+                            'saved_queries_version_id',
+                            savedQueries.map((q) => q.saved_queries_version_id),
+                        ),
+                    this.database(SavedChartAdditionalMetricTableName)
+                        .select([
+                            'saved_queries_version_id',
+                            'table',
+                            'name',
+                            'type',
+                            'label',
+                            'description',
+                            'sql',
+                            'hidden',
+                            'round',
+                            'format',
+                            'percentile',
+                            'filters',
+                            'base_dimension_name',
+                            'uuid',
+                            'compact',
+                            'format_options',
+                        ])
+                        .whereIn(
+                            'saved_queries_version_id',
+                            savedQueries.map((q) => q.saved_queries_version_id),
+                        ),
+                    this.database(SavedChartCustomDimensionsTableName)
+                        .select('*')
+                        .whereIn(
+                            'saved_queries_version_id',
+                            savedQueries.map((q) => q.saved_queries_version_id),
+                        ),
+                    this.database(SavedChartCustomSqlDimensionsTableName)
+                        .select('*')
+                        .whereIn(
+                            'saved_queries_version_id',
+                            savedQueries.map((q) => q.saved_queries_version_id),
+                        ),
+                ]);
+
+                // Group related data by version ID for efficient lookup
+                const fieldsByVersionId = new Map(
+                    savedQueries.map((q) => [
+                        q.saved_queries_version_id,
+                        fields.filter(
+                            (f) =>
+                                f.saved_queries_version_id ===
+                                q.saved_queries_version_id,
+                        ),
+                    ]),
+                );
+                const sortsByVersionId = new Map(
+                    savedQueries.map((q) => [
+                        q.saved_queries_version_id,
+                        sorts.filter(
+                            (s) =>
+                                s.saved_queries_version_id ===
+                                q.saved_queries_version_id,
+                        ),
+                    ]),
+                );
+                const calculationsByVersionId = new Map(
+                    savedQueries.map((q) => [
+                        q.saved_queries_version_id,
+                        tableCalculations.filter(
+                            (tc) =>
+                                tc.saved_queries_version_id ===
+                                q.saved_queries_version_id,
+                        ),
+                    ]),
+                );
+                const additionalMetricsByVersionId = new Map(
+                    savedQueries.map((q) => [
+                        q.saved_queries_version_id,
+                        additionalMetricsRows.filter(
+                            (am) =>
+                                am.saved_queries_version_id ===
+                                q.saved_queries_version_id,
+                        ),
+                    ]),
+                );
+                const customBinDimensionsByVersionId = new Map(
+                    savedQueries.map((q) => [
+                        q.saved_queries_version_id,
+                        customBinDimensionsRows.filter(
+                            (cd) =>
+                                cd.saved_queries_version_id ===
+                                q.saved_queries_version_id,
+                        ),
+                    ]),
+                );
+                const customSqlDimensionsByVersionId = new Map(
+                    savedQueries.map((q) => [
+                        q.saved_queries_version_id,
+                        customSqlDimensionsRows.filter(
+                            (cd) =>
+                                cd.saved_queries_version_id ===
+                                q.saved_queries_version_id,
+                        ),
+                    ]),
+                );
+
+                // Transform to SavedChartDAO format
+                return savedQueries.map((savedQuery): SavedChartDAO => {
+                    const versionFields =
+                        fieldsByVersionId.get(
+                            savedQuery.saved_queries_version_id,
+                        ) || [];
+                    const versionSorts =
+                        sortsByVersionId.get(
+                            savedQuery.saved_queries_version_id,
+                        ) || [];
+                    const versionCalculations =
+                        calculationsByVersionId.get(
+                            savedQuery.saved_queries_version_id,
+                        ) || [];
+                    const versionAdditionalMetrics =
+                        additionalMetricsByVersionId.get(
+                            savedQuery.saved_queries_version_id,
+                        ) || [];
+                    const versionCustomBinDimensions =
+                        customBinDimensionsByVersionId.get(
+                            savedQuery.saved_queries_version_id,
+                        ) || [];
+                    const versionCustomSqlDimensions =
+                        customSqlDimensionsByVersionId.get(
+                            savedQuery.saved_queries_version_id,
+                        ) || [];
+
+                    // Split fields into dimensions and metrics
+                    const [dimensions, metrics] = versionFields.reduce<
+                        [string[], string[]]
+                    >(
+                        (result, field) => {
+                            result[
+                                field.field_type === DBFieldTypes.DIMENSION
+                                    ? 0
+                                    : 1
+                            ].push(field.name);
+                            return result;
+                        },
+                        [[], []],
+                    );
+
+                    // Create column order
+                    const columnOrder = [
+                        ...versionFields,
+                        ...versionCalculations,
+                        ...versionCustomBinDimensions,
+                        ...versionCustomSqlDimensions,
+                    ]
+                        .sort((a, b) => a.order - b.order)
+                        .map((x) => x.name);
+
+                    // Transform additional metrics
+                    const additionalMetrics = versionAdditionalMetrics.map(
+                        (additionalMetric) => ({
+                            name: additionalMetric.name,
+                            label: additionalMetric.label,
+                            description: additionalMetric.description,
+                            hidden: additionalMetric.hidden,
+                            round: additionalMetric.round,
+                            compact: additionalMetric.compact,
+                            format: isFormat(additionalMetric.format)
+                                ? additionalMetric.format
+                                : undefined,
+                            percentile: additionalMetric.percentile,
+                            uuid: additionalMetric.uuid,
+                            sql: additionalMetric.sql,
+                            table: additionalMetric.table,
+                            type: additionalMetric.type,
+                            ...(additionalMetric.base_dimension_name && {
+                                baseDimensionName:
+                                    additionalMetric.base_dimension_name,
+                            }),
+                            ...(additionalMetric.filters && {
+                                filters: additionalMetric.filters,
+                            }),
+                            ...(additionalMetric.format_options && {
+                                formatOptions: additionalMetric.format_options,
+                            }),
+                        }),
+                    );
+
+                    const chartConfig = {
+                        type: savedQuery.chart_type,
+                        config: savedQuery.chart_config,
+                    } as ChartConfig;
+
+                    return {
+                        uuid: savedQuery.saved_query_uuid,
+                        projectUuid: savedQuery.project_uuid,
+                        name: savedQuery.name,
+                        description: savedQuery.description,
+                        tableName: savedQuery.explore_name,
+                        updatedAt: savedQuery.created_at,
+                        updatedByUser: savedQuery.user_uuid
+                            ? {
+                                  userUuid: savedQuery.user_uuid,
+                                  firstName: savedQuery.first_name,
+                                  lastName: savedQuery.last_name,
+                              }
+                            : undefined,
+                        metricQuery: {
+                            exploreName: savedQuery.explore_name,
+                            dimensions,
+                            metrics,
+                            filters: savedQuery.filters,
+                            sorts: versionSorts.map((sort) => ({
+                                fieldId: sort.field_name,
+                                descending: sort.descending,
+                            })),
+                            limit: savedQuery.row_limit,
+                            tableCalculations: versionCalculations.map(
+                                (calc) => ({
+                                    name: calc.name,
+                                    displayName: calc.display_name,
+                                    sql: calc.calculation_raw_sql,
+                                    format: calc.format || undefined,
+                                    type: calc.type || undefined,
+                                }),
+                            ),
+                            additionalMetrics,
+                            customDimensions: [
+                                ...versionCustomBinDimensions.map<CustomBinDimension>(
+                                    (cd) => ({
+                                        id: cd.id,
+                                        name: cd.name,
+                                        type: CustomDimensionType.BIN,
+                                        dimensionId: cd.dimension_id,
+                                        table: cd.table,
+                                        binType: cd.bin_type as BinType,
+                                        binNumber: cd.bin_number || undefined,
+                                        binWidth: cd.bin_width || undefined,
+                                        customRange:
+                                            cd.custom_range || undefined,
+                                    }),
+                                ),
+                                ...versionCustomSqlDimensions.map<CustomSqlDimension>(
+                                    (cd) => ({
+                                        id: cd.id,
+                                        name: cd.name,
+                                        type: CustomDimensionType.SQL,
+                                        table: cd.table,
+                                        sql: cd.sql,
+                                        dimensionType: cd.dimension_type,
+                                    }),
+                                ),
+                            ],
+                            timezone: savedQuery.timezone || undefined,
+                        },
+                        chartConfig,
+                        tableConfig: {
+                            columnOrder,
+                        },
+                        organizationUuid: savedQuery.organization_uuid,
+                        ...(savedQuery.pivot_dimensions
+                            ? {
+                                  pivotConfig: {
+                                      columns: savedQuery.pivot_dimensions,
+                                  },
+                              }
+                            : {}),
+                        spaceUuid: savedQuery.space_uuid,
+                        spaceName: savedQuery.spaceName,
+                        dashboardUuid: savedQuery.dashboard_uuid,
+                        dashboardName: savedQuery.dashboardName,
+                        pinnedListUuid: savedQuery.pinned_list_uuid,
+                        pinnedListOrder: null,
+                        colorPalette:
+                            savedQuery.chart_colors || ECHARTS_DEFAULT_COLORS,
+                        slug: savedQuery.slug,
+                    };
+                });
             },
         );
     }
