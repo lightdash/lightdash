@@ -905,6 +905,7 @@ const MetricsVisualization: FC<Props> = ({
                                 tickLine={false}
                                 fontSize={11}
                                 style={{ userSelect: 'none' }}
+                                allowDuplicatedCategory={false}
                             />
 
                             <RechartsTooltip
