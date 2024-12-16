@@ -1,3 +1,11 @@
+## [0.1418.2](https://github.com/lightdash/lightdash/compare/0.1418.1...0.1418.2) (2024-12-16)
+
+
+### Bug Fixes
+
+* hovering on the right side of datapoint not showing correct segments in tooltip ([#12914](https://github.com/lightdash/lightdash/issues/12914)) ([0c6face](https://github.com/lightdash/lightdash/commit/0c6face237b2b7244994bbe5eb67bbd6abf26d78))
+* readd css import to override eomoji picker style ([#12913](https://github.com/lightdash/lightdash/issues/12913)) ([31674c5](https://github.com/lightdash/lightdash/commit/31674c5de3ea8deb87e81e9085a0d00dcc1abeb9))
+
 ## [0.1418.1](https://github.com/lightdash/lightdash/compare/0.1418.0...0.1418.1) (2024-12-13)
 
 
