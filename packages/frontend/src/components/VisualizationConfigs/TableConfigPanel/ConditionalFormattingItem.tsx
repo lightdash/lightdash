@@ -6,6 +6,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     getConditionalFormattingConfigType,
     getItemId,
+    getItemLabel,
     hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -248,7 +249,17 @@ export const ConditionalFormattingItem: FC<Props> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={controlLabel}
+                label={field ? getItemLabel(field) : controlLabel}
+                extraControlElements={
+                    <ColorSelector
+                        color={
+                            isConditionalFormattingConfigWithSingleColor(config)
+                                ? config.color
+                                : config.color.start
+                        }
+                        swatches={colorPalette}
+                    />
+                }
                 onControlClick={onControlClick}
                 onRemove={handleRemove}
             />

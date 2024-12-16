@@ -66,7 +66,7 @@ export const AccordionControl: FC<Props> = ({
                 </ActionIcon>
             </Tooltip>
             <Accordion.Control onClick={onControlClick} {...props}>
-                <Text fw={500} size="xs">
+                <Text fw={500} size="xs" truncate>
                     {label}
                 </Text>
             </Accordion.Control>
