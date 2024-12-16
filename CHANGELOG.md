@@ -1,3 +1,10 @@
+# [0.1419.0](https://github.com/lightdash/lightdash/compare/0.1418.2...0.1419.0) (2024-12-16)
+
+
+### Features
+
+* chart selector as code ([#12872](https://github.com/lightdash/lightdash/issues/12872)) ([dbd40e8](https://github.com/lightdash/lightdash/commit/dbd40e84562b78c5653aef7adba3652cd122fdd3))
+
 ## [0.1418.2](https://github.com/lightdash/lightdash/compare/0.1418.1...0.1418.2) (2024-12-16)
 
 
