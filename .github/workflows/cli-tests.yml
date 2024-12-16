@@ -51,7 +51,7 @@ jobs:
                   context.payload.deployment_status.state === 'success' &&
                   context.payload.deployment_status.environment_url) {
                 console.log('Render environment is ready!');
-                break;
+                return;
               }
 
               if (i === maxAttempts - 1) {
