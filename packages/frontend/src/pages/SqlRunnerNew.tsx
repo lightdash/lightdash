@@ -16,6 +16,7 @@ import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
+import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -31,14 +32,12 @@ import {
     setSql,
     setState,
     setWarehouseConnectionType,
-    type SqlRunnerState,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import useSearchParams from '../hooks/useSearchParams';
-import { useGetShare } from '../hooks/useShare';
 
 const SqlRunnerNew = ({
     isEditMode,
@@ -53,9 +52,7 @@ const SqlRunnerNew = ({
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const share = useSearchParams('share');
-    const { data: sqlRunnerState, error: shareError } = useGetShare(
-        share || undefined,
-    );
+    const shareState = useSqlRunnerShareUrl(share || undefined);
 
     const location = useLocation<{ sql?: string }>();
     const history = useHistory();
@@ -65,26 +62,25 @@ const SqlRunnerNew = ({
     const { showToastError } = useToaster();
 
     useEffect(() => {
-        if (shareError) {
+        if (shareState.error) {
             showToastError({
                 title: `Unable to load shared SQL runner state`,
-                subtitle: shareError.error.message,
+                subtitle: shareState.error.message,
             });
             return;
         }
-        if (sqlRunnerState?.params) {
-            try {
-                const reduxState = JSON.parse(
-                    sqlRunnerState.params,
-                ) as SqlRunnerState;
-                dispatch(setState(reduxState));
-            } catch (e) {
-                console.error(
-                    'Unable to parse sql runner redux state from shared URL',
-                );
+        if (shareState.sqlRunnerState) {
+            dispatch(
+                setState({
+                    ...shareState.sqlRunnerState,
+                    fetchResultsOnLoad: true,
+                }),
+            );
+            if (shareState.chartConfig) {
+                dispatch(setChartConfig(shareState.chartConfig));
             }
         }
-    }, [sqlRunnerState, dispatch, shareError, showToastError]);
+    }, [shareState, dispatch, showToastError]);
     useUnmount(() => {
         dispatch(resetState());
         dispatch(resetChartState());
