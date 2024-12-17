@@ -54,6 +54,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const user = useAppSelector((state) => state.metricsCatalog.user);
     const {
         isOpen,
         tempSelectedPreset,
@@ -73,9 +74,10 @@ export const MetricPeekDatePicker: FC<Props> = ({
             properties: {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
+                userId: user?.userUuid,
             },
         });
-    }, [organizationUuid, projectUuid, track]);
+    }, [organizationUuid, projectUuid, track, user?.userUuid]);
 
     const matchingPresetLabel = getMatchingPresetLabel(dateRange, timeInterval);
 

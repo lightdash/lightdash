@@ -104,6 +104,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
         );
+        const user = useAppSelector((state) => state.metricsCatalog.user);
         const canManageTags = useAppSelector(
             (state) => state.metricsCatalog.abilities.canManageTags,
         );
@@ -188,6 +189,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     properties: {
                         organizationId: organizationUuid,
                         projectId: projectUuid,
+                        userId: user?.userUuid,
                     },
                 });
             }

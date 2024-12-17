@@ -49,6 +49,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
+        const user = useAppSelector((state) => state.metricsCatalog.user);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
 
@@ -111,6 +112,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             projectId: projectUuid,
                             tagName,
                             isNewTag: !existingTag,
+                            userId: user?.userUuid,
                         },
                     });
                 } catch (error) {
@@ -127,6 +129,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 catalogSearchUuid,
                 tagColor,
                 createTagMutation,
+                user?.userUuid,
             ],
         );
 

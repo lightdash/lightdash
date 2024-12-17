@@ -10,6 +10,7 @@ import { useCallback, type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
+import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { Hash } from '../../svgs/metricsCatalog';
 import { EventName } from '../../types/Events';
@@ -27,6 +28,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
 
     const { data: project } = useProject(projectUuid);
     const { track } = useTracking();
+    const { user } = useApp();
 
     const handleMetricsCatalogClick = useCallback(() => {
         if (project) {
@@ -35,10 +37,11 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 properties: {
                     organizationId: project.organizationUuid,
                     projectId: projectUuid,
+                    userId: user?.data?.userUuid,
                 },
             });
         }
-    }, [project, projectUuid, track]);
+    }, [project, projectUuid, track, user?.data?.userUuid]);
 
     return (
         <Menu

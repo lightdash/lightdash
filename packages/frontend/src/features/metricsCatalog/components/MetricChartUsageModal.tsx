@@ -27,6 +27,7 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+    const user = useAppSelector((state) => state.metricsCatalog.user);
 
     const { data: analytics, isLoading } = useMetricChartAnalytics({
         projectUuid,
@@ -98,6 +99,7 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
                                                         tableName:
                                                             activeMetric?.tableName,
                                                         chartId: chart.uuid,
+                                                        userId: user?.userUuid,
                                                     },
                                                 });
                                             }}

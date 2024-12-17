@@ -1,5 +1,6 @@
 import type { CatalogField } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { type UserWithAbility } from '../../../hooks/user/useUser';
 
 type MetricsCatalogState = {
     modals: {
@@ -18,6 +19,7 @@ type MetricsCatalogState = {
         canManageMetricsTree: boolean;
     };
     activeMetric: CatalogField | undefined;
+    user: UserWithAbility | undefined;
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
@@ -33,6 +35,7 @@ type MetricsCatalogState = {
 
 const initialState: MetricsCatalogState = {
     activeMetric: undefined,
+    user: undefined,
     projectUuid: undefined,
     organizationUuid: undefined,
     categoryFilters: [],
@@ -70,6 +73,9 @@ export const metricsCatalogSlice = createSlice({
         },
         setOrganizationUuid: (state, action: PayloadAction<string>) => {
             state.organizationUuid = action.payload;
+        },
+        setUser: (state, action: PayloadAction<UserWithAbility>) => {
+            state.user = action.payload;
         },
         setActiveMetric: (
             state,
@@ -124,6 +130,7 @@ export const {
     setCategoryFilters,
     setOrganizationUuid,
     setAbility,
+    setUser,
     setCategoryPopoverIsClosing,
     setDescriptionPopoverIsClosing,
     toggleMetricPeekModal,

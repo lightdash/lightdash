@@ -67,6 +67,7 @@ export const MetricsTable = () => {
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+    const user = useAppSelector((state) => state.metricsCatalog.user);
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
     );
@@ -129,10 +130,11 @@ export const MetricsTable = () => {
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
+                    userId: user?.userUuid,
                 },
             });
         }
-    }, [deferredSearch, track, organizationUuid, projectUuid, data]);
+    }, [deferredSearch, track, organizationUuid, projectUuid, data, user]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
@@ -192,6 +194,7 @@ export const MetricsTable = () => {
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
+                    userId: user?.userUuid,
                 },
             });
         }

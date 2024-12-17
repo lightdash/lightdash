@@ -63,6 +63,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
 
+    const user = useAppSelector((state) => state.metricsCatalog.user);
+
     const { tableName, metricName } = useParams<{
         tableName: string;
         metricName: string;
@@ -258,6 +260,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     metricName,
                     tableName,
                     granularity: timeInterval,
+                    userId: user?.userUuid,
                 },
             });
 
@@ -275,6 +278,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             tableName,
             timeDimensionBaseField,
             track,
+            user?.userUuid,
         ],
     );
 
@@ -293,10 +297,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     metricName,
                     tableName,
                     segmentDimension: value,
+                    userId: user?.userUuid,
                 },
             });
         },
-        [metricName, organizationUuid, projectUuid, tableName, track],
+        [
+            metricName,
+            organizationUuid,
+            projectUuid,
+            tableName,
+            track,
+            user?.userUuid,
+        ],
     );
 
     const handleClose = useCallback(() => {
@@ -319,6 +331,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     projectId: projectUuid,
                     metricName,
                     tableName,
+                    userId: user?.userUuid,
                 },
             });
         }
@@ -329,6 +342,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         metricName,
         tableName,
         track,
+        user?.userUuid,
     ]);
 
     useEffect(() => {
@@ -340,6 +354,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     projectId: projectUuid,
                     metricName,
                     tableName,
+                    userId: user?.userUuid,
                 },
             });
         }
@@ -357,6 +372,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     tableName,
                     compareMetricName: query.metric.name,
                     compareTableName: query.metric.table,
+                    userId: user?.userUuid,
                 },
             });
         }
@@ -368,6 +384,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         tableName,
         track,
         queryHasEmptyMetric,
+        user?.userUuid,
     ]);
 
     const segmentByData = useMemo(() => {

@@ -19,6 +19,8 @@ export const MetricChartUsageButton = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const user = useAppSelector((state) => state.metricsCatalog.user);
+
     const dispatch = useAppDispatch();
     const { track } = useTracking();
 
@@ -32,6 +34,7 @@ export const MetricChartUsageButton = ({
                     tableName: row.original.tableName,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
+                    userId: user?.userUuid,
                 },
             });
             dispatch(setActiveMetric(row.original));

@@ -193,6 +193,7 @@ type MetricsCatalogClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
     };
 };
 
@@ -201,6 +202,7 @@ type MetricsCatalogChartUsageClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         chartCount: number;
         tableName: string;
@@ -212,6 +214,7 @@ type MetricsCatalogExploreClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
     };
@@ -222,6 +225,7 @@ type MetricsCatalogMetricNameClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
     };
@@ -232,6 +236,7 @@ type MetricsCatalogChartUsageChartClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
         chartId: string;
@@ -243,6 +248,7 @@ type MetricsCatalogCategoryClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         tagName: string;
         isNewTag: boolean;
     };
@@ -253,6 +259,7 @@ type MetricsCatalogCategoryFilterAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
     };
 };
 
@@ -261,6 +268,7 @@ type MetricsCatalogIconAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
     };
 };
 
@@ -269,6 +277,7 @@ type MetricsCatalogExploreCompareLastPeriodEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
     };
@@ -279,6 +288,7 @@ type MetricsCatalogExploreCompareAnotherMetricEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
         compareMetricName: string;
@@ -291,6 +301,7 @@ type MetricsCatalogExploreDateFilterAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
     };
 };
 
@@ -299,6 +310,7 @@ type MetricsCatalogExploreGranularityAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
         granularity: TimeFrames;
@@ -310,6 +322,7 @@ type MetricsCatalogExploreSegmentByAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
         segmentDimension: string;
@@ -321,6 +334,7 @@ type MetricsCatalogExploreTimeDimensionOverrideAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
         metricName: string;
         tableName: string;
     };
@@ -331,6 +345,7 @@ type MetricsCatalogSearchAppliedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+        userId: string;
     };
 };
 

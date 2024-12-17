@@ -31,6 +31,7 @@ import {
     setCategoryFilters,
     setOrganizationUuid,
     setProjectUuid,
+    setUser,
     toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
@@ -172,6 +173,7 @@ export const MetricsCatalogPanel = () => {
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+    const userFromStore = useAppSelector((state) => state.metricsCatalog.user);
 
     const [lastDbtRefreshAt, setLastDbtRefreshAt] = useState<
         Date | undefined
@@ -199,6 +201,12 @@ export const MetricsCatalogPanel = () => {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [params.projectUuid, dispatch, projectUuid]);
+
+    useEffect(() => {
+        if (user.data && !userFromStore) {
+            dispatch(setUser(user.data));
+        }
+    }, [user.data, dispatch, userFromStore]);
 
     useEffect(() => {
         if (
