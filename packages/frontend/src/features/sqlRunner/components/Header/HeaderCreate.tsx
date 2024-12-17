@@ -25,8 +25,8 @@ import { EditableText } from '../../../../components/VisualizationConfigs/common
 import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProject } from '../../../../hooks/useProject';
-import { useCreateShareMutation } from '../../../../hooks/useShare';
 import { CreateVirtualViewModal } from '../../../virtualView';
+import { useCreateSqlRunnerShareUrl } from '../../hooks/useSqlRunnerShareUrl';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     DEFAULT_NAME,
@@ -52,9 +52,6 @@ export const HeaderCreate: FC = () => {
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
     const health = useHealth();
-    const sqlRunnerState = useAppSelector((state) => state.sqlRunner);
-    const { mutateAsync: createShareUrl } = useCreateShareMutation();
-
     const isGithubIntegrationEnabled =
         health?.data?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB;
@@ -139,17 +136,13 @@ export const HeaderCreate: FC = () => {
     }, []);
     const clipboard = useClipboard({ timeout: 500 });
     const { showToastSuccess } = useToaster();
+    const createShareUrl = useCreateSqlRunnerShareUrl();
 
     const handleCreateShareUrl = useCallback(async () => {
-        const path = window.location.pathname;
-        const shareUrl = await createShareUrl({
-            path,
-            params: JSON.stringify(sqlRunnerState),
-        });
-        const fullUrl = `${window.location.origin}${window.location.pathname}?share=${shareUrl.nanoid}`;
+        const fullUrl = await createShareUrl();
         clipboard.copy(fullUrl);
         showToastSuccess({ title: 'Shared URL copied to clipboard!' });
-    }, [createShareUrl, sqlRunnerState, clipboard, showToastSuccess]);
+    }, [createShareUrl, clipboard, showToastSuccess]);
 
     return (
         <>

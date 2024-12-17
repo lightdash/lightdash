@@ -132,7 +132,7 @@ export interface SqlRunnerState {
     editorHighlightError: MonacoHighlightChar | undefined;
 }
 
-const initialState: SqlRunnerState = {
+export const initialState: SqlRunnerState = {
     mode: 'default',
     projectUuid: '',
     activeTable: undefined,
