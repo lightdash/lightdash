@@ -330,6 +330,7 @@ const Space: FC = () => {
                 <InfiniteResourceTable
                     filters={{
                         projectUuid,
+                        spaceUuids: [spaceUuid],
                         contentTypes: [
                             ContentType.DASHBOARD,
                             ContentType.CHART,
