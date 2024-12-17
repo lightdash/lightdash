@@ -1,3 +1,10 @@
+# [0.1422.0](https://github.com/lightdash/lightdash/compare/0.1421.0...0.1422.0) (2024-12-17)
+
+
+### Features
+
+* show conditional format field name and color in list ([#12924](https://github.com/lightdash/lightdash/issues/12924)) ([0286e53](https://github.com/lightdash/lightdash/commit/0286e536d2da5fa8116c3aea6cad449ee455aaef))
+
 # [0.1421.0](https://github.com/lightdash/lightdash/compare/0.1420.3...0.1421.0) (2024-12-17)
 
 
