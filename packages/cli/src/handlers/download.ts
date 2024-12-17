@@ -4,6 +4,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiDashboardAsCodeListResponse,
+    assertUnreachable,
     AuthorizationError,
     ChartAsCode,
     DashboardAsCode,
@@ -228,6 +229,21 @@ export const downloadHandler = async (
     // TODO delete files if chart don't exist ?*/
 };
 
+const getPromoteAction = (action: PromotionAction) => {
+    switch (action) {
+        case PromotionAction.CREATE:
+            return 'created';
+        case PromotionAction.UPDATE:
+            return 'updated';
+        case PromotionAction.DELETE:
+            return 'deleted';
+        case PromotionAction.NO_CHANGES:
+            return 'skipped';
+        default:
+            assertUnreachable(action, `Unknown promotion action: ${action}`);
+    }
+    return 'skipped';
+};
 const storeUploadChanges = (
     changes: Record<string, number>,
     promoteChanges: PromotionChanges,
@@ -239,10 +255,7 @@ const storeUploadChanges = (
             promoteChanges[resource];
         return promotions.reduce<Record<string, number>>(
             (acc, promoteChange) => {
-                const action =
-                    promoteChange.action === PromotionAction.NO_CHANGES
-                        ? 'skipped'
-                        : promoteChange.action;
+                const action = getPromoteAction(promoteChange.action);
                 const key = `${resource} ${action}`;
                 acc[key] = (acc[key] ?? 0) + 1;
                 return acc;
@@ -368,20 +381,34 @@ export const uploadHandler = async (
 
     let changes: Record<string, number> = {};
 
-    changes = await upsertResources<ChartAsCode>(
-        'charts',
-        projectId,
-        changes,
-        options.force,
-        options.charts,
-    );
-    changes = await upsertResources<DashboardAsCode>(
-        'dashboards',
-        projectId,
-        changes,
-        options.force,
-        options.dashboards,
-    );
+    // If any filter is provided, we skip those items without filters
+    // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
+    const hasFilters =
+        options.charts.length > 0 || options.dashboards.length > 0;
+
+    if (hasFilters && options.charts.length === 0) {
+        console.info(styles.warning(`No charts filters provided, skipping`));
+    } else {
+        changes = await upsertResources<ChartAsCode>(
+            'charts',
+            projectId,
+            changes,
+            options.force,
+            options.charts,
+        );
+    }
+
+    if (hasFilters && options.dashboards.length === 0) {
+        console.info(styles.warning(`No dashboard filters provided, skipping`));
+    } else {
+        changes = await upsertResources<DashboardAsCode>(
+            'dashboards',
+            projectId,
+            changes,
+            options.force,
+            options.dashboards,
+        );
+    }
 
     logUploadChanges(changes);
 };
