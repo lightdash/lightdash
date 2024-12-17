@@ -6,7 +6,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     getConditionalFormattingConfigType,
     getItemId,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -249,7 +249,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={field ? getItemLabel(field) : controlLabel}
+                label={
+                    field ? getItemLabelWithoutTableName(field) : controlLabel
+                }
                 extraControlElements={
                     <ColorSelector
                         color={

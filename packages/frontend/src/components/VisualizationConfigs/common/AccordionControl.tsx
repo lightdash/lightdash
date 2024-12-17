@@ -2,6 +2,7 @@ import {
     Accordion,
     ActionIcon,
     Box,
+    Flex,
     Group,
     Text,
     Tooltip,
@@ -30,12 +31,12 @@ export const AccordionControl: FC<Props> = ({
     const { ref, hovered } = useHover<HTMLDivElement>();
 
     return (
-        <Group
-            noWrap
+        <Flex
             ref={ref}
-            spacing="xs"
             px="xs"
             pos="relative"
+            align="center"
+            gap="xs"
             sx={(theme) => ({
                 borderRadius: theme.radius.sm,
                 '&:hover': {
@@ -48,28 +49,38 @@ export const AccordionControl: FC<Props> = ({
                     {extraControlElements}
                 </Box>
             )}
-            <Tooltip
-                variant="xs"
-                label={`Remove ${label}`}
-                position="left"
-                withinPortal
+            <Text
+                fw={500}
+                size="xs"
+                truncate
+                sx={{ flex: 1 }}
+                onClick={onControlClick}
             >
-                <ActionIcon
-                    onClick={onRemove}
-                    pos="absolute"
-                    right={40}
-                    sx={{
-                        visibility: hovered ? 'visible' : 'hidden',
-                    }}
+                {label}
+            </Text>
+            <Group noWrap ml="sm" spacing="lg">
+                <Tooltip
+                    variant="xs"
+                    label={`Remove ${label}`}
+                    position="right"
+                    withinPortal
                 >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-            <Accordion.Control onClick={onControlClick} {...props}>
-                <Text fw={500} size="xs" truncate>
-                    {label}
-                </Text>
-            </Accordion.Control>
-        </Group>
+                    <ActionIcon
+                        onClick={onRemove}
+                        sx={{
+                            visibility: hovered ? 'visible' : 'hidden',
+                        }}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Tooltip>
+                <Accordion.Control
+                    w="sm"
+                    sx={{ flex: 0 }}
+                    onClick={onControlClick}
+                    {...props}
+                />
+            </Group>
+        </Flex>
     );
 };
