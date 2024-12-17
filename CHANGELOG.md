@@ -1,3 +1,10 @@
+## [0.1420.1](https://github.com/lightdash/lightdash/compare/0.1420.0...0.1420.1) (2024-12-17)
+
+
+### Bug Fixes
+
+* content as code download in batches ([#12919](https://github.com/lightdash/lightdash/issues/12919)) ([80875f2](https://github.com/lightdash/lightdash/commit/80875f21e8d703a0cc2c43ce0bba5d4a8a814bb8))
+
 # [0.1420.0](https://github.com/lightdash/lightdash/compare/0.1419.1...0.1420.0) (2024-12-16)
 
 
