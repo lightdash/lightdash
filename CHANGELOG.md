@@ -1,3 +1,15 @@
+# [0.1421.0](https://github.com/lightdash/lightdash/compare/0.1420.3...0.1421.0) (2024-12-17)
+
+
+### Bug Fixes
+
+* SQL runner share url ([#12918](https://github.com/lightdash/lightdash/issues/12918)) ([d5dbdbd](https://github.com/lightdash/lightdash/commit/d5dbdbdfcaab1b559d75a2231deacda9b0e3cc3e))
+
+
+### Features
+
+* pie chart legend max length ([#12923](https://github.com/lightdash/lightdash/issues/12923)) ([74d5770](https://github.com/lightdash/lightdash/commit/74d5770a94ccef804e02aa970d78329eb06d7003))
+
 ## [0.1420.3](https://github.com/lightdash/lightdash/compare/0.1420.2...0.1420.3) (2024-12-17)
 
 
