@@ -4,6 +4,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiDashboardAsCodeListResponse,
+    assertUnreachable,
     AuthorizationError,
     ChartAsCode,
     DashboardAsCode,
@@ -52,7 +53,7 @@ const dumpIntoFiles = async (
 ) => {
     const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
 
-    console.info(`Writing ${items.length} ${folder} into ${outputDir}`);
+    GlobalState.debug(`Writing ${items.length} ${folder} into ${outputDir}`);
     // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
     if (created) console.info(`Created new folder: ${outputDir} `);
@@ -146,50 +147,103 @@ export const downloadHandler = async (
     if (hasFilters && options.charts.length === 0) {
         console.info(styles.warning(`No charts filters provided, skipping`));
     } else {
-        GlobalState.debug(`Downloading charts`);
+        const spinner = GlobalState.startSpinner(`Downloading charts`);
         const chartFilters = parseContentFilters(options.charts);
+        let chartsAsCode: ApiChartAsCodeListResponse['results'];
+        let offset = 0;
+        do {
+            GlobalState.debug(
+                `Downloading charts with offset "${offset}" and filters "${chartFilters}"`,
+            );
 
-        const chartsAsCode = await lightdashApi<
-            ApiChartAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `/api/v1/projects/${projectId}/charts/code${chartFilters}`,
-            body: undefined,
-        });
+            const queryParams = chartFilters
+                ? `${chartFilters}&offset=${offset}`
+                : `?offset=${offset}`;
+            chartsAsCode = await lightdashApi<
+                ApiChartAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/charts/code${queryParams}`,
+                body: undefined,
+            });
+            spinner.start(
+                `Downloaded ${chartsAsCode.offset} of ${chartsAsCode.total} charts`,
+            );
+            chartsAsCode.missingIds.forEach((missingId) => {
+                console.warn(
+                    styles.warning(`\nNo chart with id "${missingId}"`),
+                );
+            });
 
-        chartsAsCode.missingIds.forEach((missingId) => {
-            console.warn(styles.warning(`No chart with id "${missingId}"`));
-        });
+            await dumpIntoFiles('charts', chartsAsCode.charts);
+            offset = chartsAsCode.offset;
+        } while (chartsAsCode.offset < chartsAsCode.total);
 
-        await dumpIntoFiles('charts', chartsAsCode.charts);
+        spinner.succeed(`Downloaded ${chartsAsCode.total} charts`);
     }
+
     // Download dashboards
     if (hasFilters && options.dashboards.length === 0) {
         console.info(
             styles.warning(`No dashboards filters provided, skipping`),
         );
     } else {
-        GlobalState.debug(`Downloading dashboards`);
+        const spinner = GlobalState.startSpinner(`Downloading dashboards`);
+
         const dashboardFilters = parseContentFilters(options.dashboards);
+        let offset = 0;
 
-        const dashboardsAsCode = await lightdashApi<
-            ApiDashboardAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `/api/v1/projects/${projectId}/dashboards/code${dashboardFilters}`,
-            body: undefined,
-        });
+        let dashboardsAsCode: ApiDashboardAsCodeListResponse['results'];
+        do {
+            GlobalState.debug(
+                `Downloading dashboards with offset "${offset}" and filters "${dashboardFilters}"`,
+            );
 
-        dashboardsAsCode.missingIds.forEach((missingId) => {
-            console.warn(styles.warning(`No dashboard with id "${missingId}"`));
-        });
+            const queryParams = dashboardFilters
+                ? `${dashboardFilters}&offset=${offset}`
+                : `?offset=${offset}`;
+            dashboardsAsCode = await lightdashApi<
+                ApiDashboardAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/dashboards/code${queryParams}`,
+                body: undefined,
+            });
 
-        await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+            dashboardsAsCode.missingIds.forEach((missingId) => {
+                console.warn(
+                    styles.warning(`\nNo dashboard with id "${missingId}"`),
+                );
+            });
+            spinner?.start(
+                `Downloaded ${dashboardsAsCode.offset} of ${dashboardsAsCode.total} dashboards`,
+            );
+
+            await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
+            offset = dashboardsAsCode.offset;
+        } while (dashboardsAsCode.offset < dashboardsAsCode.total);
+
+        spinner.succeed(`Downloaded ${dashboardsAsCode.total} dashboards`);
     }
 
     // TODO delete files if chart don't exist ?*/
 };
 
+const getPromoteAction = (action: PromotionAction) => {
+    switch (action) {
+        case PromotionAction.CREATE:
+            return 'created';
+        case PromotionAction.UPDATE:
+            return 'updated';
+        case PromotionAction.DELETE:
+            return 'deleted';
+        case PromotionAction.NO_CHANGES:
+            return 'skipped';
+        default:
+            assertUnreachable(action, `Unknown promotion action: ${action}`);
+    }
+    return 'skipped';
+};
 const storeUploadChanges = (
     changes: Record<string, number>,
     promoteChanges: PromotionChanges,
@@ -201,10 +255,7 @@ const storeUploadChanges = (
             promoteChanges[resource];
         return promotions.reduce<Record<string, number>>(
             (acc, promoteChange) => {
-                const action =
-                    promoteChange.action === PromotionAction.NO_CHANGES
-                        ? 'skipped'
-                        : promoteChange.action;
+                const action = getPromoteAction(promoteChange.action);
                 const key = `${resource} ${action}`;
                 acc[key] = (acc[key] ?? 0) + 1;
                 return acc;
@@ -330,20 +381,34 @@ export const uploadHandler = async (
 
     let changes: Record<string, number> = {};
 
-    changes = await upsertResources<ChartAsCode>(
-        'charts',
-        projectId,
-        changes,
-        options.force,
-        options.charts,
-    );
-    changes = await upsertResources<DashboardAsCode>(
-        'dashboards',
-        projectId,
-        changes,
-        options.force,
-        options.dashboards,
-    );
+    // If any filter is provided, we skip those items without filters
+    // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
+    const hasFilters =
+        options.charts.length > 0 || options.dashboards.length > 0;
+
+    if (hasFilters && options.charts.length === 0) {
+        console.info(styles.warning(`No charts filters provided, skipping`));
+    } else {
+        changes = await upsertResources<ChartAsCode>(
+            'charts',
+            projectId,
+            changes,
+            options.force,
+            options.charts,
+        );
+    }
+
+    if (hasFilters && options.dashboards.length === 0) {
+        console.info(styles.warning(`No dashboard filters provided, skipping`));
+    } else {
+        changes = await upsertResources<DashboardAsCode>(
+            'dashboards',
+            projectId,
+            changes,
+            options.force,
+            options.dashboards,
+        );
+    }
 
     logUploadChanges(changes);
 };

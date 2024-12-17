@@ -163,4 +163,7 @@ export const lightdashConfigMock: LightdashConfig = {
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
     },
+    contentAsCode: {
+        maxDownloads: 100,
+    },
 };

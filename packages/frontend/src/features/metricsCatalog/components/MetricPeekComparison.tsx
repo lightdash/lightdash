@@ -242,7 +242,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                                 c="gray.9"
                                                 fw={500}
                                                 target="_blank"
-                                                href="https://docs.lightdash.com/guides/metrics-catalog/"
+                                                href="https://docs.lightdash.com/guides/metrics-catalog/#configuring-default-time-settings-in-yml"
                                             >
                                                 Learn more
                                             </Anchor>

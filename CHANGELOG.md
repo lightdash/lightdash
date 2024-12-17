@@ -1,3 +1,31 @@
+## [0.1420.2](https://github.com/lightdash/lightdash/compare/0.1420.1...0.1420.2) (2024-12-17)
+
+
+### Bug Fixes
+
+* space content filtered by space uuid ([#12929](https://github.com/lightdash/lightdash/issues/12929)) ([89c4302](https://github.com/lightdash/lightdash/commit/89c43022929e3924ec18b8e9090982982593492b))
+
+## [0.1420.1](https://github.com/lightdash/lightdash/compare/0.1420.0...0.1420.1) (2024-12-17)
+
+
+### Bug Fixes
+
+* content as code download in batches ([#12919](https://github.com/lightdash/lightdash/issues/12919)) ([80875f2](https://github.com/lightdash/lightdash/commit/80875f21e8d703a0cc2c43ce0bba5d4a8a814bb8))
+
+# [0.1420.0](https://github.com/lightdash/lightdash/compare/0.1419.1...0.1420.0) (2024-12-16)
+
+
+### Features
+
+* space and dashboard page new table ([#12898](https://github.com/lightdash/lightdash/issues/12898)) ([05db685](https://github.com/lightdash/lightdash/commit/05db68535c8a8fdd52b9028b8f7401da62d8bb84))
+
+## [0.1419.1](https://github.com/lightdash/lightdash/compare/0.1419.0...0.1419.1) (2024-12-16)
+
+
+### Bug Fixes
+
+* use isoWeek and offset weeks correctly on PoP ([#12904](https://github.com/lightdash/lightdash/issues/12904)) ([f0c0089](https://github.com/lightdash/lightdash/commit/f0c0089bf5a5fe4b3158e67900dca2ebe07972b8))
+
 # [0.1419.0](https://github.com/lightdash/lightdash/compare/0.1418.2...0.1419.0) (2024-12-16)
 
 

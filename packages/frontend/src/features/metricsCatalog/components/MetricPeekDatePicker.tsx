@@ -18,7 +18,10 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useDateRangePicker } from '../hooks/useDateRangePicker';
 import { getMatchingPresetLabel } from '../utils/metricPeekDate';
 import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
@@ -44,6 +47,13 @@ export const MetricPeekDatePicker: FC<Props> = ({
     onTimeIntervalChange,
     setTimeDimensionOverride,
 }) => {
+    const { track } = useTracking();
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
+    const projectUuid = useAppSelector(
+        (state) => state.metricsCatalog.projectUuid,
+    );
     const {
         isOpen,
         tempSelectedPreset,
@@ -56,6 +66,16 @@ export const MetricPeekDatePicker: FC<Props> = ({
         reset,
         calendarConfig,
     } = useDateRangePicker({ value: dateRange, onChange, timeInterval });
+
+    const handleTrackDateFilterApplied = useCallback(() => {
+        track({
+            name: EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+            },
+        });
+    }, [organizationUuid, projectUuid, track]);
 
     const matchingPresetLabel = getMatchingPresetLabel(dateRange, timeInterval);
 
@@ -115,6 +135,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 handleOpen(true);
                             } else {
                                 handleOpen(false);
+
                                 const presetDateRange = presets
                                     .find(
                                         (preset) =>
@@ -122,6 +143,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                     )
                                     ?.getValue();
                                 if (presetDateRange) {
+                                    handleTrackDateFilterApplied();
                                     onChange(
                                         presetDateRange as MetricExplorerDateRange,
                                     );
@@ -296,7 +318,11 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                         size="xs"
                                         radius="md"
                                         color="dark"
-                                        onClick={handleApply}
+                                        onClick={() => {
+                                            handleApply();
+
+                                            handleTrackDateFilterApplied();
+                                        }}
                                         sx={(theme) => ({
                                             boxShadow: theme.shadows.subtle,
                                         })}

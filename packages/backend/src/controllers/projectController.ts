@@ -829,13 +829,14 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() ids?: string[],
+        @Query() offset?: number,
     ): Promise<ApiChartAsCodeListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .getCharts(req.user!, projectUuid, ids),
+                .getCharts(req.user!, projectUuid, ids, offset),
         };
     }
 
@@ -847,13 +848,14 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() ids?: string[],
+        @Query() offset?: number,
     ): Promise<ApiDashboardAsCodeListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .getDashboards(req.user!, projectUuid, ids),
+                .getDashboards(req.user!, projectUuid, ids, offset),
         };
     }
 
