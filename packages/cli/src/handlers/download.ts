@@ -169,7 +169,9 @@ export const downloadHandler = async (
                 `Downloaded ${chartsAsCode.offset} of ${chartsAsCode.total} charts`,
             );
             chartsAsCode.missingIds.forEach((missingId) => {
-                console.warn(styles.warning(`No chart with id "${missingId}"`));
+                console.warn(
+                    styles.warning(`\nNo chart with id "${missingId}"`),
+                );
             });
 
             await dumpIntoFiles('charts', chartsAsCode.charts);
@@ -209,7 +211,7 @@ export const downloadHandler = async (
 
             dashboardsAsCode.missingIds.forEach((missingId) => {
                 console.warn(
-                    styles.warning(`No dashboard with id "${missingId}"`),
+                    styles.warning(`\nNo dashboard with id "${missingId}"`),
                 );
             });
             spinner?.start(
