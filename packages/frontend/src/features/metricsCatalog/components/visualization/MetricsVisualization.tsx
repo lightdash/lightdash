@@ -845,7 +845,7 @@ const MetricsVisualization: FC<Props> = ({
             )}
 
             {!showEmptyState && results && (
-                <Flex sx={{ flex: 1, position: 'relative' }}>
+                <Flex mih={0} sx={{ flex: 1, position: 'relative' }}>
                     <LoadingOverlay
                         visible={isFetching}
                         loaderProps={{
