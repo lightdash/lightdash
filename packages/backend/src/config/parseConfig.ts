@@ -294,6 +294,9 @@ export type LightdashConfig = {
         appName: string;
         redirectDomain: string;
     };
+    contentAsCode: {
+        maxDownloads: number;
+    };
 };
 
 export type SlackConfig = {
@@ -835,6 +838,11 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+        },
+        contentAsCode: {
+            maxDownloads:
+                getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
+                100,
         },
     };
 };
