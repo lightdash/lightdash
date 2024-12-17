@@ -37,31 +37,11 @@ jobs:
     outputs:
       url: ${{ github.event.deployment_status.environment_url }}
     steps:
-      - name: Wait for render environment
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const maxAttempts = 5;
-            const delay = 30000; // 30 seconds
-
-            for (let i = 0; i < maxAttempts; i++) {
-              console.log(`Attempt ${i + 1}/${maxAttempts} to check render environment status`);
-
-              if (context.payload.deployment_status &&
-                  context.payload.deployment_status.state === 'success' &&
-                  context.payload.deployment_status.environment_url) {
-                console.log('Render environment is ready!');
-                return;
-              }
-
-              if (i === maxAttempts - 1) {
-                console.log('Max attempts reached. Environment not ready.');
-                throw new Error(`Render environment ${context.payload.deployment?.environment} is not ready: ${context.payload.deployment_status?.state} ${context.payload.deployment_status?.environment_url}`);
-              }
-
-              console.log('Environment not ready yet, waiting...');
-              await new Promise(r => setTimeout(r, delay));
-            }
+      - name: is render ready
+        if: ${{ !(github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null) }}
+        run: |
+          echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
+          exit 1
 
   cli-tests:
     timeout-minutes: 30
