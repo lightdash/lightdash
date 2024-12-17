@@ -52,7 +52,7 @@ const dumpIntoFiles = async (
 ) => {
     const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
 
-    console.info(`Writing ${items.length} ${folder} into ${outputDir}`);
+    GlobalState.debug(`Writing ${items.length} ${folder} into ${outputDir}`);
     // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
     if (created) console.info(`Created new folder: ${outputDir} `);
@@ -146,11 +146,14 @@ export const downloadHandler = async (
     if (hasFilters && options.charts.length === 0) {
         console.info(styles.warning(`No charts filters provided, skipping`));
     } else {
+        const spinner = GlobalState.startSpinner(`Downloading charts`);
+        const chartFilters = parseContentFilters(options.charts);
         let chartsAsCode: ApiChartAsCodeListResponse['results'];
         let offset = 0;
         do {
-            GlobalState.debug(`Downloading charts`);
-            const chartFilters = parseContentFilters(options.charts);
+            GlobalState.debug(
+                `Downloading charts with offset "${offset}" and filters "${chartFilters}"`,
+            );
 
             const queryParams = chartFilters
                 ? `${chartFilters}&offset=${offset}`
@@ -162,7 +165,7 @@ export const downloadHandler = async (
                 url: `/api/v1/projects/${projectId}/charts/code${queryParams}`,
                 body: undefined,
             });
-            console.info(
+            spinner.start(
                 `Downloaded ${chartsAsCode.offset} of ${chartsAsCode.total} charts`,
             );
             chartsAsCode.missingIds.forEach((missingId) => {
@@ -172,18 +175,27 @@ export const downloadHandler = async (
             await dumpIntoFiles('charts', chartsAsCode.charts);
             offset = chartsAsCode.offset;
         } while (chartsAsCode.offset < chartsAsCode.total);
+
+        spinner.succeed(`Downloaded ${chartsAsCode.total} charts`);
     }
+
     // Download dashboards
     if (hasFilters && options.dashboards.length === 0) {
         console.info(
             styles.warning(`No dashboards filters provided, skipping`),
         );
     } else {
-        GlobalState.debug(`Downloading dashboards`);
+        const spinner = GlobalState.startSpinner(`Downloading dashboards`);
+
         const dashboardFilters = parseContentFilters(options.dashboards);
         let offset = 0;
+
         let dashboardsAsCode: ApiDashboardAsCodeListResponse['results'];
         do {
+            GlobalState.debug(
+                `Downloading dashboards with offset "${offset}" and filters "${dashboardFilters}"`,
+            );
+
             const queryParams = dashboardFilters
                 ? `${dashboardFilters}&offset=${offset}`
                 : `?offset=${offset}`;
@@ -194,18 +206,21 @@ export const downloadHandler = async (
                 url: `/api/v1/projects/${projectId}/dashboards/code${queryParams}`,
                 body: undefined,
             });
-            console.info(
-                `Downloaded ${dashboardsAsCode.offset} of ${dashboardsAsCode.total} dashboards`,
-            );
+
             dashboardsAsCode.missingIds.forEach((missingId) => {
                 console.warn(
                     styles.warning(`No dashboard with id "${missingId}"`),
                 );
             });
+            spinner?.start(
+                `Downloaded ${dashboardsAsCode.offset} of ${dashboardsAsCode.total} dashboards`,
+            );
 
             await dumpIntoFiles('dashboards', dashboardsAsCode.dashboards);
             offset = dashboardsAsCode.offset;
         } while (dashboardsAsCode.offset < dashboardsAsCode.total);
+
+        spinner.succeed(`Downloaded ${dashboardsAsCode.total} dashboards`);
     }
 
     // TODO delete files if chart don't exist ?*/

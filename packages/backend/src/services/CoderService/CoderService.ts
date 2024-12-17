@@ -43,8 +43,6 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
 };
 
-const MAX_RESULTS = 10;
-
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
 
@@ -301,17 +299,15 @@ export class CoderService extends BaseService {
             };
         }
 
-        // TODO
-        // We need to get the dashboards and all the dashboards config
-        // At the moment we are going to fetch them all in individual queries
-        // But in the future we should fetch them in a single query for optimization purposes
         const dashboardSummaries = await this.dashboardModel.find({
             projectUuid,
             slugs,
         });
+
+        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
         const offsetIndex = offset || 0;
         const newOffset = Math.min(
-            offsetIndex + MAX_RESULTS,
+            offsetIndex + maxResults,
             dashboardSummaries.length,
         );
         const limitedDashboardSummaries = dashboardSummaries.slice(
@@ -386,20 +382,17 @@ export class CoderService extends BaseService {
             };
         }
 
-        // TODO
-        // We need to get the charts and all the chart config
-        // At the moment we are going to fetch them all in individual queries
-        // But in the future we should fetch them in a single query for optimiziation purposes
-
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
             slugs,
+            excludeChartsSavedInDashboard: false,
         });
+        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
 
         // Apply offset and limit to chart summaries
         const offsetIndex = offset || 0;
         const newOffset = Math.min(
-            offsetIndex + MAX_RESULTS,
+            offsetIndex + maxResults,
             chartSummaries.length,
         );
         const limitedChartSummaries = chartSummaries.slice(
@@ -450,6 +443,7 @@ export class CoderService extends BaseService {
         const [chart] = await this.savedChartModel.find({
             slug,
             projectUuid,
+            excludeChartsSavedInDashboard: false,
         });
 
         // If chart does not exist, we can't use promoteService,
