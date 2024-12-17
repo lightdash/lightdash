@@ -42,9 +42,10 @@ const loginWithToken = async (
         );
     }
     const userBody = await response.json();
-    const { userUuid } = userBody;
+    const { userUuid, organizationUuid } = userBody;
     return {
         userUuid,
+        organizationUuid,
         token,
     };
 };
@@ -94,7 +95,7 @@ const loginWithPassword = async (url: string) => {
             `Cannot sign in:\n${JSON.stringify(loginBody)}`,
         );
     }
-    const { userUuid } = loginBody.results;
+    const { userUuid, organizationUuid } = loginBody.results;
     const cookie = header.split(';')[0].split('=')[1];
     const patUrl = new URL(`/api/v1/user/me/personal-access-tokens`, url).href;
     const now = new Date();
@@ -113,6 +114,7 @@ const loginWithPassword = async (url: string) => {
     const { token } = patResponseBody.results;
     return {
         userUuid,
+        organizationUuid,
         token,
     };
 };
@@ -142,7 +144,7 @@ export const login = async (url: string, options: LoginOptions) => {
         );
     }
     const proxyAuthorization = process.env.LIGHTDASH_PROXY_AUTHORIZATION;
-    const { userUuid, token } = options.token
+    const { userUuid, token, organizationUuid } = options.token
         ? await loginWithToken(url, options.token, proxyAuthorization)
         : await loginWithPassword(url);
 
@@ -152,6 +154,7 @@ export const login = async (url: string, options: LoginOptions) => {
         event: 'login.completed',
         properties: {
             userId: userUuid,
+            organizationId: organizationUuid,
             url,
             method: options.token ? 'token' : 'password',
         },
@@ -160,7 +163,7 @@ export const login = async (url: string, options: LoginOptions) => {
 
     GlobalState.debug(`> Saved config on: ${configFilePath}`);
 
-    await setDefaultUser(userUuid);
+    await setDefaultUser(userUuid, organizationUuid);
 
     console.error(`\n  ✅️ Login successful\n`);
 
