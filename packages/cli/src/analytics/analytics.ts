@@ -25,6 +25,7 @@ const identifyUser = async (): Promise<Config['user']> => {
     return {
         anonymousUuid: config.user?.anonymousUuid,
         userUuid: config.user?.userUuid,
+        organizationUuid: config.user?.organizationUuid,
     };
 };
 
@@ -235,10 +236,44 @@ type CliLogin = BaseTrack & {
     event: 'login.started' | 'login.completed';
     properties: {
         userId?: string;
+        organizationId?: string;
         method: string;
         url: string;
     };
 };
+
+type CliContentAsCode = BaseTrack &
+    (
+        | {
+              event: 'download.started' | 'upload.started';
+              properties: {
+                  userId?: string;
+                  organizationId?: string;
+                  projectId: string;
+              };
+          }
+        | {
+              event: 'download.completed' | 'upload.completed';
+              properties: {
+                  userId?: string;
+                  organizationId?: string;
+                  projectId: string;
+                  chartsNum?: number;
+                  dashboardsNum?: number;
+                  timeToCompleted: number; // in seconds
+              };
+          }
+        | {
+              event: 'download.error' | 'upload.error';
+              properties: {
+                  userId?: string;
+                  organizationId?: string;
+                  projectId: string;
+                  type?: 'charts' | 'dashboards'; // Error uploading specific charts or dashboards, this error is not blocking
+                  error: string;
+              };
+          }
+    );
 
 type Track =
     | CliGenerateStarted
@@ -265,7 +300,8 @@ type Track =
     | CliGenerateExposuresStarted
     | CliGenerateExposuresCompleted
     | CliGenerateExposuresError
-    | CliLogin;
+    | CliLogin
+    | CliContentAsCode;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {

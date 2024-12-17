@@ -1,3 +1,36 @@
+# [0.1421.0](https://github.com/lightdash/lightdash/compare/0.1420.3...0.1421.0) (2024-12-17)
+
+
+### Bug Fixes
+
+* SQL runner share url ([#12918](https://github.com/lightdash/lightdash/issues/12918)) ([d5dbdbd](https://github.com/lightdash/lightdash/commit/d5dbdbdfcaab1b559d75a2231deacda9b0e3cc3e))
+
+
+### Features
+
+* pie chart legend max length ([#12923](https://github.com/lightdash/lightdash/issues/12923)) ([74d5770](https://github.com/lightdash/lightdash/commit/74d5770a94ccef804e02aa970d78329eb06d7003))
+
+## [0.1420.3](https://github.com/lightdash/lightdash/compare/0.1420.2...0.1420.3) (2024-12-17)
+
+
+### Bug Fixes
+
+* y axis scale on metrics catalog ([#12932](https://github.com/lightdash/lightdash/issues/12932)) ([0e6a88c](https://github.com/lightdash/lightdash/commit/0e6a88c5a6e00a787963ad548b19c0621baf2cc3))
+
+## [0.1420.2](https://github.com/lightdash/lightdash/compare/0.1420.1...0.1420.2) (2024-12-17)
+
+
+### Bug Fixes
+
+* space content filtered by space uuid ([#12929](https://github.com/lightdash/lightdash/issues/12929)) ([89c4302](https://github.com/lightdash/lightdash/commit/89c43022929e3924ec18b8e9090982982593492b))
+
+## [0.1420.1](https://github.com/lightdash/lightdash/compare/0.1420.0...0.1420.1) (2024-12-17)
+
+
+### Bug Fixes
+
+* content as code download in batches ([#12919](https://github.com/lightdash/lightdash/issues/12919)) ([80875f2](https://github.com/lightdash/lightdash/commit/80875f21e8d703a0cc2c43ce0bba5d4a8a814bb8))
+
 # [0.1420.0](https://github.com/lightdash/lightdash/compare/0.1419.1...0.1420.0) (2024-12-16)
 
 

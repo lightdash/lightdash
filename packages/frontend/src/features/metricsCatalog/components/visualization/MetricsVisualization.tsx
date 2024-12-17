@@ -845,7 +845,7 @@ const MetricsVisualization: FC<Props> = ({
             )}
 
             {!showEmptyState && results && (
-                <Flex sx={{ flex: 1, position: 'relative' }}>
+                <Flex mih={0} sx={{ flex: 1, position: 'relative' }}>
                     <LoadingOverlay
                         visible={isFetching}
                         loaderProps={{
@@ -911,8 +911,9 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <YAxis
+                                // ! Adding dataKey on the axis will cause the scale to only reference the data in that key
+                                // ! This is why we don't add it here we want the scale to depend on the data in the line
                                 yAxisId="metric"
-                                dataKey="metric.value"
                                 width={leftYAxisWidth}
                                 {...commonYAxisConfig}
                                 label={
@@ -993,8 +994,9 @@ const MetricsVisualization: FC<Props> = ({
                                 <>
                                     {shouldSplitYAxis && (
                                         <YAxis
+                                            // ! Adding dataKey on the axis will cause the scale to only reference the data in that key
+                                            // ! This is why we don't add it here we want the scale to depend on the data in the line
                                             yAxisId="compareMetric"
-                                            dataKey="compareMetric.value"
                                             orientation="right"
                                             width={rightYAxisWidth}
                                             {...commonYAxisConfig}

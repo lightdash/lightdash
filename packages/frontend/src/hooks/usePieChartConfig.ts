@@ -3,6 +3,7 @@ import {
     isField,
     isMetric,
     isTableCalculation,
+    PieChartLegendLabelMaxLengthDefault,
     PieChartLegendPositionDefault,
     type ApiQueryResults,
     type CustomDimension,
@@ -71,7 +72,8 @@ type PieChartConfig = {
     toggleShowLegend: () => void;
     legendPosition: PieChartLegendPosition;
     legendPositionChange: (position: PieChartLegendPosition) => void;
-
+    legendMaxItemLength: number | undefined;
+    legendMaxItemLengthChange: (length: number | undefined) => void;
     data: {
         name: string;
         value: number;
@@ -152,6 +154,13 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [legendPosition, setLegendPosition] = useState(
         pieChartConfig?.legendPosition ?? PieChartLegendPositionDefault,
+    );
+
+    const [legendMaxItemLength, setLegendMaxItemLength] = useState<
+        number | undefined
+    >(
+        pieChartConfig?.legendMaxItemLength ??
+            PieChartLegendLabelMaxLengthDefault,
     );
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
@@ -449,6 +458,7 @@ const usePieChartConfig: PieChartConfigFn = (
             ),
             showLegend,
             legendPosition,
+            legendMaxItemLength,
         }),
         [
             groupFieldIds,
@@ -464,6 +474,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupSortOverrides,
             showLegend,
             legendPosition,
+            legendMaxItemLength,
         ],
     );
 
@@ -508,7 +519,8 @@ const usePieChartConfig: PieChartConfigFn = (
         toggleShowLegend: () => setShowLegend((prev) => !prev),
         legendPosition,
         legendPositionChange: handleLegendPositionChange,
-
+        legendMaxItemLength,
+        legendMaxItemLengthChange: setLegendMaxItemLength,
         data,
     };
 };

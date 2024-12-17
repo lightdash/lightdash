@@ -262,6 +262,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dashboardIds: string[] | undefined,
+        offset?: number,
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -293,19 +294,28 @@ export class CoderService extends BaseService {
             return {
                 dashboards: [],
                 missingIds: dashboardIds || [],
+                total: 0,
+                offset: 0,
             };
         }
 
-        // TODO
-        // We need to get the dashboards and all the dashboards config
-        // At the moment we are going to fetch them all in individual queries
-        // But in the future we should fetch them in a single query for optimization purposes
         const dashboardSummaries = await this.dashboardModel.find({
             projectUuid,
             slugs,
         });
 
-        const dashboardPromises = dashboardSummaries.map((dash) =>
+        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
+        const offsetIndex = offset || 0;
+        const newOffset = Math.min(
+            offsetIndex + maxResults,
+            dashboardSummaries.length,
+        );
+        const limitedDashboardSummaries = dashboardSummaries.slice(
+            offsetIndex,
+            newOffset,
+        );
+
+        const dashboardPromises = limitedDashboardSummaries.map((dash) =>
             this.dashboardModel.getById(dash.uuid),
         );
         const dashboards = await Promise.all(dashboardPromises);
@@ -327,6 +337,8 @@ export class CoderService extends BaseService {
                 CoderService.transformDashboard(dashboard, spaces),
             ),
             missingIds,
+            total: dashboardSummaries.length,
+            offset: newOffset,
         };
     }
 
@@ -334,6 +346,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         chartIds?: string[],
+        offset?: number,
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -364,19 +377,29 @@ export class CoderService extends BaseService {
             return {
                 charts: [],
                 missingIds: chartIds || [],
+                total: 0,
+                offset: 0,
             };
         }
-
-        // TODO
-        // We need to get the charts and all the chart config
-        // At the moment we are going to fetch them all in individual queries
-        // But in the future we should fetch them in a single query for optimiziation purposes
 
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
             slugs,
+            excludeChartsSavedInDashboard: false,
         });
-        const chartPromises = chartSummaries.map((chart) =>
+        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
+
+        // Apply offset and limit to chart summaries
+        const offsetIndex = offset || 0;
+        const newOffset = Math.min(
+            offsetIndex + maxResults,
+            chartSummaries.length,
+        );
+        const limitedChartSummaries = chartSummaries.slice(
+            offsetIndex,
+            newOffset,
+        );
+        const chartPromises = limitedChartSummaries.map((chart) =>
             this.savedChartModel.get(chart.uuid),
         );
         const charts = await Promise.all(chartPromises);
@@ -391,6 +414,8 @@ export class CoderService extends BaseService {
                 CoderService.transformChart(chart, spaces),
             ),
             missingIds,
+            total: chartSummaries.length,
+            offset: newOffset,
         };
     }
 
@@ -418,6 +443,7 @@ export class CoderService extends BaseService {
         const [chart] = await this.savedChartModel.find({
             slug,
             projectUuid,
+            excludeChartsSavedInDashboard: false,
         });
 
         // If chart does not exist, we can't use promoteService,

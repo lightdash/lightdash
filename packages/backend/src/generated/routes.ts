@@ -7086,6 +7086,8 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        offset: { dataType: 'double', required: true },
+                        total: { dataType: 'double', required: true },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -7126,13 +7128,12 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardTile.Exclude_keyofDashboardTile.properties__': {
+    'Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 type: { ref: 'DashboardTileTypes', required: true },
-                uuid: { dataType: 'string' },
                 x: { dataType: 'double', required: true },
                 y: { dataType: 'double', required: true },
                 h: { dataType: 'double', required: true },
@@ -7150,10 +7151,10 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardTile.properties_': {
+    'Omit_DashboardTile.properties-or-uuid_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_DashboardTile.Exclude_keyofDashboardTile.properties__',
+            ref: 'Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__',
             validators: {},
         },
     },
@@ -7182,12 +7183,20 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Omit_DashboardTile.properties_' },
+                { ref: 'Omit_DashboardTile.properties-or-uuid_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         properties: {
                             ref: 'Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_',
+                            required: true,
+                        },
+                        uuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
                             required: true,
                         },
                     },
@@ -7234,6 +7243,8 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        offset: { dataType: 'double', required: true },
+                        total: { dataType: 'double', required: true },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -16859,6 +16870,7 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                offset: { in: 'query', name: 'offset', dataType: 'double' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16921,6 +16933,7 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                offset: { in: 'query', name: 'offset', dataType: 'double' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

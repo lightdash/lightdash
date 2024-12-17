@@ -28,7 +28,12 @@ export type ChartAsCode = Pick<
 
 export type ApiChartAsCodeListResponse = {
     status: 'ok';
-    results: { charts: ChartAsCode[]; missingIds: string[] };
+    results: {
+        charts: ChartAsCode[];
+        missingIds: string[];
+        total: number;
+        offset: number;
+    };
 };
 
 export type ApiChartAsCodeUpsertResponse = {
@@ -59,7 +64,12 @@ export type DashboardAsCode = Pick<
 
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
-    results: { dashboards: DashboardAsCode[]; missingIds: string[] };
+    results: {
+        dashboards: DashboardAsCode[];
+        missingIds: string[];
+        total: number;
+        offset: number;
+    };
 };
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';
