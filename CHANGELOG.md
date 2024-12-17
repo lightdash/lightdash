@@ -1,3 +1,10 @@
+## [0.1420.3](https://github.com/lightdash/lightdash/compare/0.1420.2...0.1420.3) (2024-12-17)
+
+
+### Bug Fixes
+
+* y axis scale on metrics catalog ([#12932](https://github.com/lightdash/lightdash/issues/12932)) ([0e6a88c](https://github.com/lightdash/lightdash/commit/0e6a88c5a6e00a787963ad548b19c0621baf2cc3))
+
 ## [0.1420.2](https://github.com/lightdash/lightdash/compare/0.1420.1...0.1420.2) (2024-12-17)
 
 
