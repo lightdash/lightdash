@@ -79,6 +79,8 @@ export type PieChartLegendPosition = keyof typeof PieChartLegendPositions;
 export const PieChartLegendPositionDefault = Object.keys(
     PieChartLegendPositions,
 )[0] as PieChartLegendPosition;
+export const PieChartLegendLabelMaxLengthDefault = 30;
+export const PieChartTooltipLabelMaxLength = 40;
 
 export type SeriesMetadata = {
     color: string;
@@ -96,6 +98,7 @@ export type PieChart = {
     groupSortOverrides?: string[];
     showLegend?: boolean;
     legendPosition?: PieChartLegendPosition;
+    legendMaxItemLength?: number;
     metadata?: Record<string, SeriesMetadata>;
 };
 
