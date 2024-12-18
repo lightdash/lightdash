@@ -17,6 +17,7 @@ import {
     Button,
     Divider,
     Group,
+    Kbd,
     Loader,
     LoadingOverlay,
     Modal,
@@ -26,6 +27,7 @@ import {
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -379,6 +381,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         );
     }, [segmentDimensionsQuery.data]);
 
+    useHotkeys([
+        ['ArrowUp', () => handleGoToPreviousMetric()],
+        ['ArrowDown', () => handleGoToNextMetric()],
+    ]);
+
     return (
         <Modal.Root
             opened={opened}
@@ -457,8 +464,14 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                     miw={800}
                     mih={600}
                 >
-                    <Stack py="md" px="lg" bg="offWhite.0" w={460}>
-                        <Stack spacing="xl" w="100%" sx={{ flexGrow: 1 }}>
+                    <Stack bg="offWhite.0" w={460}>
+                        <Stack
+                            spacing="xl"
+                            w="100%"
+                            sx={{ flexGrow: 1 }}
+                            px="lg"
+                            py="md"
+                        >
                             <Stack spacing="xs">
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">
@@ -646,6 +659,28 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     }
                                 />
                             </Stack>
+                        </Stack>
+                        <Stack
+                            p="lg"
+                            spacing="xs"
+                            align="center"
+                            sx={(theme) => ({
+                                borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                marginTop: 'auto',
+                            })}
+                        >
+                            <Text
+                                size="xs"
+                                fw={500}
+                                color="gray.7"
+                                align="center"
+                            >
+                                Keyboard shortcuts
+                            </Text>
+                            <Text size="xs" color="gray.6" align="center">
+                                <Kbd>↑</Kbd> <Kbd>↓</Kbd> to navigate between
+                                metrics
+                            </Text>
                         </Stack>
                     </Stack>
 
