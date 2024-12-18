@@ -12,7 +12,7 @@ const ContentTypeOptions = [
     {
         value: ContentType.DASHBOARD,
         label: 'Dashboard',
-        colour: 'green.8',
+        color: 'green.8',
         icon: IconLayoutDashboard,
     },
     {
