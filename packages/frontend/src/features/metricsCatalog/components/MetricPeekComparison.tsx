@@ -17,6 +17,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import {
@@ -45,13 +46,21 @@ const FieldItem = forwardRef<
         label: string;
         selected: boolean;
     }
->(({ value, label, ...others }, ref) => (
-    <Box ref={ref} {...others}>
-        <Text fz="sm" c="dark.8" fw={400}>
-            {label}
-        </Text>
-    </Box>
-));
+>(({ value, label, ...others }, ref) => {
+    const { hovered, ref: hoverRef } = useHover();
+    return (
+        <Box ref={mergeRefs(ref, hoverRef)} {...others} w={290}>
+            <Text
+                fz="sm"
+                c="dark.8"
+                fw={400}
+                truncate={hovered ? undefined : 'end'}
+            >
+                {label}
+            </Text>
+        </Box>
+    );
+});
 
 export const MetricPeekComparison: FC<Props> = ({
     baseMetricLabel,
@@ -233,6 +242,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                                 item: classes.item,
                                                 rightSection:
                                                     classes.rightSection,
+                                                dropdown: classes.dropdown,
                                             }}
                                         />
                                     ) : (

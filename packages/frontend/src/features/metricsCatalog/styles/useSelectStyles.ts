@@ -34,7 +34,7 @@ export const useSelectStyles = createStyles((theme) => ({
         },
     },
     dropdown: {
-        minWidth: 'fit-content',
+        minWidth: 300,
     },
     rightSection: {
         pointerEvents: 'none',
