@@ -1,3 +1,10 @@
+# [0.1423.0](https://github.com/lightdash/lightdash/compare/0.1422.0...0.1423.0) (2024-12-18)
+
+
+### Features
+
+* allow keyboard shortcuts to navigate to other metrics ([#12941](https://github.com/lightdash/lightdash/issues/12941)) ([91d8f8c](https://github.com/lightdash/lightdash/commit/91d8f8c687d356464927ea34a0483ce1f6edadf3))
+
 # [0.1422.0](https://github.com/lightdash/lightdash/compare/0.1421.0...0.1422.0) (2024-12-17)
 
 
