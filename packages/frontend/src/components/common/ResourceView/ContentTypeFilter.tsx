@@ -15,9 +15,9 @@ interface OptionProps {
 }
 
 const ContentTypeSelectOption = ({ label, icon, color }: OptionProps) => (
-    <Center px={4}>
+    <Center px={'xxs'}>
         {icon && (
-            <Box mr={4}>
+            <Box mr={'xxs'}>
                 <MantineIcon
                     icon={icon}
                     fillOpacity={0.1}
