@@ -1,3 +1,24 @@
+# [0.1424.0](https://github.com/lightdash/lightdash/compare/0.1423.1...0.1424.0) (2024-12-18)
+
+
+### Features
+
+* add new custom legend wrapper and handle pagination ([#12940](https://github.com/lightdash/lightdash/issues/12940)) ([dcf0fe8](https://github.com/lightdash/lightdash/commit/dcf0fe853c3027523f2e02c3ecfa396bb318386b))
+
+## [0.1423.1](https://github.com/lightdash/lightdash/compare/0.1423.0...0.1423.1) (2024-12-18)
+
+
+### Bug Fixes
+
+* org member & project developer write back to dbt ([#12934](https://github.com/lightdash/lightdash/issues/12934)) ([fe117ce](https://github.com/lightdash/lightdash/commit/fe117ceec6a828f65d8738092cd69c3fa1d2fd67))
+
+# [0.1423.0](https://github.com/lightdash/lightdash/compare/0.1422.0...0.1423.0) (2024-12-18)
+
+
+### Features
+
+* allow keyboard shortcuts to navigate to other metrics ([#12941](https://github.com/lightdash/lightdash/issues/12941)) ([91d8f8c](https://github.com/lightdash/lightdash/commit/91d8f8c687d356464927ea34a0483ce1f6edadf3))
+
 # [0.1422.0](https://github.com/lightdash/lightdash/compare/0.1421.0...0.1422.0) (2024-12-17)
 
 

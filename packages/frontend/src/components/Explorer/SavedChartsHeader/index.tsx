@@ -3,7 +3,6 @@ import {
     DashboardTileTypes,
     FeatureFlags,
     type ApiError,
-    type GitIntegrationConfiguration,
     type PullRequestCreated,
 } from '@lightdash/common';
 import {
@@ -43,7 +42,7 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
@@ -61,6 +60,7 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegration';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
@@ -102,20 +102,6 @@ const SpaceTypeLabels = {
     [SpaceType.SharedWithMe]: 'Shared with me',
     [SpaceType.AdminContentView]: 'Public content view',
 };
-
-const getGitIntegration = async (projectUuid: string) =>
-    lightdashApi<any>({
-        url: `/projects/${projectUuid}/git-integration`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const useGitIntegration = (projectUuid: string) =>
-    useQuery<GitIntegrationConfiguration, ApiError>({
-        queryKey: ['git-integration'],
-        queryFn: () => getGitIntegration(projectUuid),
-        retry: false,
-    });
 
 const createPullRequestForChartFields = async (
     projectUuid: string,

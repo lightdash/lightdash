@@ -34,7 +34,7 @@ const getGithubRepositories = async () =>
         body: undefined,
     });
 
-export const useGitHubRepositories = () => {
+const useGitHubRepositories = () => {
     const { showToastApiError } = useToaster();
 
     return useQuery<GitRepo[], ApiError>({
