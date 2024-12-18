@@ -530,6 +530,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                             radius="md"
                                             size="xs"
                                             data={segmentByData}
+                                            searchable
                                             disabled={
                                                 segmentByData.length === 0
                                             }

@@ -212,6 +212,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                                     }),
                                                 ) ?? []
                                             }
+                                            searchable
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
                                             itemComponent={FieldItem}
