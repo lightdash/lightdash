@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Group,
     Loader,
     Paper,
@@ -17,17 +16,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
-import {
-    forwardRef,
-    useCallback,
-    type ComponentPropsWithoutRef,
-    type FC,
-} from 'react';
+import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSelectStyles } from '../styles/useSelectStyles';
+import SelectItem from './SelectItem';
 
 type Props = {
     baseMetricLabel: string | undefined;
@@ -38,29 +32,6 @@ type Props = {
         unknown
     >;
 };
-
-const FieldItem = forwardRef<
-    HTMLDivElement,
-    ComponentPropsWithoutRef<'div'> & {
-        value: string;
-        label: string;
-        selected: boolean;
-    }
->(({ value, label, ...others }, ref) => {
-    const { hovered, ref: hoverRef } = useHover();
-    return (
-        <Box ref={mergeRefs(ref, hoverRef)} {...others} w={290}>
-            <Text
-                fz="sm"
-                c="dark.8"
-                fw={400}
-                truncate={hovered ? undefined : 'end'}
-            >
-                {label}
-            </Text>
-        </Box>
-    );
-});
 
 export const MetricPeekComparison: FC<Props> = ({
     baseMetricLabel,
@@ -224,7 +195,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                             searchable
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
-                                            itemComponent={FieldItem}
+                                            itemComponent={SelectItem}
                                             // this does not work as expected in Mantine 6
                                             data-disabled={
                                                 !metricsWithTimeDimensionsQuery.isSuccess
