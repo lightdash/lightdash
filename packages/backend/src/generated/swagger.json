@@ -1062,7 +1062,8 @@
                         "type": "string"
                     },
                     "attributeDefault": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["name", "attributeDefault"],
@@ -1726,7 +1727,7 @@
                         "$ref": "#/components/schemas/SpaceShare"
                     }
                 },
-                "required": ["name", "uuid", "isPrivate", "userAccess"],
+                "required": ["name", "uuid", "isPrivate"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2223,7 +2224,8 @@
                         "type": "string"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "slug": {
                         "type": "string"
@@ -2232,10 +2234,12 @@
                         "type": "string"
                     },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "dashboardName": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -2309,7 +2313,8 @@
                 "properties": {
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -2411,11 +2416,13 @@
                         "type": "string"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -2437,7 +2444,8 @@
                                 "type": "string",
                                 "format": "date-time"
                             }
-                        ]
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -4436,7 +4444,12 @@
                         "type": "string"
                     },
                     "createdBy": {
-                        "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -5739,11 +5752,13 @@
                         "type": "string"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "slug": {
                         "type": "string"
@@ -5752,10 +5767,12 @@
                         "type": "string"
                     },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "dashboardName": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -5869,11 +5886,13 @@
                         "type": "boolean"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "slug": {
                         "type": "string"
@@ -5954,7 +5973,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["uuid", "type", "x", "y", "h", "w", "tabUuid"],
+                "required": ["uuid", "type", "x", "y", "h", "w"],
                 "type": "object",
                 "description": "Make all properties in T required"
             },
@@ -6273,11 +6292,13 @@
                         "type": "string"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "slug": {
                         "type": "string"
@@ -6305,7 +6326,8 @@
                                 "type": "string",
                                 "format": "date-time"
                             }
-                        ]
+                        ],
+                        "nullable": true
                     },
                     "dashboardVersionId": {
                         "type": "number",
@@ -6812,7 +6834,12 @@
                         "type": "string"
                     },
                     "startOfWeek": {
-                        "$ref": "#/components/schemas/WeekDay"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
@@ -6854,7 +6881,12 @@
                         "format": "double"
                     },
                     "startOfWeek": {
-                        "$ref": "#/components/schemas/WeekDay"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "useSshTunnel": {
                         "type": "boolean"
@@ -6923,7 +6955,12 @@
                         "format": "double"
                     },
                     "startOfWeek": {
-                        "$ref": "#/components/schemas/WeekDay"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "useSshTunnel": {
                         "type": "boolean"
@@ -6986,7 +7023,12 @@
                         "format": "double"
                     },
                     "startOfWeek": {
-                        "$ref": "#/components/schemas/WeekDay"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "project": {
                         "type": "string"
@@ -7017,16 +7059,7 @@
                         "type": "string"
                     }
                 },
-                "required": [
-                    "type",
-                    "project",
-                    "dataset",
-                    "timeoutSeconds",
-                    "priority",
-                    "retries",
-                    "location",
-                    "maximumBytesBilled"
-                ],
+                "required": ["type", "project", "dataset"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -7049,7 +7082,12 @@
                         "type": "string"
                     },
                     "startOfWeek": {
-                        "$ref": "#/components/schemas/WeekDay"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "catalog": {
                         "type": "string"
@@ -7084,7 +7122,12 @@
                         "type": "string"
                     },
                     "startOfWeek": {
-                        "$ref": "#/components/schemas/WeekDay"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "host": {
                         "type": "string"
@@ -7313,11 +7356,13 @@
                         "type": "boolean"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "slug": {
                         "type": "string"
@@ -8164,7 +8209,8 @@
                         "type": "string"
                     },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -8320,7 +8366,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["type", "x", "y", "h", "w", "tabUuid"],
+                "required": ["type", "x", "y", "h", "w"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -8455,7 +8501,8 @@
                         "type": "string"
                     },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -8583,11 +8630,13 @@
                         "type": "string"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -8609,7 +8658,8 @@
                                 "type": "string",
                                 "format": "date-time"
                             }
-                        ]
+                        ],
+                        "nullable": true
                     },
                     "validationErrors": {
                         "items": {
@@ -8669,11 +8719,13 @@
                         "type": "string"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "slug": {
                         "type": "string"
@@ -8698,7 +8750,8 @@
                                 "type": "string",
                                 "format": "date-time"
                             }
-                        ]
+                        ],
+                        "nullable": true
                     },
                     "validationErrors": {
                         "items": {
@@ -8776,11 +8829,13 @@
                         "type": "boolean"
                     },
                     "pinnedListUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -8881,7 +8936,8 @@
                     },
                     "pinnedListOrder": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     }
                 },
                 "required": ["uuid", "pinnedListOrder"],
@@ -11054,7 +11110,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["text", "replyTo", "mentions", "textHtml"],
+                "required": ["text", "mentions", "textHtml"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -11464,10 +11520,12 @@
                         "type": "string"
                     },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "dashboardName": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
@@ -12802,7 +12860,7 @@
     "info": {
         "title": "Lightdash API",
         "version": "0.1427.0",
-        "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
+        "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
         },
@@ -19990,7 +20048,7 @@
                                             "type": "string"
                                         }
                                     },
-                                    "required": ["results", "status"],
+                                    "required": ["status"],
                                     "type": "object"
                                 }
                             }
