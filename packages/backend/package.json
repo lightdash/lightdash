@@ -114,8 +114,8 @@
     },
     "scripts": {
         "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",
+        "generate-api-dev": "chokidar './src/controllers/**/*.ts' -c 'yarn run generate-api'",
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false src/index.ts",
-        "dev-tsoa": "chokidar './src/controllers/**/*.ts' -c 'tsoa spec-and-routes --configuration tsoa.yml'",
         "debug": "tsx watch --clear-screen=false --inspect-brk=0.0.0.0:9229 src/index.ts",
         "build": "tsc --build tsconfig.json",
         "postbuild": "copyfiles --error --up 1 src/**/*.html dist",
