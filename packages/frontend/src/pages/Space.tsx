@@ -331,10 +331,10 @@ const Space: FC = () => {
                     filters={{
                         projectUuid,
                         spaceUuids: [spaceUuid],
-                        contentTypes: [
-                            ContentType.DASHBOARD,
-                            ContentType.CHART,
-                        ],
+                    }}
+                    contentTypeFilter={{
+                        defaultValue: ContentType.DASHBOARD,
+                        options: [ContentType.DASHBOARD, ContentType.CHART],
                     }}
                 />
 
