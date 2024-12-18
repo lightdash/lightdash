@@ -308,7 +308,7 @@ export const removeComments = (sql: string): string => {
     // clean up any lines that are now just whitespace
     s = s
         .split('\n')
-        .map((line) => line.trimRight())
+        .map((line) => line.trimEnd())
         .join('\n');
     return s;
 };
