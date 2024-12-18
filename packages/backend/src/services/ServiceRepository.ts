@@ -11,6 +11,7 @@ import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
+import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -78,7 +79,7 @@ interface ServiceManifest {
     semanticLayerService: SemanticLayerService;
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
     coderService: CoderService;
-
+    featureFlagService: FeatureFlagService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -746,6 +747,17 @@ export class ServiceRepository
                     savedSemanticViewerChartModel:
                         this.models.getSavedSemanticViewerChartModel(),
                     spaceModel: this.models.getSpaceModel(),
+                }),
+        );
+    }
+
+    public getFeatureFlagService(): FeatureFlagService {
+        return this.getService(
+            'featureFlagService',
+            () =>
+                new FeatureFlagService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
