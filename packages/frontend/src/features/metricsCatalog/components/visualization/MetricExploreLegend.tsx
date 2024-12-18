@@ -1,9 +1,10 @@
-import { ActionIcon, Box, Flex, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Flex, Group, Text, Tooltip } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { type LegendProps } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { SquareBadge } from './MetricExploreTooltip';
 
 interface MetricExploreLegendProps extends Pick<LegendProps, 'payload'> {
     legendConfig: Record<
@@ -131,15 +132,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
             >
                 {visibleItems?.map((item) => (
                     <Group key={item.value} spacing={4} noWrap>
-                        <Box
-                            w={12}
-                            h={12}
-                            sx={(theme) => ({
-                                borderRadius: theme.radius.sm,
-                                backgroundColor: item.color,
-                                flexShrink: 0,
-                            })}
-                        />
+                        <SquareBadge color={item.color} size={12} />
                         <Tooltip label={item.value}>
                             <Text
                                 span
