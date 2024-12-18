@@ -1,3 +1,10 @@
+# [0.1424.0](https://github.com/lightdash/lightdash/compare/0.1423.1...0.1424.0) (2024-12-18)
+
+
+### Features
+
+* add new custom legend wrapper and handle pagination ([#12940](https://github.com/lightdash/lightdash/issues/12940)) ([dcf0fe8](https://github.com/lightdash/lightdash/commit/dcf0fe853c3027523f2e02c3ecfa396bb318386b))
+
 ## [0.1423.1](https://github.com/lightdash/lightdash/compare/0.1423.0...0.1423.1) (2024-12-18)
 
 
