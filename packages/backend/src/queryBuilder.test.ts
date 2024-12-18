@@ -130,6 +130,51 @@ describe('removeComments', () => {
             WHERE id > 0;`;
         expect(result.trim()).toBe(expected.trim());
     });
+
+    it('should preserve comments within string literals', () => {
+        const sqlQuery = `
+            SELECT
+                '// not a comment' AS col1,
+                "-- also not a comment" AS col2,
+                'string with // and -- inside' AS col3
+            FROM table1 // this is a real comment
+            WHERE col4 = '// text' -- this is also a real comment
+        `;
+        const expected = `
+            SELECT
+                '// not a comment' AS col1,
+                "-- also not a comment" AS col2,
+                'string with // and -- inside' AS col3
+            FROM table1
+            WHERE col4 = '// text'`;
+        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    });
+
+    it('should handle escaped quotes in strings', () => {
+        const sqlQuery = `
+            SELECT 'string with \\'// nested\\' part' AS col
+            FROM table // comment
+        `;
+        const expected = `
+            SELECT 'string with \\'// nested\\' part' AS col
+            FROM table`;
+        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    });
+
+    it('should handle mixed comment styles and slashes in paths', () => {
+        const sqlQuery = `
+            SELECT *
+            FROM 'https://example.com/path' -- comment here
+            WHERE path = '/usr/local/bin' // another comment
+            AND url LIKE '%//%' -- matches double slashes
+        `;
+        const expected = `
+            SELECT *
+            FROM 'https://example.com/path'
+            WHERE path = '/usr/local/bin'
+            AND url LIKE '%//%'`;
+        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    });
 });
 
 describe('Query builder', () => {

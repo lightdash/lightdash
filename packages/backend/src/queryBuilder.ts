@@ -298,21 +298,6 @@ export const sortDayOfWeekName = (
         END
     )${descending ? ' DESC' : ''}`;
 };
-// Remove comments and limit clauses from SQL
-export const removeComments = (sql: string): string => {
-    let s = sql.trim();
-    // remove single-line comments and their trailing spaces
-    s = s.replace(/--.*$/gm, '').replace(/\/\/.*$/gm, '');
-    // remove multi-line comments
-    s = s.replace(/\/\*[\s\S]*?\*\//g, '');
-    // clean up any lines that are now just whitespace and remove empty lines
-    s = s
-        .split('\n')
-        .map((line) => line.trimEnd())
-        .filter((line) => line.length > 0)
-        .join('\n');
-    return s;
-};
 
 // Replace strings with placeholders and return the placeholders
 const replaceStringsWithPlaceholders = (
@@ -338,6 +323,30 @@ const restoreStringsFromPlaceholders = (
         /__string_placeholder_(\d+)__/g,
         (_, p1) => placeholders[Number(p1)],
     );
+
+// Remove comments and limit clauses from SQL
+export const removeComments = (sql: string): string => {
+    let s = sql.trim();
+    // First replace strings with placeholders to protect their contents
+    const { sqlWithoutStrings, placeholders } =
+        replaceStringsWithPlaceholders(s);
+
+    // Remove comments from the SQL with protected strings
+    s = sqlWithoutStrings.replace(/--.*$/gm, '').replace(/\/\/.*$/gm, '');
+
+    // Remove multi-line comments
+    s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Restore the original strings
+    s = restoreStringsFromPlaceholders(s, placeholders);
+
+    // Clean up any lines that are now just whitespace and remove empty lines
+    return s
+        .split('\n')
+        .map((line) => line.trimEnd())
+        .filter((line) => line.length > 0)
+        .join('\n');
+};
 
 interface LimitOffsetClause {
     limit: number;
