@@ -1,3 +1,10 @@
+## [0.1423.1](https://github.com/lightdash/lightdash/compare/0.1423.0...0.1423.1) (2024-12-18)
+
+
+### Bug Fixes
+
+* org member & project developer write back to dbt ([#12934](https://github.com/lightdash/lightdash/issues/12934)) ([fe117ce](https://github.com/lightdash/lightdash/commit/fe117ceec6a828f65d8738092cd69c3fa1d2fd67))
+
 # [0.1423.0](https://github.com/lightdash/lightdash/compare/0.1422.0...0.1423.0) (2024-12-18)
 
 
