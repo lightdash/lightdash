@@ -24,7 +24,25 @@ describe('Content as Code CLI', () => {
         });
     });
 
-    it.only('should upload modified charts as code using CLI', () => {
+    it('should download charts and dashboards using slugs', () => {
+        // Requires download to be run first
+        cy.exec(
+            'lightdash download -c "what-s-the-average-spend-per-customer" -d "jaffle-dashboard"',
+        ).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+        cy.exec(`ls ${lightdashDir}/charts | wc -l`).then((result) => {
+            const fileCount = parseInt(result.stdout, 10);
+            cy.wrap(fileCount).should('eq', 1);
+        });
+
+        cy.exec(`ls ${lightdashDir}/dashboards | wc -l`).then((result) => {
+            const fileCount = parseInt(result.stdout, 10);
+            cy.wrap(fileCount).should('eq', 1);
+        });
+    });
+
+    it('should upload modified charts as code using CLI', () => {
         // Requires download to be run first
         cy.exec('lightdash download').then((result) => {
             cy.wrap(result.code).should('eq', 0);
@@ -44,6 +62,30 @@ describe('Content as Code CLI', () => {
 
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'charts updated: 1');
+            cy.wrap(result.code).should('eq', 0);
+        });
+    });
+
+    it('should create new dashboard if we change the slug using CLI', () => {
+        // Requires download to be run first
+        cy.exec('lightdash download').then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+        const chartFilePath = `lightdash/dashboards/jaffle-dashboard.yml`;
+
+        const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
+        const updateSedSlug = `s/slug: .*/slug: jaffle-dashboard-${new Date().getTime()}/`;
+        const updateSedDownloadedAt = `s/downloadedAt: .*/downloadedAt: ${date1MinuteAgo}/`;
+        // We need to force the download time it to trigger the upload
+        // see `needsUpdating` variable for more details
+        cy.exec(
+            `sed -i "${updateSedSlug}" ${chartFilePath} && sed -i "${updateSedDownloadedAt}" ${chartFilePath}`,
+        ).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        cy.exec('lightdash upload --verbose').then((result) => {
+            cy.wrap(result.stdout).should('contain', 'dashboards created: 1');
             cy.wrap(result.code).should('eq', 0);
         });
     });
