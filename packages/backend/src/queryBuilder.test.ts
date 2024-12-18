@@ -112,6 +112,24 @@ describe('removeComments', () => {
         `;
         expect(result.trim()).toBe(expected.trim());
     });
+
+    it('should remove blank lines after removing comments', () => {
+        const sqlQuery = `
+            -- Header comment
+            SELECT *
+            // Middle comment
+            FROM users
+            -- Another comment
+            WHERE id > 0;
+            // Footer comment
+        `;
+        const result = removeComments(sqlQuery);
+        const expected = `
+            SELECT *
+            FROM users
+            WHERE id > 0;`;
+        expect(result.trim()).toBe(expected.trim());
+    });
 });
 
 describe('Query builder', () => {

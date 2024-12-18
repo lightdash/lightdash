@@ -305,10 +305,11 @@ export const removeComments = (sql: string): string => {
     s = s.replace(/--.*$/gm, '').replace(/\/\/.*$/gm, '');
     // remove multi-line comments
     s = s.replace(/\/\*[\s\S]*?\*\//g, '');
-    // clean up any lines that are now just whitespace
+    // clean up any lines that are now just whitespace and remove empty lines
     s = s
         .split('\n')
-        .map((line) => line.trimRight())
+        .map((line) => line.trimEnd())
+        .filter((line) => line.length > 0)
         .join('\n');
     return s;
 };
