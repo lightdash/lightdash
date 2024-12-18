@@ -664,20 +664,15 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                             p="lg"
                             spacing="xs"
                             align="center"
+                            mt="auto"
                             sx={(theme) => ({
                                 borderTop: `1px solid ${theme.colors.gray[2]}`,
-                                marginTop: 'auto',
                             })}
                         >
-                            <Text
-                                size="xs"
-                                fw={500}
-                                color="gray.7"
-                                align="center"
-                            >
+                            <Text size="xs" fw={500} color="gray.7">
                                 Keyboard shortcuts
                             </Text>
-                            <Text size="xs" color="gray.6" align="center">
+                            <Text size="xs" color="gray.6">
                                 <Kbd>↑</Kbd> <Kbd>↓</Kbd> to navigate between
                                 metrics
                             </Text>
