@@ -299,13 +299,17 @@ export const sortDayOfWeekName = (
     )${descending ? ' DESC' : ''}`;
 };
 // Remove comments and limit clauses from SQL
-const removeComments = (sql: string): string => {
+export const removeComments = (sql: string): string => {
     let s = sql.trim();
-    // remove single-line comments
-    s = s.replace(/--.*$/gm, '');
-    s = s.replace(/\/\/.*$/gm, ''); // Add support for // comments
+    // remove single-line comments and their trailing spaces
+    s = s.replace(/--.*$/gm, '').replace(/\/\/.*$/gm, '');
     // remove multi-line comments
     s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+    // clean up any lines that are now just whitespace
+    s = s
+        .split('\n')
+        .map((line) => line.trimRight())
+        .join('\n');
     return s;
 };
 
