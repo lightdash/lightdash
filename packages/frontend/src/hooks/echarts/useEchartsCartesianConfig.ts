@@ -948,16 +948,19 @@ const getEchartAxes = ({
             (isField(axisItem) &&
                 (axisItem.format || axisItem.round || axisItem.compact)) ||
             (axisItem && isTableCalculation(axisItem) && axisItem.format);
+
         const axisMinInterval =
             isDimension(axisItem) &&
             axisItem.timeInterval &&
             isTimeInterval(axisItem.timeInterval) &&
             timeFrameConfigs[axisItem.timeInterval].getAxisMinInterval();
+
         const axisLabelFormatter =
             isDimension(axisItem) &&
             axisItem.timeInterval &&
             isTimeInterval(axisItem.timeInterval) &&
             timeFrameConfigs[axisItem.timeInterval].getAxisLabelFormatter();
+
         const axisConfig: Record<string, any> = {};
 
         if (axisItem && (hasFormattingConfig || axisMinInterval)) {
@@ -976,6 +979,11 @@ const getEchartAxes = ({
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
+                rich: {
+                    bold: {
+                        fontWeight: 'bold',
+                    },
+                },
             };
             axisConfig.axisPointer = {
                 label: {
@@ -1045,7 +1053,11 @@ const getEchartAxes = ({
             axisConfig.axisLabel.rotate = rotate;
             axisConfig.axisLabel.margin = 12;
             axisConfig.nameGap = oppositeSide + 15;
+        } else {
+            axisConfig.axisLabel = axisConfig.axisLabel || {};
+            axisConfig.axisLabel.hideOverlap = true;
         }
+
         return axisConfig;
     };
 
@@ -1839,7 +1851,11 @@ const useEchartsCartesianConfig = (
                             const tooltipValue = (
                                 value as Record<string, unknown>
                             )[dim];
-                            if (typeof value === 'object' && dim in value) {
+                            if (
+                                value &&
+                                typeof value === 'object' &&
+                                dim in value
+                            ) {
                                 return `
                             <tr>
                                 <td>${marker}</td>
