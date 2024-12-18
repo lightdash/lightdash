@@ -20,8 +20,8 @@ import {
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
-import { useGitHubRepositories } from '../../../../components/UserSettings/GithubSettingsPanel';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProject } from '../../../../hooks/useProject';
@@ -55,7 +55,7 @@ export const HeaderCreate: FC = () => {
     const isGithubIntegrationEnabled =
         health?.data?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB;
-    const { isError: githubIsNotInstalled } = useGitHubRepositories();
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
 
     const isCreateVirtualViewModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.createVirtualViewModal.isOpen,
@@ -261,12 +261,12 @@ export const HeaderCreate: FC = () => {
                                             position="top"
                                             withArrow
                                             withinPortal
-                                            disabled={!githubIsNotInstalled}
+                                            disabled={gitIntegration?.enabled}
                                         >
                                             <Group>
                                                 <Menu.Item
                                                     disabled={
-                                                        githubIsNotInstalled
+                                                        !gitIntegration?.enabled
                                                     }
                                                     onClick={() => {
                                                         setCtaAction(
