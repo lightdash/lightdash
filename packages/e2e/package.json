@@ -20,6 +20,7 @@
         "cypress": "^13.14.2",
         "cypress-file-upload": "^5.0.8",
         "cypress-split": "^1.24.0",
+        "js-yaml": "^4.1.0",
         "node-fetch": "^2.7.0"
     }
 }
