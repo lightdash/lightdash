@@ -524,7 +524,8 @@ export const getAvailableTimeDimensionsFromTables = (
             } =>
                 (dim.type === DimensionType.DATE ||
                     dim.type === DimensionType.TIMESTAMP) &&
-                !!dim.isIntervalBase &&
+                // Some time/date dimensions might not have isIntervalBase set
+                ('isIntervalBase' in dim ? !!dim.isIntervalBase : true) &&
                 !dim.hidden,
         ),
     );
