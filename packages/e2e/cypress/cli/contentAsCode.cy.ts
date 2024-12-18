@@ -1,8 +1,22 @@
 describe('Content as Code CLI', () => {
     const lightdashDir = './lightdash';
+    const lightdashUrl = Cypress.config('baseUrl');
 
-    beforeEach(() => {
+    before(() => {
         cy.login();
+        cy.getApiToken().then((apiToken) => {
+            cy.exec(`lightdash login ${lightdashUrl} --token ${apiToken}`, {
+                failOnNonZeroExit: false,
+                env: {
+                    NODE_ENV: 'development',
+                    CI: true,
+                },
+            })
+                .its('stderr')
+                .should('contain', 'Login successful');
+        });
+    });
+    beforeEach(() => {
         // Clean up any existing lightdash directory
         cy.exec(`rm -rf ${lightdashDir}`);
     });
