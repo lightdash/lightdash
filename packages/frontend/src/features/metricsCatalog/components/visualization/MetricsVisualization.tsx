@@ -67,6 +67,7 @@ import {
 } from '../../utils/metricPeekDate';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
+import { MetricExploreLegend } from './MetricExploreLegend';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { FORMATS } from './types';
 // REMOVE COMMENTS TO ENABLE CHART ZOOM
@@ -739,9 +740,9 @@ const MetricsVisualization: FC<Props> = ({
     }, [setActiveLegends, setHoveringLegend]);
 
     useEffect(() => {
-        // Reset legend state when the comparison changes
+        // Reset legend state when the comparison or segmentation changes
         resetLegendState();
-    }, [query.comparison, resetLegendState]);
+    }, [resetLegendState, results?.segmentDimension]);
 
     const timeDimensionTooltipLabel = useMemo(() => {
         if (results?.metric.availableTimeDimensions) {
@@ -871,36 +872,23 @@ const MetricsVisualization: FC<Props> = ({
                             {showLegend && (
                                 <Legend
                                     verticalAlign="top"
-                                    height={50}
-                                    margin={{ bottom: 20 }}
-                                    onMouseEnter={(legend) => {
-                                        setHoveringLegend(legend.value);
-                                    }}
-                                    onMouseLeave={() => {
-                                        setHoveringLegend(null);
-                                    }}
-                                    onClick={(legend) => {
-                                        handleToggleLegend(legend.value);
-                                    }}
+                                    margin={{ bottom: 30 }}
                                     wrapperStyle={{
-                                        cursor: 'pointer',
+                                        height: 56,
+                                        width: '100%',
+                                        left: 0,
                                     }}
-                                    formatter={(value: string) => (
-                                        <Text
-                                            span
-                                            c="dark.4"
-                                            size={14}
-                                            fw={500}
-                                            {...getLegendProps(value)}
-                                        >
-                                            {legendConfig &&
-                                            typeof value === 'string' &&
-                                            value in legendConfig
-                                                ? legendConfig[value]?.label ||
-                                                  value
-                                                : value}
-                                        </Text>
-                                    )}
+                                    content={
+                                        <MetricExploreLegend
+                                            legendConfig={legendConfig}
+                                            getLegendProps={getLegendProps}
+                                            onMouseEnter={setHoveringLegend}
+                                            onMouseLeave={() => {
+                                                setHoveringLegend(null);
+                                            }}
+                                            onClick={handleToggleLegend}
+                                        />
+                                    }
                                 />
                             )}
                             <CartesianGrid
