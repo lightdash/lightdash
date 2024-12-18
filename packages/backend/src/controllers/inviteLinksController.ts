@@ -1,7 +1,10 @@
+import { subject } from '@casl/ability';
 import {
     ApiErrorPayload,
     CreateInviteLink,
+    ForbiddenError,
     InviteLink,
+    SessionUser,
 } from '@lightdash/common';
 import {
     Body,
@@ -38,7 +41,7 @@ export class InviteLinksController extends BaseController {
     @OperationId('GetInviteLink')
     async getInviteLink(
         @Path() inviteLinkCode: string,
-        @Request() req: express.Request,
+        @Request() req: express.Request & { user?: SessionUser },
     ): Promise<{
         status: 'ok';
         results: InviteLink;
@@ -46,6 +49,18 @@ export class InviteLinksController extends BaseController {
         const inviteLink = await this.services
             .getUserService()
             .getInviteLink(inviteLinkCode);
+
+        if (
+            req.user &&
+            req.user.ability.cannot(
+                'view',
+                subject('InviteLink', {
+                    organizationUuid: req.user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         return {
             status: 'ok',
@@ -66,15 +81,26 @@ export class InviteLinksController extends BaseController {
     @Post('/')
     @OperationId('CreateInviteLink')
     async createInviteLink(
-        @Request() req: express.Request,
+        @Request() req: express.Request & { user: SessionUser },
         @Body() body: CreateInviteLink,
     ): Promise<{
         status: 'ok';
         results: InviteLink;
     }> {
+        if (
+            req.user.ability.cannot(
+                'create',
+                subject('InviteLink', {
+                    organizationUuid: req.user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const inviteLink = await this.services
             .getUserService()
-            .createPendingUserAndInviteLink(req.user!, body);
+            .createPendingUserAndInviteLink(req.user, body);
 
         return {
             status: 'ok',
@@ -93,11 +119,24 @@ export class InviteLinksController extends BaseController {
     ])
     @Delete('/')
     @OperationId('RevokeAllInviteLinks')
-    async revokeAllInviteLinks(@Request() req: express.Request): Promise<{
+    async revokeAllInviteLinks(
+        @Request() req: express.Request & { user: SessionUser },
+    ): Promise<{
         status: 'ok';
         results: undefined;
     }> {
-        await this.services.getUserService().revokeAllInviteLinks(req.user!);
+        if (
+            req.user.ability.cannot(
+                'delete',
+                subject('InviteLink', {
+                    organizationUuid: req.user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.services.getUserService().revokeAllInviteLinks(req.user);
 
         return {
             status: 'ok',
