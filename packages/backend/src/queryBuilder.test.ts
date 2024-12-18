@@ -1180,6 +1180,21 @@ describe('applyLimitToSqlQuery', () => {
         expect(result).toBe(expectedQuery);
     });
 
+    it('should handle queries with double slash comments', () => {
+        const sqlQuery = `
+            // This is a comment with LIMIT 10
+            SELECT * FROM users; /* Another comment LIMIT 20 */
+            // Another comment
+        `;
+        const limit = 15;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = 'SELECT * FROM users LIMIT 15';
+
+        expect(result).toBe(expectedQuery);
+    });
+
     it('should not remove semicolons inside strings', () => {
         const sqlQuery = `SELECT * FROM users WHERE name = 'John;Doe';`;
         const limit = 10;

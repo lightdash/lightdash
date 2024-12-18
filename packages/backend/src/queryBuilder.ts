@@ -303,6 +303,7 @@ const removeComments = (sql: string): string => {
     let s = sql.trim();
     // remove single-line comments
     s = s.replace(/--.*$/gm, '');
+    s = s.replace(/\/\/.*$/gm, ''); // Add support for // comments
     // remove multi-line comments
     s = s.replace(/\/\*[\s\S]*?\*\//g, '');
     return s;
