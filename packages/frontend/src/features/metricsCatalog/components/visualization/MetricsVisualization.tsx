@@ -47,10 +47,10 @@ import {
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
 import { is5YearDateRange } from '../../utils/metricPeekDate';
-import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
+import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { FORMATS } from './types';
 // REMOVE COMMENTS TO ENABLE CHART ZOOM
