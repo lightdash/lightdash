@@ -119,6 +119,43 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     return items;
 };
 
+export const downloadCharts = async (
+    chartIds: string[], // slug, uuid or url
+    projectId: string,
+) => {
+    const spinner = GlobalState.getActiveSpinner();
+    const chartFilters = parseContentFilters(chartIds);
+    let chartsAsCode: ApiChartAsCodeListResponse['results'];
+    let offset = 0;
+    do {
+        GlobalState.debug(
+            `Downloading charts with offset "${offset}" and filters "${chartFilters}"`,
+        );
+
+        const queryParams = chartFilters
+            ? `${chartFilters}&offset=${offset}`
+            : `?offset=${offset}`;
+        chartsAsCode = await lightdashApi<
+            ApiChartAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/charts/code${queryParams}`,
+            body: undefined,
+        });
+        spinner?.start(
+            `Downloaded ${chartsAsCode.offset} of ${chartsAsCode.total} charts`,
+        );
+        chartsAsCode.missingIds.forEach((missingId) => {
+            console.warn(styles.warning(`\nNo chart with id "${missingId}"`));
+        });
+
+        await dumpIntoFiles('charts', chartsAsCode.charts);
+        offset = chartsAsCode.offset;
+    } while (chartsAsCode.offset < chartsAsCode.total);
+
+    return chartsAsCode.total;
+};
+
 export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -165,41 +202,9 @@ export const downloadHandler = async (
             );
         } else {
             const spinner = GlobalState.startSpinner(`Downloading charts`);
-            const chartFilters = parseContentFilters(options.charts);
-            let chartsAsCode: ApiChartAsCodeListResponse['results'];
-            let offset = 0;
-            do {
-                GlobalState.debug(
-                    `Downloading charts with offset "${offset}" and filters "${chartFilters}"`,
-                );
-
-                const queryParams = chartFilters
-                    ? `${chartFilters}&offset=${offset}`
-                    : `?offset=${offset}`;
-                chartsAsCode = await lightdashApi<
-                    ApiChartAsCodeListResponse['results']
-                >({
-                    method: 'GET',
-                    url: `/api/v1/projects/${projectId}/charts/code${queryParams}`,
-                    body: undefined,
-                });
-                spinner.start(
-                    `Downloaded ${chartsAsCode.offset} of ${chartsAsCode.total} charts`,
-                );
-                chartsAsCode.missingIds.forEach((missingId) => {
-                    console.warn(
-                        styles.warning(`\nNo chart with id "${missingId}"`),
-                    );
-                });
-
-                await dumpIntoFiles('charts', chartsAsCode.charts);
-                offset = chartsAsCode.offset;
-            } while (chartsAsCode.offset < chartsAsCode.total);
-
-            chartTotal = chartsAsCode.total;
-            spinner.succeed(`Downloaded ${chartsAsCode.total} charts`);
+            chartTotal = await downloadCharts(options.charts, projectId);
+            spinner.succeed(`Downloaded ${chartTotal} charts`);
         }
-
         // Download dashboards
         if (hasFilters && options.dashboards.length === 0) {
             console.info(
@@ -243,6 +248,38 @@ export const downloadHandler = async (
 
             dashboardTotal = dashboardsAsCode.total;
             spinner.succeed(`Downloaded ${dashboardsAsCode.total} dashboards`);
+
+            // If chart filters were not provided, we download all charts for this dashboard
+            if (hasFilters && options.charts.length === 0) {
+                const chartSlugs = dashboardsAsCode.dashboards.reduce<string[]>(
+                    (acc, dashboard) => {
+                        const slugs = dashboard.tiles.map((chart) =>
+                            'chartSlug' in chart.properties
+                                ? (chart.properties.chartSlug as string)
+                                : undefined,
+                        );
+                        return [
+                            ...acc,
+                            ...slugs.filter(
+                                (slug): slug is string => slug !== undefined,
+                            ),
+                        ];
+                    },
+                    [],
+                );
+                const uniqueChartSlugs = [...new Set(chartSlugs)];
+                spinner.start(
+                    `Downloading ${uniqueChartSlugs.length} charts from dashboards`,
+                );
+
+                const totalCharts = await downloadCharts(
+                    uniqueChartSlugs,
+                    projectId,
+                );
+                spinner.succeed(
+                    `Downloaded ${totalCharts} charts from dashboards`,
+                );
+            }
         }
 
         const end = Date.now();
