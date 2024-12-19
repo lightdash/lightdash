@@ -11,6 +11,7 @@ import {
     buildQuery,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
+    removeComments,
     replaceUserAttributes,
     sortDayOfWeekName,
     sortMonthName,
@@ -71,6 +72,110 @@ import {
     WEEK_NAME_SORT_DESCENDING_SQL,
     WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
+
+describe('removeComments', () => {
+    it('should handle double slash comments with division operations', () => {
+        const sqlQuery = `
+            SELECT
+                revenue / cost as ratio, // Comment after division
+                10/2 as simple_ratio // Another comment
+            FROM metrics
+            WHERE value / 100 > 0.5; // Comment with division in it 1/2/3
+        `;
+        const result = removeComments(sqlQuery);
+        const expected = `
+            SELECT
+                revenue / cost as ratio,
+                10/2 as simple_ratio
+            FROM metrics
+            WHERE value / 100 > 0.5;`;
+        expect(result.trim()).toBe(expected.trim());
+    });
+
+    it('should handle mixed comment styles with double slash and double dash', () => {
+        const sqlQuery = `
+            -- First comment style
+            SELECT * FROM users // Second comment style
+            WHERE active = true -- Another dash comment
+            AND role = 'admin'; // Another slash comment
+            -- Final dash comment //
+            // Final slash comment --
+        `;
+        const result = removeComments(sqlQuery);
+        const expected = `
+
+            SELECT * FROM users
+            WHERE active = true
+            AND role = 'admin';
+
+
+        `;
+        expect(result.trim()).toBe(expected.trim());
+    });
+
+    it('should remove blank lines after removing comments', () => {
+        const sqlQuery = `
+            -- Header comment
+            SELECT *
+            // Middle comment
+            FROM users
+            -- Another comment
+            WHERE id > 0;
+            // Footer comment
+        `;
+        const result = removeComments(sqlQuery);
+        const expected = `
+            SELECT *
+            FROM users
+            WHERE id > 0;`;
+        expect(result.trim()).toBe(expected.trim());
+    });
+
+    it('should preserve comments within string literals', () => {
+        const sqlQuery = `
+            SELECT
+                '// not a comment' AS col1,
+                "-- also not a comment" AS col2,
+                'string with // and -- inside' AS col3
+            FROM table1 // this is a real comment
+            WHERE col4 = '// text' -- this is also a real comment
+        `;
+        const expected = `
+            SELECT
+                '// not a comment' AS col1,
+                "-- also not a comment" AS col2,
+                'string with // and -- inside' AS col3
+            FROM table1
+            WHERE col4 = '// text'`;
+        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    });
+
+    it('should handle escaped quotes in strings', () => {
+        const sqlQuery = `
+            SELECT 'string with \\'// nested\\' part' AS col
+            FROM table // comment
+        `;
+        const expected = `
+            SELECT 'string with \\'// nested\\' part' AS col
+            FROM table`;
+        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    });
+
+    it('should handle mixed comment styles and slashes in paths', () => {
+        const sqlQuery = `
+            SELECT *
+            FROM 'https://example.com/path' -- comment here
+            WHERE path = '/usr/local/bin' // another comment
+            AND url LIKE '%//%' -- matches double slashes
+        `;
+        const expected = `
+            SELECT *
+            FROM 'https://example.com/path'
+            WHERE path = '/usr/local/bin'
+            AND url LIKE '%//%'`;
+        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    });
+});
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
@@ -1176,6 +1281,45 @@ describe('applyLimitToSqlQuery', () => {
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
         const expectedQuery = 'SELECT * FROM users LIMIT 15';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle queries with double slash comments and arithmetic operations', () => {
+        const sqlQuery = `
+            SELECT
+                amount / 100 as dollars, // This comment has a / in it
+                3/2 as ratio, // Another / comment
+                path_col like '%/path/to/file%' // Comment with multiple /slashes/in/it/
+            FROM transactions
+            WHERE value > 5/2; // Final comment with division
+        `;
+        const limit = 15;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery =
+            "SELECT amount / 100 as dollars, 3/2 as ratio, path_col like '%/path/to/file%' FROM transactions WHERE value > 5/2 LIMIT 15";
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle queries with mixed comment styles and nested comments', () => {
+        const sqlQuery = `
+            -- First comment style
+            SELECT * FROM users // Comment after code
+            WHERE age > 20 -- Comment with // inside it
+            AND status = 'active' // Comment with -- inside it
+            -- Another comment // with both styles
+            AND role = 'admin'; // Final comment
+            // Comment starting with http://example.com
+        `;
+        const limit = 15;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery =
+            "SELECT * FROM users WHERE age > 20 AND status = 'active' AND role = 'admin' LIMIT 15";
 
         expect(result).toBe(expectedQuery);
     });
