@@ -33,6 +33,7 @@ import {
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { measureTime } from '../../logging/measureTime';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -222,6 +223,39 @@ export class MetricsExplorerService<
     }
 
     async runMetricExplorerQuery(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricName: string,
+        startDate: string,
+        endDate: string,
+        query: MetricExplorerQuery,
+        timeDimensionOverride: TimeDimensionConfig | undefined,
+    ): Promise<MetricsExplorerQueryResults> {
+        return measureTime(
+            () =>
+                this._runMetricExplorerQuery(
+                    user,
+                    projectUuid,
+                    exploreName,
+                    metricName,
+                    startDate,
+                    endDate,
+                    query,
+                    timeDimensionOverride,
+                ),
+            'runMetricExplorerQuery',
+            this.logger,
+            {
+                query,
+                startDate,
+                endDate,
+                timeDimensionOverride,
+            },
+        );
+    }
+
+    private async _runMetricExplorerQuery(
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
@@ -451,6 +485,33 @@ export class MetricsExplorerService<
     }
 
     async getMetricTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricName: string,
+        timeFrame: TimeFrames,
+        comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
+    ): Promise<MetricTotalResults> {
+        return measureTime(
+            () =>
+                this._getMetricTotal(
+                    user,
+                    projectUuid,
+                    exploreName,
+                    metricName,
+                    timeFrame,
+                    comparisonType,
+                ),
+            'getMetricTotal',
+            this.logger,
+            {
+                timeFrame,
+                comparisonType,
+            },
+        );
+    }
+
+    private async _getMetricTotal(
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
