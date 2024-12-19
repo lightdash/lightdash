@@ -157,7 +157,6 @@ import {
     applyLimitToSqlQuery,
     buildQuery,
     CompiledQuery,
-    removeComments,
 } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -2255,8 +2254,7 @@ export class ProjectService extends BaseService {
     > & { warehouseType: WarehouseTypes }): string {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const q = getFieldQuoteChar(warehouseType);
-        const userSql = removeComments(sql.replace(/;\s*$/, ''));
-
+        const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
             `${q}${indexColumn.reference}${q}`,
