@@ -202,7 +202,6 @@ export const downloadHandler = async (
     // For analytics
     let chartTotal: number | undefined;
     let dashboardTotal: number | undefined;
-    let chartSlugs: string[] = [];
     const start = Date.now();
 
     await LightdashAnalytics.track({
@@ -240,6 +239,8 @@ export const downloadHandler = async (
             );
         } else {
             const spinner = GlobalState.startSpinner(`Downloading dashboards`);
+            let chartSlugs: string[] = [];
+
             [dashboardTotal, chartSlugs] = await downloadContent(
                 options.dashboards,
                 'dashboards',
@@ -249,6 +250,7 @@ export const downloadHandler = async (
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
             // If any filter is provided, we download all charts for these dashboard
+            // We don't need to do this if we download everything (no filters)
             if (hasFilters) {
                 spinner.start(
                     `Downloading ${chartSlugs.length} charts linked to dashboards`,
