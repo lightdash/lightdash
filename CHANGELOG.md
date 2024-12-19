@@ -1,3 +1,10 @@
+## [0.1424.1](https://github.com/lightdash/lightdash/compare/0.1424.0...0.1424.1) (2024-12-19)
+
+
+### Bug Fixes
+
+* throw warning if folder does not exist , chart as code ([#12950](https://github.com/lightdash/lightdash/issues/12950)) ([4099935](https://github.com/lightdash/lightdash/commit/40999355c6012fceea85997a46187700ec970402))
+
 # [0.1424.0](https://github.com/lightdash/lightdash/compare/0.1423.1...0.1424.0) (2024-12-18)
 
 
