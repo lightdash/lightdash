@@ -105,6 +105,7 @@ type ModelProvider<T extends ModelManifest> = (providerArgs: {
     repository: ModelRepository;
     database: Knex;
     utils: UtilRepository;
+    lightdashConfig: LightdashConfig;
 }) => T[keyof T];
 
 /**
@@ -548,6 +549,7 @@ export class ModelRepository
                     repository: this,
                     database: this.database,
                     utils: this.utils,
+                    lightdashConfig: this.lightdashConfig,
                 }) as T;
             } else if (factory != null) {
                 modelInstance = factory();
