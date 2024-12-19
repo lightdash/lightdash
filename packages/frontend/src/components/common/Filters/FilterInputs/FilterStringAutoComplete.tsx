@@ -29,6 +29,18 @@ import MantineIcon from '../../MantineIcon';
 import { useFiltersContext } from '../FiltersProvider';
 import MultiValuePastePopover from './MultiValuePastePopover';
 
+const formatTimeAgo = (date: Date): string => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days} day${days === 1 ? '' : 's'} ago`;
+    if (hours > 0) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    if (minutes > 0) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+    return 'just now';
+};
+
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;
     field: FilterableItem;
@@ -154,6 +166,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     }, [results, values]);
 
     const searchedMaxResults = resultsSet.size >= MAX_AUTOCOMPLETE_RESULTS;
+    const isLoading = isInitialLoading || forceRefresh;
     // memo override component so list doesn't scroll to the top on each click
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
@@ -180,7 +193,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                         <Tooltip
                             withinPortal
                             position="left"
-                            label={`Click here to refresh cache filter values`}
+                            label={`Last refreshed ${formatTimeAgo(
+                                refreshedAt,
+                            )}`}
                         >
                             <Text
                                 color="dimmed"
@@ -196,7 +211,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 })}
                                 onClick={() => setForceRefresh(true)}
                             >
-                                Results loaded at {refreshedAt.toLocaleString()}
+                                {isLoading ? 'Loading...' : 'Refresh results'}
                             </Text>
                         </Tooltip>
                     </>
@@ -208,6 +223,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             search,
             refreshedAt,
             healthData?.hasCacheAutocompleResults,
+            isLoading,
         ],
     );
 
@@ -281,11 +297,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onSearchChange={setSearch}
                 limit={MAX_AUTOCOMPLETE_RESULTS}
                 onPaste={handlePaste}
-                nothingFound={
-                    isInitialLoading ? 'Loading...' : 'No results found'
-                }
+                nothingFound={isLoading ? 'Loading...' : 'No results found'}
                 rightSection={
-                    isInitialLoading ? <Loader size="xs" color="gray" /> : null
+                    isLoading ? <Loader size="xs" color="gray" /> : null
                 }
                 dropdownComponent={DropdownComponentOverride}
                 itemComponent={({ label, ...others }) =>
