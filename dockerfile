@@ -86,7 +86,7 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     "dbt-snowflake~=1.9.0" \
     "dbt-bigquery~=1.9.0" \
     "dbt-databricks~=1.9.0" \
-    "dbt-trino~=1.9.0" \
+    #"dbt-trino~=1.9.0" \ # Not yet available
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9
 
 # -----------------------------
