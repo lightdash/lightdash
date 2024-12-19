@@ -1,3 +1,10 @@
+## [0.1424.2](https://github.com/lightdash/lightdash/compare/0.1424.1...0.1424.2) (2024-12-19)
+
+
+### Bug Fixes
+
+* add support for double slash SQL comments ([#12942](https://github.com/lightdash/lightdash/issues/12942)) ([0338c1d](https://github.com/lightdash/lightdash/commit/0338c1db15f1e0be315abbe2f52ce02c542da633))
+
 ## [0.1424.1](https://github.com/lightdash/lightdash/compare/0.1424.0...0.1424.1) (2024-12-19)
 
 
