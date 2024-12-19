@@ -2,7 +2,6 @@ import {
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
-    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
     MetricExplorerComparison,
     type CatalogField,
     type MetricExplorerDateRange,
@@ -12,16 +11,13 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Box,
     Button,
     Divider,
     Group,
     Kbd,
-    Loader,
     LoadingOverlay,
     Modal,
-    Select,
     Stack,
     Text,
     Tooltip,
@@ -38,16 +34,14 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
-import { Blocks } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
-import { useSelectStyles } from '../styles/useSelectStyles';
-import { MetricPeekComparison } from './MetricPeekComparison';
-import SelectItem from './SelectItem';
+import { MetricPeekComparison } from './visualization/MetricPeekComparison';
+import { MetricPeekSegmentationPicker } from './visualization/MetricPeekSegmentationPicker';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -56,7 +50,6 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
 
 export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const { track } = useTracking();
-    const { classes } = useSelectStyles();
 
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
@@ -473,138 +466,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                             px="lg"
                             py="md"
                         >
-                            <Stack spacing="xs">
-                                <Group position="apart">
-                                    <Text fw={500} c="gray.7">
-                                        Segment
-                                    </Text>
-
-                                    <Button
-                                        variant="subtle"
-                                        compact
-                                        color="dark"
-                                        size="xs"
-                                        radius="md"
-                                        rightIcon={
-                                            <MantineIcon
-                                                icon={IconX}
-                                                color="gray.5"
-                                                size={12}
-                                            />
-                                        }
-                                        sx={(theme) => ({
-                                            visibility:
-                                                !(
-                                                    'segmentDimension' in query
-                                                ) || !query.segmentDimension
-                                                    ? 'hidden'
-                                                    : 'visible',
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                        })}
-                                        styles={{
-                                            rightIcon: {
-                                                marginLeft: 4,
-                                            },
-                                        }}
-                                        onClick={() =>
-                                            handleSegmentDimensionChange(null)
-                                        }
-                                    >
-                                        Clear
-                                    </Button>
-                                </Group>
-
-                                <Tooltip
-                                    label="There are no available
-                                                    fields to segment this
-                                                    metric by"
-                                    disabled={segmentByData.length > 0}
-                                    position="right"
-                                >
-                                    <Box>
-                                        <Select
-                                            placeholder="Segment by"
-                                            icon={<Blocks />}
-                                            radius="md"
-                                            size="xs"
-                                            data={segmentByData}
-                                            searchable
-                                            disabled={
-                                                segmentByData.length === 0
-                                            }
-                                            value={
-                                                query.comparison ===
-                                                MetricExplorerComparison.NONE
-                                                    ? query.segmentDimension
-                                                    : null
-                                            }
-                                            onChange={
-                                                handleSegmentDimensionChange
-                                            }
-                                            // this does not work as expected in Mantine 6
-                                            data-disabled={
-                                                !segmentDimensionsQuery.isSuccess
-                                            }
-                                            rightSection={
-                                                segmentDimensionsQuery.isLoading ? (
-                                                    <Loader
-                                                        size="xs"
-                                                        color="gray.5"
-                                                    />
-                                                ) : undefined
-                                            }
-                                            classNames={classes}
-                                            itemComponent={SelectItem}
-                                            sx={{
-                                                '&:hover': {
-                                                    cursor: 'not-allowed',
-                                                },
-                                            }}
-                                        />
-                                    </Box>
-                                </Tooltip>
-
-                                {metricResultsQuery.isSuccess &&
-                                    metricResultsQuery.data
-                                        .hasFilteredSeries && (
-                                        <Alert
-                                            py="xs"
-                                            px="sm"
-                                            variant="light"
-                                            color="blue"
-                                            sx={(theme) => ({
-                                                borderStyle: 'dashed',
-                                                borderWidth: 1,
-                                                borderColor:
-                                                    theme.colors.blue[4],
-                                            })}
-                                            styles={{
-                                                icon: {
-                                                    marginRight: 2,
-                                                },
-                                            }}
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                    color="blue.7"
-                                                    size={16}
-                                                />
-                                            }
-                                        >
-                                            <Text size="xs" color="blue.7" span>
-                                                Only the first{' '}
-                                                {
-                                                    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES
-                                                }{' '}
-                                                series are displayed to maintain
-                                                a clear and readable chart.
-                                            </Text>
-                                        </Alert>
-                                    )}
-                            </Stack>
+                            <MetricPeekSegmentationPicker
+                                query={query}
+                                onSegmentDimensionChange={
+                                    handleSegmentDimensionChange
+                                }
+                                segmentByData={segmentByData}
+                                segmentDimensionsQuery={segmentDimensionsQuery}
+                                hasFilteredSeries={
+                                    !!metricResultsQuery.isSuccess &&
+                                    metricResultsQuery.data.hasFilteredSeries
+                                }
+                            />
                             <Divider color="gray.2" />
                             <Stack spacing="xs">
                                 <Group position="apart">

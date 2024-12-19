@@ -19,9 +19,9 @@ import {
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useSelectStyles } from '../styles/useSelectStyles';
-import SelectItem from './SelectItem';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { useSelectStyles } from '../../styles/useSelectStyles';
+import SelectItem from '../SelectItem';
 
 type Props = {
     baseMetricLabel: string | undefined;
@@ -180,6 +180,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                             .length > 0) ? (
                                         <Select
                                             placeholder="Select a metric"
+                                            searchable
                                             radius="md"
                                             size="xs"
                                             data={
@@ -192,7 +193,6 @@ export const MetricPeekComparison: FC<Props> = ({
                                                     }),
                                                 ) ?? []
                                             }
-                                            searchable
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
                                             itemComponent={SelectItem}

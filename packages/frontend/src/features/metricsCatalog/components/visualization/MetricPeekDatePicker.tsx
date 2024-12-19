@@ -19,12 +19,12 @@ import {
 } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, type FC } from 'react';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useDateRangePicker } from '../hooks/useDateRangePicker';
-import { getMatchingPresetLabel } from '../utils/metricPeekDate';
-import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
+import { useTracking } from '../../../../providers/TrackingProvider';
+import { EventName } from '../../../../types/Events';
+import { useAppSelector } from '../../../sqlRunner/store/hooks';
+import { useDateRangePicker } from '../../hooks/useDateRangePicker';
+import { getMatchingPresetLabel } from '../../utils/metricPeekDate';
+import { TimeDimensionIntervalPicker } from './TimeDimensionIntervalPicker';
 
 type Props = {
     dateRange: MetricExplorerDateRange;
