@@ -2957,6 +2957,10 @@
                     "metadata": {
                         "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
                     },
+                    "legendMaxItemLength": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "legendPosition": {
                         "$ref": "#/components/schemas/PieChartLegendPosition"
                     },
@@ -11455,6 +11459,18 @@
                 "enum": ["name", "space_name", "last_updated_at"],
                 "type": "string"
             },
+            "FeatureFlag": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["enabled", "id"],
+                "type": "object"
+            },
             "SemanticLayerClientInfo": {
                 "properties": {
                     "name": {
@@ -12429,7 +12445,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1419.0",
+        "version": "0.1422.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -19690,6 +19706,57 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/feature-flag/{featureFlagId}": {
+            "get": {
+                "operationId": "Get feature flag",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/FeatureFlag"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get feature flag",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/validate": {

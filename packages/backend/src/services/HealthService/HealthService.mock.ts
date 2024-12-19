@@ -13,7 +13,6 @@ export const BaseResponse: HealthState = {
     hasEmailClient: false,
     hasExtendedUsageAnalytics: false,
     hasGithub: false,
-    hasGroups: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {

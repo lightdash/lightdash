@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getRoleDescription,
     isOrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
@@ -37,6 +38,7 @@ import {
 import capitalize from 'lodash/capitalize';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
@@ -343,7 +345,10 @@ const UserListItem: FC<{
 
 const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
     const { classes } = useTableStyles();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -375,9 +380,9 @@ const UsersView: FC = () => {
         return paginatedUsers?.pagination;
     }, [paginatedUsers]);
 
-    if (!user.data || !health.data) return null;
+    if (!user.data || !UserGroupsFeatureFlag) return null;
 
-    const isGroupManagementEnabled = health.data.hasGroups;
+    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
 
     if (isLoadingUsers) {
         return <LoadingState title="Loading users" size="md" />;
