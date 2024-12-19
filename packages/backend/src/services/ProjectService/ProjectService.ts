@@ -1997,7 +1997,35 @@ export class ProjectService extends BaseService {
                         granularity,
                     );
 
-                    const { fields, query, hasExampleMetric } = fullQuery;
+                    const { query, hasExampleMetric } = fullQuery;
+
+                    console.log(
+                        'metricQuery.metricOverrides',
+                        metricQuery.metricOverrides,
+                    );
+                    const fieldsWithOverrides: ItemsMap = Object.fromEntries(
+                        Object.entries(fullQuery.fields).map(([key, value]) => {
+                            console.log(
+                                'key',
+                                key,
+                                metricQuery.metricOverrides &&
+                                    metricQuery.metricOverrides[key],
+                            );
+                            if (
+                                metricQuery.metricOverrides &&
+                                metricQuery.metricOverrides[key]
+                            ) {
+                                return [
+                                    key,
+                                    {
+                                        ...value,
+                                        ...metricQuery.metricOverrides[key],
+                                    },
+                                ];
+                            }
+                            return [key, value];
+                        }),
+                    );
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
@@ -2128,7 +2156,7 @@ export class ProjectService extends BaseService {
                             invalidateCache,
                         });
                     await sshTunnel.disconnect();
-                    return { rows, cacheMetadata, fields };
+                    return { rows, cacheMetadata, fields: fieldsWithOverrides };
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR

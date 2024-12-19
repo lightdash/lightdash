@@ -14,6 +14,8 @@ import {
     type ChartConfig,
     type CustomDimension,
     type FieldId,
+    type CustomFormat,
+    type Metric,
     type MetricQuery,
     type SavedChart,
     type SortField,
@@ -75,6 +77,9 @@ const defaultState: ExplorerReduceState = {
         },
     },
     modals: {
+        format: {
+            isOpen: false,
+        },
         additionalMetric: {
             isOpen: false,
         },
@@ -287,6 +292,12 @@ function reducer(
                         metrics,
                         sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (s) => s.fieldId !== action.payload,
+                        ),
+                        metricOverrides: Object.fromEntries(
+                            Object.entries(
+                                state.unsavedChartVersion.metricQuery
+                                    .metricOverrides || {},
+                            ).filter(([key]) => key !== action.payload),
                         ),
                     },
                     tableConfig: {
@@ -580,6 +591,38 @@ function reducer(
                     customDimension: {
                         isOpen: !state.modals.customDimension.isOpen,
                         ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
+        case ActionType.TOGGLE_FORMAT_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    format: {
+                        isOpen: !state.modals.format.isOpen,
+                        ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
+        case ActionType.UPDATE_METRIC_FORMAT: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        metricOverrides: {
+                            ...state.unsavedChartVersion.metricQuery
+                                .metricOverrides,
+                            [getItemId(action.payload.metric)]: {
+                                formatOptions: action.payload.formatOptions,
+                            },
+                        },
                     },
                 },
             };
@@ -1334,6 +1377,26 @@ const ExplorerProvider: FC<
         [],
     );
 
+    const toggleFormatModal = useCallback((args?: { metric: Metric }) => {
+        dispatch({
+            type: ActionType.TOGGLE_FORMAT_MODAL,
+            payload: args,
+        });
+    }, []);
+
+    const updateMetricFormat = useCallback(
+        (args: { metric: Metric; formatOptions: CustomFormat }) => {
+            dispatch({
+                type: ActionType.UPDATE_METRIC_FORMAT,
+                payload: args,
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1483,6 +1546,8 @@ const ExplorerProvider: FC<
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            toggleFormatModal,
+            updateMetricFormat,
         }),
         [
             clearExplore,
@@ -1516,6 +1581,8 @@ const ExplorerProvider: FC<
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            toggleFormatModal,
+            updateMetricFormat,
         ],
     );
 
