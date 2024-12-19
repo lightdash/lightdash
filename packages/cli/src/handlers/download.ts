@@ -241,19 +241,15 @@ export const downloadHandler = async (
         } else {
             const spinner = GlobalState.startSpinner(`Downloading dashboards`);
             [dashboardTotal, chartSlugs] = await downloadContent(
-                options.charts,
+                options.dashboards,
                 'dashboards',
                 projectId,
             );
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
-            // If chart filters were not provided, we download all charts for these dashboard
-            if (
-                hasFilters &&
-                options.charts.length === 0 &&
-                chartSlugs.length > 0
-            ) {
+            // If any filter is provided, we download all charts for these dashboard
+            if (hasFilters) {
                 spinner.start(
                     `Downloading ${chartSlugs.length} charts linked to dashboards`,
                 );
