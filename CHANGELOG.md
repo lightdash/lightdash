@@ -1,3 +1,10 @@
+## [0.1425.3](https://github.com/lightdash/lightdash/compare/0.1425.2...0.1425.3) (2024-12-19)
+
+
+### Bug Fixes
+
+* have legend icon variants on metrics explorer ([#12966](https://github.com/lightdash/lightdash/issues/12966)) ([160907e](https://github.com/lightdash/lightdash/commit/160907e7fa8056a6f96ccc5ed37783dd49289859))
+
 ## [0.1425.2](https://github.com/lightdash/lightdash/compare/0.1425.1...0.1425.2) (2024-12-19)
 
 
