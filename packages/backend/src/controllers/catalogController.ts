@@ -46,7 +46,7 @@ export class CatalogController extends BaseController {
      * @param query contains filters for the catalog items
      * - search: string
      * - type: 'table' | 'field'
-     * @returns
+     * @returns ApiCatalogResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -80,7 +80,7 @@ export class CatalogController extends BaseController {
      * Get catalog metadata for tables
      * @param projectUuid
      * @param table Table name to get metadata for
-     * @returns
+     * @returns ApiCatalogMetadataResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -106,7 +106,7 @@ export class CatalogController extends BaseController {
      * Get catalog analytics for tables
      * @param projectUuid
      * @param table Table name to get analytics for
-     * @returns
+     * @returns ApiCatalogAnalyticsResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -133,7 +133,7 @@ export class CatalogController extends BaseController {
      * @param projectUuid
      * @param field Field name to get analytics for
      * @param table Table where this field belongs
-     * @returns
+     * @returns ApiCatalogAnalyticsResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -169,6 +169,7 @@ export class CatalogController extends BaseController {
      * - search: string
      * - page: number
      * - pageSize: number
+     * @returns ApiMetricsCatalog
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -225,7 +226,7 @@ export class CatalogController extends BaseController {
      * @param projectUuid
      * @param tableName
      * @param metricName
-     * @returns the complete metric object
+     * @returns ApiGetMetricPeek
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -252,7 +253,7 @@ export class CatalogController extends BaseController {
     /**
      * Get metrics with time dimensions
      * @param projectUuid
-     * @returns the all project metrics with their associated time dimensions
+     * @returns ApiMetricsWithAssociatedTimeDimensionResponse
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -278,7 +279,7 @@ export class CatalogController extends BaseController {
      * Get dimensions that can be used to segment metrics
      * @param projectUuid
      * @param metric
-     * @returns the all metric dimensions that can be used to segment metrics
+     * @returns ApiSegmentDimensionsResponse
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

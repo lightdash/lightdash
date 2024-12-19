@@ -16,12 +16,12 @@ EMPTY_STRING = '' {
     return {
       type: '${FilterOperator.EQUALS}',
       values: [],
-      is: true, 
+      is: true,
     }
   }
 
 EXPRESSION
-= NUMERICAL / DATE_RESTRICTION / LIST / TERM  
+= NUMERICAL / DATE_RESTRICTION / LIST / TERM
 
 
 NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:NUMBER {
@@ -32,7 +32,7 @@ NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:NUMBER {
    }
 
 OPERATOR = '>=' / '<=' / '>' / '<'
-   
+
 DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMBER SPACE_SYMBOL* interval:DATE_INTERVAL {
     return {
         type: operator,
@@ -44,7 +44,7 @@ DATE_RESTRICTION = SPACE_SYMBOL* operator:DATE_OPERATOR SPACE_SYMBOL* value:NUMB
 DATE_OPERATOR = 'inThePast' / 'inTheNext'
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
 
-NUMBER 
+NUMBER
   = FLOAT ([Ee] [+-]? INTEGER)?
     { return Number(text()) }
 
@@ -95,7 +95,7 @@ MATCH
     }
 }
 PCT
-=  CONTAINS / STARTS_WITH / ENDS_WITH 
+=  CONTAINS / STARTS_WITH / ENDS_WITH
 CONTAINS
 = PCT_SYMBOL value:(char / UNDERSCORE)+ PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE)  {
   return {
@@ -258,7 +258,7 @@ export const parseFilters = (
                                   unitOfTime: parsedFilter.date_interval,
                               },
                           }
-                        : {}),
+                        : null),
                 },
             ];
         }

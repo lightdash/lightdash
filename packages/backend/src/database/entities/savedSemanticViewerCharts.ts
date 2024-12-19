@@ -71,9 +71,9 @@ export type DBSavedSemanticViewerChartVersion = {
     saved_semantic_viewer_chart_version_uuid: string;
     saved_semantic_viewer_chart_uuid: string;
     created_at: Date;
-    config: object;
+    config: Record<string, unknown>;
     semantic_layer_view: string | null;
-    semantic_layer_query: object;
+    semantic_layer_query: Record<string, unknown>;
     chart_kind: ChartKind;
     created_by_user_uuid: string;
 };
