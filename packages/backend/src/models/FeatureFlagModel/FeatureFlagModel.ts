@@ -1,9 +1,12 @@
-import { FeatureFlag, FeatureFlags, SessionUser } from '@lightdash/common';
+import { FeatureFlag, FeatureFlags, LightdashUser } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import { isFeatureFlagEnabled } from '../../postHog';
 
-type FeatureFlagLogicArgs = { user?: SessionUser; featureFlagId: string };
+export type FeatureFlagLogicArgs = {
+    user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>;
+    featureFlagId: string;
+};
 
 export class FeatureFlagModel {
     protected readonly database: Knex;

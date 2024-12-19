@@ -17,7 +17,7 @@ export const useFeatureFlagEnabled = (featureFlag: FeatureFlags) =>
 /**
  * Use our own endpoint to get the feature flag from multiple sources.
  */
-export const useFeatureFlag = (featureFlagId: FeatureFlags) => {
+export const useFeatureFlag = (featureFlagId: string) => {
     return useQuery<FeatureFlag, ApiError>(
         ['feature-flag', featureFlagId],
         () => {
