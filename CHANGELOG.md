@@ -1,3 +1,10 @@
+# [0.1425.0](https://github.com/lightdash/lightdash/compare/0.1424.3...0.1425.0) (2024-12-19)
+
+
+### Features
+
+* show reference line label in list ([#12968](https://github.com/lightdash/lightdash/issues/12968)) ([76ce026](https://github.com/lightdash/lightdash/commit/76ce0265b108eab3b2579f84984ff806b2059bec))
+
 ## [0.1424.3](https://github.com/lightdash/lightdash/compare/0.1424.2...0.1424.3) (2024-12-19)
 
 
