@@ -1,3 +1,10 @@
+## [0.1425.1](https://github.com/lightdash/lightdash/compare/0.1425.0...0.1425.1) (2024-12-19)
+
+
+### Bug Fixes
+
+* echarts overlapping labels ([#12963](https://github.com/lightdash/lightdash/issues/12963)) ([83a926d](https://github.com/lightdash/lightdash/commit/83a926d9988596266f999cc4e35e1a5213a785e4))
+
 # [0.1425.0](https://github.com/lightdash/lightdash/compare/0.1424.3...0.1425.0) (2024-12-19)
 
 
