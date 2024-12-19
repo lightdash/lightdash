@@ -47,6 +47,7 @@ import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { useSelectStyles } from '../styles/useSelectStyles';
 import { MetricPeekComparison } from './MetricPeekComparison';
+import SelectItem from './SelectItem';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -530,6 +531,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                             radius="md"
                                             size="xs"
                                             data={segmentByData}
+                                            searchable
                                             disabled={
                                                 segmentByData.length === 0
                                             }
@@ -555,6 +557,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                                 ) : undefined
                                             }
                                             classNames={classes}
+                                            itemComponent={SelectItem}
                                             sx={{
                                                 '&:hover': {
                                                     cursor: 'not-allowed',
