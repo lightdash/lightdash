@@ -53,7 +53,7 @@ import { useValidationUserAbility } from '../../../hooks/validation/useValidatio
 import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
-import ContentTypeMultiSelect from './ContentTypeMultiSelect';
+import ContentTypeFilter from './ContentTypeFilter';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     type ResourceViewItemActionState,
@@ -70,9 +70,16 @@ type ResourceView2Props = {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
         projectUuid: string;
     };
+    contentTypeFilter?: {
+        defaultValue: ContentType | undefined;
+        options: ContentType[];
+    };
 };
 
-const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
+const InfiniteResourceTable = ({
+    filters,
+    contentTypeFilter,
+}: ResourceView2Props) => {
     const theme = useMantineTheme();
     const history = useHistory();
     const { data: spaces = [] } = useSpaceSummaries(
@@ -276,9 +283,9 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
     ];
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
     const [search, setSearch] = useState<string | undefined>(undefined);
-    const [selectedContentTypes, setSelectedContentTypes] = useState<
-        ContentType[]
-    >([]);
+    const [selectedContentType, setSelectedContentType] = useState<
+        ContentType | undefined
+    >(contentTypeFilter?.defaultValue);
     const clearSearch = useCallback(() => setSearch(''), [setSearch]);
     const deferredSearch = useDeferredValue(search);
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -288,10 +295,9 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
         useInfiniteContent(
             {
                 spaceUuids: filters.spaceUuids,
-                contentTypes:
-                    selectedContentTypes.length > 0
-                        ? selectedContentTypes
-                        : filters.contentTypes,
+                contentTypes: selectedContentType
+                    ? [selectedContentType]
+                    : filters.contentTypes,
                 projectUuids: [filters.projectUuid],
                 page: 1,
                 pageSize: 25,
@@ -581,31 +587,24 @@ const InfiniteResourceTable = ({ filters }: ResourceView2Props) => {
                                 }
                             />
                         </Tooltip>
-                        {filters.contentTypes &&
-                            filters.contentTypes?.length > 1 && (
-                                <>
-                                    <Divider
-                                        orientation="vertical"
-                                        w={1}
-                                        h={20}
-                                        sx={{
-                                            alignSelf: 'center',
-                                            borderColor: '#DEE2E6',
-                                        }}
-                                    />
-                                    <ContentTypeMultiSelect
-                                        value={selectedContentTypes}
-                                        onChange={(values) =>
-                                            setSelectedContentTypes(
-                                                values as ContentType[],
-                                            )
-                                        }
-                                        optionsContentTypes={
-                                            filters.contentTypes
-                                        }
-                                    />
-                                </>
-                            )}
+                        {contentTypeFilter && (
+                            <>
+                                <Divider
+                                    orientation="vertical"
+                                    w={1}
+                                    h={20}
+                                    sx={{
+                                        alignSelf: 'center',
+                                        borderColor: '#DEE2E6',
+                                    }}
+                                />
+                                <ContentTypeFilter
+                                    value={selectedContentType}
+                                    onChange={setSelectedContentType}
+                                    options={contentTypeFilter?.options}
+                                />
+                            </>
+                        )}
                     </Group>
                 </Group>
                 <Divider color="gray.2" />
