@@ -62,6 +62,8 @@ import { UserController } from './../controllers/userController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ContentController } from './../controllers/v2/ContentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { FeatureFlagController } from './../controllers/v2/FeatureFlagController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SemanticLayerController } from './../controllers/v2/SemanticLayerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { IocContainer, IocContainerFactory } from '@tsoa/runtime';
@@ -2695,6 +2697,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 metadata: { ref: 'Record_string.SeriesMetadata_' },
+                legendMaxItemLength: { dataType: 'double' },
                 legendPosition: { ref: 'PieChartLegendPosition' },
                 showLegend: { dataType: 'boolean' },
                 groupSortOverrides: {
@@ -10302,6 +10305,18 @@ const models: TsoaRoute.Models = {
     ContentSortByColumns: {
         dataType: 'refEnum',
         enums: ['name', 'space_name', 'last_updated_at'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FeatureFlag: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                enabled: { dataType: 'boolean', required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerClientInfo: {
@@ -21326,6 +21341,63 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.listContent.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v2/feature-flag/:featureFlagId',
+        ...fetchMiddlewares<RequestHandler>(FeatureFlagController),
+        ...fetchMiddlewares<RequestHandler>(
+            FeatureFlagController.prototype.getFeatureFlag,
+        ),
+
+        async function FeatureFlagController_getFeatureFlag(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                featureFlagId: {
+                    in: 'path',
+                    name: 'featureFlagId',
+                    required: true,
+                    dataType: 'string',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<FeatureFlagController>(
+                        FeatureFlagController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getFeatureFlag.apply(
                     controller,
                     validatedArgs as any,
                 );

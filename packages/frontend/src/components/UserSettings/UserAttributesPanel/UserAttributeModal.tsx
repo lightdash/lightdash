@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type CreateUserAttribute,
     type UserAttribute,
 } from '@lightdash/common';
@@ -18,13 +19,13 @@ import {
 import { useForm } from '@mantine/form';
 import { IconTrash, IconUserPlus, IconUsersPlus } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {
     useCreateUserAtributesMutation,
     useUpdateUserAtributesMutation,
 } from '../../../hooks/useUserAttributes';
-import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 const UserAttributeModal: FC<{
@@ -33,7 +34,9 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
-    const { health } = useApp();
+    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
 
     const form = useForm<CreateUserAttribute>({
         initialValues: {
@@ -128,13 +131,13 @@ const UserAttributeModal: FC<{
     const { data: orgUsers } = useOrganizationUsers();
     const { data: groups } = useOrganizationGroups({
         queryOptions: {
-            enabled: !!health.data?.hasGroups,
+            enabled: !!UserGroupsFeatureFlag?.enabled,
         },
     });
 
-    if (!health.data) return null;
+    if (!UserGroupsFeatureFlag) return null;
 
-    const isGroupManagementEnabled = health.data.hasGroups;
+    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
 
     return (
         <Modal

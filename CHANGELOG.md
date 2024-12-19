@@ -1,3 +1,52 @@
+## [0.1425.3](https://github.com/lightdash/lightdash/compare/0.1425.2...0.1425.3) (2024-12-19)
+
+
+### Bug Fixes
+
+* have legend icon variants on metrics explorer ([#12966](https://github.com/lightdash/lightdash/issues/12966)) ([160907e](https://github.com/lightdash/lightdash/commit/160907e7fa8056a6f96ccc5ed37783dd49289859))
+
+## [0.1425.2](https://github.com/lightdash/lightdash/compare/0.1425.1...0.1425.2) (2024-12-19)
+
+
+### Bug Fixes
+
+* revert "fix: add support for double slash SQL comments ([#12942](https://github.com/lightdash/lightdash/issues/12942))" ([#12972](https://github.com/lightdash/lightdash/issues/12972)) ([e1dabdb](https://github.com/lightdash/lightdash/commit/e1dabdb77bd693bcd31c5f62e7395c16256eddfb))
+
+## [0.1425.1](https://github.com/lightdash/lightdash/compare/0.1425.0...0.1425.1) (2024-12-19)
+
+
+### Bug Fixes
+
+* echarts overlapping labels ([#12963](https://github.com/lightdash/lightdash/issues/12963)) ([83a926d](https://github.com/lightdash/lightdash/commit/83a926d9988596266f999cc4e35e1a5213a785e4))
+
+# [0.1425.0](https://github.com/lightdash/lightdash/compare/0.1424.3...0.1425.0) (2024-12-19)
+
+
+### Features
+
+* show reference line label in list ([#12968](https://github.com/lightdash/lightdash/issues/12968)) ([76ce026](https://github.com/lightdash/lightdash/commit/76ce0265b108eab3b2579f84984ff806b2059bec))
+
+## [0.1424.3](https://github.com/lightdash/lightdash/compare/0.1424.2...0.1424.3) (2024-12-19)
+
+
+### Bug Fixes
+
+* content type filter input ([#12957](https://github.com/lightdash/lightdash/issues/12957)) ([55c5d46](https://github.com/lightdash/lightdash/commit/55c5d4635e256cf26f4c2348c558efe4d4aeaadb))
+
+## [0.1424.2](https://github.com/lightdash/lightdash/compare/0.1424.1...0.1424.2) (2024-12-19)
+
+
+### Bug Fixes
+
+* add support for double slash SQL comments ([#12942](https://github.com/lightdash/lightdash/issues/12942)) ([0338c1d](https://github.com/lightdash/lightdash/commit/0338c1db15f1e0be315abbe2f52ce02c542da633))
+
+## [0.1424.1](https://github.com/lightdash/lightdash/compare/0.1424.0...0.1424.1) (2024-12-19)
+
+
+### Bug Fixes
+
+* throw warning if folder does not exist , chart as code ([#12950](https://github.com/lightdash/lightdash/issues/12950)) ([4099935](https://github.com/lightdash/lightdash/commit/40999355c6012fceea85997a46187700ec970402))
+
 # [0.1424.0](https://github.com/lightdash/lightdash/compare/0.1423.1...0.1424.0) (2024-12-18)
 
 

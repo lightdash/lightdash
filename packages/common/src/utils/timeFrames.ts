@@ -369,7 +369,12 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
-        getAxisLabelFormatter: () => ({ hour: '' }),
+        getAxisLabelFormatter: () => ({
+            year: '{bold|{yyyy}}',
+            month: '{bold|{MMM}}',
+            day: '{d}',
+            hour: '',
+        }),
     },
     WEEK: {
         getLabel: () => 'Week',

@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
@@ -11,7 +10,6 @@ import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
 
@@ -142,33 +140,11 @@ export class HealthService extends BaseService {
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
-            hasGroups: await this.hasGroups(user),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
                 this.lightdashConfig.resultsCache.autocompleteEnabled || false,
         };
-    }
-
-    private async hasGroups(user: SessionUser | undefined): Promise<boolean> {
-        return (
-            this.lightdashConfig.groups.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UserGroupsEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          // because we are checking this in the health check, we don't want to throw an error
-                          // nor do we want to wait too long
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false)
-        );
     }
 
     private hasSlackConfig(): boolean {

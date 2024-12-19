@@ -43,3 +43,8 @@ export enum FeatureFlags {
      */
     MetricTrees = 'metric-trees',
 }
+
+export type FeatureFlag = {
+    id: string;
+    enabled: boolean;
+};

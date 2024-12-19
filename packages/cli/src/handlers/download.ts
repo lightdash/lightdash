@@ -77,6 +77,7 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     const items: (T & { needsUpdating: boolean })[] = [];
     try {
         // Read all files from the lightdash directory
+        // if folder does not exist, this throws an error
         const files = await fs.readdir(inputDir);
         const jsonFiles = files.filter((file) => file.endsWith('.yml'));
 
@@ -106,13 +107,17 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
             items.push(locallyUpdatedItem);
         }
     } catch (error) {
+        // Folder does not exist
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
             console.error(
-                `Directory ${inputDir} not found. Run download command first.`,
+                styles.warning(
+                    `Unable to upload ${folder}, "${inputDir}" folder not found. Run download command first.`,
+                ),
             );
-        } else {
-            console.error(`Error reading ${inputDir}: ${error}`);
+            return [];
         }
+        // Unknown error
+        console.error(styles.error(`Error reading ${inputDir}: ${error}`));
         throw error;
     }
 

@@ -9,6 +9,7 @@ import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
@@ -86,6 +87,7 @@ export type ModelManifest = {
     SavedSemanticViewerChartModel: SavedSemanticViewerChartModel;
     contentModel: ContentModel;
     tagsModel: TagsModel;
+    featureFlagModel: FeatureFlagModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     embedModel: unknown;
@@ -103,6 +105,7 @@ type ModelProvider<T extends ModelManifest> = (providerArgs: {
     repository: ModelRepository;
     database: Knex;
     utils: UtilRepository;
+    lightdashConfig: LightdashConfig;
 }) => T[keyof T];
 
 /**
@@ -497,6 +500,17 @@ export class ModelRepository
         );
     }
 
+    public getFeatureFlagModel(): FeatureFlagModel {
+        return this.getModel(
+            'featureFlagModel',
+            () =>
+                new FeatureFlagModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
+        );
+    }
+
     public getAiModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiModel');
     }
@@ -535,6 +549,7 @@ export class ModelRepository
                     repository: this,
                     database: this.database,
                     utils: this.utils,
+                    lightdashConfig: this.lightdashConfig,
                 }) as T;
             } else if (factory != null) {
                 modelInstance = factory();

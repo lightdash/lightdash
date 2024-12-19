@@ -1,0 +1,54 @@
+name: How do payment methods vary across different amount ranges?
+description: Payment range by amount
+tableName: payments
+updatedAt: '2024-12-17T11:04:43.216Z'
+metricQuery:
+    exploreName: payments
+    dimensions:
+        - amount_range
+        - payments_payment_method
+    metrics:
+        - orders_total_order_amount
+    filters: {}
+    sorts:
+        - fieldId: orders_total_order_amount
+          descending: true
+    limit: 500
+    tableCalculations: []
+    additionalMetrics: []
+    customDimensions:
+        - id: amount_range
+          name: amount range
+          type: bin
+          dimensionId: payments_amount
+          table: payments
+          binType: fixed_number
+          binNumber: 5
+chartConfig:
+    type: cartesian
+    config:
+        layout:
+            xField: amount_range
+            yField:
+                - orders_total_order_amount
+            flipAxes: false
+        eChartsConfig:
+            series:
+                - type: bar
+                  encode:
+                      xRef:
+                          field: amount_range
+                      yRef:
+                          field: orders_total_order_amount
+                  yAxisIndex: 0
+dashboardUuid: null
+slug: how-do-payment-methods-vary-across-different-amount-ranges
+tableConfig:
+    columnOrder:
+        - amount_range
+        - amount range
+        - orders_total_order_amount
+        - payments_payment_method
+spaceSlug: jaffle-shop
+version: 1
+downloadedAt: '2024-12-17T11:06:55.912Z'

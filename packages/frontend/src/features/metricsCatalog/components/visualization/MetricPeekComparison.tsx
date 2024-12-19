@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Group,
     Loader,
     Paper,
@@ -19,14 +18,10 @@ import {
 } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
-import {
-    forwardRef,
-    useCallback,
-    type ComponentPropsWithoutRef,
-    type FC,
-} from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useSelectStyles } from '../styles/useSelectStyles';
+import { useCallback, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { useSelectStyles } from '../../styles/useSelectStyles';
+import SelectItem from '../SelectItem';
 
 type Props = {
     baseMetricLabel: string | undefined;
@@ -37,21 +32,6 @@ type Props = {
         unknown
     >;
 };
-
-const FieldItem = forwardRef<
-    HTMLDivElement,
-    ComponentPropsWithoutRef<'div'> & {
-        value: string;
-        label: string;
-        selected: boolean;
-    }
->(({ value, label, ...others }, ref) => (
-    <Box ref={ref} {...others}>
-        <Text fz="sm" c="dark.8" fw={400}>
-            {label}
-        </Text>
-    </Box>
-));
 
 export const MetricPeekComparison: FC<Props> = ({
     baseMetricLabel,
@@ -200,6 +180,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                             .length > 0) ? (
                                         <Select
                                             placeholder="Select a metric"
+                                            searchable
                                             radius="md"
                                             size="xs"
                                             data={
@@ -214,7 +195,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                             }
                                             value={getItemId(query.metric)}
                                             onChange={handleMetricChange}
-                                            itemComponent={FieldItem}
+                                            itemComponent={SelectItem}
                                             // this does not work as expected in Mantine 6
                                             data-disabled={
                                                 !metricsWithTimeDimensionsQuery.isSuccess
@@ -232,6 +213,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                                 item: classes.item,
                                                 rightSection:
                                                     classes.rightSection,
+                                                dropdown: classes.dropdown,
                                             }}
                                         />
                                     ) : (

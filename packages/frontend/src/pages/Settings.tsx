@@ -47,7 +47,10 @@ import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel'
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
-import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
+import {
+    useFeatureFlag,
+    useFeatureFlagEnabled,
+} from '../hooks/useFeatureFlagEnabled';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, useTracking } from '../providers/TrackingProvider';
@@ -75,6 +78,9 @@ const Settings: FC = () => {
         },
         user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
+    const { data: UserGroupFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
     const { track } = useTracking();
     const {
         data: organization,
@@ -124,7 +130,7 @@ const Settings: FC = () => {
         health.auth.azuread.enabled ||
         health.auth.oidc.enabled;
 
-    const isGroupManagementEnabled = health.hasGroups;
+    const isGroupManagementEnabled = UserGroupFeatureFlag?.enabled;
 
     return (
         <Page

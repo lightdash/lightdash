@@ -135,6 +135,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
+import { measureTime } from '../../logging/measureTime';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -1698,16 +1699,25 @@ export class ProjectService extends BaseService {
         exploreName: string,
         metricQuery: MetricQuery,
     ) {
-        return this.runQueryAndFormatRows({
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName,
-            csvLimit: undefined,
-            context: QueryExecutionContext.METRICS_EXPLORER,
-            queryTags: {},
-            chartUuid: undefined,
-        });
+        return measureTime(
+            () =>
+                this.runQueryAndFormatRows({
+                    user,
+                    metricQuery,
+                    projectUuid,
+                    exploreName,
+                    csvLimit: undefined,
+                    context: QueryExecutionContext.METRICS_EXPLORER,
+                    queryTags: {},
+                    chartUuid: undefined,
+                }),
+            'runQueryAndFormatRows',
+            this.logger,
+            {
+                exploreName,
+                metricQuery,
+            },
+        );
     }
 
     async getResultsForChart(
@@ -1800,8 +1810,10 @@ export class ProjectService extends BaseService {
                         this.logger.debug(
                             `Getting data from cache, key: ${queryHash}`,
                         );
-                        const cacheEntry = await this.s3CacheClient.getResults(
-                            queryHash,
+                        const cacheEntry = await measureTime(
+                            () => this.s3CacheClient.getResults(queryHash),
+                            'getResultsFromCache',
+                            this.logger,
                         );
                         const stringResults =
                             await cacheEntry.Body?.transformToString();
@@ -1829,6 +1841,7 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
                 );
+
                 const warehouseResults = await wrapSentryTransaction(
                     'runWarehouseQuery',
                     {
@@ -1839,10 +1852,15 @@ export class ProjectService extends BaseService {
                         type: warehouseClient.credentials.type,
                     },
                     async () =>
-                        warehouseClient.runQuery(
-                            query,
-                            queryTags,
-                            // metricQuery.timezone,
+                        measureTime(
+                            () =>
+                                warehouseClient.runQuery(
+                                    query,
+                                    queryTags,
+                                    // metricQuery.timezone,
+                                ),
+                            'runWarehouseQuery',
+                            this.logger,
                         ),
                 );
 
