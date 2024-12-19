@@ -1,6 +1,11 @@
 import { ActionIcon, Flex, Group, Text, Tooltip } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import {
+    IconBackslash,
+    IconChevronLeft,
+    IconChevronRight,
+    IconLineDashed,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { type LegendProps } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -18,6 +23,52 @@ interface MetricExploreLegendProps extends Pick<LegendProps, 'payload'> {
     onMouseLeave?: (value: string) => void;
     onClick?: (value: string) => void;
 }
+
+enum LegendIconVariant {
+    SQUARE = 'square',
+    LINE = 'line',
+    DASHED = 'dashed',
+}
+
+const getLegendIconVariant = (value: string) => {
+    switch (value) {
+        case 'metric':
+            return LegendIconVariant.LINE;
+        case 'compareMetric':
+            return LegendIconVariant.DASHED;
+        default:
+            return LegendIconVariant.SQUARE;
+    }
+};
+
+const LegendIcon = ({
+    color,
+    variant,
+}: {
+    color: string | undefined;
+    variant: LegendIconVariant;
+}) => {
+    switch (variant) {
+        case LegendIconVariant.SQUARE:
+            return <SquareBadge color={color} size={12} />;
+        case LegendIconVariant.LINE:
+            return (
+                <MantineIcon
+                    icon={IconBackslash}
+                    color={color}
+                    size={12}
+                    // react-tabler doesn't have an horizontal line icon
+                    style={{ transform: 'rotate(125deg)' }}
+                />
+            );
+        case LegendIconVariant.DASHED:
+            return (
+                <MantineIcon icon={IconLineDashed} color={color} size={12} />
+            );
+        default:
+            return null;
+    }
+};
 
 export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
     ...props
@@ -132,7 +183,10 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
             >
                 {visibleItems?.map((item) => (
                     <Group key={item.value} spacing={4} noWrap>
-                        <SquareBadge color={item.color} size={12} />
+                        <LegendIcon
+                            color={item.color}
+                            variant={getLegendIconVariant(item.value)}
+                        />
                         <Tooltip label={item.value}>
                             <Text
                                 span
