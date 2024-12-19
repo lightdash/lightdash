@@ -5,6 +5,7 @@ import {
     isField,
     isFilterableField,
     isMetric,
+    isNumericType,
     isTableCalculation,
     type TableCalculation,
 } from '@lightdash/common';
@@ -27,6 +28,7 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
+import FormatMenuOptions from './Format';
 import QuickCalculationMenuOptions from './QuickCalculations';
 
 interface ContextMenuProps extends HeaderProps {
@@ -105,6 +107,16 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
                 {isMetric(item) && (
                     <>
+                        {/*// TODO: doesn't catch time MIN/MAX*/}
+                        {!isItemAdditionalMetric &&
+                            isNumericType(item.type) && (
+                                <>
+                                    {/*// TODO: add option to reset format*/}
+                                    <FormatMenuOptions item={item} />
+                                    <Menu.Divider />
+                                </>
+                            )}
+
                         <QuickCalculationMenuOptions item={item} />
                         <Menu.Divider />
                     </>

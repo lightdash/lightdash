@@ -188,6 +188,15 @@ models:
                 - completed
                 - return_pending
                 - returned
+      - name: purchasePrice
+        description: "Total purchase price for the transaction."
+        tests:
+          - not_null
+        meta:
+          metrics:
+            total_revenue:
+              type: sum
+              format: usd
       - name: amount
         description: Total amount (USD) of the order
         tests:
