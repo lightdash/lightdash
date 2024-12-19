@@ -1,3 +1,10 @@
+## [0.1424.3](https://github.com/lightdash/lightdash/compare/0.1424.2...0.1424.3) (2024-12-19)
+
+
+### Bug Fixes
+
+* content type filter input ([#12957](https://github.com/lightdash/lightdash/issues/12957)) ([55c5d46](https://github.com/lightdash/lightdash/commit/55c5d4635e256cf26f4c2348c558efe4d4aeaadb))
+
 ## [0.1424.2](https://github.com/lightdash/lightdash/compare/0.1424.1...0.1424.2) (2024-12-19)
 
 
