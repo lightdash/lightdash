@@ -73,7 +73,6 @@ const LegendIcon = ({
 export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
     ...props
 }) => {
-    console.log('props', props);
     const [activePage, setActivePage] = useState(1);
     const { ref: containerRef, width: containerWidth } = useElementSize();
 
