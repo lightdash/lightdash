@@ -182,6 +182,8 @@ export class PostgresClient<
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 5000,
+                // sets the query timeout to 5 minutes
+                query_timeout: 1000 * 60 * 5, // this.credentials.timeoutSeconds * 1000,
             });
 
             pool.on('error', (err) => {
@@ -220,11 +222,18 @@ export class PostgresClient<
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     const stream = client.query(
+                        // callback is not defined in types when using QueryStream
+                        // @ts-ignore
                         new QueryStream(
                             this.getSQLWithMetadata(sql, options?.tags),
                             options?.values,
                         ),
-                    );
+                        // there is a bug in PG lib where callback is required when passing `query_timeout` to the Pool
+                        // see the code: https://github.com/brianc/node-postgres/blob/master/packages/pg/lib/client.js#L541-L542
+                        () => {},
+                        // typecast is necessary to fix the type issue described above
+                    ) as unknown as QueryStream;
+
                     // release the client when the stream is finished
                     stream.on('end', () => {
                         done();
@@ -532,8 +541,6 @@ export class PostgresClient<
             lineNumber,
             charNumber,
         });
-
-        return new WarehouseQueryError(error?.message || 'Unknown error');
     }
 }
 
