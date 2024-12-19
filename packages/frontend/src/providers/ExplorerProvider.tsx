@@ -16,10 +16,12 @@ import {
     type ChartConfig,
     type CreateSavedChartVersion,
     type CustomDimension,
+    type CustomFormat,
     type CustomVisConfig,
     type Dimension,
     type FieldId,
     type FunnelChartConfig,
+    type Metric,
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
@@ -94,6 +96,8 @@ export enum ActionType {
     EDIT_CUSTOM_DIMENSION,
     REMOVE_CUSTOM_DIMENSION,
     TOGGLE_CUSTOM_DIMENSION_MODAL,
+    TOGGLE_FORMAT_MODAL,
+    UPDATE_METRIC_FORMAT,
 }
 
 type Action =
@@ -218,6 +222,14 @@ type Action =
               ExplorerReduceState['modals']['customDimension'],
               'isOpen'
           >;
+      }
+    | {
+          type: ActionType.TOGGLE_FORMAT_MODAL;
+          payload?: { metric: Metric };
+      }
+    | {
+          type: ActionType.UPDATE_METRIC_FORMAT;
+          payload: { metric: Metric; formatOptions: CustomFormat };
       };
 
 export interface ExplorerReduceState {
@@ -230,6 +242,10 @@ export interface ExplorerReduceState {
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     modals: {
+        format: {
+            isOpen: boolean;
+            metric?: Metric;
+        };
         additionalMetric: {
             isOpen: boolean;
             isEditing?: boolean;
@@ -292,6 +308,11 @@ export interface ExplorerContext {
             >,
         ) => void;
         setColumnOrder: (order: string[]) => void;
+        toggleFormatModal: (args?: { metric: Metric }) => void;
+        updateMetricFormat: (args: {
+            metric: Metric;
+            formatOptions: CustomFormat;
+        }) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
             oldName: string,
@@ -347,6 +368,9 @@ const defaultState: ExplorerReduceState = {
         },
     },
     modals: {
+        format: {
+            isOpen: false,
+        },
         additionalMetric: {
             isOpen: false,
         },
@@ -652,6 +676,12 @@ function reducer(
                         sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (s) => s.fieldId !== action.payload,
                         ),
+                        metricOverrides: Object.fromEntries(
+                            Object.entries(
+                                state.unsavedChartVersion.metricQuery
+                                    .metricOverrides || {},
+                            ).filter(([key]) => key !== action.payload),
+                        ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
@@ -944,6 +974,38 @@ function reducer(
                     customDimension: {
                         isOpen: !state.modals.customDimension.isOpen,
                         ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
+        case ActionType.TOGGLE_FORMAT_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    format: {
+                        isOpen: !state.modals.format.isOpen,
+                        ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
+        case ActionType.UPDATE_METRIC_FORMAT: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        metricOverrides: {
+                            ...state.unsavedChartVersion.metricQuery
+                                .metricOverrides,
+                            [getItemId(action.payload.metric)]: {
+                                formatOptions: action.payload.formatOptions,
+                            },
+                        },
                     },
                 },
             };
@@ -1707,6 +1769,26 @@ export const ExplorerProvider: FC<
         [],
     );
 
+    const toggleFormatModal = useCallback((args?: { metric: Metric }) => {
+        dispatch({
+            type: ActionType.TOGGLE_FORMAT_MODAL,
+            payload: args,
+        });
+    }, []);
+
+    const updateMetricFormat = useCallback(
+        (args: { metric: Metric; formatOptions: CustomFormat }) => {
+            dispatch({
+                type: ActionType.UPDATE_METRIC_FORMAT,
+                payload: args,
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1856,6 +1938,8 @@ export const ExplorerProvider: FC<
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            toggleFormatModal,
+            updateMetricFormat,
         }),
         [
             clearExplore,
@@ -1889,6 +1973,8 @@ export const ExplorerProvider: FC<
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            toggleFormatModal,
+            updateMetricFormat,
         ],
     );
 

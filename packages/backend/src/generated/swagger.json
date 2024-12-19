@@ -2374,6 +2374,14 @@
                     }
                 ]
             },
+            "Record_FieldId.Pick_Metric.formatOptions__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "MetricOverrides": {
+                "$ref": "#/components/schemas/Record_FieldId.Pick_Metric.formatOptions__"
+            },
             "Pick_CompiledDimension.label-or-name_": {
                 "properties": {
                     "name": {
@@ -2400,6 +2408,9 @@
                     },
                     "timezone": {
                         "type": "string"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
                     },
                     "customDimensions": {
                         "items": {
@@ -7017,6 +7028,9 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
+                    },
                     "timezone": {
                         "type": "string"
                     },
@@ -12445,7 +12459,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1422.0",
+        "version": "0.1425.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

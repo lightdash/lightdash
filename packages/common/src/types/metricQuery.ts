@@ -13,6 +13,7 @@ import {
     type CustomFormat,
     type FieldId,
     type Format,
+    type Metric,
     type MetricType,
     type TableCalculation,
 } from './field';
@@ -52,6 +53,8 @@ export const hasFormatOptions = (
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
 
+export type MetricOverrides = Record<FieldId, Pick<Metric, 'formatOptions'>>;
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     exploreName: string;
@@ -63,6 +66,7 @@ export type MetricQuery = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
+    metricOverrides?: MetricOverrides; // Override format options for fields in "metrics"
     timezone?: string; // Local timezone to use for the query
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name'>;
@@ -160,4 +164,5 @@ export type MetricQueryRequest = {
     granularity?: DateGranularity;
     metadata?: MetricQuery['metadata'];
     timezone?: string;
+    metricOverrides?: MetricOverrides;
 };
