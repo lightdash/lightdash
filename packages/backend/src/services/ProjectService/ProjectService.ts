@@ -1690,7 +1690,7 @@ export class ProjectService extends BaseService {
                             this.logger,
                             {
                                 rowCount: rows.length,
-                                columnCount: Object.keys(rows[0]).length,
+                                columnCount: Object.keys(fields).length,
                                 useWorker,
                             },
                         );
