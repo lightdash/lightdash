@@ -116,7 +116,6 @@ export class MetricsExplorerService<
                 projectUuid,
                 exploreName,
                 adjustedMetricQuery,
-                true,
             );
 
         // Comparison uses the same dimension as the base metric
@@ -208,7 +207,6 @@ export class MetricsExplorerService<
                 projectUuid,
                 query.metric.table,
                 metricQuery,
-                true,
             );
 
         const dimension = fields[metricQuery.dimensions[0]];
@@ -345,7 +343,6 @@ export class MetricsExplorerService<
                 projectUuid,
                 exploreName,
                 metricQuery,
-                true,
             );
 
         let allFields = fields;
@@ -562,7 +559,6 @@ export class MetricsExplorerService<
                 projectUuid,
                 exploreName,
                 metricQuery,
-                true,
             );
 
         let compareRows: ResultRow[] | undefined;
@@ -592,7 +588,6 @@ export class MetricsExplorerService<
                     projectUuid,
                     exploreName,
                     compareMetricQuery,
-                    true,
                 )
             ).rows;
         }
