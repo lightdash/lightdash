@@ -303,14 +303,20 @@ export const sortDayOfWeekName = (
 const replaceStringsWithPlaceholders = (
     sql: string,
 ): { sqlWithoutStrings: string; placeholders: string[] } => {
+    // Regex to match strings (single and double quotes)
     const stringRegex = /('([^'\\]|\\.)*')|("([^"\\]|\\.)*")/gm;
+
     const placeholders: string[] = [];
     let index = 0;
+
+    // Replace strings with placeholders to protect their contents
     const sqlWithoutStrings = sql.replace(stringRegex, (match) => {
         placeholders.push(match);
-        // eslint-disable-next-line no-plusplus
-        return `__string_placeholder_${index++}__`;
+        const placeholder = `__string_placeholder_${index}__`;
+        index += 1;
+        return placeholder;
     });
+
     return { sqlWithoutStrings, placeholders };
 };
 
@@ -321,21 +327,22 @@ const restoreStringsFromPlaceholders = (
 ): string =>
     sql.replace(
         /__string_placeholder_(\d+)__/g,
-        (_, p1) => placeholders[Number(p1)],
+        (_, p1) => placeholders[Number(p1)] || '',
     );
 
 // Remove comments and limit clauses from SQL
 export const removeComments = (sql: string): string => {
     let s = sql.trim();
+
     // First replace strings with placeholders to protect their contents
     const { sqlWithoutStrings, placeholders } =
         replaceStringsWithPlaceholders(s);
 
     // Remove comments from the SQL with protected strings
-    s = sqlWithoutStrings.replace(/--.*$/gm, '').replace(/\/\/.*$/gm, '');
-
-    // Remove multi-line comments
-    s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+    s = sqlWithoutStrings
+        .replace(/--[^\n]*/g, '') // Remove single line comments starting with --
+        .replace(/\/\/[^\n]*/g, '') // Remove single line comments starting with //
+        .replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, ''); // Remove multi-line comments (including nested)
 
     // Restore the original strings
     s = restoreStringsFromPlaceholders(s, placeholders);

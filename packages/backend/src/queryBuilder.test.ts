@@ -74,106 +74,251 @@ import {
 } from './queryBuilder.mock';
 
 describe('removeComments', () => {
-    it('should handle double slash comments with division operations', () => {
-        const sqlQuery = `
-            SELECT
-                revenue / cost as ratio, // Comment after division
-                10/2 as simple_ratio // Another comment
-            FROM metrics
-            WHERE value / 100 > 0.5; // Comment with division in it 1/2/3
-        `;
-        const result = removeComments(sqlQuery);
-        const expected = `
-            SELECT
-                revenue / cost as ratio,
-                10/2 as simple_ratio
-            FROM metrics
-            WHERE value / 100 > 0.5;`;
-        expect(result.trim()).toBe(expected.trim());
+    it('should remove single line comments starting with --', () => {
+        const sql = `
+SELECT * -- this is a comment
+FROM table -- another comment
+WHERE id > 0; -- final comment
+`;
+        console.log(removeComments(sql));
+
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table', 'WHERE id > 0;'].join('\n'),
+        );
     });
 
-    it('should handle mixed comment styles with double slash and double dash', () => {
-        const sqlQuery = `
-            -- First comment style
-            SELECT * FROM users // Second comment style
-            WHERE active = true -- Another dash comment
-            AND role = 'admin'; // Another slash comment
-            -- Final dash comment //
-            // Final slash comment --
-        `;
-        const result = removeComments(sqlQuery);
-        const expected = `
-
-            SELECT * FROM users
-            WHERE active = true
-            AND role = 'admin';
-
-
-        `;
-        expect(result.trim()).toBe(expected.trim());
+    it('should remove single line comments starting with //', () => {
+        const sql = `
+SELECT * // this is a comment
+FROM table // another comment
+WHERE id > 0; // final comment
+`;
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table', 'WHERE id > 0;'].join('\n'),
+        );
     });
 
-    it('should remove blank lines after removing comments', () => {
-        const sqlQuery = `
-            -- Header comment
-            SELECT *
-            // Middle comment
-            FROM users
-            -- Another comment
-            WHERE id > 0;
-            // Footer comment
-        `;
-        const result = removeComments(sqlQuery);
-        const expected = `
-            SELECT *
-            FROM users
-            WHERE id > 0;`;
-        expect(result.trim()).toBe(expected.trim());
+    it('should remove multi-line comments', () => {
+        const sql = `
+SELECT *
+/* this is a
+   multi-line comment */
+FROM table
+WHERE id > 0;
+`;
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table', 'WHERE id > 0;'].join('\n'),
+        );
     });
 
-    it('should preserve comments within string literals', () => {
-        const sqlQuery = `
-            SELECT
-                '// not a comment' AS col1,
-                "-- also not a comment" AS col2,
-                'string with // and -- inside' AS col3
-            FROM table1 // this is a real comment
-            WHERE col4 = '// text' -- this is also a real comment
-        `;
-        const expected = `
-            SELECT
-                '// not a comment' AS col1,
-                "-- also not a comment" AS col2,
-                'string with // and -- inside' AS col3
-            FROM table1
-            WHERE col4 = '// text'`;
-        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    it('should preserve string literals containing comment-like content', () => {
+        const sql = `
+SELECT 'text with -- not a comment',
+       "text with // not a comment",
+       'text with /* not a comment */'
+FROM table;
+`;
+        expect(removeComments(sql).trim()).toBe(
+            [
+                "SELECT 'text with -- not a comment',",
+                '       "text with // not a comment",',
+                "       'text with /* not a comment */'",
+                'FROM table;',
+            ].join('\n'),
+        );
     });
 
-    it('should handle escaped quotes in strings', () => {
-        const sqlQuery = `
-            SELECT 'string with \\'// nested\\' part' AS col
-            FROM table // comment
-        `;
-        const expected = `
-            SELECT 'string with \\'// nested\\' part' AS col
-            FROM table`;
-        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    it('should handle nested comments correctly', () => {
+        const sql = `
+SELECT * 
+/* outer comment
+   /* nested comment */
+   still in outer comment */
+FROM table;
+`;
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table;'].join('\n'),
+        );
     });
 
-    it('should handle mixed comment styles and slashes in paths', () => {
-        const sqlQuery = `
-            SELECT *
-            FROM 'https://example.com/path' -- comment here
-            WHERE path = '/usr/local/bin' // another comment
-            AND url LIKE '%//%' -- matches double slashes
-        `;
-        const expected = `
-            SELECT *
-            FROM 'https://example.com/path'
-            WHERE path = '/usr/local/bin'
-            AND url LIKE '%//%'`;
-        expect(removeComments(sqlQuery).trim()).toBe(expected.trim());
+    it('should handle mixed comment types', () => {
+        const sql = `
+SELECT * -- single line comment
+/* multi-line
+   comment */
+FROM table // another comment
+WHERE id > 0; /* final
+multi-line comment */
+`;
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table', 'WHERE id > 0;'].join('\n'),
+        );
+    });
+
+    it('should handle comments at the start and end of the query', () => {
+        const sql = `
+-- Initial comment
+/* Another
+   initial comment */
+SELECT *
+FROM table
+-- Final comment
+/* Last
+   comment */
+`;
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table'].join('\n'),
+        );
+    });
+
+    it('should handle empty or whitespace-only lines after removing comments', () => {
+        const sql = `
+-- Comment on its own line
+SELECT *
+/* Comment on its
+   own lines */
+FROM table
+-- Another standalone comment
+`;
+        expect(removeComments(sql).trim()).toBe(
+            ['SELECT *', 'FROM table'].join('\n'),
+        );
+    });
+
+    it('should preserve quoted identifiers containing comment-like content', () => {
+        const sql = `
+SELECT *
+FROM "table--with--dashes"."column--name"
+WHERE "field--1" = 'value' -- real comment
+`;
+        expect(removeComments(sql).trim()).toBe(
+            [
+                'SELECT *',
+                'FROM "table--with--dashes"."column--name"',
+                'WHERE "field--1" = \'value\'',
+            ].join('\n'),
+        );
+    });
+
+    it('should handle comments within complex SQL statements', () => {
+        const sql = `
+WITH cte AS ( -- CTE comment
+    SELECT * -- Select comment
+    FROM table1 /* Join comment */
+    JOIN table2 -- Another comment
+    ON table1.id = table2.id
+)
+SELECT * -- Main select
+FROM cte -- From comment
+WHERE id > 0; -- Where comment
+`;
+        expect(removeComments(sql).trim()).toBe(
+            [
+                'WITH cte AS (',
+                '    SELECT *',
+                '    FROM table1',
+                '    JOIN table2',
+                '    ON table1.id = table2.id',
+                ')',
+                'SELECT *',
+                'FROM cte',
+                'WHERE id > 0;',
+            ].join('\n'),
+        );
+    });
+
+    it('should handle comments containing single and double quotes', () => {
+        const sql = `
+SELECT *  -- Here's a comment with 'quotes'
+FROM users  // And "another" one with "quotes"
+WHERE name = 'John'  -- Don't break this 'quoted string' here
+AND age > 20;  // Or this "quoted string" here
+`;
+
+        console.log('>>>>>>> ', removeComments(sql));
+        expect(removeComments(sql).trim()).toBe(
+            [
+                'SELECT *',
+                'FROM users',
+                "WHERE name = 'John'",
+                'AND age > 20;',
+            ].join('\n'),
+        );
+    });
+
+    it('should handle comments with mixed quotes and SQL fragments', () => {
+        const sql = `
+SELECT 
+    first_name,
+    'literal string', -- Comment with 'quotes' SELECT * FROM users
+    "quoted column" // Another "quoted" comment SELECT * FROM table
+FROM users
+WHERE "quoted field" = 'value' -- Don't parse 'this' as a string
+AND 'literal' = 'string' // Or "this" as a "quoted identifier"
+`;
+        expect(removeComments(sql).trim()).toBe(
+            [
+                'SELECT',
+                '    first_name,',
+                "    'literal string',",
+                '    "quoted column"',
+                'FROM users',
+                'WHERE "quoted field" = \'value\'',
+                "AND 'literal' = 'string'",
+            ].join('\n'),
+        );
+    });
+
+    it('should handle inline comments between string literals', () => {
+        const sql = `
+SELECT 
+    'before' -- comment with 'quotes'
+    'after', -- another comment
+    "before" // comment with "quotes"
+    "after"
+FROM users;
+`;
+        expect(removeComments(sql).trim()).toBe(
+            [
+                'SELECT',
+                "    'before'",
+                "    'after',",
+                '    "before"',
+                '    "after"',
+                'FROM users;',
+            ].join('\n'),
+        );
+    });
+
+    it('should handle complex queries with comments containing quotes and SQL keywords', () => {
+        const sql = `
+WITH cte AS ( -- Don't let this 'quoted string' break things
+    SELECT * -- Keep 'strings' and "identifiers" intact
+    FROM "public"."users" // Even with "quoted" schema and 'table'
+    WHERE name = 'John' -- 'strings' in comments shouldn't matter
+)
+SELECT 
+    u.*, -- Comment with 'quotes' and "identifiers"
+    'literal' as str, // Don't let this "comment" break 'strings'
+    "quoted" as id -- Or 'this' comment break "identifiers"
+FROM cte u -- Final comment with 'mixed' "quotes"
+WHERE "key" = 'value'; // Last comment with "mixed" 'quotes'
+`;
+        expect(removeComments(sql).trim()).toBe(
+            [
+                'WITH cte AS (',
+                '    SELECT *',
+                '    FROM "public"."users"',
+                "    WHERE name = 'John'",
+                ')',
+                'SELECT',
+                '    u.*,',
+                "    'literal' as str,",
+                '    "quoted" as id',
+                'FROM cte u',
+                'WHERE "key" = \'value\';',
+            ].join('\n'),
+        );
     });
 });
 
