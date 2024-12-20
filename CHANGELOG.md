@@ -1,3 +1,45 @@
+## [0.1426.3](https://github.com/lightdash/lightdash/compare/0.1426.2...0.1426.3) (2024-12-20)
+
+
+### Bug Fixes
+
+* **perf:** improve format rows perf ([#12983](https://github.com/lightdash/lightdash/issues/12983)) ([22fc371](https://github.com/lightdash/lightdash/commit/22fc371003d93ab72af45d93c00a79da438899c6))
+
+## [0.1426.2](https://github.com/lightdash/lightdash/compare/0.1426.1...0.1426.2) (2024-12-20)
+
+
+### Bug Fixes
+
+* postgres+redshift query default timeout ([#12980](https://github.com/lightdash/lightdash/issues/12980)) ([b3c3756](https://github.com/lightdash/lightdash/commit/b3c37566b70d206d4635a604386041772a86ae46))
+
+## [0.1426.1](https://github.com/lightdash/lightdash/compare/0.1426.0...0.1426.1) (2024-12-20)
+
+
+### Bug Fixes
+
+* get correct key on previous period ([#12986](https://github.com/lightdash/lightdash/issues/12986)) ([ddf9d7d](https://github.com/lightdash/lightdash/commit/ddf9d7d7174f2645b1cb0bf38600aff1a40d1ea1))
+
+# [0.1426.0](https://github.com/lightdash/lightdash/compare/0.1425.5...0.1426.0) (2024-12-20)
+
+
+### Features
+
+* support dbt 1.9 ([#12975](https://github.com/lightdash/lightdash/issues/12975)) ([b3290f7](https://github.com/lightdash/lightdash/commit/b3290f75db884e15acd7e0fd1bcb80d458f85ad9))
+
+## [0.1425.5](https://github.com/lightdash/lightdash/compare/0.1425.4...0.1425.5) (2024-12-20)
+
+
+### Bug Fixes
+
+* reset grain dropdown picker width ([#12985](https://github.com/lightdash/lightdash/issues/12985)) ([afb13bc](https://github.com/lightdash/lightdash/commit/afb13bcbb827e9b3a12da28aac2340a77df13532))
+
+## [0.1425.4](https://github.com/lightdash/lightdash/compare/0.1425.3...0.1425.4) (2024-12-20)
+
+
+### Bug Fixes
+
+* downloading a specific dashboard also downloads all associated charts ([#12955](https://github.com/lightdash/lightdash/issues/12955)) ([58d47f3](https://github.com/lightdash/lightdash/commit/58d47f306bd47a8474f7cf5725151da2a5fbeceb))
+
 ## [0.1425.3](https://github.com/lightdash/lightdash/compare/0.1425.2...0.1425.3) (2024-12-19)
 
 

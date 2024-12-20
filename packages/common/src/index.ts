@@ -1112,7 +1112,7 @@ export function itemsInMetricQuery(
 }
 
 function formatRawValue(
-    field: Field | Metric | TableCalculation | CustomDimension,
+    field: Field | Metric | TableCalculation | CustomDimension | undefined,
     value: any,
 ) {
     const isTimestamp =
@@ -1124,6 +1124,7 @@ function formatRawValue(
         // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
         return dayjs(value).utc(true).format();
     }
+
     return value;
 }
 
@@ -1131,22 +1132,24 @@ export function formatRows(
     rows: { [col: string]: any }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
-    return rows.map((row) =>
-        Object.keys(row).reduce<ResultRow>((acc, columnName) => {
-            const col = row[columnName];
+    return rows.map((row) => {
+        const resultRow: ResultRow = {};
+        const columnNames = Object.keys(row || {});
 
+        for (const columnName of columnNames) {
+            const value = row[columnName];
             const item = itemsMap[columnName];
-            return {
-                ...acc,
-                [columnName]: {
-                    value: {
-                        raw: formatRawValue(item, col),
-                        formatted: formatItemValue(item, col),
-                    },
+
+            resultRow[columnName] = {
+                value: {
+                    raw: formatRawValue(item, value),
+                    formatted: formatItemValue(item, value),
                 },
             };
-        }, {}),
-    );
+        }
+
+        return resultRow;
+    });
 }
 
 const isObject = (object: any) => object != null && typeof object === 'object';
