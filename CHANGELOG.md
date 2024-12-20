@@ -1,3 +1,10 @@
+## [0.1425.5](https://github.com/lightdash/lightdash/compare/0.1425.4...0.1425.5) (2024-12-20)
+
+
+### Bug Fixes
+
+* reset grain dropdown picker width ([#12985](https://github.com/lightdash/lightdash/issues/12985)) ([afb13bc](https://github.com/lightdash/lightdash/commit/afb13bcbb827e9b3a12da28aac2340a77df13532))
+
 ## [0.1425.4](https://github.com/lightdash/lightdash/compare/0.1425.3...0.1425.4) (2024-12-20)
 
 
