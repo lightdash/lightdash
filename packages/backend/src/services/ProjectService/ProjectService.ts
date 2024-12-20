@@ -1613,6 +1613,7 @@ export class ProjectService extends BaseService {
         explore: validExplore,
         granularity,
         chartUuid,
+        forceAvoidWorker,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1625,6 +1626,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
         chartUuid: string | undefined;
+        forceAvoidWorker?: boolean;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1664,7 +1666,9 @@ export class ProjectService extends BaseService {
                         warehouse: warehouseConnection?.type,
                     },
                     async (formatRowsSpan) => {
-                        const useWorker = rows.length > 500;
+                        const useWorker =
+                            rows.length > 500 && !forceAvoidWorker;
+
                         return measureTime(
                             async () => {
                                 formatRowsSpan.setAttribute(
@@ -1710,6 +1714,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         metricQuery: MetricQuery,
+        forceAvoidWorker?: boolean,
     ) {
         return measureTime(
             () =>
@@ -1722,6 +1727,7 @@ export class ProjectService extends BaseService {
                     context: QueryExecutionContext.METRICS_EXPLORER,
                     queryTags: {},
                     chartUuid: undefined,
+                    forceAvoidWorker,
                 }),
             'runQueryAndFormatRows',
             this.logger,
