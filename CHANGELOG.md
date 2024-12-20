@@ -1,3 +1,10 @@
+## [0.1426.2](https://github.com/lightdash/lightdash/compare/0.1426.1...0.1426.2) (2024-12-20)
+
+
+### Bug Fixes
+
+* postgres+redshift query default timeout ([#12980](https://github.com/lightdash/lightdash/issues/12980)) ([b3c3756](https://github.com/lightdash/lightdash/commit/b3c37566b70d206d4635a604386041772a86ae46))
+
 ## [0.1426.1](https://github.com/lightdash/lightdash/compare/0.1426.0...0.1426.1) (2024-12-20)
 
 
