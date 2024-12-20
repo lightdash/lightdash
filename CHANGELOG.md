@@ -1,3 +1,10 @@
+## [0.1426.1](https://github.com/lightdash/lightdash/compare/0.1426.0...0.1426.1) (2024-12-20)
+
+
+### Bug Fixes
+
+* get correct key on previous period ([#12986](https://github.com/lightdash/lightdash/issues/12986)) ([ddf9d7d](https://github.com/lightdash/lightdash/commit/ddf9d7d7174f2645b1cb0bf38600aff1a40d1ea1))
+
 # [0.1426.0](https://github.com/lightdash/lightdash/compare/0.1425.5...0.1426.0) (2024-12-20)
 
 
