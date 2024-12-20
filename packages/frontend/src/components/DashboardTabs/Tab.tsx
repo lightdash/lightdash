@@ -68,7 +68,6 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                     withArrow
                                     withinPortal
                                     shadow="md"
-                                    width={200}
                                 >
                                     <Menu.Target>
                                         <ActionIcon variant="subtle" size="xs">
