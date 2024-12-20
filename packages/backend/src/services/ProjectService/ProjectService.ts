@@ -1665,21 +1665,35 @@ export class ProjectService extends BaseService {
                     },
                     async (formatRowsSpan) => {
                         const useWorker = rows.length > 500;
-                        formatRowsSpan.setAttribute('useWorker', useWorker);
+                        return measureTime(
+                            async () => {
+                                formatRowsSpan.setAttribute(
+                                    'useWorker',
+                                    useWorker,
+                                );
 
-                        return useWorker
-                            ? runWorkerThread<ResultRow[]>(
-                                  new Worker(
-                                      './dist/services/ProjectService/formatRows.js',
-                                      {
-                                          workerData: {
-                                              rows,
-                                              itemMap: fields,
-                                          },
-                                      },
-                                  ),
-                              )
-                            : formatRows(rows, fields);
+                                return useWorker
+                                    ? runWorkerThread<ResultRow[]>(
+                                          new Worker(
+                                              './dist/services/ProjectService/formatRows.js',
+                                              {
+                                                  workerData: {
+                                                      rows,
+                                                      itemMap: fields,
+                                                  },
+                                              },
+                                          ),
+                                      )
+                                    : formatRows(rows, fields);
+                            },
+                            'formatRows',
+                            this.logger,
+                            {
+                                rowCount: rows.length,
+                                columnCount: Object.keys(rows[0]).length,
+                                useWorker,
+                            },
+                        );
                     },
                 );
 
