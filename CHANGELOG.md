@@ -1,3 +1,10 @@
+## [0.1425.4](https://github.com/lightdash/lightdash/compare/0.1425.3...0.1425.4) (2024-12-20)
+
+
+### Bug Fixes
+
+* downloading a specific dashboard also downloads all associated charts ([#12955](https://github.com/lightdash/lightdash/issues/12955)) ([58d47f3](https://github.com/lightdash/lightdash/commit/58d47f306bd47a8474f7cf5725151da2a5fbeceb))
+
 ## [0.1425.3](https://github.com/lightdash/lightdash/compare/0.1425.2...0.1425.3) (2024-12-19)
 
 
