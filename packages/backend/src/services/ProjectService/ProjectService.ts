@@ -1689,8 +1689,6 @@ export class ProjectService extends BaseService {
                             'formatRows',
                             this.logger,
                             {
-                                rowCount: rows.length,
-                                columnCount: Object.keys(fields).length,
                                 useWorker,
                             },
                         );
