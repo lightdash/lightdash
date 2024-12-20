@@ -47,8 +47,7 @@ export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
 
 export const hasFormatOptions = (
     value: any,
-): value is AdditionalMetric & { formatOptions: CustomFormat } =>
-    !!value.formatOptions;
+): value is { formatOptions: CustomFormat } => !!value.formatOptions;
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;

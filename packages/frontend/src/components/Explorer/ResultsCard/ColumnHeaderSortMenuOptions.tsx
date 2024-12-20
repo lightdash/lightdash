@@ -39,6 +39,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
 
     return (
         <>
+            <Menu.Label>Sorting</Menu.Label>
             {item &&
                 getSortDirectionOrder(item).map((sortDirection) => (
                     <Menu.Item

@@ -28,7 +28,7 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
-import FormatMenuOptions from './Format';
+import FormatMenuOptions from './FormatMenuOptions';
 import QuickCalculationMenuOptions from './QuickCalculations';
 
 interface ContextMenuProps extends HeaderProps {

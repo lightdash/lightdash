@@ -229,7 +229,7 @@ type Action =
       }
     | {
           type: ActionType.UPDATE_METRIC_FORMAT;
-          payload: { metric: Metric; formatOptions: CustomFormat };
+          payload: { metric: Metric; formatOptions: CustomFormat | undefined };
       };
 
 export interface ExplorerReduceState {
@@ -311,7 +311,7 @@ export interface ExplorerContext {
         toggleFormatModal: (args?: { metric: Metric }) => void;
         updateMetricFormat: (args: {
             metric: Metric;
-            formatOptions: CustomFormat;
+            formatOptions: CustomFormat | undefined;
         }) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -1777,7 +1777,7 @@ export const ExplorerProvider: FC<
     }, []);
 
     const updateMetricFormat = useCallback(
-        (args: { metric: Metric; formatOptions: CustomFormat }) => {
+        (args: { metric: Metric; formatOptions: CustomFormat | undefined }) => {
             dispatch({
                 type: ActionType.UPDATE_METRIC_FORMAT,
                 payload: args,
