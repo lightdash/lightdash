@@ -6923,6 +6923,10 @@
                     },
                     "ra3Node": {
                         "type": "boolean"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": ["type", "schema", "host", "port", "dbname"],
@@ -6995,6 +6999,10 @@
                     "sslmode": {
                         "type": "string"
                     },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "searchPath": {
                         "type": "string"
                     }
@@ -7030,15 +7038,15 @@
                         ],
                         "nullable": true
                     },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "project": {
                         "type": "string"
                     },
                     "dataset": {
                         "type": "string"
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "priority": {
                         "type": "string",

@@ -6339,6 +6339,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    timeoutSeconds: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
@@ -6449,6 +6456,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    timeoutSeconds: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     searchPath: {
                         dataType: 'union',
                         subSchemas: [
@@ -6506,8 +6520,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    project: { dataType: 'string', required: true },
-                    dataset: { dataType: 'string', required: true },
                     timeoutSeconds: {
                         dataType: 'union',
                         subSchemas: [
@@ -6516,6 +6528,8 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    project: { dataType: 'string', required: true },
+                    dataset: { dataType: 'string', required: true },
                     priority: {
                         dataType: 'union',
                         subSchemas: [
