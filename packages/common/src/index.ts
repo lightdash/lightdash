@@ -1129,16 +1129,13 @@ function formatRawValue(
 }
 
 export function formatRows(rows: { [col: string]: any }[], itemsMap: ItemsMap) {
-    const columnNames = Object.keys(rows[0] || {});
-    const itemLookup = new Map(
-        columnNames.map((name) => [name, itemsMap[name]]),
-    );
-
     return rows.map((row) => {
-        const resultRow: Record<string, any> = {};
+        const resultRow: ResultRow = {};
+        const columnNames = Object.keys(row || {});
+
         for (const columnName of columnNames) {
             const value = row[columnName];
-            const item = itemLookup.get(columnName);
+            const item = itemsMap[columnName];
 
             resultRow[columnName] = {
                 value: {
