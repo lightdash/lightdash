@@ -1385,7 +1385,7 @@ const ExplorerProvider: FC<
     }, []);
 
     const updateMetricFormat = useCallback(
-        (args: { metric: Metric; formatOptions: CustomFormat }) => {
+        (args: { metric: Metric; formatOptions: CustomFormat | undefined }) => {
             dispatch({
                 type: ActionType.UPDATE_METRIC_FORMAT,
                 payload: args,

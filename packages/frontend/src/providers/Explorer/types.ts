@@ -211,7 +211,7 @@ export type Action =
 }
     | {
     type: ActionType.UPDATE_METRIC_FORMAT;
-    payload: { metric: Metric; formatOptions: CustomFormat };
+    payload: { metric: Metric; formatOptions: CustomFormat | undefined; };
 };
 
 export interface ExplorerReduceState {
@@ -316,7 +316,7 @@ export interface ExplorerContextType {
         toggleFormatModal: (args?: { metric: Metric }) => void;
         updateMetricFormat: (args: {
             metric: Metric;
-            formatOptions: CustomFormat;
+            formatOptions: CustomFormat | undefined;
         }) => void;
     };
 }
