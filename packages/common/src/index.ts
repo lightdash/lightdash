@@ -1128,7 +1128,10 @@ function formatRawValue(
     return value;
 }
 
-export function formatRows(rows: { [col: string]: any }[], itemsMap: ItemsMap) {
+export function formatRows(
+    rows: { [col: string]: any }[],
+    itemsMap: ItemsMap,
+): ResultRow[] {
     return rows.map((row) => {
         const resultRow: ResultRow = {};
         const columnNames = Object.keys(row || {});
