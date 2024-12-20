@@ -190,7 +190,11 @@ const PreviousPeriodTooltip: FC<{
                 </Text>
             </Group>
             <TooltipBadge
-                value={entry.payload.metric.formatted}
+                value={
+                    entry.name === 'metric'
+                        ? entry.payload.metric.formatted
+                        : entry.payload.compareMetric?.formatted
+                }
                 variant="comparison"
             />
         </Group>
