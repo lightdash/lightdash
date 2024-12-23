@@ -342,7 +342,7 @@ export const removeComments = (sql: string): string => {
     s = sqlWithoutStrings
         .replace(/--[^\n]*/g, '') // Remove single line comments starting with --
         .replace(/\/\/[^\n]*/g, '') // Remove single line comments starting with //
-        .replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, ''); // Remove multi-line comments (including nested)
+        .replace(/\/\*(?:[^*]|\*(?!\/))*\*\//g, ''); // Remove multi-line comments
 
     // Restore the original strings
     s = restoreStringsFromPlaceholders(s, placeholders);
