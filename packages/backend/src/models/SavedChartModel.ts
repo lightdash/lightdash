@@ -188,10 +188,16 @@ const createSavedChartVersion = async (
     }: CreateSavedChartVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
+        // Only save overrides for existing metrics
+        const validMetricOverrides = Object.fromEntries(
+            Object.entries(metricOverrides || {}).filter(([key]) =>
+                metrics.includes(key),
+            ),
+        );
         const [version] = await trx('saved_queries_versions')
             .insert({
                 row_limit: limit,
-                metric_overrides: metricOverrides || null,
+                metric_overrides: validMetricOverrides || null,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,
