@@ -2,8 +2,8 @@ import {
     applyCustomFormat,
     ComparisonFormatTypes,
     CustomFormatType,
+    formatItemValue,
     friendlyName,
-    getCustomFormat,
     getDefaultMetricTreeNodeDateRange,
     MetricTotalComparisonType,
     type TimeFrames,
@@ -86,8 +86,10 @@ const MetricTreeConnectedNode: React.FC<
 
     const formattedValue = useMemo(() => {
         if (totalQuery.data) {
-            const customFormat = getCustomFormat(totalQuery.data.metric);
-            return applyCustomFormat(totalQuery.data.value, customFormat);
+            return formatItemValue(
+                totalQuery.data.metric,
+                totalQuery.data.value,
+            );
         }
         return '-';
     }, [totalQuery.data]);
