@@ -3,6 +3,7 @@ import {
     getCustomFormat,
     getItemId,
     getItemLabel,
+    hasFormatting,
     NumberSeparator,
     type CustomFormat,
 } from '@lightdash/common';
@@ -50,7 +51,9 @@ export const FormatModal = () => {
 
     useEffect(() => {
         if (metric) {
-            let metricFormat = getCustomFormat(metric);
+            let metricFormat = hasFormatting(metric)
+                ? getCustomFormat(metric)
+                : undefined;
             const override = metricOverrides
                 ? metricOverrides[getItemId(metric)]
                 : undefined;
