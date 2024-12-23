@@ -4005,20 +4005,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_FieldId.Pick_Metric.formatOptions__': {
+    MetricOverrides: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {},
             additionalProperties: { ref: 'Pick_Metric.formatOptions_' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricOverrides: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Record_FieldId.Pick_Metric.formatOptions__',
             validators: {},
         },
     },

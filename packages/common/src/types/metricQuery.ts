@@ -52,7 +52,7 @@ export const hasFormatOptions = (
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
 
-export type MetricOverrides = Record<FieldId, Pick<Metric, 'formatOptions'>>;
+export type MetricOverrides = { [key: string]: Pick<Metric, 'formatOptions'> }; // Don't use Record to avoid issues in TSOA
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
