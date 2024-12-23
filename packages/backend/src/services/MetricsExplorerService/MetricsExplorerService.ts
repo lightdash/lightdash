@@ -9,11 +9,9 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
-    DateGranularity,
     ForbiddenError,
     getDateCalcUtils,
     getDateRangeFromString,
-    getDefaultDateRangeForMetricTotal,
     getFieldIdForDateDimension,
     getGrainForDateRange,
     getItemId,
@@ -490,6 +488,8 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         timeFrame: TimeFrames,
+        startDate: string,
+        endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
     ): Promise<MetricTotalResults> {
         return measureTime(
@@ -500,6 +500,8 @@ export class MetricsExplorerService<
                     exploreName,
                     metricName,
                     timeFrame,
+                    startDate,
+                    endDate,
                     comparisonType,
                 ),
             'getMetricTotal',
@@ -517,6 +519,8 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         timeFrame: TimeFrames,
+        startDate: string,
+        endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
     ): Promise<MetricTotalResults> {
         const metric = await this.catalogService.getMetric(
@@ -533,7 +537,7 @@ export class MetricsExplorerService<
             );
         }
 
-        const dateRange = getDefaultDateRangeForMetricTotal(timeFrame);
+        const dateRange = getDateRangeFromString([startDate, endDate]);
 
         const metricQuery: MetricQuery = {
             exploreName,
@@ -561,10 +565,11 @@ export class MetricsExplorerService<
                 metricQuery,
             );
 
-        let compareRows: ResultRow[] | undefined;
+        let compareRows: Record<string, any>[] | undefined;
+        let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {
-            const compareDateRange: MetricExplorerDateRange = [
+            compareDateRange = [
                 getDateCalcUtils(timeFrame).back(dateRange[0]),
                 getDateCalcUtils(timeFrame).back(dateRange[1]),
             ];
@@ -582,19 +587,21 @@ export class MetricsExplorerService<
                 },
             };
 
-            compareRows = (
+            const compareResults =
                 await this.projectService.runMetricExplorerQuery(
                     user,
                     projectUuid,
                     exploreName,
                     compareMetricQuery,
-                )
-            ).rows;
+                );
+
+            compareRows = compareResults.rows;
         }
 
         return {
-            value: currentRows[0]?.[getItemId(metric)]?.value,
-            comparisonValue: compareRows?.[0]?.[getItemId(metric)]?.value,
+            value: currentRows[0]?.[getItemId(metric)] ?? undefined,
+            comparisonValue: compareRows?.[0]?.[getItemId(metric)] ?? undefined,
+            metric,
         };
     }
 }

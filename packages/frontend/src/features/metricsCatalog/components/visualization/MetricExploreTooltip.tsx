@@ -1,4 +1,5 @@
 import {
+    applyCustomFormat,
     ComparisonFormatTypes,
     MetricExplorerComparison,
     TimeFrames,
@@ -30,6 +31,7 @@ import {
     getGranularityLabel,
     getGranularitySublabel,
 } from '../../utils/metricPeekDate';
+import type { FormatConfig } from './types';
 
 type RechartsTooltipPropsPayload = NonNullable<
     TooltipProps<ValueType, NameType>['payload']
@@ -45,6 +47,7 @@ interface MetricExploreTooltipProps extends TooltipProps<ValueType, NameType> {
     is5YearDateRangePreset: boolean;
     payload?: CustomTooltipPropsPayload[];
     dateRange?: MetricExplorerDateRange;
+    formatConfig: FormatConfig;
 }
 
 /**
@@ -166,7 +169,15 @@ const PreviousPeriodTooltip: FC<{
     date: string | undefined;
     is5YearDateRangePreset: boolean;
     dateRange?: MetricExplorerDateRange;
-}> = ({ entry, color, date, is5YearDateRangePreset, dateRange }) => {
+    formattedValue: string;
+}> = ({
+    entry,
+    color,
+    date,
+    is5YearDateRangePreset,
+    dateRange,
+    formattedValue,
+}) => {
     const currentPeriodYear = dateRange ? dayjs(dateRange[1]).year() : null;
     const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
 
@@ -189,14 +200,7 @@ const PreviousPeriodTooltip: FC<{
                     {label}
                 </Text>
             </Group>
-            <TooltipBadge
-                value={
-                    entry.name === 'metric'
-                        ? entry.payload.metric.formatted
-                        : entry.payload.compareMetric?.formatted
-                }
-                variant="comparison"
-            />
+            <TooltipBadge value={formattedValue} variant="comparison" />
         </Group>
     );
 };
@@ -207,9 +211,11 @@ const TooltipEntry: FC<{
     comparison: MetricExplorerQuery;
     date: string | undefined;
     is5YearDateRangePreset: boolean;
+    formatConfig: FormatConfig;
     dateRange?: MetricExplorerDateRange;
 }> = (props) => {
     const { entry } = props;
+
     const entryData = useMemo(() => {
         if (!entry.name) return null;
         return entry.name === 'compareMetric'
@@ -217,15 +223,38 @@ const TooltipEntry: FC<{
             : entry.payload.metric;
     }, [entry]);
 
+    const formattedValue = useMemo(() => {
+        if (entry.name === 'metric') {
+            return applyCustomFormat(
+                entryData?.value,
+                props.formatConfig.metric,
+            );
+        }
+        return applyCustomFormat(
+            entryData?.value,
+            props.formatConfig.compareMetric,
+        );
+    }, [
+        entry.name,
+        entryData?.value,
+        props.formatConfig.metric,
+        props.formatConfig.compareMetric,
+    ]);
+
     if (!entryData) return null;
 
     const displayType = getTooltipDisplayType(props.comparison);
 
     switch (displayType) {
         case 'simple':
-            return <SimpleTooltip value={entryData.formatted} />;
+            return <SimpleTooltip value={formattedValue} />;
         case 'previousPeriod':
-            return <PreviousPeriodTooltip {...props} />;
+            return (
+                <PreviousPeriodTooltip
+                    {...props}
+                    formattedValue={formattedValue}
+                />
+            );
         case 'segmented':
             return (
                 <Group position="apart">
@@ -235,10 +264,7 @@ const TooltipEntry: FC<{
                             {entryData.label}
                         </Text>
                     </Group>
-                    <TooltipBadge
-                        value={entryData.formatted}
-                        variant="comparison"
-                    />
+                    <TooltipBadge value={formattedValue} variant="comparison" />
                 </Group>
             );
         default:
@@ -257,10 +283,7 @@ const TooltipEntry: FC<{
                             {entryData.label}
                         </Text>
                     </Group>
-                    <TooltipBadge
-                        value={entryData.formatted}
-                        variant="comparison"
-                    />
+                    <TooltipBadge value={formattedValue} variant="comparison" />
                 </Group>
             );
     }
@@ -313,6 +336,7 @@ export const MetricExploreTooltip: FC<MetricExploreTooltipProps> = ({
     granularity,
     is5YearDateRangePreset,
     dateRange,
+    formatConfig,
 }) => {
     const hasNoComparison =
         comparison.comparison === MetricExplorerComparison.NONE;
@@ -367,6 +391,7 @@ export const MetricExploreTooltip: FC<MetricExploreTooltipProps> = ({
                     date={label}
                     is5YearDateRangePreset={is5YearDateRangePreset}
                     dateRange={dateRange}
+                    formatConfig={formatConfig}
                 />
             ))}
 

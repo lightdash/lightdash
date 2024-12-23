@@ -4421,17 +4421,13 @@
                                 "type": "string",
                                 "nullable": true
                             },
-                            "formatted": {
-                                "type": "string",
-                                "nullable": true
-                            },
                             "value": {
                                 "type": "number",
                                 "format": "double",
                                 "nullable": true
                             }
                         },
-                        "required": ["label", "formatted", "value"],
+                        "required": ["label", "value"],
                         "type": "object"
                     },
                     "metric": {
@@ -4440,17 +4436,13 @@
                                 "type": "string",
                                 "nullable": true
                             },
-                            "formatted": {
-                                "type": "string",
-                                "nullable": true
-                            },
                             "value": {
                                 "type": "number",
                                 "format": "double",
                                 "nullable": true
                             }
                         },
-                        "required": ["label", "formatted", "value"],
+                        "required": ["label", "value"],
                         "type": "object"
                     },
                     "segment": {
@@ -4618,25 +4610,21 @@
                     }
                 ]
             },
-            "ResultValue": {
-                "properties": {
-                    "formatted": {
-                        "type": "string"
-                    },
-                    "raw": {}
-                },
-                "required": ["formatted", "raw"],
-                "type": "object"
-            },
             "MetricTotalResults": {
                 "properties": {
+                    "metric": {
+                        "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
+                    },
                     "comparisonValue": {
-                        "$ref": "#/components/schemas/ResultValue"
+                        "type": "number",
+                        "format": "double"
                     },
                     "value": {
-                        "$ref": "#/components/schemas/ResultValue"
+                        "type": "number",
+                        "format": "double"
                     }
                 },
+                "required": ["metric"],
                 "type": "object"
             },
             "ApiMetricsExplorerTotalResults": {
@@ -6423,7 +6411,7 @@
                 ]
             },
             "SupportedDbtVersions": {
-                "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8"],
+                "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8", "v1.9"],
                 "type": "string"
             },
             "SemanticLayerType.DBT": {
@@ -12445,7 +12433,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1422.0",
+        "version": "0.1426.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -14931,6 +14919,22 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/TimeFrames"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "startDate",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endDate",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ],

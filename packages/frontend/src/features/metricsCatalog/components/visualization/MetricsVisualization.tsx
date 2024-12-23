@@ -52,7 +52,7 @@ import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
-import { FORMATS } from './types';
+import { FORMATS, type FormatConfig } from './types';
 // REMOVE COMMENTS TO ENABLE CHART ZOOM
 // import { useChartZoom } from './useChartZoom';
 
@@ -317,7 +317,7 @@ const MetricsVisualization: FC<Props> = ({
         is5YearDateRangePreset,
     ]);
 
-    const formatConfig = useMemo(() => {
+    const formatConfig = useMemo<FormatConfig>(() => {
         return {
             metric: getCustomFormat(results?.metric),
             compareMetric: getCustomFormat(results?.compareMetric ?? undefined),
@@ -609,6 +609,7 @@ const MetricsVisualization: FC<Props> = ({
                                             is5YearDateRangePreset
                                         }
                                         dateRange={dateRange}
+                                        formatConfig={formatConfig}
                                     />
                                 }
                                 cursor={{

@@ -163,7 +163,16 @@ export const useRunMetricTotal = ({
     options?: UseQueryOptions<ApiMetricsExplorerTotalResults['results']>;
 }) => {
     return useQuery({
-        queryKey: ['runMetricTotal', projectUuid, exploreName, metricName],
+        queryKey: [
+            'runMetricTotal',
+            projectUuid,
+            exploreName,
+            metricName,
+            dateRange?.[0],
+            dateRange?.[1],
+            timeFrame,
+            comparisonType,
+        ],
         queryFn: () =>
             postRunMetricTotal({
                 projectUuid: projectUuid!,

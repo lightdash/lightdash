@@ -1,3 +1,4 @@
+import type { CustomFormat } from '@lightdash/common';
 import dayjs from 'dayjs';
 
 export const FORMATS = {
@@ -9,4 +10,9 @@ export const FORMATS = {
     week: (date: Date) => dayjs(date).format('MMM D'),
     month: (date: Date) => dayjs(date).format('MMM'),
     year: (date: Date) => dayjs(date).format('YYYY'),
+};
+
+export type FormatConfig = {
+    metric: CustomFormat | undefined;
+    compareMetric: CustomFormat | undefined;
 };

@@ -87,6 +87,8 @@ export class MetricsExplorerController extends BaseController {
         @Path() metric: string,
         @Request() req: express.Request,
         @Query() timeFrame: TimeFrames,
+        @Query() startDate: string,
+        @Query() endDate: string,
         @Body()
         body?: {
             comparisonType?: MetricTotalComparisonType;
@@ -102,6 +104,8 @@ export class MetricsExplorerController extends BaseController {
                 explore,
                 metric,
                 timeFrame,
+                startDate,
+                endDate,
                 body?.comparisonType,
             );
 
