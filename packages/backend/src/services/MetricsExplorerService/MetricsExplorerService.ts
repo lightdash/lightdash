@@ -256,14 +256,14 @@ export class MetricsExplorerService<
         );
     }
 
-    private async _getFirstNSegments(
+    private async _getTopNSegments(
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
         segmentDimension: string | null,
         metricQuery: MetricQuery,
     ) {
-        if (!segmentDimension) {
+        if (!segmentDimension || !metricQuery.metrics.length) {
             return [];
         }
 
@@ -271,7 +271,7 @@ export class MetricsExplorerService<
             ...metricQuery,
             exploreName,
             dimensions: [segmentDimension],
-            sorts: [{ fieldId: segmentDimension, descending: true }],
+            sorts: [{ fieldId: metricQuery.metrics[0], descending: true }],
             limit: MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
             tableCalculations: [],
         };
@@ -370,7 +370,7 @@ export class MetricsExplorerService<
             limit: this.maxQueryLimit,
         };
 
-        const segments = await this._getFirstNSegments(
+        const segments = await this._getTopNSegments(
             user,
             projectUuid,
             exploreName,
