@@ -172,6 +172,22 @@ export const getGrainForDateRange = (
     return TimeFrames.YEAR;
 };
 
+export const getMetricsExplorerSegmentFilters = (
+    segmentDimension: string | null,
+    segments: string[],
+): FilterRule[] => {
+    if (!segmentDimension || segments.length === 0) return [];
+
+    return [
+        {
+            id: uuidv4(),
+            target: { fieldId: segmentDimension },
+            operator: ConditionalOperator.EQUALS,
+            values: segments,
+        },
+    ];
+};
+
 export const getMetricExplorerDateRangeFilters = (
     timeDimensionConfig: TimeDimensionConfig,
     dateRange: MetricExplorerDateRange,
