@@ -52,27 +52,27 @@ import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
-import { FORMATS, type FormatConfig } from './types';
+import { DATE_FORMATS, type MetricVisualizationFormatConfig } from './types';
 // REMOVE COMMENTS TO ENABLE CHART ZOOM
 // import { useChartZoom } from './useChartZoom';
 
 const tickFormatter = (date: Date) => {
     return (
         timeSecond(date) < date
-            ? FORMATS.millisecond
+            ? DATE_FORMATS.millisecond
             : timeMinute(date) < date
-            ? FORMATS.second
+            ? DATE_FORMATS.second
             : timeHour(date) < date
-            ? FORMATS.minute
+            ? DATE_FORMATS.minute
             : timeDay(date) < date
-            ? FORMATS.hour
+            ? DATE_FORMATS.hour
             : timeMonth(date) < date
             ? timeWeek(date) < date
-                ? FORMATS.day
-                : FORMATS.week
+                ? DATE_FORMATS.day
+                : DATE_FORMATS.week
             : timeYear(date) < date
-            ? FORMATS.month
-            : FORMATS.year
+            ? DATE_FORMATS.month
+            : DATE_FORMATS.year
     )(date);
 };
 
@@ -317,7 +317,7 @@ const MetricsVisualization: FC<Props> = ({
         is5YearDateRangePreset,
     ]);
 
-    const formatConfig = useMemo<FormatConfig>(() => {
+    const formatConfig = useMemo<MetricVisualizationFormatConfig>(() => {
         return {
             metric: getCustomFormat(results?.metric),
             compareMetric: getCustomFormat(results?.compareMetric ?? undefined),

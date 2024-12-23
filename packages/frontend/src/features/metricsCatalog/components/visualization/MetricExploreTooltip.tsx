@@ -31,7 +31,7 @@ import {
     getGranularityLabel,
     getGranularitySublabel,
 } from '../../utils/metricPeekDate';
-import type { FormatConfig } from './types';
+import type { MetricVisualizationFormatConfig } from './types';
 
 type RechartsTooltipPropsPayload = NonNullable<
     TooltipProps<ValueType, NameType>['payload']
@@ -47,7 +47,7 @@ interface MetricExploreTooltipProps extends TooltipProps<ValueType, NameType> {
     is5YearDateRangePreset: boolean;
     payload?: CustomTooltipPropsPayload[];
     dateRange?: MetricExplorerDateRange;
-    formatConfig: FormatConfig;
+    formatConfig: MetricVisualizationFormatConfig;
 }
 
 /**
@@ -211,7 +211,7 @@ const TooltipEntry: FC<{
     comparison: MetricExplorerQuery;
     date: string | undefined;
     is5YearDateRangePreset: boolean;
-    formatConfig: FormatConfig;
+    formatConfig: MetricVisualizationFormatConfig;
     dateRange?: MetricExplorerDateRange;
 }> = (props) => {
     const { entry } = props;
