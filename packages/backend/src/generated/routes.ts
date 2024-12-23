@@ -4130,7 +4130,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },
-                        { dataType: 'undefined' },
+                        { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
                 },
@@ -4138,7 +4138,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'double' },
-                        { dataType: 'undefined' },
+                        { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
                 },

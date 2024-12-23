@@ -21,6 +21,7 @@ import {
     isDimension,
     MetricExplorerComparison,
     MetricTotalComparisonType,
+    parseMetricValue,
     TimeFrames,
     type MetricExplorerDateRange,
     type MetricQuery,
@@ -599,8 +600,10 @@ export class MetricsExplorerService<
         }
 
         return {
-            value: currentRows[0]?.[getItemId(metric)] ?? undefined,
-            comparisonValue: compareRows?.[0]?.[getItemId(metric)] ?? undefined,
+            value: parseMetricValue(currentRows[0]?.[getItemId(metric)]),
+            comparisonValue: parseMetricValue(
+                compareRows?.[0]?.[getItemId(metric)],
+            ),
             metric,
         };
     }

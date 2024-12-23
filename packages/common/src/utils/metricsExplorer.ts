@@ -197,7 +197,7 @@ export const getMetricExplorerDateRangeFilters = (
 };
 
 // Parse the metric value to a number, returning null if it's not a number
-const parseMetricValue = (value: unknown): number | null => {
+export const parseMetricValue = (value: unknown): number | null => {
     if (value === null || value === undefined) return null;
     const parsed = Number(value);
     return Number.isNaN(parsed) ? null : parsed;

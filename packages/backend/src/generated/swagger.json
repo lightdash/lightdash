@@ -4617,14 +4617,16 @@
                     },
                     "comparisonValue": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "value": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     }
                 },
-                "required": ["metric"],
+                "required": ["metric", "comparisonValue", "value"],
                 "type": "object"
             },
             "ApiMetricsExplorerTotalResults": {

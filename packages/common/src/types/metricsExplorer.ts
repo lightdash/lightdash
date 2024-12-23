@@ -64,8 +64,8 @@ export enum MetricTotalComparisonType {
 }
 
 export type MetricTotalResults = {
-    value: number | undefined;
-    comparisonValue: number | undefined;
+    value: number | null;
+    comparisonValue: number | null;
     metric: MetricWithAssociatedTimeDimension; // For now only previous period is supported in total query, so we only need the metric
 };
 
