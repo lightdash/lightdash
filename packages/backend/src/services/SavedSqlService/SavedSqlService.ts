@@ -427,31 +427,38 @@ export class SavedSqlService extends BaseService {
             if (!savedChart) {
                 throw new Error('Saved chart not found');
             }
-        }
-
-        const { hasAccess: savedChartViewAccess } = savedChart
-            ? await this.hasSavedChartAccess(user, 'view', savedChart)
-            : { hasAccess: false };
-
-        if (
+            const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
+                user,
+                'view',
+                savedChart,
+            );
+            if (!hasViewAccess) {
+                throw new ForbiddenError("You don't have access to this chart");
+            }
+        } else if (
             // If it's not a saved chart, check if the user has access to run a pivot query
-            !savedChartViewAccess &&
-            (user.ability.cannot(
+            user.ability.cannot(
                 'create',
                 subject('Job', { organizationUuid, projectUuid }),
             ) ||
-                user.ability.cannot(
-                    'manage',
-                    subject('SqlRunner', {
-                        organizationUuid,
-                        projectUuid,
-                    }),
-                ))
+            user.ability.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
         ) {
             throw new ForbiddenError();
         }
         const jobId = await this.schedulerClient.runSqlPivotQuery({
-            ...body,
+            savedSqlUuid: savedChart?.savedSqlUuid,
+            sql: savedChart?.sql || body.sql,
+            limit: savedChart?.limit || body.limit,
+            indexColumn: body.indexColumn,
+            valuesColumns: body.valuesColumns,
+            groupByColumns: body.groupByColumns,
+            sortBy: body.sortBy,
             userUuid: user.userUuid,
             organizationUuid,
             projectUuid,

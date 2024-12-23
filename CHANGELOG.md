@@ -1,3 +1,10 @@
+## [0.1428.1](https://github.com/lightdash/lightdash/compare/0.1428.0...0.1428.1) (2024-12-23)
+
+
+### Bug Fixes
+
+* pivot results sql ([#13008](https://github.com/lightdash/lightdash/issues/13008)) ([07e5fc2](https://github.com/lightdash/lightdash/commit/07e5fc23727253c57242894638381492829ce0b5))
+
 # [0.1428.0](https://github.com/lightdash/lightdash/compare/0.1427.0...0.1428.0) (2024-12-23)
 
 
