@@ -97,7 +97,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                 });
             });
             toastMessage = `Tab "${tab.name}" was removed and ${numTiles} tile${
-                pluralTiles ? 's were' : ' was'
+                pluralTiles ? ' were' : ' was'
             } successfully transferred.`;
         } else {
             toastMessage = `Tab "${tab.name}" was removed and ${numTiles} tile${pluralTiles} deleted.`;
