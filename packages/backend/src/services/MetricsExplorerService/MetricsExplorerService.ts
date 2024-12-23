@@ -18,7 +18,9 @@ import {
     getMetricExplorerDataPoints,
     getMetricExplorerDataPointsWithCompare,
     getMetricExplorerDateRangeFilters,
+    getMetricsExplorerSegmentFilters,
     isDimension,
+    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
     MetricExplorerComparison,
     MetricTotalComparisonType,
     parseMetricValue,
@@ -254,6 +256,37 @@ export class MetricsExplorerService<
         );
     }
 
+    private async _getFirstNSegments(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        segmentDimension: string | null,
+        filters: MetricQuery['filters'],
+    ) {
+        if (!segmentDimension) {
+            return [];
+        }
+
+        const getSegmentsMetricQuery: MetricQuery = {
+            exploreName,
+            dimensions: [segmentDimension],
+            metrics: [],
+            filters,
+            sorts: [],
+            limit: MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
+            tableCalculations: [],
+        };
+
+        const { rows } = await this.projectService.runMetricExplorerQuery(
+            user,
+            projectUuid,
+            exploreName,
+            getSegmentsMetricQuery,
+        );
+
+        return rows.map((row) => row[segmentDimension]);
+    }
+
     private async _runMetricExplorerQuery(
         user: SessionUser,
         projectUuid: string,
@@ -311,6 +344,28 @@ export class MetricsExplorerService<
                 ? query.segmentDimension
                 : null;
 
+        const dateRangeFilters = getMetricExplorerDateRangeFilters(
+            {
+                table: timeDimensionConfig.table,
+                field: timeDimensionConfig.field,
+                interval: dimensionGrain,
+            },
+            dateRange,
+        );
+
+        const segments = await this._getFirstNSegments(
+            user,
+            projectUuid,
+            exploreName,
+            segmentDimensionId,
+            {
+                dimensions: {
+                    id: uuidv4(),
+                    and: dateRangeFilters,
+                },
+            },
+        );
+
         const metricQuery: MetricQuery = {
             exploreName,
             dimensions: [
@@ -321,14 +376,13 @@ export class MetricsExplorerService<
             filters: {
                 dimensions: {
                     id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        {
-                            table: timeDimensionConfig.table,
-                            field: timeDimensionConfig.field,
-                            interval: dimensionGrain,
-                        },
-                        dateRange,
-                    ),
+                    and: [
+                        ...dateRangeFilters,
+                        ...getMetricsExplorerSegmentFilters(
+                            segmentDimensionId,
+                            segments,
+                        ),
+                    ],
                 },
             },
             sorts: [{ fieldId: timeDimension, descending: false }],
