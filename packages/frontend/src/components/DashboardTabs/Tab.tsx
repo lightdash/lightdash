@@ -1,14 +1,9 @@
 import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Tabs, Title } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tabs, Title, Tooltip } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import {
-    IconDots,
-    IconGripVertical,
-    IconPencil,
-    IconTrash,
-} from '@tabler/icons-react';
-import type { FC } from 'react';
+import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
 type DraggableTabProps = {
@@ -35,6 +30,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     setDeletingTab,
 }) => {
     const { hovered: isHovered, ref: hoverRef } = useHover();
+    const [isTruncated, setTruncated] = useState(false);
 
     return (
         <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
@@ -73,7 +69,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                     <Menu.Target>
                                         <ActionIcon variant="subtle" size="xs">
                                             <MantineIcon
-                                                icon={IconDots}
+                                                icon={IconPencil}
                                                 display={
                                                     isHovered ? 'block' : 'none'
                                                 }
@@ -117,9 +113,31 @@ const DraggableTab: FC<DraggableTabProps> = ({
                             ) : null
                         }
                     >
-                        <Title order={6} fw={500} color="gray.7">
-                            {tab.name}
-                        </Title>
+                        <Tooltip
+                            disabled={!isTruncated}
+                            label={tab.name}
+                            withinPortal
+                        >
+                            <Title
+                                order={6}
+                                fw={500}
+                                color="gray.7"
+                                truncate={true}
+                                sx={{
+                                    maxWidth: `calc(${
+                                        100 / (sortedTabs?.length || 1)
+                                    }vw)`,
+                                }}
+                                onMouseEnter={(evt) =>
+                                    setTruncated(
+                                        evt.currentTarget.offsetWidth <
+                                            evt.currentTarget.scrollWidth,
+                                    )
+                                }
+                            >
+                                {tab.name}
+                            </Title>
+                        </Tooltip>
                     </Tabs.Tab>
                 </div>
             )}
