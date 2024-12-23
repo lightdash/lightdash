@@ -1999,18 +1999,8 @@ export class ProjectService extends BaseService {
 
                     const { query, hasExampleMetric } = fullQuery;
 
-                    console.log(
-                        'metricQuery.metricOverrides',
-                        metricQuery.metricOverrides,
-                    );
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fullQuery.fields).map(([key, value]) => {
-                            console.log(
-                                'key',
-                                key,
-                                metricQuery.metricOverrides &&
-                                    metricQuery.metricOverrides[key],
-                            );
                             if (
                                 metricQuery.metricOverrides &&
                                 metricQuery.metricOverrides[key]

@@ -235,6 +235,9 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
                     modals: {
+                        format: {
+                            isOpen: false,
+                        },
                         additionalMetric: {
                             isOpen: false,
                         },

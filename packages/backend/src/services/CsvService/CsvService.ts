@@ -1167,7 +1167,7 @@ This method can be memory intensive
                 organization_uuid: user.organizationUuid,
             };
 
-            const { rows } = await this.projectService.runMetricQuery({
+            const { rows, fields } = await this.projectService.runMetricQuery({
                 user,
                 metricQuery,
                 projectUuid,
@@ -1178,17 +1178,6 @@ This method can be memory intensive
                 queryTags,
             });
             const numberRows = rows.length;
-            const explore = await this.projectService.getExplore(
-                user,
-                projectUuid,
-                exploreId,
-            );
-            const itemMap = getItemMap(
-                explore,
-                metricQuery.additionalMetrics,
-                metricQuery.tableCalculations,
-                metricQuery.customDimensions,
-            );
             const truncated = this.couldBeTruncated(rows);
 
             if (pivotConfig) {
@@ -1197,7 +1186,7 @@ This method can be memory intensive
                     name: chartName,
                     projectUuid,
                     rows,
-                    itemMap,
+                    itemMap: fields,
                     metricQuery,
                     exploreId,
                     onlyRaw,
@@ -1222,7 +1211,7 @@ This method can be memory intensive
                 rows,
                 onlyRaw,
                 metricQuery,
-                itemMap,
+                fields,
                 showTableNames,
                 chartName || exploreId, // fileName
                 truncated,

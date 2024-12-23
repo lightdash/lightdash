@@ -164,6 +164,7 @@ export class ExploreController extends BaseController {
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
+            metricOverrides: body.metricOverrides,
         };
 
         const csvPivotConfig: PivotConfig | undefined =

@@ -83,6 +83,10 @@ export const FormatModal = () => {
         value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
+    if (!isOpen) {
+        return null;
+    }
+
     return metric ? (
         <Modal
             size="xl"
