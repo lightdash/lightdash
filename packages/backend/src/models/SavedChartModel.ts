@@ -20,6 +20,7 @@ import {
     isCustomSqlDimension,
     isFormat,
     LightdashUser,
+    MetricOverrides,
     NotFoundError,
     Organization,
     Project,
@@ -77,6 +78,7 @@ type DbSavedChartDetails = {
     explore_name: string;
     filters: any;
     row_limit: number;
+    metric_overrides: MetricOverrides | null;
     chart_type: ChartConfig['type'];
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
@@ -169,6 +171,7 @@ const createSavedChartVersion = async (
         tableName,
         metricQuery: {
             limit,
+            metricOverrides,
             filters,
             dimensions,
             metrics,
@@ -188,6 +191,7 @@ const createSavedChartVersion = async (
         const [version] = await trx('saved_queries_versions')
             .insert({
                 row_limit: limit,
+                metric_overrides: metricOverrides || null,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,
@@ -749,6 +753,7 @@ export class SavedChartModel {
                         'saved_queries_versions.explore_name',
                         'saved_queries_versions.filters',
                         'saved_queries_versions.row_limit',
+                        'saved_queries_versions.metric_overrides',
                         'saved_queries_versions.chart_type',
                         'saved_queries_versions.created_at',
                         'saved_queries_versions.chart_config',
@@ -942,6 +947,8 @@ export class SavedChartModel {
                             descending: sort.descending,
                         })),
                         limit: savedQuery.row_limit,
+                        metricOverrides:
+                            savedQuery.metric_overrides || undefined,
                         tableCalculations: tableCalculations.map(
                             (tableCalculation) => ({
                                 name: tableCalculation.name,
