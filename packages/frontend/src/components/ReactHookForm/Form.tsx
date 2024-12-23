@@ -23,7 +23,7 @@ const Form: FC<React.PropsWithChildren<FormProps & StyledProps<any>>> = ({
     methods,
     children,
     onSubmit,
-    onError,
+    onError = undefined,
     ...rest
 }) => {
     const { handleSubmit, formState } = methods;
@@ -69,10 +69,6 @@ const Form: FC<React.PropsWithChildren<FormProps & StyledProps<any>>> = ({
             </form>
         </FormProvider>
     );
-};
-
-Form.defaultProps = {
-    onError: undefined,
 };
 
 export default Form;
