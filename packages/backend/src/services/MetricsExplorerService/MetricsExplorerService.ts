@@ -588,15 +588,14 @@ export class MetricsExplorerService<
                 },
             };
 
-            const compareResults =
+            compareRows = (
                 await this.projectService.runMetricExplorerQuery(
                     user,
                     projectUuid,
                     exploreName,
                     compareMetricQuery,
-                );
-
-            compareRows = compareResults.rows;
+                )
+            ).rows;
         }
 
         return {
