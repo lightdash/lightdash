@@ -1713,7 +1713,7 @@ export class ProjectService extends BaseService {
     ) {
         return measureTime(
             () =>
-                this.runQueryAndFormatRows({
+                this.runMetricQuery({
                     user,
                     metricQuery,
                     projectUuid,
@@ -1723,7 +1723,7 @@ export class ProjectService extends BaseService {
                     queryTags: {},
                     chartUuid: undefined,
                 }),
-            'runQueryAndFormatRows',
+            'runMetricQuery',
             this.logger,
             {
                 exploreName,

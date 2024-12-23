@@ -3915,14 +3915,6 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
-                        formatted: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
                         value: {
                             dataType: 'union',
                             subSchemas: [
@@ -3938,14 +3930,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         label: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                        formatted: {
                             dataType: 'union',
                             subSchemas: [
                                 { dataType: 'string' },
@@ -4133,36 +4117,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResultValue: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                formatted: { dataType: 'string', required: true },
-                raw: { dataType: 'any', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricTotalResults: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metric: {
+                    ref: 'MetricWithAssociatedTimeDimension',
+                    required: true,
+                },
                 comparisonValue: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'ResultValue' },
-                        { dataType: 'undefined' },
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
                 },
                 value: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'ResultValue' },
-                        { dataType: 'undefined' },
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
                 },
@@ -5749,7 +5725,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SupportedDbtVersions: {
         dataType: 'refEnum',
-        enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7', 'v1.8'],
+        enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7', 'v1.8', 'v1.9'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'SemanticLayerType.DBT': {
@@ -14126,6 +14102,18 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'timeFrame',
                     required: true,
                     ref: 'TimeFrames',
+                },
+                startDate: {
+                    in: 'query',
+                    name: 'startDate',
+                    required: true,
+                    dataType: 'string',
+                },
+                endDate: {
+                    in: 'query',
+                    name: 'endDate',
+                    required: true,
+                    dataType: 'string',
                 },
                 body: {
                     in: 'body',
