@@ -1,6 +1,5 @@
 import { type MetricWithAssociatedTimeDimension } from './catalog';
 import type { Dimension, ItemsMap } from './field';
-import type { ResultValue } from './results';
 
 export enum MetricExplorerComparison {
     NONE = 'none',
@@ -33,12 +32,10 @@ export type MetricExploreDataPoint = {
     segment: string | null;
     metric: {
         value: number | null;
-        formatted: string | null;
         label: string | null;
     };
     compareMetric: {
         value: number | null;
-        formatted: string | null;
         label: string | null;
     };
 };
@@ -67,8 +64,9 @@ export enum MetricTotalComparisonType {
 }
 
 export type MetricTotalResults = {
-    value: ResultValue | undefined;
-    comparisonValue: ResultValue | undefined;
+    value: number | null;
+    comparisonValue: number | null;
+    metric: MetricWithAssociatedTimeDimension; // For now only previous period is supported in total query, so we only need the metric
 };
 
 export type ApiMetricsExplorerTotalResults = {

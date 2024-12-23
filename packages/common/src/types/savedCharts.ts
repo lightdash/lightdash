@@ -222,7 +222,7 @@ export type Series = {
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
     };
     hidden?: boolean;
-    areaStyle?: {};
+    areaStyle?: Record<string, unknown>;
     showSymbol?: boolean;
     smooth?: boolean;
     markLine?: MarkLine;
@@ -291,7 +291,7 @@ export type CompleteCartesianChartLayout = {
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
 
 export type CustomVis = {
-    spec?: object;
+    spec?: Record<string, unknown>;
 };
 
 export type CartesianChart = {

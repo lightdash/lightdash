@@ -452,14 +452,14 @@ export const convertModelMetric = ({
         percentile: metric.percentile,
         dimensionReference,
         requiredAttributes,
-        ...(metric.urls ? { urls: metric.urls } : {}),
+        ...(metric.urls ? { urls: metric.urls } : null),
         ...(metric.tags
             ? {
                   tags: Array.isArray(metric.tags)
                       ? metric.tags
                       : [metric.tags],
               }
-            : {}),
+            : null),
         ...(metric.default_time_dimension
             ? {
                   defaultTimeDimension: {
@@ -467,7 +467,7 @@ export const convertModelMetric = ({
                       interval: metric.default_time_dimension.interval,
                   },
               }
-            : {}),
+            : null),
     };
 };
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
@@ -513,7 +513,7 @@ export const convertColumnMetric = ({
                       interval: metric.default_time_dimension.interval,
                   },
               }
-            : {}),
+            : null),
     });
 
 export enum DbtManifestVersion {

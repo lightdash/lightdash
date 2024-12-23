@@ -4,7 +4,7 @@ controllerPathGlobs:
 spec:
     name: Lightdash API
     description: >
-        Open API documentation for all public Lightdash API endpoints. 
+        Open API documentation for all public Lightdash API endpoints.
         # Authentication
         Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens
     contact:
@@ -40,3 +40,8 @@ spec:
 routes:
     routesDir: ./src/generated/
     iocModule: ./src/services/tsoaServiceContainer
+
+# this is required to fix an issue with nullable types when using Pick, Partial, etc...
+# https://github.com/lukeautry/tsoa/issues/1515
+compilerOptions:
+    strictNullChecks: true

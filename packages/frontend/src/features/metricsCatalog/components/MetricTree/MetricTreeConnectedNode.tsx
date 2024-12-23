@@ -2,8 +2,9 @@ import {
     applyCustomFormat,
     ComparisonFormatTypes,
     CustomFormatType,
+    formatItemValue,
     friendlyName,
-    getDefaultDateRangeFromInterval,
+    getDefaultMetricTreeNodeDateRange,
     MetricTotalComparisonType,
     type TimeFrames,
 } from '@lightdash/common';
@@ -28,7 +29,6 @@ export type MetricTreeConnectedNodeData = Node<{
 const MetricTreeConnectedNode: React.FC<
     NodeProps<MetricTreeConnectedNodeData>
 > = ({ data, isConnectable }) => {
-    //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
     const projectUuid = useAppSelector(
@@ -36,7 +36,7 @@ const MetricTreeConnectedNode: React.FC<
     );
 
     const dateRange = useMemo(
-        () => getDefaultDateRangeFromInterval(data.timeFrame),
+        () => getDefaultMetricTreeNodeDateRange(data.timeFrame),
         [data.timeFrame],
     );
 
@@ -56,10 +56,10 @@ const MetricTreeConnectedNode: React.FC<
         const value = totalQuery.data?.value;
         const compareValue = totalQuery.data?.comparisonValue;
 
-        if (value?.raw && compareValue?.raw) {
+        if (value && compareValue) {
             return calculateComparisonValue(
-                Number(value.raw),
-                Number(compareValue.raw),
+                Number(value),
+                Number(compareValue),
                 ComparisonFormatTypes.PERCENTAGE,
             );
         }
@@ -83,6 +83,16 @@ const MetricTreeConnectedNode: React.FC<
             `Compared to previous ${data.timeFrame.toLowerCase()}`,
         [totalQuery.data, data.timeFrame],
     ); // TODO: will it always be prev month?
+
+    const formattedValue = useMemo(() => {
+        if (totalQuery.data) {
+            return formatItemValue(
+                totalQuery.data.metric,
+                totalQuery.data.value,
+            );
+        }
+        return '-';
+    }, [totalQuery.data]);
 
     return (
         <div
@@ -110,7 +120,7 @@ const MetricTreeConnectedNode: React.FC<
 
                 <Group align="flex-end" mt="sm">
                     <Text fz="md" fw={700}>
-                        {totalQuery.data?.value?.formatted ?? '-'}
+                        {formattedValue}
                     </Text>
                     {change && (
                         <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
