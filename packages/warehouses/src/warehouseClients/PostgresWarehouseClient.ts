@@ -182,8 +182,9 @@ export class PostgresClient<
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 5000,
-                // sets the query timeout to 5 minutes
-                query_timeout: 1000 * 60 * 5,
+                query_timeout: this.credentials.timeoutSeconds
+                    ? this.credentials.timeoutSeconds * 1000
+                    : 1000 * 60 * 5, // sets the default query timeout to 5 minutes
             });
 
             pool.on('error', (err) => {

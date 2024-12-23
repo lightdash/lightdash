@@ -243,7 +243,29 @@ const RedshiftForm: FC<{
                                 </Switch.Group>
                             )}
                         />
+
                         <StartOfWeekSelect disabled={disabled} />
+
+                        <Controller
+                            name="warehouse.timeoutSeconds"
+                            defaultValue={300}
+                            render={({ field }) => (
+                                <NumberInput
+                                    {...field}
+                                    label="Timeout in seconds"
+                                    description={
+                                        <p>
+                                            If a query takes longer than this
+                                            timeout to complete, then the query
+                                            will be cancelled.
+                                        </p>
+                                    }
+                                    required
+                                    disabled={disabled}
+                                />
+                            )}
+                        />
+
                         <Controller
                             name="warehouse.useSshTunnel"
                             render={({ field }) => (

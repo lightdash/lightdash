@@ -101,6 +101,7 @@ export type CreatePostgresCredentials = SshTunnelConfiguration & {
     role?: string;
     sslmode?: string;
     startOfWeek?: WeekDay | null;
+    timeoutSeconds?: number;
 };
 export type PostgresCredentials = Omit<
     CreatePostgresCredentials,
@@ -136,6 +137,7 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sslmode?: string;
     ra3Node?: boolean;
     startOfWeek?: WeekDay | null;
+    timeoutSeconds?: number;
 };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,
