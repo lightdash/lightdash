@@ -16,6 +16,7 @@ import {
     Group,
     HoverCard,
     List,
+    LoadingOverlay,
     Modal,
     Pagination,
     Paper,
@@ -48,7 +49,6 @@ import {
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../../common/Table/types';
@@ -384,10 +384,6 @@ const UsersView: FC = () => {
 
     const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
 
-    if (isLoadingUsers) {
-        return <LoadingState title="Loading users" size="md" />;
-    }
-
     return (
         <Stack spacing="xs">
             <SettingsCard shadow="none" p={0}>
@@ -437,7 +433,8 @@ const UsersView: FC = () => {
                             )}
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style={{ position: 'relative' }}>
+                        <LoadingOverlay visible={isLoadingUsers} />
                         {organizationUsers && organizationUsers.length ? (
                             organizationUsers.map((orgUser) => (
                                 <UserListItem
