@@ -5,7 +5,7 @@ import {
     isField,
     isFilterableField,
     isMetric,
-    isNumericType,
+    isNumericItem,
     isTableCalculation,
     type TableCalculation,
 } from '@lightdash/common';
@@ -107,15 +107,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
                 {isMetric(item) && (
                     <>
-                        {/*// TODO: doesn't catch time MIN/MAX*/}
-                        {!isItemAdditionalMetric &&
-                            isNumericType(item.type) && (
-                                <>
-                                    {/*// TODO: add option to reset format*/}
-                                    <FormatMenuOptions item={item} />
-                                    <Menu.Divider />
-                                </>
-                            )}
+                        {!isItemAdditionalMetric && isNumericItem(item) && (
+                            <>
+                                <FormatMenuOptions item={item} />
+                                <Menu.Divider />
+                            </>
+                        )}
 
                         <QuickCalculationMenuOptions item={item} />
                         <Menu.Divider />
