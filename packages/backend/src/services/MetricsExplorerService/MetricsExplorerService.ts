@@ -261,18 +261,17 @@ export class MetricsExplorerService<
         projectUuid: string,
         exploreName: string,
         segmentDimension: string | null,
-        filters: MetricQuery['filters'],
+        metricQuery: MetricQuery,
     ) {
         if (!segmentDimension) {
             return [];
         }
 
         const getSegmentsMetricQuery: MetricQuery = {
+            ...metricQuery,
             exploreName,
             dimensions: [segmentDimension],
-            metrics: [],
-            filters,
-            sorts: [],
+            sorts: [{ fieldId: segmentDimension, descending: true }],
             limit: MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
             tableCalculations: [],
         };
@@ -344,7 +343,7 @@ export class MetricsExplorerService<
                 ? query.segmentDimension
                 : null;
 
-        const dateRangeFilters = getMetricExplorerDateRangeFilters(
+        const dateFilters = getMetricExplorerDateRangeFilters(
             {
                 table: timeDimensionConfig.table,
                 field: timeDimensionConfig.field,
@@ -353,20 +352,7 @@ export class MetricsExplorerService<
             dateRange,
         );
 
-        const segments = await this._getFirstNSegments(
-            user,
-            projectUuid,
-            exploreName,
-            segmentDimensionId,
-            {
-                dimensions: {
-                    id: uuidv4(),
-                    and: dateRangeFilters,
-                },
-            },
-        );
-
-        const metricQuery: MetricQuery = {
+        const baseQuery: MetricQuery = {
             exploreName,
             dimensions: [
                 timeDimension,
@@ -376,8 +362,30 @@ export class MetricsExplorerService<
             filters: {
                 dimensions: {
                     id: uuidv4(),
+                    and: dateFilters,
+                },
+            },
+            sorts: [{ fieldId: timeDimension, descending: false }],
+            tableCalculations: [],
+            limit: this.maxQueryLimit,
+        };
+
+        const segments = await this._getFirstNSegments(
+            user,
+            projectUuid,
+            exploreName,
+            segmentDimensionId,
+            baseQuery,
+        );
+
+        const metricQuery: MetricQuery = {
+            ...baseQuery,
+            filters: {
+                ...baseQuery.filters,
+                dimensions: {
+                    id: uuidv4(),
                     and: [
-                        ...dateRangeFilters,
+                        ...dateFilters, // need to add date filters because cannot destructure ".and" without type assertion
                         ...getMetricsExplorerSegmentFilters(
                             segmentDimensionId,
                             segments,
@@ -385,9 +393,6 @@ export class MetricsExplorerService<
                     ],
                 },
             },
-            sorts: [{ fieldId: timeDimension, descending: false }],
-            tableCalculations: [],
-            limit: this.maxQueryLimit,
         };
 
         const { rows: currentResults, fields } =
