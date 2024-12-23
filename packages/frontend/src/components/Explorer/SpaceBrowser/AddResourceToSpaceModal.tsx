@@ -262,7 +262,7 @@ const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
                         itemComponent={SelectItem}
                         disabled={isInitialLoading}
                         placeholder={`Search for a ${resourceType}`}
-                        nothingFound={`No ${resourceType}s found"`}
+                        nothingFound={`No ${resourceType}s found`}
                         clearable
                         searchValue={searchQuery}
                         onSearchChange={setSearchQuery}
