@@ -2122,6 +2122,11 @@ export class ProjectService extends BaseService {
                             ...(explore.type === ExploreType.VIRTUAL
                                 ? { virtualViewId: explore.name }
                                 : {}),
+                            metricOverridesCount: Object.keys(
+                                metricQuery.metricOverrides || {},
+                            ).filter((metricOverrideKey) =>
+                                metricQuery.metrics.includes(metricOverrideKey),
+                            ).length,
                         },
                     });
                     this.logger.debug(
