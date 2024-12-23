@@ -2374,10 +2374,16 @@ export class ProjectService extends BaseService {
             projectUuid,
             userUuid,
         );
+
+        const limitedQuery = applyLimitToSqlQuery({
+            sqlQuery: sql,
+            limit,
+        });
+
         // Apply limit and pivot to the SQL query
         const pivotedSql = ProjectService.applyPivotToSqlQuery({
             warehouseType: warehouseCredentials.type,
-            sql,
+            sql: limitedQuery,
             limit,
             indexColumn,
             valuesColumns,
