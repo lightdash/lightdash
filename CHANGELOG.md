@@ -1,3 +1,10 @@
+# [0.1428.0](https://github.com/lightdash/lightdash/compare/0.1427.0...0.1428.0) (2024-12-23)
+
+
+### Features
+
+* warehouses postgres+redshift timeout in the ui settings ([#12992](https://github.com/lightdash/lightdash/issues/12992)) ([63117ef](https://github.com/lightdash/lightdash/commit/63117effba309207355bedbd59a109aa55c00abb))
+
 # [0.1427.0](https://github.com/lightdash/lightdash/compare/0.1426.3...0.1427.0) (2024-12-23)
 
 
