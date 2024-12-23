@@ -1,3 +1,10 @@
+# [0.1427.0](https://github.com/lightdash/lightdash/compare/0.1426.3...0.1427.0) (2024-12-23)
+
+
+### Features
+
+* format metric explorer and tree values on the frontend instead of backend ([#13006](https://github.com/lightdash/lightdash/issues/13006)) ([909a4f6](https://github.com/lightdash/lightdash/commit/909a4f637c7b25ebda421f4ab11d9f5ac67633da))
+
 ## [0.1426.3](https://github.com/lightdash/lightdash/compare/0.1426.2...0.1426.3) (2024-12-20)
 
 
