@@ -1613,6 +1613,7 @@ export class ProjectService extends BaseService {
         explore: validExplore,
         granularity,
         chartUuid,
+        forceUseCache,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1625,6 +1626,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
         chartUuid: string | undefined;
+        forceUseCache?: boolean;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1647,6 +1649,7 @@ export class ProjectService extends BaseService {
                         explore,
                         granularity,
                         chartUuid,
+                        forceUseCache,
                     });
                 span.setAttribute('rows', rows.length);
 
@@ -1710,6 +1713,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         metricQuery: MetricQuery,
+        forceUseCache?: boolean,
     ) {
         return measureTime(
             () =>
@@ -1722,6 +1726,7 @@ export class ProjectService extends BaseService {
                     context: QueryExecutionContext.METRICS_EXPLORER,
                     queryTags: {},
                     chartUuid: undefined,
+                    forceUseCache,
                 }),
             'runQueryAndFormatRows',
             this.logger,
@@ -1775,6 +1780,7 @@ export class ProjectService extends BaseService {
         metricQuery,
         queryTags,
         invalidateCache,
+        forceUseCache,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1783,6 +1789,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery;
         queryTags: RunQueryTags;
         invalidateCache?: boolean;
+        forceUseCache?: boolean;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1804,7 +1811,8 @@ export class ProjectService extends BaseService {
                 span.setAttribute('cacheHit', false);
 
                 if (
-                    this.lightdashConfig.resultsCache?.resultsEnabled &&
+                    (forceUseCache ||
+                        this.lightdashConfig.resultsCache?.resultsEnabled) &&
                     !invalidateCache
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
@@ -1909,6 +1917,7 @@ export class ProjectService extends BaseService {
         explore: loadedExplore,
         granularity,
         chartUuid,
+        forceUseCache,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1921,6 +1930,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
         chartUuid: string | undefined; // for analytics
+        forceUseCache?: boolean;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -2126,6 +2136,7 @@ export class ProjectService extends BaseService {
                             query,
                             queryTags,
                             invalidateCache,
+                            forceUseCache,
                         });
                     await sshTunnel.disconnect();
                     return { rows, cacheMetadata, fields };
