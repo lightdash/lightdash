@@ -15,7 +15,8 @@ import {
     IconSquarePlus,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom-v5-compat';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
@@ -44,7 +45,10 @@ const Space: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;
-    }>();
+    }>() as {
+        projectUuid: string;
+        spaceUuid: string;
+    };
     const {
         data: space,
         isInitialLoading,

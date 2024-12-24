@@ -2,7 +2,8 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
@@ -16,7 +17,7 @@ const SavedQueries: FC = () => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     const userCanCreateCharts = useCreateInAnySpaceAccess(
-        projectUuid,
+        projectUuid!,
         'SavedChart',
     );
 
@@ -52,7 +53,7 @@ const SavedQueries: FC = () => {
 
                 <InfiniteResourceTable
                     filters={{
-                        projectUuid,
+                        projectUuid: projectUuid!,
                         contentTypes: [ContentType.CHART],
                     }}
                 />

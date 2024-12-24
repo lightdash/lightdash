@@ -1,7 +1,8 @@
 import { subject } from '@casl/ability';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
+import { useHistory, useRouteMatch } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
@@ -43,24 +44,30 @@ const SemanticViewerEditorPageWithStore = () => {
     const dispatch = useAppDispatch();
     const semanticViewerState = useAppSelector(selectSemanticViewerState);
 
-    const infoQuery = useSemanticLayerInfo({ projectUuid });
+    const infoQuery = useSemanticLayerInfo({ projectUuid: projectUuid! });
 
     const isSemanticLayerConnected =
         infoQuery.isSuccess && infoQuery.data !== undefined;
 
     const chartQuery = useSavedSemanticViewerChart(
-        { projectUuid, findBy: { slug: savedSemanticViewerChartSlug } },
+        {
+            projectUuid: projectUuid!,
+            findBy: { slug: savedSemanticViewerChartSlug },
+        },
         { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
     );
 
     const chartResultsQuery = useSavedSemanticViewerChartResults(
-        { projectUuid, findBy: { slug: savedSemanticViewerChartSlug } },
+        {
+            projectUuid: projectUuid!,
+            findBy: { slug: savedSemanticViewerChartSlug },
+        },
         { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
     );
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
-            projectUuid,
+            projectUuid: projectUuid!,
             // TODO: this should never be empty or that hook should receive a null view!
             semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
             semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
@@ -78,7 +85,7 @@ const SemanticViewerEditorPageWithStore = () => {
         }
 
         return new SemanticViewerResultsRunnerFrontend({
-            projectUuid,
+            projectUuid: projectUuid!,
             fields: fieldsQuery.data,
             rows: chartResultsQuery.data.results,
             columnNames: chartResultsQuery.data.columns,
@@ -144,7 +151,7 @@ const SemanticViewerEditorPageWithStore = () => {
             dispatch(setChartOptionsAndConfig(chartResultOptions));
             dispatch(
                 initializeSemanticViewer({
-                    projectUuid,
+                    projectUuid: projectUuid!,
                     info: infoQuery.data,
                     chartData: {
                         chart: chartQuery.data,
@@ -162,7 +169,7 @@ const SemanticViewerEditorPageWithStore = () => {
         ) {
             dispatch(
                 initializeSemanticViewer({
-                    projectUuid,
+                    projectUuid: projectUuid!,
                     info: infoQuery.data,
                     chartData: undefined,
                 }),

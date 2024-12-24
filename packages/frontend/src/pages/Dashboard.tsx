@@ -11,7 +11,8 @@ import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -86,7 +87,7 @@ const Dashboard: FC = () => {
         mode?: string;
         tabUuid?: string;
     }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid!);
 
     const { clearIsEditingDashboardChart } = useDashboardStorage();
 
@@ -162,12 +163,12 @@ const Dashboard: FC = () => {
     const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
     const { mutate: toggleDashboardPinning } = useDashboardPinningMutation();
     const { data: pinnedItems } = usePinnedItems(
-        projectUuid,
+        projectUuid!,
         dashboard?.pinnedListUuid ?? undefined,
     );
 
     const handleDashboardPinning = useCallback(() => {
-        toggleDashboardPinning({ uuid: dashboardUuid });
+        toggleDashboardPinning({ uuid: dashboardUuid! });
     }, [dashboardUuid, toggleDashboardPinning]);
 
     const isPinned = useMemo(() => {

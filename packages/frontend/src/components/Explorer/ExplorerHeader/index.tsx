@@ -3,7 +3,7 @@ import { Badge, Box, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { memo, useEffect, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
@@ -46,14 +46,14 @@ const ExplorerHeader: FC = memo(() => {
     const { getHasDashboardChanges } = useDashboardStorage();
 
     const userCanCreateCharts = useCreateInAnySpaceAccess(
-        projectUuid,
+        projectUuid!,
         'SavedChart',
     );
 
     const urlToShare = useMemo(() => {
         if (unsavedChartVersion) {
             const urlArgs = getExplorerUrlFromCreateSavedChartVersion(
-                projectUuid,
+                projectUuid!,
                 unsavedChartVersion,
                 true,
             );

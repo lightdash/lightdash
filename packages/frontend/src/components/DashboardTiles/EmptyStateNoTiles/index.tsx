@@ -6,7 +6,7 @@ import {
     IconPlayerPlay,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useProjectSavedChartStatus } from '../../../hooks/useOnboardingStatus';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useApp } from '../../../providers/AppProvider';
@@ -37,10 +37,10 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
-    const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid);
+    const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid!);
 
     const userCanCreateDashboard = useCreateInAnySpaceAccess(
-        projectUuid,
+        projectUuid!,
         'Dashboard',
     );
 

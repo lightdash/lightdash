@@ -15,7 +15,8 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useIntercom } from 'react-use-intercom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -195,7 +196,10 @@ export const MetricsCatalogPanel = () => {
     }>();
 
     useEffect(() => {
-        if (!projectUuid || projectUuid !== params.projectUuid) {
+        if (
+            params.projectUuid &&
+            (!projectUuid || projectUuid !== params.projectUuid)
+        ) {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [params.projectUuid, dispatch, projectUuid]);

@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -27,14 +27,14 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const pinnedItems = usePinnedItems(
-        selectedProjectUuid,
+        selectedProjectUuid!,
         project.data?.pinnedListUuid,
     );
-
+    console.log('home', params, selectedProjectUuid);
     const {
         data: mostPopularAndRecentlyUpdated,
         isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
-    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
+    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid!);
 
     const { user } = useApp();
 

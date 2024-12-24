@@ -1,6 +1,6 @@
 import { type ApiError, type ApiExploreResults } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 
@@ -20,7 +20,7 @@ export const useExplore = (
     const queryKey = ['tables', activeTableName, projectUuid];
     return useQuery<ApiExploreResults, ApiError>({
         queryKey,
-        queryFn: () => getExplore(projectUuid, activeTableName || ''),
+        queryFn: () => getExplore(projectUuid!, activeTableName || ''),
         enabled: !!activeTableName,
         onError: (result) => setErrorResponse(result),
         retry: false,

@@ -35,7 +35,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -99,7 +99,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         fetchNextPage,
     } = useChartSummariesV2(
         {
-            projectUuid,
+            projectUuid: projectUuid!,
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,

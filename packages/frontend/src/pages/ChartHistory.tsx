@@ -22,7 +22,8 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
@@ -55,7 +56,7 @@ const ChartHistory = () => {
     const chartQuery = useSavedQuery({
         id: savedQueryUuid,
     });
-    const historyQuery = useChartHistory(savedQueryUuid);
+    const historyQuery = useChartHistory(savedQueryUuid!);
 
     useEffect(() => {
         const currentVersion = historyQuery.data?.history[0];
@@ -65,16 +66,16 @@ const ChartHistory = () => {
     }, [selectedVersionUuid, historyQuery.data]);
 
     const chartVersionQuery = useChartVersion(
-        savedQueryUuid,
+        savedQueryUuid!,
         selectedVersionUuid,
     );
 
     const queryResults = useChartVersionResultsMutation(
-        savedQueryUuid,
+        savedQueryUuid!,
         selectedVersionUuid,
     );
 
-    const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
+    const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid!, {
         onSuccess: () => {
             history.push(
                 `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,

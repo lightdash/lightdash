@@ -7,7 +7,7 @@ import {
     type MantineTheme,
 } from '@mantine/core';
 import { memo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -73,7 +73,7 @@ const NavBar = memo(() => {
     const renderNavBarContent = () => {
         switch (navBarMode) {
             case NavBarMode.EDITING_DASHBOARD_CHART:
-                return <DashboardExplorerBanner projectUuid={projectUuid} />;
+                return <DashboardExplorerBanner projectUuid={projectUuid!} />;
             case NavBarMode.DEFAULT:
                 return (
                     <MainNavBarContent

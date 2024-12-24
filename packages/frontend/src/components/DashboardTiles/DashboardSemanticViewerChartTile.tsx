@@ -7,7 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useAsync } from 'react-use';
 import {
     useSavedSemanticViewerChart,
@@ -72,18 +72,18 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         tile.properties.savedSemanticViewerChartUuid ?? undefined;
 
     const chartQuery = useSavedSemanticViewerChart({
-        projectUuid,
+        projectUuid: projectUuid!,
         findBy: { uuid: savedSemanticViewerChartUuid },
     });
 
     const chartResultsQuery = useSavedSemanticViewerChartResults({
-        projectUuid,
+        projectUuid: projectUuid!,
         findBy: { uuid: savedSemanticViewerChartUuid },
     });
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
-            projectUuid,
+            projectUuid: projectUuid!,
             // TODO: this should never be empty or that hook should receive a null view!
             semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
             semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
@@ -105,7 +105,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         }
 
         return new SemanticViewerResultsRunnerFrontend({
-            projectUuid,
+            projectUuid: projectUuid!,
             fields: fieldsQuery.data,
             rows: chartResultsQuery.data.results,
             columnNames: chartResultsQuery.data.columns,
@@ -223,6 +223,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
             extraMenuItems={
+                projectUuid &&
                 canManageSemanticViewer &&
                 canUpdateChart && (
                     <ChartTileOptions
