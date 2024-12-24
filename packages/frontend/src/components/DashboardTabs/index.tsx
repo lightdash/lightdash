@@ -9,7 +9,8 @@ import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 import { v4 as uuid4 } from 'uuid';
 import {
     getReactGridLayoutConfig,

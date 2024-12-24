@@ -1,7 +1,8 @@
 import { Box } from '@mantine/core';
 import { IconLinkOff } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { useGetShare } from '../hooks/useShare';
 

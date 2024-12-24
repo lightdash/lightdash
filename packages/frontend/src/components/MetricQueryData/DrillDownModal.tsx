@@ -19,7 +19,7 @@ import {
 import { Button, Group, Modal, Stack, Title } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldSelect from '../common/FieldSelect';
@@ -181,7 +181,13 @@ export const DrillDownModal: FC = () => {
     }, [drillDownConfig]);
 
     const url = useMemo(() => {
-        if (selectedDimension && metricQuery && explore && drillDownConfig) {
+        if (
+            selectedDimension &&
+            metricQuery &&
+            explore &&
+            drillDownConfig &&
+            projectUuid
+        ) {
             return drillDownExploreUrl({
                 projectUuid,
                 tableName: explore.name,

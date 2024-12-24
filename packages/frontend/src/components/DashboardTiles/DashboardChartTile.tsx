@@ -60,7 +60,7 @@ import React, {
     type FC,
     type RefObject,
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { v4 as uuid4 } from 'uuid';
 import { downloadCsvFromSavedChart } from '../../api/csv';
 import { DashboardTileComments } from '../../features/comments';
@@ -457,8 +457,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
                 properties: {
                     fieldType: field?.type,
-                    projectId: projectUuid,
-                    dashboardId: dashboardUuid,
+                    projectId: projectUuid!,
+                    dashboardId: dashboardUuid!,
                 },
             });
 
@@ -1019,7 +1019,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     <ValidDashboardChartTile
                         tileUuid={tileUuid}
                         chartAndResults={chartAndResults}
-                        project={projectUuid}
+                        project={chartAndResults.chart.projectUuid}
                         isTitleHidden={hideTitle}
                         onSeriesContextMenu={onSeriesContextMenu}
                         setEchartsRef={setEchartRef}
@@ -1057,7 +1057,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
             {isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
-                    projectUuid={projectUuid}
+                    projectUuid={chart.projectUuid}
                     chartUuid={chart.uuid}
                     tileUuid={tileUuid}
                     dashboardFilters={appliedDashboardFilters}

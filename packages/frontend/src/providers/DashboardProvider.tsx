@@ -24,7 +24,8 @@ import React, {
     type Dispatch,
     type SetStateAction,
 } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom-v5-compat';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs';
@@ -140,7 +141,9 @@ export const DashboardProvider: React.FC<
 
     const { dashboardUuid } = useParams<{
         dashboardUuid: string;
-    }>();
+    }>() as {
+        dashboardUuid: string;
+    };
 
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 

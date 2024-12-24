@@ -7,8 +7,7 @@ import {
 import { Menu, Text, type MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
-
+import { useParams } from 'react-router-dom-v5-compat';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';

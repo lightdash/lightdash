@@ -9,7 +9,7 @@ import { ActionIcon, Group, Stack, TextInput } from '@mantine/core';
 import { IconFolders, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -23,7 +23,7 @@ import { useApp } from '../providers/AppProvider';
 const MobileSpaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [], isInitialLoading: spaceIsLoading } =
-        useSpaceSummaries(projectUuid, true);
+        useSpaceSummaries(projectUuid!, true);
     const project = useProject(projectUuid);
     const isLoading = spaceIsLoading || project.isInitialLoading;
     const { user } = useApp();

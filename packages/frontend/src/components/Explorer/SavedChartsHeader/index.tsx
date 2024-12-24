@@ -44,7 +44,8 @@ import {
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../../../api';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -228,16 +229,16 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         useDisclosure();
 
     const { user, health } = useApp();
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid!, true);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const { data: gitIntegration } = useGitIntegration(projectUuid!);
     const createPullRequest = useCreatePullRequestForChartFieldsMutation(
-        projectUuid,
+        projectUuid!,
         savedChart?.uuid,
     );
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
@@ -445,7 +446,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                 }}
             >
                 <PageTitleAndDetailsContainer>
-                    {savedChart && (
+                    {savedChart && projectUuid && (
                         <>
                             <Group spacing={4}>
                                 <TitleBreadCrumbs
@@ -943,7 +944,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     defaultSpaceUuid={spaceUuid ?? undefined}
                 />
             )}
-            {savedChart && isAddToDashboardModalOpen && (
+            {savedChart && isAddToDashboardModalOpen && projectUuid && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
                     projectUuid={projectUuid}

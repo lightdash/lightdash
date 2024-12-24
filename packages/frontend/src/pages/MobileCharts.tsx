@@ -7,7 +7,7 @@ import { ActionIcon, Group, Stack, TextInput } from '@mantine/core';
 import { IconChartBar, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -18,8 +18,9 @@ import { useApp } from '../providers/AppProvider';
 
 const MobileCharts: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isInitialLoading, data: savedQueries = [] } =
-        useCharts(projectUuid);
+    const { isInitialLoading, data: savedQueries = [] } = useCharts(
+        projectUuid!,
+    );
     const { user } = useApp();
     const cannotView = user.data?.ability?.cannot('view', 'SavedChart');
     const [search, setSearch] = useState<string>('');

@@ -2,7 +2,7 @@ import { type CreateSavedChartVersion } from '@lightdash/common';
 import { Group, Modal, Text } from '@mantine/core';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../../MantineIcon';
 import { SaveToDashboard } from './SaveToDashboard';
@@ -68,7 +68,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         >
             {saveMode === SaveMode.TO_DASHBOARD && (
                 <SaveToDashboard
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     dashboardName={editingDashboardInfo.name}
                     dashboardUuid={editingDashboardInfo.dashboardUuid}
                     savedData={savedData}
@@ -78,7 +78,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
             {saveMode === SaveMode.DEFAULT && (
                 <SaveToSpaceOrDashboard
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     savedData={savedData}
                     onConfirm={onConfirm}
                     onClose={onClose}

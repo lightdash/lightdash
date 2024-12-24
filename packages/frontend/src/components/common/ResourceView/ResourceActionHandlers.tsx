@@ -14,7 +14,7 @@ import {
     IconFolderX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useUpdateSqlChartMutation } from '../../../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useMoveDashboardMutation } from '../../../hooks/dashboard/useDashboard';
@@ -87,7 +87,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
     const { mutate: moveChart } = useMoveChartMutation();
     const { mutate: updateSqlChart } = useUpdateSqlChartMutation(
-        projectUuid,
+        projectUuid!,
         '',
         '', // TODO: get slug or savedSqlUuid to invalidate the query if necessary
     );
@@ -95,7 +95,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { mutate: moveDashboard } = useMoveDashboardMutation();
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
-    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
+    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid!);
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceViewItemAction.CLOSE });
@@ -209,7 +209,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 case ResourceViewItemType.SPACE:
                     return (
                         <SpaceActionModal
-                            projectUuid={projectUuid}
+                            projectUuid={projectUuid!}
                             spaceUuid={action.item.data.uuid}
                             actionType={ActionType.UPDATE}
                             title="Update space"
@@ -235,7 +235,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                                 savedSqlUuid={action.item.data.uuid}
                                 onClose={handleReset}
                                 onSuccess={handleReset}
-                                projectUuid={projectUuid}
+                                projectUuid={projectUuid!}
                                 name={action.item.data.name}
                             />
                         );
@@ -260,7 +260,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 case ResourceViewItemType.SPACE:
                     return (
                         <SpaceActionModal
-                            projectUuid={projectUuid}
+                            projectUuid={projectUuid!}
                             spaceUuid={action.item.data.uuid}
                             actionType={ActionType.DELETE}
                             title="Delete space"
@@ -282,7 +282,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             return action.item.data.source ? (
                 <AddTilesToDashboardModal
                     isOpen
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     uuid={action.item.data.uuid}
                     dashboardTileType={convertChartSourceTypeToDashboardTileType(
                         action.item.data.source,
@@ -294,7 +294,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             return (
                 <SpaceActionModal
                     shouldRedirect={false}
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"

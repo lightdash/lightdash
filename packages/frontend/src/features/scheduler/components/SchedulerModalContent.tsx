@@ -12,7 +12,8 @@ import {
     type UseQueryResult,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
 import { useTracking } from '../../../providers/TrackingProvider';

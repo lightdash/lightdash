@@ -30,7 +30,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useUpdateMultipleDashboard } from '../../../hooks/dashboard/useDashboards';
 import { useInfiniteContent } from '../../../hooks/useContent';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';

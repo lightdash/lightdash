@@ -2,8 +2,8 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
@@ -19,19 +19,20 @@ export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 const SavedDashboards = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isInitialLoading, data: dashboards = [] } =
-        useDashboards(projectUuid);
+    const { isInitialLoading, data: dashboards = [] } = useDashboards(
+        projectUuid!,
+    );
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
     const { health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
-        useSpaceSummaries(projectUuid);
+        useSpaceSummaries(projectUuid!);
     const hasNoSpaces = spaces && spaces.length === 0;
 
     const userCanCreateDashboards = useCreateInAnySpaceAccess(
-        projectUuid,
+        projectUuid!,
         'Dashboard',
     );
 
@@ -75,14 +76,14 @@ const SavedDashboards = () => {
 
                 <InfiniteResourceTable
                     filters={{
-                        projectUuid,
+                        projectUuid: projectUuid!,
                         contentTypes: [ContentType.DASHBOARD],
                     }}
                 />
             </Stack>
 
             <DashboardCreateModal
-                projectUuid={projectUuid}
+                projectUuid={projectUuid!}
                 defaultSpaceUuid={spaces?.[0]?.uuid}
                 opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}

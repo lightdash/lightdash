@@ -1,8 +1,8 @@
+import { Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-
-import { Stack, Text, Title } from '@mantine/core';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -41,7 +41,7 @@ const CreateProjectSettings: FC = () => {
                 </Stack>
 
                 <ProjectTablesConfiguration
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     onSuccess={onSuccess}
                 />
             </Stack>

@@ -7,7 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
@@ -118,6 +118,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 {...rest}
                 titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
+                    projectUuid &&
                     canManageSqlRunner &&
                     chartData.slug && (
                         <DashboardOptions
@@ -151,6 +152,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
             extraMenuItems={
+                projectUuid &&
                 canManageSqlRunner && (
                     <DashboardOptions
                         isEditMode={isEditMode}

@@ -31,7 +31,8 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -143,7 +144,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const segmentDimensionsQuery = useCatalogSegmentDimensions({
         projectUuid,
-        tableName,
+        tableName: tableName!,
     });
 
     const queryHasEmptyMetric = useMemo(() => {

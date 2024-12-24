@@ -26,7 +26,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { uniqBy } from 'lodash';
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -69,7 +69,7 @@ const ChartUpdateModal = ({
         fetchNextPage,
     } = useChartSummariesV2(
         {
-            projectUuid,
+            projectUuid: projectUuid!,
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,

@@ -1,3 +1,4 @@
+import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import {
     ActionIcon,
     Divider,
@@ -14,9 +15,8 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-
-import { ExploreType, type SummaryExplore } from '@lightdash/common';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useExplores } from '../../../hooks/useExplores';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -47,7 +47,7 @@ const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [search, setSearch] = useState<string>('');
-    const exploresResult = useExplores(projectUuid, true);
+    const exploresResult = useExplores(projectUuid!, true);
 
     const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
         useMemo(() => {

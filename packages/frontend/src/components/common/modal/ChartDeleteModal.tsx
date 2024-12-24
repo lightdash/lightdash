@@ -12,8 +12,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { Link, useParams } from 'react-router-dom-v5-compat';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import {
     useSavedQuery,
@@ -36,7 +35,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     const {
         data: relatedDashboards,
         isInitialLoading: isLoadingRelatedDashboards,
-    } = useDashboardsContainingChart(projectUuid, uuid);
+    } = useDashboardsContainingChart(projectUuid!, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =
         useSavedQueryDeleteMutation();
 

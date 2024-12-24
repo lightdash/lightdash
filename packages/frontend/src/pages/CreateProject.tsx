@@ -1,5 +1,6 @@
 import { useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';

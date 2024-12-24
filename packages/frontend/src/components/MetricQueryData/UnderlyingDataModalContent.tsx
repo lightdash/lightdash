@@ -20,7 +20,7 @@ import { Box, Button, Group, Modal, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { useExplore } from '../../hooks/useExplore';
@@ -293,7 +293,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             },
         };
         const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
-            projectUuid,
+            projectUuid!,
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
@@ -311,17 +311,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
 
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        const csvResponse = await downloadCsv({
-            projectUuid,
-            tableId: tableName,
-            query: underlyingDataMetricQuery,
-            csvLimit: limit,
-            onlyRaw,
-            showTableNames: true,
-            columnOrder: [],
-            pivotColumns: undefined, // underlying data is always unpivoted
-        });
-        return csvResponse;
+        if (projectUuid) {
+            return downloadCsv({
+                projectUuid,
+                tableId: tableName,
+                query: underlyingDataMetricQuery,
+                csvLimit: limit,
+                onlyRaw,
+                showTableNames: true,
+                columnOrder: [],
+                pivotColumns: undefined, // underlying data is always unpivoted
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
     };
 
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
@@ -367,7 +370,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                         setIsCSVExportModalOpen(false)
                                     }
                                     opened={isCSVExportModalOpen}
-                                    projectUuid={projectUuid}
+                                    projectUuid={projectUuid!}
                                     rows={resultsData?.rows}
                                 />
                             </Can>

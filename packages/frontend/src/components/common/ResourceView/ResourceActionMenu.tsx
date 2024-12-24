@@ -21,7 +21,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { Fragment, useMemo, type FC } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom-v5-compat';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -77,7 +77,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const organizationUuid = user.data?.organizationUuid;
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid!, true, {});
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 

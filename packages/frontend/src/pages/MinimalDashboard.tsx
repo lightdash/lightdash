@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';

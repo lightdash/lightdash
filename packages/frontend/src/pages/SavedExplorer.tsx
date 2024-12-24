@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 
 import { ResourceViewItemType } from '@lightdash/common';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -43,12 +43,12 @@ const SavedExplorer = () => {
 
     const { mutate: togglePinChart } = useChartPinningMutation();
     const { data: pinnedItems } = usePinnedItems(
-        projectUuid,
+        projectUuid!,
         data?.pinnedListUuid ?? undefined,
     );
 
     const handleChartPinning = useCallback(() => {
-        togglePinChart({ uuid: savedQueryUuid });
+        togglePinChart({ uuid: savedQueryUuid! });
     }, [savedQueryUuid, togglePinChart]);
 
     const isPinned = useMemo(() => {

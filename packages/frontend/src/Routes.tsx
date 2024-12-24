@@ -1,7 +1,11 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Route, Switch } from 'react-router-dom';
-import { Navigate, useParams } from 'react-router-dom-v5-compat';
+import { Switch } from 'react-router-dom';
+import {
+    CompatRoute as Route,
+    Navigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import { TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 

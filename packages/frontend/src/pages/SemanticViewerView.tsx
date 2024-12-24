@@ -17,7 +17,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useAsync } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -52,18 +52,18 @@ const SemanticViewerViewPage = () => {
     }>();
 
     const chartQuery = useSavedSemanticViewerChart({
-        projectUuid,
+        projectUuid: projectUuid!,
         findBy: { slug: savedSemanticViewerChartSlug },
     });
 
     const chartResultsQuery = useSavedSemanticViewerChartResults({
-        projectUuid,
+        projectUuid: projectUuid!,
         findBy: { slug: savedSemanticViewerChartSlug },
     });
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
-            projectUuid,
+            projectUuid: projectUuid!,
             // TODO: this should never be empty or that hook should receive a null view!
             semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
             semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
@@ -85,7 +85,7 @@ const SemanticViewerViewPage = () => {
         }
 
         return new SemanticViewerResultsRunnerFrontend({
-            projectUuid,
+            projectUuid: projectUuid!,
             fields: fieldsQuery.data,
             rows: chartResultsQuery.data.results,
             columnNames: chartResultsQuery.data.columns,
@@ -153,7 +153,7 @@ const SemanticViewerViewPage = () => {
             header={
                 chartQuery.isSuccess && (
                     <HeaderView
-                        projectUuid={projectUuid}
+                        projectUuid={projectUuid!}
                         savedSemanticViewerChart={chartQuery.data}
                     />
                 )

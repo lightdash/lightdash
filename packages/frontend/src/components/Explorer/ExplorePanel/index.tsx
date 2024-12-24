@@ -11,7 +11,7 @@ import {
 import { ActionIcon, Group, Menu, Skeleton, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { memo, useMemo, useState, useTransition, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import {
     DeleteVirtualViewModal,
     EditVirtualViewModal,
@@ -222,7 +222,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     explore={explore}
                 />
             )}
-            {isDeleteVirtualViewOpen && (
+            {isDeleteVirtualViewOpen && projectUuid && (
                 <DeleteVirtualViewModal
                     opened={isDeleteVirtualViewOpen}
                     onClose={() => setIsDeleteVirtualViewOpen(false)}

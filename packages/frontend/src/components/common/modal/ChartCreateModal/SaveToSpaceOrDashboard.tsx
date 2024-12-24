@@ -22,7 +22,7 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { z } from 'zod';
 import {
     appendNewTilesToBottom,
@@ -83,7 +83,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const { mutateAsync: createChart, isLoading: isSavingChart } =
         useCreateMutation();
     const { mutateAsync: createSpace, isLoading: isSavingSpace } =
-        useSpaceCreateMutation(projectUuid);
+        useSpaceCreateMutation(projectUuid!);
 
     const [saveDestination, setSaveDestination] = useState<SaveDestination>(
         SaveDestination.Space,
@@ -97,7 +97,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         data: dashboards,
         isLoading: isLoadingDashboards,
         isSuccess: isDashboardsSuccess,
-    } = useDashboards(projectUuid, {
+    } = useDashboards(projectUuid!, {
         staleTime: 0,
     });
 
@@ -105,7 +105,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         data: spaces,
         isLoading: isLoadingSpaces,
         isSuccess: isSpacesSuccess,
-    } = useSpaceSummaries(projectUuid, true, {
+    } = useSpaceSummaries(projectUuid!, true, {
         select: (data) =>
             data.filter((space) =>
                 // Only get spaces that the user can create charts to
@@ -307,7 +307,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 form={form}
                                 isLoading={isLoadingSpaces}
                                 spaces={spaces}
-                                projectUuid={projectUuid}
+                                projectUuid={projectUuid!}
                             />
                         ) : saveDestination === SaveDestination.Dashboard ? (
                             <SaveToDashboardForm

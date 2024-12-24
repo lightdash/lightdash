@@ -11,8 +11,8 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { useHistory } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -29,7 +29,7 @@ const PasswordReset: FC = () => {
     const history = useHistory();
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();
-    const { isInitialLoading, error } = usePasswordResetLink(code);
+    const { isInitialLoading, error } = usePasswordResetLink(code!);
     const passwordResetMutation = usePasswordResetMutation();
 
     const form = useForm<ResetPasswordForm>({
@@ -68,7 +68,7 @@ const PasswordReset: FC = () => {
                                         onSubmit={form.onSubmit(
                                             ({ password }) =>
                                                 passwordResetMutation.mutate({
-                                                    code,
+                                                    code: code!,
                                                     newPassword: password,
                                                 }),
                                         )}
