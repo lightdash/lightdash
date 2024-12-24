@@ -12,7 +12,8 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import {
     useSavedQuery,

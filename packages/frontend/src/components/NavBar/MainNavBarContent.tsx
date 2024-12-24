@@ -1,6 +1,6 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import Omnibar from '../../features/omnibar';
 import Logo from '../../svgs/logo-icon.svg?react';
 import BrowseMenu from './BrowseMenu';

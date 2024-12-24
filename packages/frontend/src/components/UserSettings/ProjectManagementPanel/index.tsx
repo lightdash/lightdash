@@ -19,7 +19,8 @@ import {
 } from '@mantine/core';
 import { IconSettings, IconTrash } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { Link, Redirect, useHistory } from 'react-router-dom';
+import { Redirect, useHistory } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import {

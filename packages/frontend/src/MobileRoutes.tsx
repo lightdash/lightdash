@@ -19,7 +19,8 @@ import {
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
 import React, { useCallback, useState, type FC } from 'react';
-import { Link, Redirect, Route, Switch } from 'react-router-dom';
+import { Redirect, Route, Switch } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';

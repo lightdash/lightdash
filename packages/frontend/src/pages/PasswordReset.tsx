@@ -11,8 +11,8 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
-
+import { useHistory, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
