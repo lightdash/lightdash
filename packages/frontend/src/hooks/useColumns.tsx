@@ -1,7 +1,6 @@
 import {
     formatItemValue,
     friendlyName,
-    getItemMap,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -74,18 +73,6 @@ export const useColumns = (): TableColumn[] => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
@@ -101,25 +88,18 @@ export const useColumns = (): TableColumn[] => {
         activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
-        if (exploreData) {
-            const allItemsMap = getItemMap(
-                exploreData,
-                additionalMetrics,
-                tableCalculations,
-                customDimensions,
-            );
-
+        if (resultsData) {
             return Array.from(activeFields).reduce<{
                 activeItemsMap: ItemsMap;
                 invalidActiveItems: string[];
             }>(
                 (acc, key) => {
-                    return allItemsMap[key]
+                    return resultsData?.fields[key]
                         ? {
                               ...acc,
                               activeItemsMap: {
                                   ...acc.activeItemsMap,
-                                  [key]: allItemsMap[key],
+                                  [key]: resultsData?.fields[key],
                               },
                           }
                         : {
@@ -134,13 +114,7 @@ export const useColumns = (): TableColumn[] => {
             );
         }
         return { activeItemsMap: {}, invalidActiveItems: [] };
-    }, [
-        additionalMetrics,
-        exploreData,
-        tableCalculations,
-        activeFields,
-        customDimensions,
-    ]);
+    }, [resultsData, activeFields]);
 
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,

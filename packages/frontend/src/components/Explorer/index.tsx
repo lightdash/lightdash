@@ -12,6 +12,7 @@ import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
+import { FormatModal } from './FormatModal';
 import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
@@ -62,6 +63,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <DrillDownModal />
                 <CustomMetricModal />
                 <CustomDimensionModal />
+                <FormatModal />
             </MetricQueryDataProvider>
         );
     },

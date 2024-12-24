@@ -3988,11 +3988,39 @@ const models: TsoaRoute.Models = {
         enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Metric.formatOptions_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                formatOptions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'CustomFormat' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricOverrides: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'Pick_Metric.formatOptions_' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQueryRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metricOverrides: { ref: 'MetricOverrides' },
                 timezone: { dataType: 'string' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
@@ -4210,6 +4238,7 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 timezone: { dataType: 'string' },
+                metricOverrides: { ref: 'MetricOverrides' },
                 customDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'CustomDimension' },
@@ -12063,6 +12092,31 @@ export function RegisterRoutes(app: Router) {
     //      Please look into the "controllerPathGlobs" config option described in the readme: https://github.com/lukeautry/tsoa
     // ###########################################################################################################
 
+    const argsValidationController_post: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                validationTargets: {
+                    dataType: 'array',
+                    array: { dataType: 'refEnum', ref: 'ValidationTarget' },
+                },
+                explores: { dataType: 'array', array: { dataType: 'any' } },
+            },
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/validate',
         ...fetchMiddlewares<RequestHandler>(ValidationController),
@@ -12075,46 +12129,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        validationTargets: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refEnum',
-                                ref: 'ValidationTarget',
-                            },
-                        },
-                        explores: {
-                            dataType: 'array',
-                            array: { dataType: 'any' },
-                        },
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsValidationController_post,
                     request,
                     response,
                 });
@@ -12146,6 +12166,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsValidationController_get: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        fromSettings: {
+            in: 'query',
+            name: 'fromSettings',
+            dataType: 'boolean',
+        },
+        jobId: { in: 'query', name: 'jobId', dataType: 'string' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/validate',
         ...fetchMiddlewares<RequestHandler>(ValidationController),
@@ -12156,33 +12194,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                fromSettings: {
-                    in: 'query',
-                    name: 'fromSettings',
-                    dataType: 'boolean',
-                },
-                jobId: { in: 'query', name: 'jobId', dataType: 'string' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsValidationController_get,
                     request,
                     response,
                 });
@@ -12214,6 +12231,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsValidationController_dismiss: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        validationId: {
+            in: 'path',
+            name: 'validationId',
+            required: true,
+            dataType: 'double',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/validate/:validationId',
         ...fetchMiddlewares<RequestHandler>(ValidationController),
@@ -12226,33 +12261,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                validationId: {
-                    in: 'path',
-                    name: 'validationId',
-                    required: true,
-                    dataType: 'double',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsValidationController_dismiss,
                     request,
                     response,
                 });
@@ -12284,6 +12298,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_getAuthenticatedUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/user',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12296,21 +12316,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_getAuthenticatedUser,
                     request,
                     response,
                 });
@@ -12341,6 +12352,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_registerUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'RegisterOrActivateUser',
+        },
+    };
     app.post(
         '/api/v1/user',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12353,27 +12376,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'RegisterOrActivateUser',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_registerUser,
                     request,
                     response,
                 });
@@ -12404,6 +12412,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_createEmailOneTimePasscode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.put(
         '/api/v1/user/me/email/otp',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12416,21 +12430,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_createEmailOneTimePasscode,
                     request,
                     response,
                 });
@@ -12461,6 +12466,13 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_getEmailVerificationStatus: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        passcode: { in: 'query', name: 'passcode', dataType: 'string' },
+    };
     app.get(
         '/api/v1/user/me/email/status',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12473,22 +12485,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                passcode: { in: 'query', name: 'passcode', dataType: 'string' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_getEmailVerificationStatus,
                     request,
                     response,
                 });
@@ -12519,6 +12521,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_getOrganizationsUserCanJoin: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/user/me/allowedOrganizations',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12531,21 +12539,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_getOrganizationsUserCanJoin,
                     request,
                     response,
                 });
@@ -12576,6 +12575,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_joinOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
     app.post(
         '/api/v1/user/me/joinOrganization/:organizationUuid',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12588,27 +12599,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                organizationUuid: {
-                    in: 'path',
-                    name: 'organizationUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_joinOrganization,
                     request,
                     response,
                 });
@@ -12639,6 +12635,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_deleteUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/user/me',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12651,21 +12653,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_deleteUser,
                     request,
                     response,
                 });
@@ -12696,6 +12689,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_getWarehouseCredentials: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/user/warehouseCredentials',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12708,21 +12707,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_getWarehouseCredentials,
                     request,
                     response,
                 });
@@ -12753,6 +12743,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_createWarehouseCredentials: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpsertUserWarehouseCredentials',
+        },
+    };
     app.post(
         '/api/v1/user/warehouseCredentials',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12765,27 +12767,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpsertUserWarehouseCredentials',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_createWarehouseCredentials,
                     request,
                     response,
                 });
@@ -12816,6 +12803,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_updateWarehouseCredentials: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpsertUserWarehouseCredentials',
+        },
+    };
     app.patch(
         '/api/v1/user/warehouseCredentials/:uuid',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12828,33 +12828,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpsertUserWarehouseCredentials',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_updateWarehouseCredentials,
                     request,
                     response,
                 });
@@ -12885,6 +12864,13 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_deleteWarehouseCredentials: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+    };
     app.delete(
         '/api/v1/user/warehouseCredentials/:uuid',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12897,27 +12883,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_deleteWarehouseCredentials,
                     request,
                     response,
                 });
@@ -12948,6 +12919,13 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_getLoginOptions: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        email: { in: 'query', name: 'email', dataType: 'string' },
+    };
     app.get(
         '/api/v1/user/login-options',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -12960,22 +12938,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                email: { in: 'query', name: 'email', dataType: 'string' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_getLoginOptions,
                     request,
                     response,
                 });
@@ -13006,6 +12974,27 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_rotatePersonalAccessToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        personalAccessTokenUuid: {
+            in: 'path',
+            name: 'personalAccessTokenUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                expiresAt: { dataType: 'datetime', required: true },
+            },
+        },
+    };
     app.patch(
         '/api/v1/user/me/personal-access-tokens/:personalAccessTokenUuid/rotate',
         ...fetchMiddlewares<RequestHandler>(UserController),
@@ -13018,36 +13007,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                personalAccessTokenUuid: {
-                    in: 'path',
-                    name: 'personalAccessTokenUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        expiresAt: { dataType: 'datetime', required: true },
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserController_rotatePersonalAccessToken,
                     request,
                     response,
                 });
@@ -13078,6 +13043,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserAttributesController_getUserAttributes: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/org/attributes',
         ...fetchMiddlewares<RequestHandler>(UserAttributesController),
@@ -13090,21 +13061,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserAttributesController_getUserAttributes,
                     request,
                     response,
                 });
@@ -13136,6 +13098,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserAttributesController_createUserAttribute: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateUserAttribute',
+        },
+    };
     app.post(
         '/api/v1/org/attributes',
         ...fetchMiddlewares<RequestHandler>(UserAttributesController),
@@ -13148,27 +13122,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateUserAttribute',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserAttributesController_createUserAttribute,
                     request,
                     response,
                 });
@@ -13200,6 +13159,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserAttributesController_updateUserAttribute: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        userAttributeUuid: {
+            in: 'path',
+            name: 'userAttributeUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateUserAttribute',
+        },
+    };
     app.put(
         '/api/v1/org/attributes/:userAttributeUuid',
         ...fetchMiddlewares<RequestHandler>(UserAttributesController),
@@ -13212,33 +13189,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                userAttributeUuid: {
-                    in: 'path',
-                    name: 'userAttributeUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateUserAttribute',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserAttributesController_updateUserAttribute,
                     request,
                     response,
                 });
@@ -13270,6 +13226,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserAttributesController_removeUserAttribute: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        userAttributeUuid: {
+            in: 'path',
+            name: 'userAttributeUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/org/attributes/:userAttributeUuid',
         ...fetchMiddlewares<RequestHandler>(UserAttributesController),
@@ -13282,27 +13250,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                userAttributeUuid: {
-                    in: 'path',
-                    name: 'userAttributeUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsUserAttributesController_removeUserAttribute,
                     request,
                     response,
                 });
@@ -13334,6 +13287,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSshController_createSshKeyPair: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/ssh/key-pairs',
         ...fetchMiddlewares<RequestHandler>(SshController),
@@ -13346,21 +13305,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSshController_createSshKeyPair,
                     request,
                     response,
                 });
@@ -13391,6 +13341,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getTables: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/tables',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13403,27 +13365,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getTables,
                     request,
                     response,
                 });
@@ -13455,6 +13402,20 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getTableFields: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        tableName: { in: 'query', name: 'tableName', dataType: 'string' },
+        schemaName: { in: 'query', name: 'schemaName', dataType: 'string' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/fields',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13467,37 +13428,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                tableName: {
-                    in: 'query',
-                    name: 'tableName',
-                    dataType: 'string',
-                },
-                schemaName: {
-                    in: 'query',
-                    name: 'schemaName',
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getTableFields,
                     request,
                     response,
                 });
@@ -13529,6 +13465,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_runSql: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SqlRunnerBody',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/run',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13541,33 +13495,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SqlRunnerBody',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_runSql,
                     request,
                     response,
                 });
@@ -13599,6 +13532,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_runSqlPivotQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SqlRunnerPivotQueryBody',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/runPivotQuery',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13611,33 +13562,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SqlRunnerPivotQueryBody',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_runSqlPivotQuery,
                     request,
                     response,
                 });
@@ -13669,6 +13599,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getLocalResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        fileId: {
+            in: 'path',
+            name: 'fileId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/results/:fileId',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13681,33 +13629,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                fileId: {
-                    in: 'path',
-                    name: 'fileId',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getLocalResults,
                     request,
                     response,
                 });
@@ -13739,6 +13666,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getSavedSqlChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13751,33 +13691,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getSavedSqlChart,
                     request,
                     response,
                 });
@@ -13809,6 +13728,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getSavedSqlChartBySlug: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        slug: { in: 'path', name: 'slug', required: true, dataType: 'string' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/saved/slug/:slug',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13821,33 +13753,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                slug: {
-                    in: 'path',
-                    name: 'slug',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getSavedSqlChartBySlug,
                     request,
                     response,
                 });
@@ -13879,6 +13790,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getSavedSqlResultsJob: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        slug: { in: 'path', name: 'slug', required: true, dataType: 'string' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/saved/slug/:slug/results-job',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13891,33 +13815,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                slug: {
-                    in: 'path',
-                    name: 'slug',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getSavedSqlResultsJob,
                     request,
                     response,
                 });
@@ -13949,6 +13852,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_getSavedSqlResultsJobByUuid: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid/results-job',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -13961,33 +13877,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_getSavedSqlResultsJobByUuid,
                     request,
                     response,
                 });
@@ -14019,6 +13914,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_createSqlChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateSqlChart',
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/saved',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14031,33 +13944,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateSqlChart',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_createSqlChart,
                     request,
                     response,
                 });
@@ -14089,6 +13981,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_updateSqlChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateSqlChart',
+        },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14101,39 +14012,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateSqlChart',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_updateSqlChart,
                     request,
                     response,
                 });
@@ -14165,6 +14049,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_deleteSqlChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14177,33 +14074,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_deleteSqlChart,
                     request,
                     response,
                 });
@@ -14235,6 +14111,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_refreshSqlRunnerCatalog: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/refresh-catalog',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14247,27 +14135,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_refreshSqlRunnerCatalog,
                     request,
                     response,
                 });
@@ -14299,6 +14172,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_createVirtualView: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateVirtualViewPayload',
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/virtual-view',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14311,33 +14202,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateVirtualViewPayload',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_createVirtualView,
                     request,
                     response,
                 });
@@ -14369,6 +14239,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_updateVirtualView: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'path', name: 'name', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateVirtualViewPayload',
+        },
+    };
     app.put(
         '/api/v1/projects/:projectUuid/sqlRunner/virtual-view/:name',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14381,39 +14270,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                name: {
-                    in: 'path',
-                    name: 'name',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateVirtualViewPayload',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_updateVirtualView,
                     request,
                     response,
                 });
@@ -14445,6 +14307,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_deleteVirtualView: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'path', name: 'name', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/sqlRunner/virtual-view/:name',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14457,33 +14332,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                name: {
-                    in: 'path',
-                    name: 'name',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_deleteVirtualView,
                     request,
                     response,
                 });
@@ -14515,6 +14369,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_writeBackPreview: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateVirtualViewPayload',
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/preview',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14527,33 +14399,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateVirtualViewPayload',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_writeBackPreview,
                     request,
                     response,
                 });
@@ -14585,6 +14436,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSqlRunnerController_writeBackCreatePr: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateVirtualViewPayload',
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlRunner/pull-request',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
@@ -14597,33 +14466,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateVirtualViewPayload',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSqlRunnerController_writeBackCreatePr,
                     request,
                     response,
                 });
@@ -14655,6 +14503,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_getSpace: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -14665,33 +14531,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_getSpace,
                     request,
                     response,
                 });
@@ -14722,6 +14567,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_createSpace: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: { in: 'body', name: 'body', required: true, ref: 'CreateSpace' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/spaces',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -14734,33 +14592,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateSpace',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_createSpace,
                     request,
                     response,
                 });
@@ -14791,6 +14628,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_deleteSpace: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -14803,33 +14658,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_deleteSpace,
                     request,
                     response,
                 });
@@ -14860,6 +14694,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_updateSpace: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: { in: 'body', name: 'body', required: true, ref: 'UpdateSpace' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -14872,39 +14725,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateSpace',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_updateSpace,
                     request,
                     response,
                 });
@@ -14935,6 +14761,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_addSpaceUserAccess: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'AddSpaceUserAccess',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -14947,39 +14797,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'AddSpaceUserAccess',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_addSpaceUserAccess,
                     request,
                     response,
                 });
@@ -15010,6 +14833,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_revokeSpaceAccessForUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share/:userUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -15022,39 +14869,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_revokeSpaceAccessForUser,
                     request,
                     response,
                 });
@@ -15085,6 +14905,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_addSpaceGroupAccess: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'AddSpaceGroupAccess',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/group/share',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -15097,39 +14941,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'AddSpaceGroupAccess',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_addSpaceGroupAccess,
                     request,
                     response,
                 });
@@ -15160,6 +14977,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_revokeGroupSpaceAccess: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/group/share/:groupUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
@@ -15172,39 +15013,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                spaceUuid: {
-                    in: 'path',
-                    name: 'spaceUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSpaceController_revokeGroupSpaceAccess,
                     request,
                     response,
                 });
@@ -15235,6 +15049,10 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSlackController_get: Record<string, TsoaRoute.ParameterSchema> = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+    };
     app.get(
         '/api/v1/slack/channels',
         ...fetchMiddlewares<RequestHandler>(SlackController),
@@ -15245,22 +15063,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                search: { in: 'query', name: 'search', dataType: 'string' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSlackController_get,
                     request,
                     response,
                 });
@@ -15291,6 +15099,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSlackController_updateCustomSettings: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SlackAppCustomSettings',
+        },
+    };
     app.put(
         '/api/v1/slack/custom-settings',
         ...fetchMiddlewares<RequestHandler>(SlackController),
@@ -15303,27 +15123,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SlackAppCustomSettings',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSlackController_updateCustomSettings,
                     request,
                     response,
                 });
@@ -15354,6 +15159,15 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsShareController_get: Record<string, TsoaRoute.ParameterSchema> = {
+        nanoId: {
+            in: 'path',
+            name: 'nanoId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/share/:nanoId',
         ...fetchMiddlewares<RequestHandler>(ShareController),
@@ -15364,27 +15178,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                nanoId: {
-                    in: 'path',
-                    name: 'nanoId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsShareController_get,
                     request,
                     response,
                 });
@@ -15415,6 +15214,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsShareController_create: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateShareUrl',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/share',
         ...fetchMiddlewares<RequestHandler>(ShareController),
@@ -15425,27 +15236,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateShareUrl',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsShareController_create,
                     request,
                     response,
                 });
@@ -15476,6 +15272,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_getLogs: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/schedulers/:projectUuid/logs',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15488,27 +15296,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_getLogs,
                     request,
                     response,
                 });
@@ -15540,6 +15333,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_get: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/schedulers/:schedulerUuid',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15550,27 +15355,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                schedulerUuid: {
-                    in: 'path',
-                    name: 'schedulerUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_get,
                     request,
                     response,
                 });
@@ -15602,6 +15392,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_patch: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: { in: 'body', name: 'body', required: true, dataType: 'any' },
+    };
     app.patch(
         '/api/v1/schedulers/:schedulerUuid',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15614,33 +15417,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                schedulerUuid: {
-                    in: 'path',
-                    name: 'schedulerUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'any',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_patch,
                     request,
                     response,
                 });
@@ -15672,6 +15454,27 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_patchEnabled: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                enabled: { dataType: 'boolean', required: true },
+            },
+        },
+    };
     app.patch(
         '/api/v1/schedulers/:schedulerUuid/enabled',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15684,36 +15487,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                schedulerUuid: {
-                    in: 'path',
-                    name: 'schedulerUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        enabled: { dataType: 'boolean', required: true },
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_patchEnabled,
                     request,
                     response,
                 });
@@ -15745,6 +15524,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_delete: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/schedulers/:schedulerUuid',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15757,27 +15548,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                schedulerUuid: {
-                    in: 'path',
-                    name: 'schedulerUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_delete,
                     request,
                     response,
                 });
@@ -15809,6 +15585,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_getJobs: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/schedulers/:schedulerUuid/jobs',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15821,27 +15609,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                schedulerUuid: {
-                    in: 'path',
-                    name: 'schedulerUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_getJobs,
                     request,
                     response,
                 });
@@ -15873,6 +15646,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_getSchedulerStatus: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        jobId: {
+            in: 'path',
+            name: 'jobId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/schedulers/job/:jobId/status',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15885,27 +15670,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                jobId: {
-                    in: 'path',
-                    name: 'jobId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_getSchedulerStatus,
                     request,
                     response,
                 });
@@ -15937,6 +15707,13 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerController_post: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: { in: 'body', name: 'body', required: true, dataType: 'any' },
+    };
     app.post(
         '/api/v1/schedulers/send',
         ...fetchMiddlewares<RequestHandler>(SchedulerController),
@@ -15947,27 +15724,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'any',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSchedulerController_post,
                     request,
                     response,
                 });
@@ -15999,6 +15761,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRunViewChartQueryController_postUnderlyingData: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'MetricQueryRequest',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/runUnderlyingDataQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
@@ -16011,39 +15797,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'MetricQueryRequest',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                exploreId: {
-                    in: 'path',
-                    name: 'exploreId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsRunViewChartQueryController_postUnderlyingData,
                     request,
                     response,
                 });
@@ -16075,6 +15834,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRunViewChartQueryController_runMetricQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'MetricQueryRequest',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/runQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
@@ -16087,39 +15870,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'MetricQueryRequest',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                exploreId: {
-                    in: 'path',
-                    name: 'exploreId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsRunViewChartQueryController_runMetricQuery,
                     request,
                     response,
                 });
@@ -16151,6 +15907,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_postChartResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { invalidateCache: { dataType: 'boolean' } },
+        },
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/results',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16163,36 +15938,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        invalidateCache: { dataType: 'boolean' },
-                    },
-                },
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_postChartResults,
                     request,
                     response,
                 });
@@ -16224,6 +15975,36 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_postDashboardTile: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                autoRefresh: { dataType: 'boolean' },
+                granularity: { ref: 'DateGranularity' },
+                dashboardUuid: { dataType: 'string', required: true },
+                dashboardSorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                invalidateCache: { dataType: 'boolean' },
+                dashboardFilters: { dataType: 'any', required: true },
+            },
+        },
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/chart-and-results',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16236,45 +16017,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        autoRefresh: { dataType: 'boolean' },
-                        granularity: { ref: 'DateGranularity' },
-                        dashboardUuid: { dataType: 'string', required: true },
-                        dashboardSorts: {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'SortField' },
-                            required: true,
-                        },
-                        invalidateCache: { dataType: 'boolean' },
-                        dashboardFilters: { dataType: 'any', required: true },
-                    },
-                },
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_postDashboardTile,
                     request,
                     response,
                 });
@@ -16306,6 +16054,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_getChartHistory: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/saved/:chartUuid/history',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16318,27 +16078,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_getChartHistory,
                     request,
                     response,
                 });
@@ -16370,6 +16115,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_getChartVersion: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        versionUuid: {
+            in: 'path',
+            name: 'versionUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/saved/:chartUuid/version/:versionUuid',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16382,33 +16145,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                versionUuid: {
-                    in: 'path',
-                    name: 'versionUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_getChartVersion,
                     request,
                     response,
                 });
@@ -16440,6 +16182,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_getChartVersionResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        versionUuid: {
+            in: 'path',
+            name: 'versionUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/version/:versionUuid/results',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16452,33 +16212,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                versionUuid: {
-                    in: 'path',
-                    name: 'versionUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_getChartVersionResults,
                     request,
                     response,
                 });
@@ -16510,6 +16249,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_postChartVersionRollback: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        versionUuid: {
+            in: 'path',
+            name: 'versionUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/rollback/:versionUuid',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16522,33 +16279,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                versionUuid: {
-                    in: 'path',
-                    name: 'versionUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_postChartVersionRollback,
                     request,
                     response,
                 });
@@ -16580,6 +16316,28 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_calculateTotalFromSavedChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                invalidateCache: { dataType: 'boolean' },
+                dashboardFilters: { dataType: 'any' },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/calculate-total',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16592,37 +16350,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        invalidateCache: { dataType: 'boolean' },
-                        dashboardFilters: { dataType: 'any' },
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_calculateTotalFromSavedChart,
                     request,
                     response,
                 });
@@ -16654,6 +16387,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_promoteChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/promote',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16666,27 +16411,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_promoteChart,
                     request,
                     response,
                 });
@@ -16718,6 +16448,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_promoteChartDiff: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/saved/:chartUuid/promoteDiff',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16730,27 +16472,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_promoteChartDiff,
                     request,
                     response,
                 });
@@ -16782,6 +16509,38 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartController_DownloadCsvFromSavedChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                csvLimit: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                onlyRaw: { dataType: 'boolean', required: true },
+                tileUuid: { dataType: 'string' },
+                dashboardFilters: { dataType: 'any', required: true },
+            },
+        },
+    };
     app.post(
         '/api/v1/saved/:chartUuid/downloadCsv',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
@@ -16794,47 +16553,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        csvLimit: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'double' },
-                                { dataType: 'enum', enums: [null] },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        onlyRaw: { dataType: 'boolean', required: true },
-                        tileUuid: { dataType: 'string' },
-                        dashboardFilters: { dataType: 'any', required: true },
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSavedChartController_DownloadCsvFromSavedChart,
                     request,
                     response,
                 });
@@ -16866,6 +16590,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getProject: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -16878,27 +16614,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getProject,
                     request,
                     response,
                 });
@@ -16929,6 +16650,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getChartsInProject: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/charts',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -16941,27 +16674,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getChartsInProject,
                     request,
                     response,
                 });
@@ -16992,6 +16710,23 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getChartSummariesInProject: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        excludeChartsSavedInDashboard: {
+            in: 'query',
+            name: 'excludeChartsSavedInDashboard',
+            dataType: 'boolean',
+        },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/chart-summaries',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17004,32 +16739,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                excludeChartsSavedInDashboard: {
-                    in: 'query',
-                    name: 'excludeChartsSavedInDashboard',
-                    dataType: 'boolean',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getChartSummariesInProject,
                     request,
                     response,
                 });
@@ -17060,6 +16775,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getSpacesInProject: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/spaces',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17072,27 +16799,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getSpacesInProject,
                     request,
                     response,
                 });
@@ -17123,6 +16835,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getProjectAccessList: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/access',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17135,27 +16859,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getProjectAccessList,
                     request,
                     response,
                 });
@@ -17186,6 +16895,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getProjectMember: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/user/:userUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17198,33 +16925,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getProjectMember,
                     request,
                     response,
                 });
@@ -17255,6 +16961,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_grantProjectAccessToUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateProjectMember',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/access',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17267,33 +16991,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateProjectMember',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_grantProjectAccessToUser,
                     request,
                     response,
                 });
@@ -17324,6 +17027,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateProjectAccessForUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateProjectMember',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/access/:userUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17336,39 +17063,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateProjectMember',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateProjectAccessForUser,
                     request,
                     response,
                 });
@@ -17399,6 +17099,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_revokeProjectAccessForUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/access/:userUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17411,33 +17129,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_revokeProjectAccessForUser,
                     request,
                     response,
                 });
@@ -17468,6 +17165,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getProjectGroupAccesses: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/groupAccesses',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17480,27 +17189,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getProjectGroupAccesses,
                     request,
                     response,
                 });
@@ -17531,6 +17225,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_runSqlQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { sql: { dataType: 'string', required: true } },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/sqlQuery',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17543,36 +17256,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        sql: { dataType: 'string', required: true },
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_runSqlQuery,
                     request,
                     response,
                 });
@@ -17603,6 +17292,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_CalculateTotalFromQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CalculateTotalFromQuery',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/calculate-total',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17615,33 +17322,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CalculateTotalFromQuery',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_CalculateTotalFromQuery,
                     request,
                     response,
                 });
@@ -17672,6 +17358,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_GetDbtExposures: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dbt-exposures',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17684,27 +17382,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_GetDbtExposures,
                     request,
                     response,
                 });
@@ -17735,6 +17418,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getUserWarehouseCredentialsPreference: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/user-credentials',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17747,27 +17442,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getUserWarehouseCredentialsPreference,
                     request,
                     response,
                 });
@@ -17798,6 +17478,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateUserWarehouseCredentialsPreference: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userWarehouseCredentialsUuid: {
+            in: 'path',
+            name: 'userWarehouseCredentialsUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/user-credentials/:userWarehouseCredentialsUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17811,33 +17509,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userWarehouseCredentialsUuid: {
-                    in: 'path',
-                    name: 'userWarehouseCredentialsUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateUserWarehouseCredentialsPreference,
                     request,
                     response,
                 });
@@ -17868,6 +17545,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getCustomMetrics: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/custom-metrics',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17880,27 +17569,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getCustomMetrics,
                     request,
                     response,
                 });
@@ -17931,6 +17605,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateProjectMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateMetadata',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/metadata',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -17943,33 +17635,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateMetadata',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateProjectMetadata,
                     request,
                     response,
                 });
@@ -18000,6 +17671,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateProjectSemanticLayerConnection: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SemanticLayerConnectionUpdate',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/semantic-layer-connection',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18012,33 +17701,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SemanticLayerConnectionUpdate',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateProjectSemanticLayerConnection,
                     request,
                     response,
                 });
@@ -18069,6 +17737,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_deleteProjectSemanticLayerConnection: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/semantic-layer-connection',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18081,27 +17761,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_deleteProjectSemanticLayerConnection,
                     request,
                     response,
                 });
@@ -18132,6 +17797,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getDashboards: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dashboards',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18144,27 +17821,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getDashboards,
                     request,
                     response,
                 });
@@ -18195,6 +17857,33 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_createDashboard: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DuplicateDashboardParams' },
+                { ref: 'CreateDashboard' },
+            ],
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        duplicateFrom: {
+            in: 'query',
+            name: 'duplicateFrom',
+            dataType: 'string',
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/dashboards',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18207,42 +17896,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DuplicateDashboardParams' },
-                        { ref: 'CreateDashboard' },
-                    ],
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                duplicateFrom: {
-                    in: 'query',
-                    name: 'duplicateFrom',
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_createDashboard,
                     request,
                     response,
                 });
@@ -18273,6 +17932,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateDashboards: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'UpdateMultipleDashboards' },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/dashboards',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18285,37 +17963,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'UpdateMultipleDashboards',
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateDashboards,
                     request,
                     response,
                 });
@@ -18346,6 +17999,28 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_createPreview: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                copyContent: { dataType: 'boolean', required: true },
+                name: { dataType: 'string', required: true },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/createPreview',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18358,37 +18033,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        copyContent: { dataType: 'boolean', required: true },
-                        name: { dataType: 'string', required: true },
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_createPreview,
                     request,
                     response,
                 });
@@ -18419,6 +18069,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateSchedulerSettings: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateSchedulerSettings',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/schedulerSettings',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18431,33 +18099,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateSchedulerSettings',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateSchedulerSettings,
                     request,
                     response,
                 });
@@ -18488,6 +18135,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_createTag: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Pick_Tag.name-or-color_',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/tags',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18500,33 +18165,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'Pick_Tag.name-or-color_',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_createTag,
                     request,
                     response,
                 });
@@ -18557,6 +18201,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_deleteTag: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        tagUuid: {
+            in: 'path',
+            name: 'tagUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/tags/:tagUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18569,27 +18225,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                tagUuid: {
-                    in: 'path',
-                    name: 'tagUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_deleteTag,
                     request,
                     response,
                 });
@@ -18620,6 +18261,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_updateTag: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        tagUuid: {
+            in: 'path',
+            name: 'tagUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: { in: 'body', name: 'body', required: true, ref: 'DbTagUpdate' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/tags/:tagUuid',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18632,33 +18286,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                tagUuid: {
-                    in: 'path',
-                    name: 'tagUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'DbTagUpdate',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_updateTag,
                     request,
                     response,
                 });
@@ -18689,6 +18322,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getTags: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/tags',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18701,27 +18346,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getTags,
                     request,
                     response,
                 });
@@ -18752,6 +18382,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getChartsAsCode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        ids: {
+            in: 'query',
+            name: 'ids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        offset: { in: 'query', name: 'offset', dataType: 'double' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/charts/code',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18764,34 +18413,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                ids: {
-                    in: 'query',
-                    name: 'ids',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                offset: { in: 'query', name: 'offset', dataType: 'double' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getChartsAsCode,
                     request,
                     response,
                 });
@@ -18822,6 +18449,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_getDashboardsAsCode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        ids: {
+            in: 'query',
+            name: 'ids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        offset: { in: 'query', name: 'offset', dataType: 'double' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dashboards/code',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18834,34 +18480,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                ids: {
-                    in: 'query',
-                    name: 'ids',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                offset: { in: 'query', name: 'offset', dataType: 'double' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_getDashboardsAsCode,
                     request,
                     response,
                 });
@@ -18892,6 +18516,44 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_upsertChartAsCode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        slug: { in: 'path', name: 'slug', required: true, dataType: 'string' },
+        chart: {
+            in: 'body',
+            name: 'chart',
+            required: true,
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_',
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        description: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        metricQuery: { dataType: 'any', required: true },
+                        chartConfig: { dataType: 'any', required: true },
+                    },
+                },
+            ],
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/charts/:slug/code',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -18904,64 +18566,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                slug: {
-                    in: 'path',
-                    name: 'slug',
-                    required: true,
-                    dataType: 'string',
-                },
-                chart: {
-                    in: 'body',
-                    name: 'chart',
-                    required: true,
-                    dataType: 'intersection',
-                    subSchemas: [
-                        {
-                            ref: 'Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_',
-                        },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                description: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                },
-                                metricQuery: {
-                                    dataType: 'any',
-                                    required: true,
-                                },
-                                chartConfig: {
-                                    dataType: 'any',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_upsertChartAsCode,
                     request,
                     response,
                 });
@@ -18992,6 +18602,44 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_upsertDashboardAsCode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        slug: { in: 'path', name: 'slug', required: true, dataType: 'string' },
+        dashboard: {
+            in: 'body',
+            name: 'dashboard',
+            required: true,
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_DashboardAsCode.filters-or-tiles-or-description_',
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        description: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        tiles: { dataType: 'any', required: true },
+                        filters: { dataType: 'any', required: true },
+                    },
+                },
+            ],
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/dashboards/:slug/code',
         ...fetchMiddlewares<RequestHandler>(ProjectController),
@@ -19004,58 +18652,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                slug: {
-                    in: 'path',
-                    name: 'slug',
-                    required: true,
-                    dataType: 'string',
-                },
-                dashboard: {
-                    in: 'body',
-                    name: 'dashboard',
-                    required: true,
-                    dataType: 'intersection',
-                    subSchemas: [
-                        {
-                            ref: 'Omit_DashboardAsCode.filters-or-tiles-or-description_',
-                        },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                description: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                },
-                                tiles: { dataType: 'any', required: true },
-                                filters: { dataType: 'any', required: true },
-                            },
-                        },
-                    ],
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsProjectController_upsertDashboardAsCode,
                     request,
                     response,
                 });
@@ -19086,6 +18688,27 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPinningController_get: Record<string, TsoaRoute.ParameterSchema> =
+        {
+            projectUuid: {
+                in: 'path',
+                name: 'projectUuid',
+                required: true,
+                dataType: 'string',
+            },
+            pinnedListUuid: {
+                in: 'path',
+                name: 'pinnedListUuid',
+                required: true,
+                dataType: 'string',
+            },
+            req: {
+                in: 'request',
+                name: 'req',
+                required: true,
+                dataType: 'object',
+            },
+        };
     app.get(
         '/api/v1/projects/:projectUuid/pinned-lists/:pinnedListUuid/items',
         ...fetchMiddlewares<RequestHandler>(PinningController),
@@ -19096,33 +18719,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                pinnedListUuid: {
-                    in: 'path',
-                    name: 'pinnedListUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsPinningController_get,
                     request,
                     response,
                 });
@@ -19153,6 +18755,31 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPinningController_post: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        pinnedListUuid: {
+            in: 'path',
+            name: 'pinnedListUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'UpdatePinnedItemOrder' },
+        },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/pinned-lists/:pinnedListUuid/items/order',
         ...fetchMiddlewares<RequestHandler>(PinningController),
@@ -19163,43 +18790,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                pinnedListUuid: {
-                    in: 'path',
-                    name: 'pinnedListUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'UpdatePinnedItemOrder',
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsPinningController_post,
                     request,
                     response,
                 });
@@ -19230,6 +18826,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_getOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/org',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19242,21 +18844,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_getOrganization,
                     request,
                     response,
                 });
@@ -19288,6 +18881,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_createOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateOrganization',
+        },
+    };
     app.put(
         '/api/v1/org',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19300,27 +18905,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateOrganization',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_createOrganization,
                     request,
                     response,
                 });
@@ -19352,6 +18942,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_updateOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateOrganization',
+        },
+    };
     app.patch(
         '/api/v1/org',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19364,27 +18966,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateOrganization',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_updateOrganization,
                     request,
                     response,
                 });
@@ -19416,6 +19003,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_deleteOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
     app.delete(
         '/api/v1/org/:organizationUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19428,27 +19027,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                organizationUuid: {
-                    in: 'path',
-                    name: 'organizationUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_deleteOrganization,
                     request,
                     response,
                 });
@@ -19480,6 +19064,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_getProjects: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/org/projects',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19492,21 +19082,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_getProjects,
                     request,
                     response,
                 });
@@ -19538,6 +19119,21 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_getOrganizationMembers: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        includeGroups: {
+            in: 'query',
+            name: 'includeGroups',
+            dataType: 'double',
+        },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        searchQuery: { in: 'query', name: 'searchQuery', dataType: 'string' },
+        projectUuid: { in: 'query', name: 'projectUuid', dataType: 'string' },
+    };
     app.get(
         '/api/v1/org/users',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19550,38 +19146,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                includeGroups: {
-                    in: 'query',
-                    name: 'includeGroups',
-                    dataType: 'double',
-                },
-                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
-                page: { in: 'query', name: 'page', dataType: 'double' },
-                searchQuery: {
-                    in: 'query',
-                    name: 'searchQuery',
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'query',
-                    name: 'projectUuid',
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_getOrganizationMembers,
                     request,
                     response,
                 });
@@ -19613,6 +19183,13 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_getOrganizationMemberByUuid: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        userUuid: { in: 'path', name: 'userUuid', required: true, ref: 'UUID' },
+    };
     app.get(
         '/api/v1/org/users/:userUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19625,27 +19202,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    ref: 'UUID',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_getOrganizationMemberByUuid,
                     request,
                     response,
                 });
@@ -19677,6 +19239,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_updateOrganizationMember: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'OrganizationMemberProfileUpdate',
+        },
+    };
     app.patch(
         '/api/v1/org/users/:userUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19689,33 +19269,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'OrganizationMemberProfileUpdate',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_updateOrganizationMember,
                     request,
                     response,
                 });
@@ -19747,6 +19306,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_deleteUser: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
     app.delete(
         '/api/v1/org/user/:userUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19759,27 +19330,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_deleteUser,
                     request,
                     response,
                 });
@@ -19811,6 +19367,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_getOrganizationAllowedEmailDomains: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/org/allowedEmailDomains',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19823,21 +19385,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_getOrganizationAllowedEmailDomains,
                     request,
                     response,
                 });
@@ -19869,6 +19422,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_updateOrganizationAllowedEmailDomains: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateAllowedEmailDomains',
+        },
+    };
     app.patch(
         '/api/v1/org/allowedEmailDomains',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19882,27 +19447,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateAllowedEmailDomains',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_updateOrganizationAllowedEmailDomains,
                     request,
                     response,
                 });
@@ -19934,6 +19484,13 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_createGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: { in: 'body', name: 'body', required: true, ref: 'CreateGroup' },
+    };
     app.post(
         '/api/v1/org/groups',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -19946,27 +19503,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'CreateGroup',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_createGroup,
                     request,
                     response,
                 });
@@ -19998,6 +19540,20 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_listGroupsInOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        includeMembers: {
+            in: 'query',
+            name: 'includeMembers',
+            dataType: 'double',
+        },
+        searchQuery: { in: 'query', name: 'searchQuery', dataType: 'string' },
+    };
     app.get(
         '/api/v1/org/groups',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
@@ -20010,33 +19566,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                page: { in: 'query', name: 'page', dataType: 'double' },
-                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
-                includeMembers: {
-                    in: 'query',
-                    name: 'includeMembers',
-                    dataType: 'double',
-                },
-                searchQuery: {
-                    in: 'query',
-                    name: 'searchQuery',
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsOrganizationController_listGroupsInOrganization,
                     request,
                     response,
                 });
@@ -20068,6 +19603,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsNotificationsController_getNotifications: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        type: {
+            in: 'query',
+            name: 'type',
+            required: true,
+            ref: 'ApiNotificationResourceType',
+        },
+    };
     app.get(
         '/api/v1/notifications',
         ...fetchMiddlewares<RequestHandler>(NotificationsController),
@@ -20080,27 +19627,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                type: {
-                    in: 'query',
-                    name: 'type',
-                    required: true,
-                    ref: 'ApiNotificationResourceType',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsNotificationsController_getNotifications,
                     request,
                     response,
                 });
@@ -20132,6 +19664,23 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsNotificationsController_updateNotification: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        notificationId: {
+            in: 'path',
+            name: 'notificationId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiNotificationUpdateParams',
+        },
+    };
     app.patch(
         '/api/v1/notifications/:notificationId',
         ...fetchMiddlewares<RequestHandler>(NotificationsController),
@@ -20144,27 +19693,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                notificationId: {
-                    in: 'path',
-                    name: 'notificationId',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'ApiNotificationUpdateParams',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsNotificationsController_updateNotification,
                     request,
                     response,
                 });
@@ -20196,6 +19730,52 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMetricsExplorerController_runMetricExplorerQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        explore: {
+            in: 'path',
+            name: 'explore',
+            required: true,
+            dataType: 'string',
+        },
+        metric: {
+            in: 'path',
+            name: 'metric',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        startDate: {
+            in: 'query',
+            name: 'startDate',
+            required: true,
+            dataType: 'string',
+        },
+        endDate: {
+            in: 'query',
+            name: 'endDate',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                query: { ref: 'MetricExplorerQuery', required: true },
+                timeDimensionOverride: { ref: 'TimeDimensionConfig' },
+            },
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/metricsExplorer/:explore/:metric/runMetricExplorerQuery',
         ...fetchMiddlewares<RequestHandler>(MetricsExplorerController),
@@ -20208,61 +19788,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                explore: {
-                    in: 'path',
-                    name: 'explore',
-                    required: true,
-                    dataType: 'string',
-                },
-                metric: {
-                    in: 'path',
-                    name: 'metric',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                startDate: {
-                    in: 'query',
-                    name: 'startDate',
-                    required: true,
-                    dataType: 'string',
-                },
-                endDate: {
-                    in: 'query',
-                    name: 'endDate',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        query: { ref: 'MetricExplorerQuery', required: true },
-                        timeDimensionOverride: { ref: 'TimeDimensionConfig' },
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsMetricsExplorerController_runMetricExplorerQuery,
                     request,
                     response,
                 });
@@ -20294,6 +19825,56 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMetricsExplorerController_runMetricTotal: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        explore: {
+            in: 'path',
+            name: 'explore',
+            required: true,
+            dataType: 'string',
+        },
+        metric: {
+            in: 'path',
+            name: 'metric',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        timeFrame: {
+            in: 'query',
+            name: 'timeFrame',
+            required: true,
+            ref: 'TimeFrames',
+        },
+        startDate: {
+            in: 'query',
+            name: 'startDate',
+            required: true,
+            dataType: 'string',
+        },
+        endDate: {
+            in: 'query',
+            name: 'endDate',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                comparisonType: { ref: 'MetricTotalComparisonType' },
+            },
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/metricsExplorer/:explore/:metric/runMetricTotal',
         ...fetchMiddlewares<RequestHandler>(MetricsExplorerController),
@@ -20306,65 +19887,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                explore: {
-                    in: 'path',
-                    name: 'explore',
-                    required: true,
-                    dataType: 'string',
-                },
-                metric: {
-                    in: 'path',
-                    name: 'metric',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                timeFrame: {
-                    in: 'query',
-                    name: 'timeFrame',
-                    required: true,
-                    ref: 'TimeFrames',
-                },
-                startDate: {
-                    in: 'query',
-                    name: 'startDate',
-                    required: true,
-                    dataType: 'string',
-                },
-                endDate: {
-                    in: 'query',
-                    name: 'endDate',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        comparisonType: { ref: 'MetricTotalComparisonType' },
-                    },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsMetricsExplorerController_runMetricTotal,
                     request,
                     response,
                 });
@@ -20396,6 +19924,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_getGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        includeMembers: {
+            in: 'query',
+            name: 'includeMembers',
+            dataType: 'double',
+        },
+        offset: { in: 'query', name: 'offset', dataType: 'double' },
+    };
     app.get(
         '/api/v1/groups/:groupUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20408,33 +19954,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                includeMembers: {
-                    in: 'query',
-                    name: 'includeMembers',
-                    dataType: 'double',
-                },
-                offset: { in: 'query', name: 'offset', dataType: 'double' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_getGroup,
                     request,
                     response,
                 });
@@ -20465,6 +19990,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_deleteGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/groups/:groupUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20477,27 +20014,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_deleteGroup,
                     request,
                     response,
                 });
@@ -20528,6 +20050,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_addUserToGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.put(
         '/api/v1/groups/:groupUuid/members/:userUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20540,33 +20080,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_addUserToGroup,
                     request,
                     response,
                 });
@@ -20597,6 +20116,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_removeUserFromGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/groups/:groupUuid/members/:userUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20609,33 +20146,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                userUuid: {
-                    in: 'path',
-                    name: 'userUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_removeUserFromGroup,
                     request,
                     response,
                 });
@@ -20666,6 +20182,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_getGroupMembers: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/groups/:groupUuid/members',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20678,27 +20206,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_getGroupMembers,
                     request,
                     response,
                 });
@@ -20729,6 +20242,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_updateGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateGroupWithMembers',
+        },
+    };
     app.patch(
         '/api/v1/groups/:groupUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20741,33 +20272,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateGroupWithMembers',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_updateGroup,
                     request,
                     response,
                 });
@@ -20798,6 +20308,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_addProjectAccessToGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        projectGroupAccess: {
+            in: 'body',
+            name: 'projectGroupAccess',
+            required: true,
+            ref: 'Pick_CreateDBProjectGroupAccess.role_',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/groups/:groupUuid/projects/:projectUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20810,39 +20344,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectGroupAccess: {
-                    in: 'body',
-                    name: 'projectGroupAccess',
-                    required: true,
-                    ref: 'Pick_CreateDBProjectGroupAccess.role_',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_addProjectAccessToGroup,
                     request,
                     response,
                 });
@@ -20873,6 +20380,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_updateProjectAccessForGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        projectGroupAccess: {
+            in: 'body',
+            name: 'projectGroupAccess',
+            required: true,
+            ref: 'UpdateDBProjectGroupAccess',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/groups/:groupUuid/projects/:projectUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20885,39 +20416,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectGroupAccess: {
-                    in: 'body',
-                    name: 'projectGroupAccess',
-                    required: true,
-                    ref: 'UpdateDBProjectGroupAccess',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_updateProjectAccessForGroup,
                     request,
                     response,
                 });
@@ -20948,6 +20452,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGroupsController_removeProjectAccessFromGroup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        groupUuid: {
+            in: 'path',
+            name: 'groupUuid',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/groups/:groupUuid/projects/:projectUuid',
         ...fetchMiddlewares<RequestHandler>(GroupsController),
@@ -20960,33 +20482,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                groupUuid: {
-                    in: 'path',
-                    name: 'groupUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGroupsController_removeProjectAccessFromGroup,
                     request,
                     response,
                 });
@@ -21017,6 +20518,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGoogleDriveController_get: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/gdrive/get-access-token',
         ...fetchMiddlewares<RequestHandler>(GoogleDriveController),
@@ -21029,21 +20536,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGoogleDriveController_get,
                     request,
                     response,
                 });
@@ -21075,6 +20573,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGoogleDriveController_post: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UploadMetricGsheet',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/gdrive/upload-gsheet',
         ...fetchMiddlewares<RequestHandler>(GoogleDriveController),
@@ -21087,27 +20597,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UploadMetricGsheet',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGoogleDriveController_post,
                     request,
                     response,
                 });
@@ -21139,6 +20634,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGithubInstallController_installGithubAppForOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/github/install',
         ...fetchMiddlewares<RequestHandler>(GithubInstallController),
@@ -21151,21 +20652,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGithubInstallController_installGithubAppForOrganization,
                     request,
                     response,
                 });
@@ -21197,6 +20689,20 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGithubInstallController_githubOauthCallback: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        code: { in: 'query', name: 'code', dataType: 'string' },
+        state: { in: 'query', name: 'state', dataType: 'string' },
+        installation_id: {
+            in: 'query',
+            name: 'installation_id',
+            dataType: 'string',
+        },
+        setup_action: { in: 'query', name: 'setup_action', dataType: 'string' },
+    };
     app.get(
         '/api/v1/github/oauth/callback',
         ...fetchMiddlewares<RequestHandler>(GithubInstallController),
@@ -21209,33 +20715,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                code: { in: 'query', name: 'code', dataType: 'string' },
-                state: { in: 'query', name: 'state', dataType: 'string' },
-                installation_id: {
-                    in: 'query',
-                    name: 'installation_id',
-                    dataType: 'string',
-                },
-                setup_action: {
-                    in: 'query',
-                    name: 'setup_action',
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGithubInstallController_githubOauthCallback,
                     request,
                     response,
                 });
@@ -21267,6 +20752,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGithubInstallController_uninstallGithubAppForOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/github/uninstall',
         ...fetchMiddlewares<RequestHandler>(GithubInstallController),
@@ -21279,21 +20770,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGithubInstallController_uninstallGithubAppForOrganization,
                     request,
                     response,
                 });
@@ -21325,6 +20807,12 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGithubInstallController_getGithubListRepositories: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/github/repos/list',
         ...fetchMiddlewares<RequestHandler>(GithubInstallController),
@@ -21337,21 +20825,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGithubInstallController_getGithubListRepositories,
                     request,
                     response,
                 });
@@ -21383,6 +20862,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_GetConfiguration: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/git-integration',
         ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
@@ -21395,27 +20886,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGitIntegrationController_GetConfiguration,
                     request,
                     response,
                 });
@@ -21447,6 +20923,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_CreatePullRequestForChartFields: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/git-integration/pull-requests/chart/:chartUuid/fields',
         ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
@@ -21459,33 +20953,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                chartUuid: {
-                    in: 'path',
-                    name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGitIntegrationController_CreatePullRequestForChartFields,
                     request,
                     response,
                 });
@@ -21517,6 +20990,39 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_CreatePullRequestForCustomMetrics: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                quoteChar: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['"'] },
+                        { dataType: 'enum', enums: ["'"] },
+                    ],
+                    required: true,
+                },
+                customMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/git-integration/pull-requests/custom-metrics',
         ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
@@ -21530,48 +21036,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        quoteChar: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'enum', enums: ['"'] },
-                                { dataType: 'enum', enums: ["'"] },
-                            ],
-                            required: true,
-                        },
-                        customMetrics: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsGitIntegrationController_CreatePullRequestForCustomMetrics,
                     request,
                     response,
                 });
@@ -21603,6 +21073,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_SetExplores: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'array',
+            array: { dataType: 'any' },
+        },
+    };
     app.put(
         '/api/v1/projects/:projectUuid/explores',
         ...fetchMiddlewares<RequestHandler>(ExploreController),
@@ -21615,34 +21104,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'array',
-                    array: { dataType: 'any' },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsExploreController_SetExplores,
                     request,
                     response,
                 });
@@ -21673,6 +21140,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_GetExplores: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/explores',
         ...fetchMiddlewares<RequestHandler>(ExploreController),
@@ -21685,27 +21164,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsExploreController_GetExplores,
                     request,
                     response,
                 });
@@ -21736,6 +21200,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_GetExplore: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/explores/:exploreId',
         ...fetchMiddlewares<RequestHandler>(ExploreController),
@@ -21748,33 +21230,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                exploreId: {
-                    in: 'path',
-                    name: 'exploreId',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsExploreController_GetExplore,
                     request,
                     response,
                 });
@@ -21805,6 +21266,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_CompileQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: { in: 'body', name: 'body', required: true, ref: 'MetricQuery' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/compileQuery',
         ...fetchMiddlewares<RequestHandler>(ExploreController),
@@ -21817,39 +21297,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                exploreId: {
-                    in: 'path',
-                    name: 'exploreId',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'MetricQuery',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsExploreController_CompileQuery,
                     request,
                     response,
                 });
@@ -21880,6 +21333,68 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_DownloadCsvFromExplore: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricQuery' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        pivotColumns: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        chartName: { dataType: 'string' },
+                        hiddenFields: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        columnOrder: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        customLabels: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {},
+                            additionalProperties: { dataType: 'string' },
+                        },
+                        showTableNames: { dataType: 'boolean', required: true },
+                        csvLimit: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'enum', enums: [null] },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        onlyRaw: { dataType: 'boolean', required: true },
+                    },
+                },
+            ],
+        },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/downloadCsv',
         ...fetchMiddlewares<RequestHandler>(ExploreController),
@@ -21892,85 +21407,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                exploreId: {
-                    in: 'path',
-                    name: 'exploreId',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'MetricQuery' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                pivotColumns: {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                },
-                                chartName: { dataType: 'string' },
-                                hiddenFields: {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                },
-                                columnOrder: {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                    required: true,
-                                },
-                                customLabels: {
-                                    dataType: 'nestedObjectLiteral',
-                                    nestedProperties: {},
-                                    additionalProperties: {
-                                        dataType: 'string',
-                                    },
-                                },
-                                showTableNames: {
-                                    dataType: 'boolean',
-                                    required: true,
-                                },
-                                csvLimit: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'double' },
-                                        { dataType: 'enum', enums: [null] },
-                                        { dataType: 'undefined' },
-                                    ],
-                                    required: true,
-                                },
-                                onlyRaw: {
-                                    dataType: 'boolean',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsExploreController_DownloadCsvFromExplore,
                     request,
                     response,
                 });
@@ -22001,6 +21443,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardController_promoteDashboard: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/dashboards/:dashboardUuid/promote',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
@@ -22013,27 +21467,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                dashboardUuid: {
-                    in: 'path',
-                    name: 'dashboardUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsDashboardController_promoteDashboard,
                     request,
                     response,
                 });
@@ -22065,6 +21504,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardController_promoteDashboardDiff: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/dashboards/:dashboardUuid/promoteDiff',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
@@ -22077,27 +21528,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                dashboardUuid: {
-                    in: 'path',
-                    name: 'dashboardUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsDashboardController_promoteDashboardDiff,
                     request,
                     response,
                 });
@@ -22129,6 +21565,15 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCsvController_get: Record<string, TsoaRoute.ParameterSchema> = {
+        jobId: {
+            in: 'path',
+            name: 'jobId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/csv/:jobId',
         ...fetchMiddlewares<RequestHandler>(CsvController),
@@ -22139,27 +21584,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                jobId: {
-                    in: 'path',
-                    name: 'jobId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCsvController_get,
                     request,
                     response,
                 });
@@ -22190,6 +21620,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCommentsController_createComment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dashboardTileUuid: {
+            in: 'path',
+            name: 'dashboardTileUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_',
+        },
+    };
     app.post(
         '/api/v1/comments/dashboards/:dashboardUuid/:dashboardTileUuid',
         ...fetchMiddlewares<RequestHandler>(CommentsController),
@@ -22202,39 +21656,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                dashboardUuid: {
-                    in: 'path',
-                    name: 'dashboardUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                dashboardTileUuid: {
-                    in: 'path',
-                    name: 'dashboardTileUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCommentsController_createComment,
                     request,
                     response,
                 });
@@ -22265,6 +21692,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCommentsController_getComments: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/comments/dashboards/:dashboardUuid',
         ...fetchMiddlewares<RequestHandler>(CommentsController),
@@ -22277,27 +21716,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                dashboardUuid: {
-                    in: 'path',
-                    name: 'dashboardUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCommentsController_getComments,
                     request,
                     response,
                 });
@@ -22328,6 +21752,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCommentsController_resolveComment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            dataType: 'string',
+        },
+        commentId: {
+            in: 'path',
+            name: 'commentId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/comments/dashboards/:dashboardUuid/:commentId',
         ...fetchMiddlewares<RequestHandler>(CommentsController),
@@ -22340,33 +21782,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                dashboardUuid: {
-                    in: 'path',
-                    name: 'dashboardUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                commentId: {
-                    in: 'path',
-                    name: 'commentId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCommentsController_resolveComment,
                     request,
                     response,
                 });
@@ -22397,6 +21818,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCommentsController_deleteComment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            dataType: 'string',
+        },
+        commentId: {
+            in: 'path',
+            name: 'commentId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/comments/dashboards/:dashboardUuid/:commentId',
         ...fetchMiddlewares<RequestHandler>(CommentsController),
@@ -22409,33 +21848,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                dashboardUuid: {
-                    in: 'path',
-                    name: 'dashboardUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                commentId: {
-                    in: 'path',
-                    name: 'commentId',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCommentsController_deleteComment,
                     request,
                     response,
                 });
@@ -22466,6 +21884,21 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getCatalog: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        type: { in: 'query', name: 'type', ref: 'CatalogType' },
+        filter: { in: 'query', name: 'filter', ref: 'CatalogFilter' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22478,30 +21911,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                search: { in: 'query', name: 'search', dataType: 'string' },
-                type: { in: 'query', name: 'type', ref: 'CatalogType' },
-                filter: { in: 'query', name: 'filter', ref: 'CatalogFilter' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getCatalog,
                     request,
                     response,
                 });
@@ -22532,6 +21947,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        table: {
+            in: 'path',
+            name: 'table',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/:table/metadata',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22544,33 +21977,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                table: {
-                    in: 'path',
-                    name: 'table',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getMetadata,
                     request,
                     response,
                 });
@@ -22601,6 +22013,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getAnalytics: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        table: {
+            in: 'path',
+            name: 'table',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/:table/analytics',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22613,33 +22043,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                table: {
-                    in: 'path',
-                    name: 'table',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getAnalytics,
                     request,
                     response,
                 });
@@ -22670,6 +22079,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getAnalyticsField: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        table: {
+            in: 'path',
+            name: 'table',
+            required: true,
+            dataType: 'string',
+        },
+        field: {
+            in: 'path',
+            name: 'field',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/:table/analytics/:field',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22682,39 +22115,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                table: {
-                    in: 'path',
-                    name: 'table',
-                    required: true,
-                    dataType: 'string',
-                },
-                field: {
-                    in: 'path',
-                    name: 'field',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getAnalyticsField,
                     request,
                     response,
                 });
@@ -22745,6 +22151,29 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetricsCatalog: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        sort: { in: 'query', name: 'sort', dataType: 'string' },
+        order: { in: 'query', name: 'order', ref: 'ApiSortDirection' },
+        categories: {
+            in: 'query',
+            name: 'categories',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22757,38 +22186,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                search: { in: 'query', name: 'search', dataType: 'string' },
-                page: { in: 'query', name: 'page', dataType: 'double' },
-                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
-                sort: { in: 'query', name: 'sort', dataType: 'string' },
-                order: { in: 'query', name: 'order', ref: 'ApiSortDirection' },
-                categories: {
-                    in: 'query',
-                    name: 'categories',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getMetricsCatalog,
                     request,
                     response,
                 });
@@ -22819,6 +22222,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetric: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        tableName: {
+            in: 'path',
+            name: 'tableName',
+            required: true,
+            dataType: 'string',
+        },
+        metricName: {
+            in: 'path',
+            name: 'metricName',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics/:tableName/:metricName',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22831,39 +22258,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                tableName: {
-                    in: 'path',
-                    name: 'tableName',
-                    required: true,
-                    dataType: 'string',
-                },
-                metricName: {
-                    in: 'path',
-                    name: 'metricName',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getMetric,
                     request,
                     response,
                 });
@@ -22894,6 +22294,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetricsWithTimeDimensions: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics-with-time-dimensions',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22906,27 +22318,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getMetricsWithTimeDimensions,
                     request,
                     response,
                 });
@@ -22957,6 +22354,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getSegmentDimensions: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        tableName: {
+            in: 'path',
+            name: 'tableName',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/:tableName/segment-dimensions',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -22969,33 +22384,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                tableName: {
-                    in: 'path',
-                    name: 'tableName',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getSegmentDimensions,
                     request,
                     response,
                 });
@@ -23026,6 +22420,27 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_addCategoryToCatalogItem: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        catalogSearchUuid: {
+            in: 'path',
+            name: 'catalogSearchUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tagUuid: { dataType: 'string', required: true },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/categories',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -23038,36 +22453,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                catalogSearchUuid: {
-                    in: 'path',
-                    name: 'catalogSearchUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        tagUuid: { dataType: 'string', required: true },
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_addCategoryToCatalogItem,
                     request,
                     response,
                 });
@@ -23098,6 +22489,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_removeCategoryFromCatalogItem: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        catalogSearchUuid: {
+            in: 'path',
+            name: 'catalogSearchUuid',
+            required: true,
+            dataType: 'string',
+        },
+        tagUuid: {
+            in: 'path',
+            name: 'tagUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/categories/:tagUuid',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -23110,33 +22519,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                catalogSearchUuid: {
-                    in: 'path',
-                    name: 'catalogSearchUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                tagUuid: {
-                    in: 'path',
-                    name: 'tagUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_removeCategoryFromCatalogItem,
                     request,
                     response,
                 });
@@ -23167,6 +22555,40 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_updateCatalogItemIcon: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        catalogSearchUuid: {
+            in: 'path',
+            name: 'catalogSearchUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'CatalogItemIcon' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.patch(
         '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/icon',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -23179,49 +22601,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                catalogSearchUuid: {
-                    in: 'path',
-                    name: 'catalogSearchUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        icon: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'CatalogItemIcon' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                    },
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_updateCatalogItemIcon,
                     request,
                     response,
                 });
@@ -23252,6 +22637,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_getMetricsTree: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        metricUuids: {
+            in: 'query',
+            name: 'metricUuids',
+            required: true,
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+    };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -23264,34 +22668,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                metricUuids: {
-                    in: 'query',
-                    name: 'metricUuids',
-                    required: true,
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_getMetricsTree,
                     request,
                     response,
                 });
@@ -23322,6 +22704,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_createMetricsTreeEdge: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiMetricsTreeEdgePayload',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -23334,33 +22734,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'ApiMetricsTreeEdgePayload',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_createMetricsTreeEdge,
                     request,
                     response,
                 });
@@ -23391,6 +22770,30 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsCatalogController_deleteMetricsTreeEdge: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        sourceCatalogSearchUuid: {
+            in: 'path',
+            name: 'sourceCatalogSearchUuid',
+            required: true,
+            dataType: 'string',
+        },
+        targetCatalogSearchUuid: {
+            in: 'path',
+            name: 'targetCatalogSearchUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges/:sourceCatalogSearchUuid/:targetCatalogSearchUuid',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
@@ -23403,39 +22806,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                sourceCatalogSearchUuid: {
-                    in: 'path',
-                    name: 'sourceCatalogSearchUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                targetCatalogSearchUuid: {
-                    in: 'path',
-                    name: 'targetCatalogSearchUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsCatalogController_deleteMetricsTreeEdge,
                     request,
                     response,
                 });
@@ -23466,6 +22842,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_getSemanticLayerInfo: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
     app.get(
         '/api/v2/projects/:projectUuid/semantic-layer',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23478,27 +22866,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_getSemanticLayerInfo,
                     request,
                     response,
                 });
@@ -23530,6 +22903,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_getViews: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
     app.get(
         '/api/v2/projects/:projectUuid/semantic-layer/views',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23542,27 +22927,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_getViews,
                     request,
                     response,
                 });
@@ -23594,6 +22964,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_querySemanticLayerFields: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        view: { in: 'path', name: 'view', required: true, dataType: 'string' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_',
+        },
+    };
     app.post(
         '/api/v2/projects/:projectUuid/semantic-layer/views/:view/query-fields',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23606,39 +22995,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                view: {
-                    in: 'path',
-                    name: 'view',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_querySemanticLayerFields,
                     request,
                     response,
                 });
@@ -23670,6 +23032,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_runSemanticLayerResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SemanticLayerQuery',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.post(
         '/api/v2/projects/:projectUuid/semantic-layer/run',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23682,33 +23062,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SemanticLayerQuery',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_runSemanticLayerResults,
                     request,
                     response,
                 });
@@ -23740,6 +23099,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_getSemanticLayerResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        fileId: {
+            in: 'path',
+            name: 'fileId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.get(
         '/api/v2/projects/:projectUuid/semantic-layer/results/:fileId',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23752,33 +23129,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                fileId: {
-                    in: 'path',
-                    name: 'fileId',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_getSemanticLayerResults,
                     request,
                     response,
                 });
@@ -23810,6 +23166,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_getSql: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SemanticLayerQuery',
+        },
+    };
     app.post(
         '/api/v2/projects/:projectUuid/semantic-layer/sql',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23822,33 +23196,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SemanticLayerQuery',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_getSql,
                     request,
                     response,
                 });
@@ -23880,6 +23233,24 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_createSemanticViewerChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SemanticViewerChartCreate',
+        },
+    };
     app.post(
         '/api/v2/projects/:projectUuid/semantic-layer/saved',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23892,33 +23263,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SemanticViewerChartCreate',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_createSemanticViewerChart,
                     request,
                     response,
                 });
@@ -23950,6 +23300,20 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_getSavedSemanticViewerChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        slug: { in: 'query', name: 'slug', dataType: 'string' },
+        uuid: { in: 'query', name: 'uuid', dataType: 'string' },
+    };
     app.get(
         '/api/v2/projects/:projectUuid/semantic-layer/saved',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -23962,29 +23326,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                slug: { in: 'query', name: 'slug', dataType: 'string' },
-                uuid: { in: 'query', name: 'uuid', dataType: 'string' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_getSavedSemanticViewerChart,
                     request,
                     response,
                 });
@@ -24016,6 +23363,20 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_getSavedSemanticViewerChartAndResults: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        slug: { in: 'query', name: 'slug', dataType: 'string' },
+        uuid: { in: 'query', name: 'uuid', dataType: 'string' },
+    };
     app.get(
         '/api/v2/projects/:projectUuid/semantic-layer/saved/results-job',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -24029,29 +23390,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                slug: { in: 'query', name: 'slug', dataType: 'string' },
-                uuid: { in: 'query', name: 'uuid', dataType: 'string' },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_getSavedSemanticViewerChartAndResults,
                     request,
                     response,
                 });
@@ -24083,6 +23427,25 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_updateSavedSemanticViewerChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SemanticViewerChartUpdate',
+        },
+    };
     app.patch(
         '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -24095,39 +23458,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SemanticViewerChartUpdate',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_updateSavedSemanticViewerChart,
                     request,
                     response,
                 });
@@ -24159,6 +23495,19 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticLayerController_deleteSavedSemanticViewerChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        uuid: { in: 'path', name: 'uuid', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
     app.delete(
         '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
@@ -24171,33 +23520,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsSemanticLayerController_deleteSavedSemanticViewerChart,
                     request,
                     response,
                 });
@@ -24229,6 +23557,18 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsFeatureFlagController_getFeatureFlag: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        featureFlagId: {
+            in: 'path',
+            name: 'featureFlagId',
+            required: true,
+            dataType: 'string',
+        },
+    };
     app.get(
         '/api/v2/feature-flag/:featureFlagId',
         ...fetchMiddlewares<RequestHandler>(FeatureFlagController),
@@ -24241,27 +23581,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                featureFlagId: {
-                    in: 'path',
-                    name: 'featureFlagId',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsFeatureFlagController_getFeatureFlag,
                     request,
                     response,
                 });
@@ -24293,6 +23618,43 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsContentController_listContent: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuids: {
+            in: 'query',
+            name: 'projectUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        spaceUuids: {
+            in: 'query',
+            name: 'spaceUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        contentTypes: {
+            in: 'query',
+            name: 'contentTypes',
+            dataType: 'array',
+            array: { dataType: 'refEnum', ref: 'ContentType' },
+        },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        sortBy: { in: 'query', name: 'sortBy', ref: 'ContentSortByColumns' },
+        sortDirection: {
+            in: 'query',
+            name: 'sortDirection',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+        },
+    };
     app.get(
         '/api/v2/content',
         ...fetchMiddlewares<RequestHandler>(ContentController),
@@ -24305,56 +23667,12 @@ export function RegisterRoutes(app: Router) {
             response: ExResponse,
             next: any,
         ) {
-            const args: Record<string, TsoaRoute.ParameterSchema> = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuids: {
-                    in: 'query',
-                    name: 'projectUuids',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                spaceUuids: {
-                    in: 'query',
-                    name: 'spaceUuids',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                contentTypes: {
-                    in: 'query',
-                    name: 'contentTypes',
-                    dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'ContentType' },
-                },
-                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
-                page: { in: 'query', name: 'page', dataType: 'double' },
-                search: { in: 'query', name: 'search', dataType: 'string' },
-                sortBy: {
-                    in: 'query',
-                    name: 'sortBy',
-                    ref: 'ContentSortByColumns',
-                },
-                sortDirection: {
-                    in: 'query',
-                    name: 'sortDirection',
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['asc'] },
-                        { dataType: 'enum', enums: ['desc'] },
-                    ],
-                },
-            };
-
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args,
+                    args: argsContentController_listContent,
                     request,
                     response,
                 });
