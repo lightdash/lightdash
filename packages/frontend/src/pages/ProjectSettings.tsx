@@ -1,7 +1,8 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { Redirect, Route, Switch, useParams } from 'react-router-dom';
+import { Route, Switch, useParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -119,7 +120,7 @@ const ProjectSettings: FC = () => {
                         <DataOps projectUuid={projectUuid} />
                     </Route>
 
-                    <Redirect to={`/generalSettings/`} />
+                    <Navigate to={`/generalSettings/`} />
                 </Switch>
             </Stack>
         </>

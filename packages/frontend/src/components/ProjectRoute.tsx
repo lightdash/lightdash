@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import React, { type ComponentProps, type FC } from 'react';
-import { Redirect, Route } from 'react-router-dom';
+import { Route } from 'react-router-dom';
+import { Navigate } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import { useProjects } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
@@ -26,7 +27,7 @@ const ProjectRoute: FC<
                 }
 
                 if (!projects || projects.length <= 0) {
-                    return <Redirect to="/no-access" />;
+                    return <Navigate to="/no-access" />;
                 }
 
                 return (
@@ -42,7 +43,7 @@ const ProjectRoute: FC<
                             return isAllowed ? (
                                 children
                             ) : (
-                                <Redirect to="/no-project-access" />
+                                <Navigate to="/no-project-access" />
                             );
                         }}
                     </Can>
