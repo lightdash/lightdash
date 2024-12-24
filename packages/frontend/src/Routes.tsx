@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
+import { useParams } from 'react-router-dom-v5-compat';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -45,6 +46,18 @@ import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
+
+const DashboardPageWrapper: FC<{ keyParam: string }> = ({ keyParam }) => {
+    const params = useParams();
+    return (
+        <>
+            <NavBar />
+            <TrackPage name={PageName.DASHBOARD}>
+                <Dashboard key={params[keyParam]} />
+            </TrackPage>
+        </>
+    );
+};
 
 const Routes: FC = () => {
     return (
@@ -179,43 +192,17 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route
-                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?/tabs/:tabUuid?"
-                                        render={(props) => (
-                                            <>
-                                                <NavBar />
-                                                <TrackPage
-                                                    name={PageName.DASHBOARD}
-                                                >
-                                                    <Dashboard
-                                                        key={
-                                                            props.match.params
-                                                                .tabUuid
-                                                        }
-                                                    />
-                                                </TrackPage>
-                                            </>
-                                        )}
-                                    />
+                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?/tabs/:tabUuid?">
+                                        <DashboardPageWrapper
+                                            keyParam={'tabUuid'}
+                                        />
+                                    </Route>
 
-                                    <Route
-                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
-                                        render={(props) => (
-                                            <>
-                                                <NavBar />
-                                                <TrackPage
-                                                    name={PageName.DASHBOARD}
-                                                >
-                                                    <Dashboard
-                                                        key={
-                                                            props.match.params
-                                                                .dashboardUuid
-                                                        }
-                                                    />
-                                                </TrackPage>
-                                            </>
-                                        )}
-                                    />
+                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
+                                        <DashboardPageWrapper
+                                            keyParam={'dashboardUuid'}
+                                        />
+                                    </Route>
 
                                     <Route path="/projects/:projectUuid/dashboards">
                                         <NavBar />
