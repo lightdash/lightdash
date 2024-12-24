@@ -1,11 +1,11 @@
 import reactPlugin from '@vitejs/plugin-react';
-import { type UserConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
-// import monacoEditorPlugin from 'vite-plugin-monaco-editor';
+import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig } from 'vitest/config';
 
-export default {
+export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },
@@ -17,10 +17,10 @@ export default {
             include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
             filename: '[path][base].gzip',
         }),
-        // monacoEditorPlugin({
-        //     forceBuildCDN: true,
-        //     languageWorkers: ['json'],
-        // }),
+        monacoEditorPlugin({
+            forceBuildCDN: true,
+            languageWorkers: ['json'],
+        }),
     ],
     css: {
         transformer: 'lightningcss',
@@ -79,11 +79,11 @@ export default {
             },
         },
     },
-    // test: {
-    //     globals: true,
-    //     environment: 'jsdom',
-    //     setupFiles: './src/testing/vitest.setup.ts',
-    // },
+    test: {
+        globals: true,
+        environment: 'jsdom',
+        setupFiles: './src/testing/vitest.setup.ts',
+    },
     server: {
         port: 3000,
         host: true,
@@ -102,4 +102,4 @@ export default {
         },
     },
     clearScreen: false,
-} satisfies UserConfig;
+});
