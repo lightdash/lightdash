@@ -23,7 +23,7 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 
 interface DashboardCreateModalProps extends ModalProps {

@@ -36,6 +36,7 @@ module.exports = {
         'react',
         'jest-dom',
         'testing-library',
+        'react-refresh',
     ],
 
     settings: {
@@ -104,5 +105,6 @@ module.exports = {
                 ignoreRestSiblings: true,
             },
         ],
+        'react-refresh/only-export-components': 'error',
     },
 };

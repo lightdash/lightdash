@@ -12,7 +12,7 @@ import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC, type PropsWithChildren } from 'react';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
 import MantineIcon from '../../../common/MantineIcon';
-import { useItemDetail } from './ItemDetailContext';
+import { useItemDetail } from './useItemDetails';
 
 /**
  * Renders markdown for an item's description, with additional constraints

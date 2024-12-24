@@ -34,8 +34,8 @@ import {
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
-import { useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
+import useFiltersContext from './useFiltersContext';
 
 type Props = {
     filters: Filters;

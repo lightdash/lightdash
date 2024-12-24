@@ -2,8 +2,8 @@ import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { type ResultRow } from '@lightdash/common';
 import { flexRender, type HeaderGroup } from '@tanstack/react-table';
 import React, { type FC, type MutableRefObject } from 'react';
-import { useTableContext } from '../TableProvider';
-import { ROW_NUMBER_COLUMN_ID } from '../types';
+import { ROW_NUMBER_COLUMN_ID } from '../constants';
+import { useTableContext } from '../useTableContext';
 
 type HeaderDndContextProps = {
     colOrderRef: MutableRefObject<string[]>;

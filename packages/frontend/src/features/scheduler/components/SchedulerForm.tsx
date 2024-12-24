@@ -62,7 +62,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
-import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
+import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel/utils';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
@@ -74,17 +74,7 @@ import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 import { SchedulerPreview } from './SchedulerPreview';
-
-export enum Limit {
-    TABLE = 'table',
-    ALL = 'all',
-    CUSTOM = 'custom',
-}
-
-export enum Values {
-    FORMATTED = 'formatted',
-    RAW = 'raw',
-}
+import { Limit, Values } from './types';
 
 enum SlackStates {
     LOADING,

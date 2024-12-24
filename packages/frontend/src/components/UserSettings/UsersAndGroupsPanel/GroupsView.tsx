@@ -26,7 +26,7 @@ import {
     useGroupDeleteMutation,
     useOrganizationGroups,
 } from '../../../hooks/useOrganizationGroups';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';

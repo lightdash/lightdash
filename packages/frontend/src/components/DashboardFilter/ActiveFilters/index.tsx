@@ -14,7 +14,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { getTabUuidsForFilterRules } from '@lightdash/common';
 import { Group, Skeleton, useMantineTheme } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 

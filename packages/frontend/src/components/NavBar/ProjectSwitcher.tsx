@@ -15,7 +15,7 @@ import {
 } from '../../hooks/useActiveProject';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProjects } from '../../hooks/useProjects';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 

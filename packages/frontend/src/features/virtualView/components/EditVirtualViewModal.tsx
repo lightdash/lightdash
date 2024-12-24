@@ -13,7 +13,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { lazy, Suspense, useState, useTransition, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     activeTableName: string;

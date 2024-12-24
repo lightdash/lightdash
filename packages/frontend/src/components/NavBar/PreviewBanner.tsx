@@ -1,7 +1,7 @@
 import { Center, Text } from '@mantine/core';
 import { IconTool } from '@tabler/icons-react';
-import { BANNER_HEIGHT } from '.';
 import MantineIcon from '../common/MantineIcon';
+import { BANNER_HEIGHT } from '../common/Page/constants';
 
 export const PreviewBanner = () => (
     <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">

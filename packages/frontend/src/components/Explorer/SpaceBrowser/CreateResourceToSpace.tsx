@@ -2,8 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
-import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
-import { AddToSpaceResources } from './AddResourceToSpaceModal';
+import { AddToSpaceResources } from './types';
 
 interface RouteProps {
     projectUuid: string;
@@ -13,6 +12,8 @@ interface RouteProps {
 interface Props {
     resourceType: AddToSpaceResources;
 }
+
+const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
 const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
     const history = useHistory();

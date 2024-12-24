@@ -37,7 +37,7 @@ import {
     useAddSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
-import { DEFAULT_PAGE_SIZE } from '../Table/types';
+import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 

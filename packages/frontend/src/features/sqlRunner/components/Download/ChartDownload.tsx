@@ -3,10 +3,8 @@ import { ActionIcon, Button, Popover, Radio, Stack } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
 import { memo, useState } from 'react';
-import {
-    ChartDownloadOptions,
-    DownloadType,
-} from '../../../../components/ChartDownload';
+import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';
+import { DownloadType } from '../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useDownloadResults } from '../../hooks/useDownloadResults';
 

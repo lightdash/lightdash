@@ -35,48 +35,10 @@ import { useDashboardPinningMutation } from '../hooks/pinning/useDashboardPinnin
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import useToaster from '../hooks/toaster/useToaster';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
-import {
-    DashboardProvider,
-    useDashboardContext,
-} from '../providers/DashboardProvider';
+import useApp from '../providers/App/useApp';
+import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import '../styles/react-grid.css';
-
-export const getReactGridLayoutConfig = (
-    tile: DashboardTile,
-    isEditMode = false,
-): Layout => ({
-    minH: 1,
-    minW: 6,
-    x: tile.x,
-    y: tile.y,
-    w: tile.w,
-    h: tile.h,
-    i: tile.uuid,
-    isDraggable: isEditMode,
-    isResizable: isEditMode,
-});
-
-export const getResponsiveGridLayoutProps = ({
-    enableAnimation = false,
-    stackVerticallyOnSmallestBreakpoint = false,
-}: {
-    enableAnimation?: boolean;
-
-    /**
-     * If enabled, we set the grid on the smallest breakpoint to have a single
-     * column, which makes it behave like a simple vertical stack on mobile
-     * viewports.
-     */
-    stackVerticallyOnSmallestBreakpoint?: boolean;
-} = {}) => ({
-    draggableCancel: '.non-draggable',
-    useCSSTransforms: enableAnimation,
-    measureBeforeMount: !enableAnimation,
-    breakpoints: { lg: 1200, md: 996, sm: 768 },
-    cols: { lg: 36, md: 30, sm: stackVerticallyOnSmallestBreakpoint ? 1 : 18 },
-    rowHeight: 50,
-});
 
 const Dashboard: FC = () => {
     const history = useHistory();

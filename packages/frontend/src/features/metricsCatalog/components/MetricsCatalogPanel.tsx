@@ -22,7 +22,7 @@ import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import { LearnMoreContent } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {

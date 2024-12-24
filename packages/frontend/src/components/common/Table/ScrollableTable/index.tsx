@@ -1,6 +1,6 @@
 import { useRef, type FC } from 'react';
 import { Table, TableScrollableWrapper } from '../Table.styles';
-import { useTableContext } from '../TableProvider';
+import { useTableContext } from '../useTableContext';
 import TableBody from './TableBody';
 import TableFooter from './TableFooter';
 import TableHeader from './TableHeader';

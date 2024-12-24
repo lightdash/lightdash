@@ -9,13 +9,9 @@ import {
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import TreeGroupNode from './TreeGroupNode';
-import {
-    isGroupNode,
-    useTableTreeContext,
-    type Node,
-    type NodeMap,
-} from './TreeProvider';
 import TreeSingleNode from './TreeSingleNode';
+import { isGroupNode, type Node, type NodeMap } from './types';
+import { useTableTreeContext } from './useTableTree';
 
 const sortNodes =
     (

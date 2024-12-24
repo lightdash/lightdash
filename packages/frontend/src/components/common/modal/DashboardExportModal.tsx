@@ -20,7 +20,7 @@ import {
     useExportCsvDashboard,
     useExportDashboard,
 } from '../../../hooks/dashboard/useDashboard';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../MantineIcon';
 
 type Props = {

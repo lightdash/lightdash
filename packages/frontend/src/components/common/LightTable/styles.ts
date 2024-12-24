@@ -1,9 +1,8 @@
 import { assertUnreachable } from '@lightdash/common';
 import { createStyles, type MantineTheme } from '@mantine/core';
 import { darken, rgba } from 'polished';
-import { CellType, SectionType } from '.';
-
-export const CELL_HEIGHT = 32;
+import { CELL_HEIGHT } from './constants';
+import { CellType, SectionType } from './types';
 
 const getBorderColor = (theme: MantineTheme) => theme.colors.gray[3];
 const getShadowColor = (theme: MantineTheme) => rgba(theme.black, 0.075);

@@ -12,9 +12,9 @@ import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
     ExplorerSection,
-    useExplorerContext,
     type ExplorerReduceState,
-} from '../providers/ExplorerProvider';
+} from '../providers/Explorer/types';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {

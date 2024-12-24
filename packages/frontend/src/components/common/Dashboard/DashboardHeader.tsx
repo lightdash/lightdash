@@ -45,8 +45,8 @@ import {
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useProject } from '../../../hooks/useProject';
-import { useApp } from '../../../providers/AppProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import { Can } from '../Authorization';
@@ -60,7 +60,8 @@ import {
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
-import SpaceActionModal, { ActionType } from '../SpaceActionModal';
+import SpaceActionModal from '../SpaceActionModal';
+import { ActionType } from '../SpaceActionModal/types';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import ShareLinkButton from './ShareLinkButton';
 

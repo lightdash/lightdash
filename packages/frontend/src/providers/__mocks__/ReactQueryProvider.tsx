@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { type FC, type PropsWithChildren } from 'react';
-import { createQueryClient } from '../ReactQueryProvider';
+import { createQueryClient } from '../ReactQuery/createQueryClient';
 
 const ReactQueryProvider: FC<PropsWithChildren> = ({ children }) => {
     const queryClient = createQueryClient({

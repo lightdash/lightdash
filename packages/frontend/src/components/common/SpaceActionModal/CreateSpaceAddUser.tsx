@@ -16,7 +16,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { forwardRef, useMemo, type FC } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import {
     getOrgUserInitials,
     getOrgUserNameOrEmail,

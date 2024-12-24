@@ -24,10 +24,10 @@ import {
     useProjectTablesConfiguration,
     useUpdateProjectTablesConfiguration,
 } from '../../hooks/useProjectTablesConfiguration';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useAbilityContext } from '../common/Authorization';
+import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 

@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import { PAGE_MIN_CONTENT_WIDTH } from '../components/common/Page/Page';
-import { SidebarPosition } from '../components/common/Page/Sidebar';
+import { PAGE_MIN_CONTENT_WIDTH } from '../components/common/Page/constants';
+import { SidebarPosition } from '../components/common/Page/types';
 
 type Args = {
     defaultWidth: number;

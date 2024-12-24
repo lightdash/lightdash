@@ -28,12 +28,8 @@ import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useProjectTags } from '../hooks/useProjectTags';
+import { MetricCatalogView } from '../types';
 import { CatalogCategory } from './CatalogCategory';
-
-export enum MetricCatalogView {
-    LIST = 'list',
-    TREE = 'tree',
-}
 
 type CategoriesFilterProps = {
     selectedCategories: CatalogField['categories'][number]['tagUuid'][];

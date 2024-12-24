@@ -3,7 +3,7 @@ import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 

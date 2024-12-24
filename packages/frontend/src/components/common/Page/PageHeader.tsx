@@ -1,7 +1,6 @@
 import { Card, Flex, type CardProps } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
-
-export const PAGE_HEADER_HEIGHT = 64;
+import { PAGE_HEADER_HEIGHT } from './constants';
 
 type Props = PropsWithChildren<{
     cardProps?: Omit<CardProps, 'children'>;

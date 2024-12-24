@@ -27,7 +27,7 @@ import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 
 // TODO: preview custom dimension results

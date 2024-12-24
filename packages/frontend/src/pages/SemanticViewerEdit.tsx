@@ -25,7 +25,7 @@ import {
     useAppDispatch,
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const SemanticViewerEditorPageWithStore = () => {
     const { user } = useApp();

@@ -30,7 +30,8 @@ import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSc
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
-import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
+import { SyncModalAction } from '../providers/types';
+import { useSyncModal } from '../providers/useSyncModal';
 
 const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     const { mutate: mutateSchedulerEnabled } =

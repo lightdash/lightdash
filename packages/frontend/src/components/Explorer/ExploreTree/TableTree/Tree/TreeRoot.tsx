@@ -1,6 +1,6 @@
 import { type FC } from 'react';
 import TreeNodes from './TreeNodes';
-import { useTableTreeContext } from './TreeProvider';
+import { useTableTreeContext } from './useTableTree';
 
 const TreeRoot: FC = () => {
     const { nodeMap } = useTableTreeContext();

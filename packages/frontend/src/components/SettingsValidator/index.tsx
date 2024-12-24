@@ -12,7 +12,7 @@ import {
     useValidation,
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import { ValidatorTable } from './ValidatorTable';

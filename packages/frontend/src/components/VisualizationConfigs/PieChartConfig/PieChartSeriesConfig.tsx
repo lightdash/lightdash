@@ -6,8 +6,8 @@ import {
 } from '@hello-pangea/dnd';
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { GroupItem } from './GroupItem';
 import { ValueOptions } from './ValueOptions';

@@ -31,17 +31,17 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
-import { useActiveJob } from '../../providers/ActiveJobProvider';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useActiveJob from '../../providers/ActiveJob/useActiveJob';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useAbilityContext } from '../common/Authorization';
+import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { FormContainer } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';

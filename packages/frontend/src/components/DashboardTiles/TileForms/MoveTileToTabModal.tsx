@@ -11,7 +11,6 @@ import {
 } from '@mantine/core';
 import { IconArrowAutofitContent } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-
 import MantineIcon from '../../common/MantineIcon';
 
 type Tile = Dashboard['tiles'][number];

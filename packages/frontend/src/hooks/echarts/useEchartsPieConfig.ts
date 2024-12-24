@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
-import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
+import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']

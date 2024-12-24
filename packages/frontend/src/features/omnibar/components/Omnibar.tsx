@@ -32,10 +32,10 @@ import {
 } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/Page';
+import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/constants';
 import { useProject } from '../../../hooks/useProject';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import useSearch, { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
 import {

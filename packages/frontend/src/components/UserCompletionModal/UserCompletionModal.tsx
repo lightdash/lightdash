@@ -19,7 +19,7 @@ import { useForm } from '@mantine/form';
 import shuffle from 'lodash/shuffle';
 import { useEffect, useMemo, type FC } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 
 const jobTitles = [
     ...shuffle([

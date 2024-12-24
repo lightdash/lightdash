@@ -8,7 +8,7 @@ import {
     IconToggleLeft,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { getItemIconName } from '../common/Filters/FieldIcon';
+import { getItemIconName } from '../common/Filters/utils/fieldIconUtils';
 import MantineIcon from '../common/MantineIcon';
 
 export const TableFieldIcon: FC<{

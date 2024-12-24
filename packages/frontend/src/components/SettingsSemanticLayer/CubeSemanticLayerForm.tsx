@@ -16,17 +16,9 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp, IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import { z } from 'zod';
+import { type z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
-
-export const cubeSemanticLayerFormSchema = z.object({
-    type: z.literal(SemanticLayerType.CUBE),
-    token: z.string(),
-    domain: z
-        .string()
-        .url({ message: 'Domain must be a valid URL' })
-        .min(1, 'Domain is required'),
-});
+import { cubeSemanticLayerFormSchema } from './types';
 
 type Props = {
     isLoading: boolean;

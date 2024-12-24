@@ -11,7 +11,7 @@ import {
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 
 const InviteSuccess: FC<{

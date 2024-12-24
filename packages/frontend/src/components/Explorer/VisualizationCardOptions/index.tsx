@@ -21,19 +21,21 @@ import {
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard';
+} from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
-import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
-import { isFunnelVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigFunnel';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfig';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import {
+    isBigNumberVisualizationConfig,
+    isCartesianVisualizationConfig,
+    isCustomVisualizationConfig,
+    isFunnelVisualizationConfig,
+    isPieVisualizationConfig,
+    isTableVisualizationConfig,
+} from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const VisualizationCardOptions: FC = memo(() => {
     const { health } = useApp();

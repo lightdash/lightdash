@@ -14,7 +14,7 @@ import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 type RecoverPasswordForm = { email: string };
 

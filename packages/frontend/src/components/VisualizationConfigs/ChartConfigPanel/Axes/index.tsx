@@ -17,8 +17,8 @@ import {
 import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { AxisMinMax } from './AxisMinMax';
 

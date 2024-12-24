@@ -7,13 +7,11 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { useTracking } from '../../providers/TrackingProvider';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
-import {
-    useMetricQueryDataContext,
-    type DrillDownConfig,
-} from './MetricQueryDataProvider';
+import { type DrillDownConfig } from './types';
+import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
     trackingData: {

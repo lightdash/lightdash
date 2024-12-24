@@ -4,7 +4,7 @@ import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import MantineIcon from '../../common/MantineIcon';
-import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 
 type CredentialsTableProps = {
     credentials: UserWarehouseCredentials[];

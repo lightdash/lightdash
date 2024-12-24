@@ -7,9 +7,9 @@ import { memo, useCallback, useEffect, useState, type FC } from 'react';
 import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
 } from './PieChartContextMenu';

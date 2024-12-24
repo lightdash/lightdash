@@ -9,8 +9,8 @@ import {
 import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
 import { useCallback, useMemo } from 'react';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
 import { useControlledAccordion } from '../common/hooks/useControlledAccordion';

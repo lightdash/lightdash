@@ -3,30 +3,9 @@ import {
     type CatalogMetadata,
     type CatalogSelection,
 } from '@lightdash/common';
-import {
-    createContext,
-    useContext,
-    useState,
-    type Dispatch,
-    type FC,
-    type SetStateAction,
-} from 'react';
-
-type CatalogContextValues = {
-    projectUuid: string;
-    metadata: CatalogMetadata | undefined;
-    setMetadata: Dispatch<SetStateAction<CatalogMetadata | undefined>>;
-    selection: CatalogSelection | undefined;
-    setSelection: Dispatch<SetStateAction<CatalogSelection | undefined>>;
-    analyticsResults: CatalogAnalytics | undefined;
-    setAnalyticsResults: Dispatch<SetStateAction<CatalogAnalytics | undefined>>;
-    isSidebarOpen: boolean;
-    setSidebarOpen: Dispatch<SetStateAction<boolean>>;
-};
-
-const CatalogContext = createContext<CatalogContextValues | undefined>(
-    undefined,
-);
+import { useState, type FC } from 'react';
+import CatalogContext from './context';
+import { type CatalogContextValues } from './types';
 
 export const CatalogProvider: FC<
     React.PropsWithChildren<
@@ -58,14 +37,4 @@ export const CatalogProvider: FC<
             {children}
         </CatalogContext.Provider>
     );
-};
-
-export const useCatalogContext = () => {
-    const context = useContext(CatalogContext);
-    if (!context) {
-        throw new Error(
-            'useCatalogContext must be used within a CatalogProvider',
-        );
-    }
-    return context;
 };

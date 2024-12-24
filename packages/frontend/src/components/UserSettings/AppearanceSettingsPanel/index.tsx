@@ -33,7 +33,8 @@ import { useCallback, useEffect, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { isHexCodeColor } from '../../../utils/colorUtils';
-import { Can, useAbilityContext } from '../../common/Authorization';
+import { Can } from '../../common/Authorization';
+import { useAbilityContext } from '../../common/Authorization/useAbilityContext';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 

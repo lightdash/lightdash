@@ -2,7 +2,8 @@ import { Button, type ButtonProps } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useTracking, type EventData } from '../../providers/TrackingProvider';
+import { type EventData } from '../../providers/Tracking/types';
+import useTracking from '../../providers/Tracking/useTracking';
 import MantineIcon from './MantineIcon';
 
 export interface LinkButtonProps extends ButtonProps {

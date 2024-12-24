@@ -13,7 +13,7 @@ import {
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 

@@ -1,36 +1,7 @@
-import {
-    ChartType,
-    type DashboardFilters,
-    type ItemsMap,
-} from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
-import {
-    type VisualizationConfig,
-    type VisualizationConfigCommon,
-} from './VisualizationProvider';
-
-export type VisualizationConfigTable = {
-    chartType: ChartType.TABLE;
-    chartConfig: ReturnType<typeof useTableConfig>;
-};
-
-export const isTableVisualizationConfig = (
-    visualizationConfig: VisualizationConfig | undefined,
-): visualizationConfig is VisualizationConfigTable => {
-    return visualizationConfig?.chartType === ChartType.TABLE;
-};
-
-type VisualizationTableConfigProps =
-    VisualizationConfigCommon<VisualizationConfigTable> & {
-        itemsMap: ItemsMap | undefined;
-        columnOrder: string[];
-        validPivotDimensions: string[] | undefined;
-        pivotTableMaxColumnLimit: number;
-        savedChartUuid: string | undefined;
-        dashboardFilters: DashboardFilters | undefined;
-        invalidateCache: boolean | undefined;
-    };
+import { type VisualizationTableConfigProps } from './types';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     itemsMap,

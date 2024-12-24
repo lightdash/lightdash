@@ -26,8 +26,8 @@ import { useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../../../hooks/useFilters';
-import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
-import { useTracking } from '../../../../../providers/TrackingProvider';
+import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
+import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
 

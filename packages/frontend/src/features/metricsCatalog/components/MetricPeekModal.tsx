@@ -33,7 +33,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';

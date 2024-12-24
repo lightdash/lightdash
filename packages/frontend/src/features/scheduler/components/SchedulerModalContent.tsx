@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState, type FC } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';

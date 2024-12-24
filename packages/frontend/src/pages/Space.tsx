@@ -25,20 +25,18 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
-import SpaceActionModal, {
-    ActionType,
-} from '../components/common/SpaceActionModal';
+import SpaceActionModal from '../components/common/SpaceActionModal';
+import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import AddResourceToSpaceModal, {
-    AddToSpaceResources,
-} from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
+import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContent } from '../hooks/useContent';
 import { useSpace } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const Space: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{

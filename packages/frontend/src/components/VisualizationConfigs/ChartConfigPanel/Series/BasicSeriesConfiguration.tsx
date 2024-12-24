@@ -11,7 +11,7 @@ import { Box, Group } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';

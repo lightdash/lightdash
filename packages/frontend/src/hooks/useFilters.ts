@@ -6,10 +6,8 @@ import {
     type FilterableField,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../providers/ExplorerProvider';
+import { ExplorerSection } from '../providers/Explorer/types';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 export const useFilters = () => {
     const expandedSections = useExplorerContext(

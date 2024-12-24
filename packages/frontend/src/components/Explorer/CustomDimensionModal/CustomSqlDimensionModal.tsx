@@ -21,7 +21,7 @@ import { useEffect, type FC } from 'react';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 
 type FormValues = {
     customDimensionLabel: string;

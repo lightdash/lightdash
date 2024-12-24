@@ -5,7 +5,7 @@ import { type FC } from 'react';
 import { CreateProjectConnection } from '../..';
 import MantineIcon from '../../../common/MantineIcon';
 import { OnboardingTitle } from '../common/OnboardingTitle';
-import { getWarehouseLabel } from '../SelectWarehouse';
+import { getWarehouseLabel } from '../utils';
 
 interface ConnectManuallyStep2Props {
     isCreatingFirstProject: boolean;

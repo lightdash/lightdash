@@ -5,7 +5,7 @@ import {
 import { Button, Image, type ButtonProps } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 
 type ThirdPartySignInButtonProps = {

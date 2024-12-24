@@ -17,7 +17,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const VisualizationCard = ({
     grid,

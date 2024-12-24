@@ -14,9 +14,9 @@ import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
-import { useActiveJob } from '../../providers/ActiveJobProvider';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useActiveJob from '../../providers/ActiveJob/useActiveJob';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 

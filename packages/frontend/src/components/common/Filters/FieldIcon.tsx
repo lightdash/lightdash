@@ -1,5 +1,4 @@
 import {
-    DimensionType,
     getItemColor,
     getItemIcon,
     isCustomBinDimension,
@@ -8,8 +7,6 @@ import {
     isField,
     isMetric,
     isTableCalculation,
-    MetricType,
-    TableCalculationType,
     type AdditionalMetric,
     type CustomDimension,
     type Field,
@@ -26,35 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
-
-export const getItemIconName = (
-    type: DimensionType | MetricType | TableCalculationType,
-) => {
-    switch (type) {
-        case DimensionType.STRING:
-        case MetricType.STRING:
-        case TableCalculationType.STRING:
-            return 'citation';
-        case DimensionType.NUMBER:
-        case MetricType.NUMBER:
-        case TableCalculationType.NUMBER:
-            return 'numerical';
-        case DimensionType.DATE:
-        case MetricType.DATE:
-        case TableCalculationType.DATE:
-            return 'calendar';
-        case DimensionType.BOOLEAN:
-        case MetricType.BOOLEAN:
-        case TableCalculationType.BOOLEAN:
-            return 'segmented-control';
-        case DimensionType.TIMESTAMP:
-        case MetricType.TIMESTAMP:
-        case TableCalculationType.TIMESTAMP:
-            return 'time';
-        default:
-            return 'numerical';
-    }
-};
+import { getItemIconName } from './utils/fieldIconUtils';
 
 const getFieldIcon = (
     field: Field | TableCalculation | AdditionalMetric | CustomDimension,

@@ -33,13 +33,13 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import { Can } from '../Authorization';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,
     type ResourceViewItemActionState,
-} from './ResourceActionHandlers';
+} from './types';
 
 export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;

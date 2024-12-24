@@ -1,4 +1,4 @@
-import { assertUnreachable, type ResourceViewItem } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -14,49 +14,20 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import MantineIcon from '../MantineIcon';
-import ResourceActionHandlers, {
-    ResourceViewItemAction,
-    type ResourceViewItemActionState,
-} from './ResourceActionHandlers';
-import ResourceEmptyState, {
-    type ResourceEmptyStateProps,
-} from './ResourceEmptyState';
+import ResourceActionHandlers from './ResourceActionHandlers';
+import ResourceEmptyState from './ResourceEmptyState';
 import ResourceViewGrid, {
     type ResourceViewGridCommonProps,
 } from './ResourceViewGrid';
 import ResourceViewList, {
     type ResourceViewListCommonProps,
 } from './ResourceViewList';
-
-type TabType = {
-    id: string;
-    name?: string;
-    icon?: JSX.Element;
-    infoTooltipText?: string;
-    sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
-    filter?: (item: ResourceViewItem, index: number) => boolean;
-};
-
-interface ResourceHeaderProps {
-    title?: string;
-    description?: string;
-    action?: React.ReactNode;
-}
-
-export interface ResourceViewCommonProps {
-    items: ResourceViewItem[];
-    tabs?: TabType[];
-    maxItems?: number;
-    headerProps?: ResourceHeaderProps;
-    emptyStateProps?: ResourceEmptyStateProps;
-    view?: ResourceViewType;
-    hasReorder?: boolean;
-}
-
-export enum ResourceViewType {
-    LIST = 'list',
-    GRID = 'grid',
-}
+import {
+    ResourceViewItemAction,
+    ResourceViewType,
+    type ResourceViewCommonProps,
+    type ResourceViewItemActionState,
+} from './types';
 
 interface ResourceViewProps extends ResourceViewCommonProps {
     listProps?: ResourceViewListCommonProps;

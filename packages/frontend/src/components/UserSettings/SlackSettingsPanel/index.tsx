@@ -1,8 +1,4 @@
-import {
-    slackRequiredScopes,
-    type SlackAppCustomSettings,
-    type SlackSettings,
-} from '@lightdash/common';
+import { type SlackAppCustomSettings } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -30,7 +26,6 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { debounce } from 'lodash';
-import intersection from 'lodash/intersection';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import {
     useDeleteSlack,
@@ -41,13 +36,7 @@ import {
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
-
-export const hasRequiredScopes = (slackSettings: SlackSettings) => {
-    return (
-        intersection(slackSettings.scopes, slackRequiredScopes).length ===
-        slackRequiredScopes.length
-    );
-};
+import { hasRequiredScopes } from './utils';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 const MAX_SLACK_CHANNELS = 100000;

@@ -11,8 +11,8 @@ import {
 import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
 import MantineProvider from '../providers/MantineProvider';
-import ReactQueryProvider from '../providers/ReactQueryProvider';
-import { TrackingProvider } from '../providers/TrackingProvider';
+import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
+import { TrackingProvider } from '../providers/Tracking/TrackingProvider';
 import AppProviderMock, {
     type AppProviderMockProps,
 } from './__mocks__/providers/AppProvider.mock';

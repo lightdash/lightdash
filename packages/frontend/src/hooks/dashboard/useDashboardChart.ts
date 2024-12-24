@@ -1,4 +1,4 @@
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useChartAndResults } from '../useQueryResults';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';

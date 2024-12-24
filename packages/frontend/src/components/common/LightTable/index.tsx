@@ -24,14 +24,14 @@ import {
 } from 'react';
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { SMALL_TEXT_LENGTH } from './constants';
 import {
     useTableCellStyles,
     useTableRowStyles,
     useTableSectionStyles,
     useTableStyles,
 } from './styles';
-
-export const SMALL_TEXT_LENGTH = 35;
+import { CellType, SectionType } from './types';
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
@@ -90,17 +90,6 @@ interface TableCompoundComponents {
     CellHead: ForwardRefExoticComponent<
         PropsWithoutRef<TableCellProps> & RefAttributes<HTMLTableCellElement>
     >;
-}
-
-export enum SectionType {
-    Head = 'Head',
-    Body = 'Body',
-    Footer = 'Footer',
-}
-
-export enum CellType {
-    Head = 'Head',
-    Data = 'Data',
 }
 
 type TableContextType = {

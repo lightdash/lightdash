@@ -22,7 +22,7 @@ import {
     useGroupUpdateMutation,
 } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 
 const CreateGroupModal: FC<

@@ -6,7 +6,7 @@ import {
     type SubmitHandler,
 } from 'react-hook-form/dist/types/form';
 import { type StyledProps } from 'styled-components';
-import { useTracking } from '../../providers/TrackingProvider';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 
 interface FormProps<T extends object = any> {

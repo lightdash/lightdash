@@ -2,7 +2,7 @@ import { type DashboardMarkdownTile } from '@lightdash/common';
 import MDEditor from '@uiw/react-md-editor';
 import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { MarkdownWrapper } from './DashboardMarkdownTile.styles';
 import TileBase from './TileBase/index';
 

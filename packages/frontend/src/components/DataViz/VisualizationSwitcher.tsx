@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { memo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
-import { getChartIcon } from '../common/ResourceIcon';
+import { getChartIcon } from '../common/ResourceIcon/utils';
 
 type VisualizationActionIconProps = {
     chartKind: ChartKind;

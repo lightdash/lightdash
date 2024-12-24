@@ -18,14 +18,14 @@ import { useHistory, useParams } from 'react-router-dom';
 
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import ExplorePanel from '../ExplorePanel';
-import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
+import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
 

@@ -12,10 +12,11 @@ import intersectionBy from 'lodash/intersectionBy';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';
-import { useItemDetail } from '../ItemDetailContext';
 import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
+import { useItemDetail } from '../useItemDetails';
 import TreeNodes from './TreeNodes';
-import { useTableTreeContext, type GroupNode, type Node } from './TreeProvider';
+import { type GroupNode, type Node } from './types';
+import { useTableTreeContext } from './useTableTree';
 
 const getAllChildrenKeys = (nodes: Node[]): string[] => {
     return nodes.flatMap(function loop(node): string[] {

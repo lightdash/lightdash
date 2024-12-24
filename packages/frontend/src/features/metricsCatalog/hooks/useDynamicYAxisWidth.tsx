@@ -1,9 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { LineChart } from 'recharts';
 
-const PADDING = 20;
-const TICK_VALUE_SELECTOR = '.recharts-cartesian-axis-tick-value';
-
 type ChartRef =
     | ({
           container?: HTMLElement;
@@ -15,6 +12,9 @@ type ChartRef =
  * This is used to ensure that the y-axis labels (and tick) are not cut off.
  */
 export const useDynamicYAxisWidth = () => {
+    const PADDING = 20;
+    const TICK_VALUE_SELECTOR = '.recharts-cartesian-axis-tick-value';
+
     const [leftYAxisWidth, setLeftYAxisWidth] = useState<number | undefined>(
         undefined,
     );

@@ -15,7 +15,7 @@ import {
     type FieldId,
 } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
-import { getValidChartConfig } from '../providers/ExplorerProvider';
+import { getValidChartConfig } from '../providers/Explorer/utils';
 import { type useSqlQueryMutation } from './useSqlQuery';
 import { type SqlRunnerState } from './useSqlRunnerRoute';
 

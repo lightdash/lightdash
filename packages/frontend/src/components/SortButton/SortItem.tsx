@@ -6,7 +6,7 @@ import { isField, type SortField } from '@lightdash/common';
 import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import { type ExplorerContext } from '../../providers/ExplorerProvider';
+import { type ExplorerContextType } from '../../providers/Explorer/types';
 import {
     getSortDirectionOrder,
     getSortLabel,
@@ -25,7 +25,7 @@ interface SortItemProps {
     draggableProps: DraggableProvidedDraggableProps;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
     onAddSortField: (
-        options: Parameters<ExplorerContext['actions']['addSortField']>[1],
+        options: Parameters<ExplorerContextType['actions']['addSortField']>[1],
     ) => void;
     onRemoveSortField: () => void;
 }

@@ -12,8 +12,8 @@ import MantineIcon from '../../common/MantineIcon';
 import {
     isTableVisualizationConfig,
     type VisualizationConfigTable,
-} from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+} from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 type ColumnConfigurationInputProps = Pick<
     ColumnConfigurationProps,

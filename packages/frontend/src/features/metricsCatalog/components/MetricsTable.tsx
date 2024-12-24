@@ -36,7 +36,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
@@ -48,12 +48,10 @@ import {
     setCategoryFilters,
     toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
+import { MetricCatalogView } from '../types';
 import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
-import {
-    MetricCatalogView,
-    MetricsTableTopToolbar,
-} from './MetricsTableTopToolbar';
+import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import MetricTree from './MetricTree';
 
 export const MetricsTable = () => {

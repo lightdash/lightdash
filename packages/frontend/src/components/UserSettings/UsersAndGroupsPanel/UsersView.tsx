@@ -45,13 +45,13 @@ import {
     usePaginatedOrganizationUsers,
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
-import { useApp } from '../../../providers/AppProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import { DEFAULT_PAGE_SIZE } from '../../common/Table/types';
+import { DEFAULT_PAGE_SIZE } from '../../common/Table/constants';
 import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
 

@@ -12,8 +12,8 @@ import {
     TextInput,
 } from '@mantine/core';
 import React from 'react';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
 export const Display: React.FC = () => {

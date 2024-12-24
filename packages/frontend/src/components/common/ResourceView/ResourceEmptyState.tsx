@@ -1,12 +1,6 @@
 import { Box, Center, Flex, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
-
-export interface ResourceEmptyStateProps {
-    icon?: JSX.Element;
-    title?: string;
-    description?: string;
-    action?: JSX.Element;
-}
+import { type ResourceEmptyStateProps } from './types';
 
 const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
     icon,

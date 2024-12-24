@@ -1,9 +1,9 @@
 import { type DashboardLoomTile } from '@lightdash/common';
 import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import TileBase from './TileBase/index';
-import { getLoomId } from './TileForms/LoomTileForm';
+import { getLoomId } from './TileForms/utils';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,

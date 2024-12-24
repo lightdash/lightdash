@@ -20,7 +20,7 @@ import {
     type FC,
 } from 'react';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import {

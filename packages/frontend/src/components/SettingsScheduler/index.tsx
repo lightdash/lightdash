@@ -8,9 +8,8 @@ import {
 } from '../../hooks/useProject';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SchedulersView from '../SchedulersView';
-import SchedulerSettingsForm, {
-    type schedulerSettingsSchema,
-} from './schedulerSettingsForm';
+import SchedulerSettingsForm from './schedulerSettingsForm';
+import { type schedulerSettingsSchema } from './types';
 
 type SettingsSchedulerProps = {
     projectUuid: string;

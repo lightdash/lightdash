@@ -1,5 +1,5 @@
 import { isCustomBinDimension, isDimension } from '@lightdash/common';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { CustomBinDimensionModal } from './CustomBinDimensionModal';
 import { CustomSqlDimensionModal } from './CustomSqlDimensionModal';
 

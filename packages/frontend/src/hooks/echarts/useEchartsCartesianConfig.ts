@@ -46,9 +46,9 @@ import {
 import groupBy from 'lodash/groupBy';
 import toNumber from 'lodash/toNumber';
 import { useMemo } from 'react';
-import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
-import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid';
+import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
+import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
 

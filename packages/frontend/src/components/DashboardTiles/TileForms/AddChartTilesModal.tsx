@@ -38,7 +38,7 @@ import React, {
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon } from '../../common/ResourceIcon';
 

@@ -1,11 +1,14 @@
 import { Menu } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC, type RefObject } from 'react';
-import { useTracking } from '../../providers/TrackingProvider';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 
 import type EChartsReact from 'echarts-for-react';
-import { base64SvgToBase64Image, downloadImage } from '../ChartDownload';
+import {
+    base64SvgToBase64Image,
+    downloadImage,
+} from '../common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../common/MantineIcon';
 
 const downloadChartImage = (

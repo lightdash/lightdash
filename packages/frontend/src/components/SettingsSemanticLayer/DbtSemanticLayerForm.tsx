@@ -19,19 +19,11 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp, IconTrash } from '@tabler/icons-react';
+import { uniq } from 'lodash';
 import { useCallback, useState, type FC } from 'react';
-import { z } from 'zod';
+import { type z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
-
-export const dbtSemanticLayerFormSchema = z.object({
-    type: z.literal(SemanticLayerType.DBT),
-    token: z.string(),
-    domain: z
-        .string()
-        .url({ message: 'Domain must be a valid URL' })
-        .min(1, 'Domain is required'),
-    environmentId: z.string().min(1, 'Environment ID is required'),
-});
+import { dbtSemanticLayerFormSchema } from './types';
 
 // pre defined domains come from: https://docs.getdbt.com/docs/dbt-cloud-apis/sl-graphql#dbt-semantic-layer-graphql-api
 const PRE_DEFINED_DOMAINS = [
@@ -73,13 +65,7 @@ const DbtSemanticLayerForm: FC<Props> = ({
 
     const [domainOptions, setDomainOptions] = useState(
         // Remove duplicate entries if current domain is already part of PRE_DEFINED_DOMAINS
-        Array.from(
-            new Set(
-                PRE_DEFINED_DOMAINS.concat(
-                    semanticLayerConnection?.domain ?? [],
-                ),
-            ),
-        ),
+        uniq(PRE_DEFINED_DOMAINS.concat(semanticLayerConnection?.domain ?? [])),
     );
 
     const handleDelete = useCallback(async () => {

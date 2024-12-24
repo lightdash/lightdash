@@ -13,15 +13,15 @@ import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =

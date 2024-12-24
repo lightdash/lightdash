@@ -7,7 +7,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const SavedQueries: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

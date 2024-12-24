@@ -22,8 +22,8 @@ import {
 } from '@mantine/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
-import { isFunnelVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigFunnel';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { themeOverride } from '../mantineTheme';
 import { StepConfig } from './StepConfig';

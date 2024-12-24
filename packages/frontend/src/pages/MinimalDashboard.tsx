@@ -6,6 +6,10 @@ import {
 import { useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
+import {
+    getReactGridLayoutConfig,
+    getResponsiveGridLayoutProps,
+} from '../components/DashboardTabs/gridUtils';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -15,12 +19,8 @@ import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
-import { DashboardProvider } from '../providers/DashboardProvider';
+import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import '../styles/react-grid.css';
-import {
-    getReactGridLayoutConfig,
-    getResponsiveGridLayoutProps,
-} from './Dashboard';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

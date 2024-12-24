@@ -4,9 +4,9 @@ import React from 'react';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard';
+} from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ConfigTabs } from './FunnelChartConfigTabs';
 
 const FunnelChartConfig: React.FC = () => {

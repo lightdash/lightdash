@@ -1,27 +1,7 @@
-import { ChartType, type ItemsMap } from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
 import useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
-import {
-    type VisualizationConfig,
-    type VisualizationConfigCommon,
-} from './VisualizationProvider';
-
-export type VisualizationCustomConfigType = {
-    chartType: ChartType.CUSTOM;
-    chartConfig: ReturnType<typeof useCustomVisualizationConfig>;
-};
-
-export const isCustomVisualizationConfig = (
-    visualizationConfig: VisualizationConfig | undefined,
-): visualizationConfig is VisualizationCustomConfigType => {
-    return visualizationConfig?.chartType === ChartType.CUSTOM;
-};
-
-type VisualizationCustomConfigProps =
-    VisualizationConfigCommon<VisualizationCustomConfigType> & {
-        // TODO: shared prop once all visualizations are converted
-        itemsMap?: ItemsMap | undefined;
-    };
+import { type VisualizationCustomConfigProps } from './types';
 
 const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     initialChartConfig,

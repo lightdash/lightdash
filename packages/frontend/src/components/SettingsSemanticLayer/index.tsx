@@ -19,12 +19,12 @@ import {
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import CubeLogo from './Assets/cube.svg';
 import DbtLogo from './Assets/dbt.svg';
-import CubeSemanticLayerForm, {
+import CubeSemanticLayerForm from './CubeSemanticLayerForm';
+import DbtSemanticLayerForm from './DbtSemanticLayerForm';
+import {
     cubeSemanticLayerFormSchema,
-} from './CubeSemanticLayerForm';
-import DbtSemanticLayerForm, {
     dbtSemanticLayerFormSchema,
-} from './DbtSemanticLayerForm';
+} from './types';
 
 interface Props {
     projectUuid: string;

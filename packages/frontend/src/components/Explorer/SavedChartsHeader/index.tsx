@@ -70,9 +70,9 @@ import {
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import useApp from '../../../providers/App/useApp';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';

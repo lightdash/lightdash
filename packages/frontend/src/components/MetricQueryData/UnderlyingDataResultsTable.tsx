@@ -2,7 +2,7 @@ import { type ApiQueryResults, type Field } from '@lightdash/common';
 import { Box, Center } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
-import { TrackSection } from '../../providers/TrackingProvider';
+import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';

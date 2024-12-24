@@ -16,11 +16,11 @@ import {
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconFilter, IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
-} from '../common/Filters/FilterInputs';
+} from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import FilterConfiguration from './FilterConfiguration';
 import { hasFilterValueSet } from './FilterConfiguration/utils';

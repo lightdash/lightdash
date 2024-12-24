@@ -19,7 +19,7 @@ import { animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {

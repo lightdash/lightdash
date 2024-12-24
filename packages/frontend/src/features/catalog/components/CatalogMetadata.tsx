@@ -37,7 +37,7 @@ import {
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
-import { useCatalogContext } from '../context/CatalogProvider';
+import { useCatalogContext } from '../context/useCatalogContext';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';

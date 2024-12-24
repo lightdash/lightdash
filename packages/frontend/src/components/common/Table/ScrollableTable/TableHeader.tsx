@@ -11,7 +11,7 @@ import {
     ThContainer,
     ThLabelContainer,
 } from '../Table.styles';
-import { useTableContext } from '../TableProvider';
+import { useTableContext } from '../useTableContext';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 
 interface TableHeaderProps {

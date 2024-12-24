@@ -8,7 +8,7 @@ import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
-import { useCatalogContext } from '../context/CatalogProvider';
+import { useCatalogContext } from '../context/useCatalogContext';
 
 type Props = {
     field: CatalogField;

@@ -15,7 +15,7 @@ import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
-import { useProjectFormContext } from '../ProjectFormProvider';
+import { useProjectFormContext } from '../useProjectFormContext';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const TrinoSchemaInput: FC<{

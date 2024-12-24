@@ -30,7 +30,7 @@ import { produce } from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
-import { FiltersProvider } from '../../common/Filters/FiltersProvider';
+import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';

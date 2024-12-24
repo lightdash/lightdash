@@ -6,8 +6,8 @@ import { useHistory } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useCreateShareMutation } from '../../hooks/useShare';
-import { useApp } from '../../providers/AppProvider';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
+import useApp from '../../providers/App/useApp';
+import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../common/MantineIcon';
 
 const ExploreFromHereButton = () => {

@@ -9,7 +9,7 @@ import upperFirst from 'lodash/upperFirst';
 import { useMemo, useState, type FC } from 'react';
 import { type CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import {
     SpaceAccessOptions,
     SpaceAccessType,
@@ -18,11 +18,7 @@ import {
 } from '../ShareSpaceModal/ShareSpaceSelect';
 import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';
-
-export enum CreateModalStep {
-    SET_NAME = 'first',
-    SET_ACCESS = 'second',
-}
+import { CreateModalStep } from './types';
 
 const UserListItem: FC<{
     isYou?: boolean;

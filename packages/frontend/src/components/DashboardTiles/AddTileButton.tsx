@@ -23,7 +23,7 @@ import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
-import { useDashboardContext } from '../../providers/DashboardProvider';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';

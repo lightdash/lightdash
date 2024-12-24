@@ -11,13 +11,11 @@ import { useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
+import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
-
-export const NAVBAR_HEIGHT = 50;
-export const BANNER_HEIGHT = 35;
 
 enum NavBarMode {
     DEFAULT = 'default',

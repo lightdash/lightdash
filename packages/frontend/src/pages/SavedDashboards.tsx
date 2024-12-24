@@ -12,9 +12,7 @@ import InfiniteResourceTable from '../components/common/ResourceView/InfiniteRes
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import useCreateInAnySpaceAccess from '../hooks/user/useCreateInAnySpaceAccess';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
-
-export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
+import useApp from '../providers/App/useApp';
 
 const SavedDashboards = () => {
     const history = useHistory();

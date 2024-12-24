@@ -22,15 +22,15 @@ import { useMount } from 'react-use';
 
 import { IconAlertCircle } from '@tabler/icons-react';
 import { downloadCsvFromSqlRunner } from '../api/csv';
-import { ChartDownloadMenu } from '../components/ChartDownload';
-import CollapsableCard from '../components/common/CollapsableCard';
+import ChartDownloadMenu from '../components/common/ChartDownload/ChartDownloadMenu';
+import CollapsableCard from '../components/common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import CatalogTree from '../components/common/SqlRunner/CatalogTree';
 import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
-import { ItemDetailProvider } from '../components/Explorer/ExploreTree/TableTree/ItemDetailContext';
+import { ItemDetailProvider } from '../components/Explorer/ExploreTree/TableTree/ItemDetailProvider';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -53,8 +53,8 @@ import {
     useSqlRunnerRoute,
     useSqlRunnerUrlState,
 } from '../hooks/useSqlRunnerRoute';
-import { useApp } from '../providers/AppProvider';
-import { TrackSection } from '../providers/TrackingProvider';
+import useApp from '../providers/App/useApp';
+import { TrackSection } from '../providers/Tracking/TrackingProvider';
 import { SectionName } from '../types/Events';
 
 const generateBasicSqlQuery = (table: string) =>

@@ -10,7 +10,7 @@ import { memo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
