@@ -8,9 +8,9 @@ import { memo, useCallback, useEffect, useState, type FC } from 'react';
 import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';

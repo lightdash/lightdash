@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
-import { useApp } from './AppProvider';
+import useApp from './App/useApp';
 
 const Pylon = () => {
     const { user, health } = useApp();

@@ -6,7 +6,7 @@ import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useUpdateNotification } from '../hooks/useNotifications';
 

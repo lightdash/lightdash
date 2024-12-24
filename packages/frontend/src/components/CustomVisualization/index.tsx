@@ -1,8 +1,8 @@
 import { Center, Loader, Text } from '@mantine/core';
 import { lazy, Suspense, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
-import { isCustomVisualizationConfig } from '../LightdashVisualization/VisualizationCustomConfig';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),

@@ -1,8 +1,8 @@
 import React, { useEffect, type ComponentProps, type FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useEmailStatus } from '../hooks/useEmailVerification';
-import { useApp } from '../providers/AppProvider';
-import { useAbilityContext } from './common/Authorization';
+import useApp from '../providers/App/useApp';
+import { useAbilityContext } from './common/Authorization/useAbilityContext';
 import PageSpinner from './PageSpinner';
 
 const PrivateRoute: FC<

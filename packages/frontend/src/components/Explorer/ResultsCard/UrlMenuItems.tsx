@@ -15,7 +15,7 @@ import { Box, Menu, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { type Cell } from '@tanstack/react-table';
 import { useMemo, type FC } from 'react';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 

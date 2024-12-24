@@ -26,15 +26,15 @@ import { downloadCsv } from '../../api/csv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import MantineIcon from '../common/MantineIcon';
 import { type TableColumn } from '../common/Table/types';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
+import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 interface Props {}
 

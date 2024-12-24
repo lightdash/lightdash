@@ -26,7 +26,7 @@ import {
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
-import { useFiltersContext } from '../FiltersProvider';
+import useFiltersContext from '../useFiltersContext';
 import MultiValuePastePopover from './MultiValuePastePopover';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {

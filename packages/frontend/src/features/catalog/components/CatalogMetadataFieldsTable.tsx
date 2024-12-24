@@ -1,7 +1,7 @@
 import { Badge, Paper, Table, useMantineTheme } from '@mantine/core';
 import { type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
-import { type useCatalogContext } from '../context/CatalogProvider';
+import { type useCatalogContext } from '../context/useCatalogContext';
 import { type useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 
 type Props = {

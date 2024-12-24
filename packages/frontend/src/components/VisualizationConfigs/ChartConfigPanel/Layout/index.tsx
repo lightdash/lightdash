@@ -22,11 +22,11 @@ import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
-import { MAX_PIVOTS } from '../../TableConfigPanel/GeneralSettings';
+import { MAX_PIVOTS } from '../../TableConfigPanel/constants';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];

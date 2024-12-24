@@ -4,39 +4,11 @@ import {
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     isNumericItem,
-    type CustomDimension,
-    type Dimension,
-    type ItemsMap,
-    type Metric,
     type TableCalculation,
-    type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useEffect, useMemo, type FC } from 'react';
 import useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
-import {
-    type VisualizationConfig,
-    type VisualizationConfigCommon,
-} from './VisualizationProvider';
-
-export type VisualizationConfigFunnelType = {
-    chartType: ChartType.FUNNEL;
-    chartConfig: ReturnType<typeof useFunnelChartConfig>;
-    dimensions: Record<string, CustomDimension | Dimension>;
-    numericFields: Record<string, Metric | TableCalculation>;
-};
-
-export const isFunnelVisualizationConfig = (
-    visualizationConfig: VisualizationConfig | undefined,
-): visualizationConfig is VisualizationConfigFunnelType => {
-    return visualizationConfig?.chartType === ChartType.FUNNEL;
-};
-
-type VisualizationConfigFunnelProps =
-    VisualizationConfigCommon<VisualizationConfigFunnelType> & {
-        itemsMap: ItemsMap | undefined;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-    };
+import { type VisualizationConfigFunnelProps } from './types';
 
 const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     resultsData,

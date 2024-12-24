@@ -14,9 +14,9 @@ import clamp from 'lodash/clamp';
 import { forwardRef, useMemo, type FC, type HTMLAttributes } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import MantineIcon from '../common/MantineIcon';
-import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
-import { isBigNumberVisualizationConfig } from '../LightdashVisualization/VisualizationBigNumberConfig';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/constants';
+import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
 

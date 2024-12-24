@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, type FC } from 'react';
-import { useTracking } from '../../../../providers/TrackingProvider';
+import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDateRangePicker } from '../../hooks/useDateRangePicker';

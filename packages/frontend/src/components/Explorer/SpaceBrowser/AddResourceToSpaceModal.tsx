@@ -35,13 +35,9 @@ import { useUpdateMultipleDashboard } from '../../../hooks/dashboard/useDashboar
 import { useInfiniteContent } from '../../../hooks/useContent';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
-
-export enum AddToSpaceResources {
-    DASHBOARD = 'dashboard',
-    CHART = 'chart',
-}
+import { AddToSpaceResources } from './types';
 
 const getResourceTypeLabel = (resourceType: AddToSpaceResources) => {
     switch (resourceType) {

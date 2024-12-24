@@ -74,12 +74,12 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
-import { useApp } from '../../providers/AppProvider';
-import { useDashboardContext } from '../../providers/DashboardProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useApp from '../../providers/App/useApp';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
-import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
+import { getConditionalRuleLabel } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -89,11 +89,10 @@ import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider, {
-    getDataFromChartClick,
-    useMetricQueryDataContext,
-} from '../MetricQueryData/MetricQueryDataProvider';
+import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
+import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
 import { DashboardExportImage } from './DashboardExportImage';
 import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';

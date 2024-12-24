@@ -21,7 +21,7 @@ import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInf
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
-import { useApp } from '../../../../providers/AppProvider';
+import useApp from '../../../../providers/App/useApp';
 import DeleteSemanticViewerChartModal from '../Modals/DeleteSemanticViewerChartModal';
 
 type Props = {

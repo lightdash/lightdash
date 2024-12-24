@@ -5,17 +5,16 @@ import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { useApp } from '../../../providers/AppProvider';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
+import useApp from '../../../providers/App/useApp';
+import { ExplorerSection } from '../../../providers/Explorer/types';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
-import CollapsableCard, {
+import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard';
+} from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';

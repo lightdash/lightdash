@@ -1,7 +1,7 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { BarChart } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';

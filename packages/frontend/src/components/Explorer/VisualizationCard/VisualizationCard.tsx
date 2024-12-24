@@ -13,13 +13,11 @@ import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianCon
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
-import { ChartDownloadMenu } from '../../ChartDownload';
-import CollapsableCard from '../../common/CollapsableCard';
+import useApp from '../../../providers/App/useApp';
+import { ExplorerSection } from '../../../providers/Explorer/types';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
+import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';

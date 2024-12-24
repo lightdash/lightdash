@@ -17,12 +17,12 @@ import {
     EditVirtualViewModal,
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useApp from '../../../providers/App/useApp';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
-import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
+import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 
 const LoadingSkeleton = () => (
     <Stack>

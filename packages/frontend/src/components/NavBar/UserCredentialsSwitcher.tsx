@@ -9,9 +9,9 @@ import {
     useProjectUserWarehouseCredentialsPreferenceMutation,
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
-import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
 
 const routesThatNeedWarehouseCredentials = [

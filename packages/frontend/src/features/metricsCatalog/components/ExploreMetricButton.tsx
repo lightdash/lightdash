@@ -3,7 +3,7 @@ import { Button, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { toggleMetricPeekModal } from '../store/metricsCatalogSlice';

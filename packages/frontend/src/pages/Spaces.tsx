@@ -12,17 +12,15 @@ import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import ResourceView, {
-    ResourceViewType,
-} from '../components/common/ResourceView';
-import SpaceActionModal, {
-    ActionType,
-} from '../components/common/SpaceActionModal';
+import ResourceView from '../components/common/ResourceView';
+import { ResourceViewType } from '../components/common/ResourceView/types';
+import SpaceActionModal from '../components/common/SpaceActionModal';
+import { ActionType } from '../components/common/SpaceActionModal/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
-import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
+import useApp from '../providers/App/useApp';
+import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

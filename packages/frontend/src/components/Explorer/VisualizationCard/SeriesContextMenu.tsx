@@ -15,18 +15,16 @@ import { useParams } from 'react-router-dom';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useApp from '../../../providers/App/useApp';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
-import {
-    getDataFromChartClick,
-    useMetricQueryDataContext,
-} from '../../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
+import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';
 
 export const SeriesContextMenu: FC<{

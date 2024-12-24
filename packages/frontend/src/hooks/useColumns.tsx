@@ -32,7 +32,7 @@ import {
     type TableColumn,
 } from '../components/common/Table/types';
 import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
-import { useExplorerContext } from '../providers/ExplorerProvider';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 
