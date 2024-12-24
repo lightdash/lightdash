@@ -14,7 +14,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import {
     getChartIcon,
     IconBox,

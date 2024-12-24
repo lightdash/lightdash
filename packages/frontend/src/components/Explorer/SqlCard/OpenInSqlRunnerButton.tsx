@@ -1,7 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
@@ -20,8 +20,8 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                 component={Link}
                 to={{
                     pathname: `/projects/${projectUuid}/sql-runner`,
-                    state: { sql: data }, // pass SQL as location state
                 }}
+                state={{ sql: data }} // pass SQL as location state
                 leftIcon={<MantineIcon icon={IconTerminal2} color="gray" />}
                 disabled={isInitialLoading || !!error}
             >

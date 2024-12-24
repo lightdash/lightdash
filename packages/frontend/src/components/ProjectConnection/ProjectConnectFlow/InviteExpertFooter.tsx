@@ -1,6 +1,6 @@
 import { Anchor, Text } from '@mantine/core';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 
 const InviteExpertFooter: FC = () => (
     <Text color="dimmed" w={420} mx="auto" ta="center">
