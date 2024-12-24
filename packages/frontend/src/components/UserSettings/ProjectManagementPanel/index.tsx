@@ -19,8 +19,8 @@ import {
 } from '@mantine/core';
 import { IconSettings, IconTrash } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { Redirect, useHistory } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { useHistory } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom-v5-compat';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import {
@@ -252,7 +252,7 @@ const ProjectManagementPanel: FC = () => {
     if (isLoadingProjects || isLoadingLastProject) return null;
 
     if (projects.length === 0) {
-        return <Redirect to="/createProject" />;
+        return <Navigate to="/createProject" />;
     }
 
     const lastProject = projects.find(

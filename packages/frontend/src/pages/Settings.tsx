@@ -22,7 +22,8 @@ import {
     IconUserShield,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Redirect, Route, Switch } from 'react-router-dom';
+import { Route, Switch } from 'react-router-dom';
+import { Navigate } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -614,7 +615,7 @@ const Settings: FC = () => {
                     </SettingsGridCard>
                 </Route>
 
-                <Redirect to="/generalSettings" />
+                <Navigate to="/generalSettings" />
             </Switch>
         </Page>
     );

@@ -1,5 +1,6 @@
 import React, { useEffect, type ComponentProps, type FC } from 'react';
-import { Redirect, Route } from 'react-router-dom';
+import { Route } from 'react-router-dom';
+import { Navigate } from 'react-router-dom-v5-compat';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';
 import { useAbilityContext } from './common/Authorization';
@@ -32,11 +33,11 @@ const PrivateRoute: FC<
 
                 if (!health.data?.isAuthenticated) {
                     return (
-                        <Redirect
+                        <Navigate
                             to={{
                                 pathname: '/login',
-                                state: { from: location },
                             }}
+                            state={{ from: location }}
                         />
                     );
                 }
@@ -51,22 +52,22 @@ const PrivateRoute: FC<
                     !data?.isSetupComplete
                 ) {
                     return (
-                        <Redirect
+                        <Navigate
                             to={{
                                 pathname: '/verify-email',
-                                state: { from: location },
                             }}
+                            state={{ from: location }}
                         />
                     );
                 }
 
                 if (!data?.organizationUuid) {
                     return (
-                        <Redirect
+                        <Navigate
                             to={{
                                 pathname: '/join-organization',
-                                state: { from: location },
                             }}
+                            state={{ from: location }}
                         />
                     );
                 }
