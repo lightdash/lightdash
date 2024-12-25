@@ -111,6 +111,7 @@ FROM base AS prod-builder
 # Install development dependencies for all
 COPY package.json .
 COPY pnpm-lock.yaml .
+COPY pnpm-workspace.yaml .
 COPY tsconfig.json .
 COPY .eslintrc.js .
 COPY packages/common/package.json ./packages/common/
