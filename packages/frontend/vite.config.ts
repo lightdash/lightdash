@@ -25,6 +25,9 @@ export default defineConfig({
     css: {
         transformer: 'lightningcss',
     },
+    optimizeDeps: {
+        include: ['@lightdash/common'],
+    },
     build: {
         outDir: 'build',
         target: 'es2015',

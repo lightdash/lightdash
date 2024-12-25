@@ -17,7 +17,7 @@ import {
     type SemanticViewerChartUpdate,
     type SemanticViewerChartUpdateResult,
 } from '@lightdash/common';
-import { uniq } from 'lodash-es';
+import { uniq } from 'lodash';
 import {
     CreateSemanticViewerChartVersionEvent,
     LightdashAnalytics,

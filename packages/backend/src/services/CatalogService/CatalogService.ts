@@ -43,7 +43,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
-import { uniqBy } from 'lodash-es';
+import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {

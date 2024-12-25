@@ -43,7 +43,7 @@ import {
     WarehouseClient,
     WeekDay,
 } from '@lightdash/common';
-import { isArray } from 'lodash-es';
+import { isArray } from 'lodash';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (

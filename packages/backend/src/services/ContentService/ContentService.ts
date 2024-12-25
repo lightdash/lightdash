@@ -8,7 +8,7 @@ import {
     SessionUser,
     SummaryContent,
 } from '@lightdash/common';
-import { intersection } from 'lodash-es';
+import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import {

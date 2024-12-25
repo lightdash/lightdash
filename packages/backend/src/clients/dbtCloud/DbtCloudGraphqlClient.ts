@@ -23,7 +23,7 @@ import {
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
-import { mapKeys } from 'lodash-es';
+import { mapKeys } from 'lodash';
 import { URL } from 'url';
 import { LightdashConfig } from '../../config/parseConfig';
 import { dbtCloudTransfomers } from './transformer';

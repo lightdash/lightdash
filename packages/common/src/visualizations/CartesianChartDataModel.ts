@@ -1,4 +1,4 @@
-import { intersectionBy } from 'lodash-es';
+import { intersectionBy } from 'lodash';
 import {
     capitalize,
     CustomFormatType,

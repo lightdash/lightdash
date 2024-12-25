@@ -10,8 +10,9 @@
         "tslib": "^2.6.2"
     },
     "resolutions": {
-        "@types/react": "^18.2.48",
-        "@types/react-dom": "^18.2.18"
+        "@types/react": "18.2.48",
+        "@types/react-dom": "18.2.18",
+        "typescript": "5.2.2"
     },
     "devDependencies": {
         "@types/jest": "^29.5.5",
@@ -43,7 +44,7 @@
         "prettier-plugin-organize-imports": "^3.1.1",
         "ts-jest": "^29.1.1",
         "tsx": "4.11.0",
-        "typescript": "^5.4.4"
+        "typescript": "5.2.2"
     },
     "scripts": {
         "common-dev": "pnpm --filter @lightdash/common dev",

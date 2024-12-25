@@ -9,7 +9,7 @@ import {
     SemanticLayerResultRow,
     SemanticLayerType,
 } from '@lightdash/common';
-import { mapKeys } from 'lodash-es';
+import { mapKeys } from 'lodash';
 import { LightdashConfig } from '../../config/parseConfig';
 import { cubeTransfomers } from './transformer';
 import { getCubeTimeDimensionGranularity } from './typeTransformers';

@@ -25,7 +25,7 @@ import {
     UpdateOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
-import { groupBy } from 'lodash-es';
+import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';

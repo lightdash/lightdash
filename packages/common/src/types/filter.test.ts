@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash-es';
+import { cloneDeep } from 'lodash';
 import { ConditionalOperator } from './conditionalRule';
 import {
     compressDashboardFiltersToParam,

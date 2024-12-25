@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
-import { groupBy, mapKeys } from 'lodash-es';
+import { groupBy, mapKeys } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';

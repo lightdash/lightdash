@@ -40,7 +40,7 @@ import {
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
-import { uniq } from 'lodash-es';
+import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';

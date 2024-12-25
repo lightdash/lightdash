@@ -122,7 +122,7 @@ import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
-import { uniq } from 'lodash-es';
+import { uniq } from 'lodash';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';

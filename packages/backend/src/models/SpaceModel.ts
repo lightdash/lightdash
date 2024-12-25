@@ -25,7 +25,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { groupBy } from 'lodash-es';
+import { groupBy } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,

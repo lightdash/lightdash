@@ -1,4 +1,4 @@
-import { groupBy } from 'lodash-es';
+import { groupBy } from 'lodash';
 import {
     type DbtColumnLightdashMetric,
     type DbtModelColumn,

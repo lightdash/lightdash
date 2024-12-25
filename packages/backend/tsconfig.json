@@ -3,11 +3,15 @@
     "compilerOptions": {
         /* Visit https://aka.ms/tsconfig.json to read more about this file */
         "resolveJsonModule": true,
-        "composite": true,
         /* Basic Options */
         // "incremental": true,                         /* Enable incremental compilation */
-        "target": "ES2020" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019', 'ES2020', or 'ESNEXT'. */,
-        "module": "ES2020" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', 'es2020', or 'ESNext'. */,
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "target": "ESNext",
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        // "target": "ES2020" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019', 'ES2020', or 'ESNEXT'. */,
+        // "module": "NodeNext" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', 'es2020', or 'ESNext'. */,
         "lib": [
             "ESNext",
             "DOM"
@@ -21,7 +25,7 @@
         // "outFile": "./",                             /* Concatenate and emit output to single file. */
         "outDir": "dist",
         "rootDir": "src",
-        // "composite": true,                           /* Enable project compilation */
+        "composite": true, /* Enable project compilation */
         // "tsBuildInfoFile": "./",                     /* Specify file to store incremental compilation information */
         // "removeComments": true,                      /* Do not emit comments to output. */
         // "noEmit": true,                              /* Do not emit outputs. */
@@ -45,7 +49,7 @@
         // "noUncheckedIndexedAccess": true,            /* Include 'undefined' in index signature results */
         // "noPropertyAccessFromIndexSignature": true,  /* Require undeclared properties from index signatures to use element accesses. */
         /* Module Resolution Options */
-        "moduleResolution": "Node", /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
+        // "moduleResolution": "nodenext", /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
         // "baseUrl": "./",                             /* Base directory to resolve non-absolute module names. */
         // "paths": {},                                 /* A series of entries which re-map imports to lookup locations relative to the 'baseUrl'. */
         // "rootDirs": [],                              /* List of root folders whose combined content represents the structure of the project at runtime. */
@@ -55,7 +59,7 @@
         //        ] /* List of folders to include type definitions from. */,
         // "types": [],                                 /* Type declaration files to be included in compilation. */
         // "allowSyntheticDefaultImports": true, /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
-        "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
+        // "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
         // "preserveSymlinks": true,                    /* Do not resolve the real path of symlinks. */
         // "allowUmdGlobalAccess": true,                /* Allow accessing UMD globals from modules. */
         /* Source Map Options */
