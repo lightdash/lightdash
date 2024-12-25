@@ -69,5 +69,6 @@
     "include": [
         "src/**/*.ts",
         "src/**/*.json"
-    ]
+    ],
+    "references": []
 }

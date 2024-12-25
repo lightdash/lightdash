@@ -1,5 +1,5 @@
-import { Ability } from '@casl/ability';
 import {
+    AppAbility,
     ChartType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -28,7 +28,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new AppAbility([
         {
             subject: 'Dashboard',
             action: ['view', 'update', 'delete', 'create'],

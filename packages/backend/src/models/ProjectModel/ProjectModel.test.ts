@@ -2,7 +2,7 @@ import { ExploreType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'lodash-es';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     CachedExploresTableName,

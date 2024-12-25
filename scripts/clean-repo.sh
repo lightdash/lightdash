@@ -9,4 +9,4 @@ rm -rf node_modules
 find packages -type d \( -name "build" -o -name "dist" \) -exec rm -rf {} +
 
 # Reinstall dependencies
-yarn
+pnpm i

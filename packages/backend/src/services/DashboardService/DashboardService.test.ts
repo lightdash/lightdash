@@ -1,5 +1,5 @@
-import { Ability } from '@casl/ability';
 import {
+    AppAbility,
     defineUserAbility,
     ForbiddenError,
     OrganizationMemberRole,
@@ -361,7 +361,7 @@ describe('DashboardService', () => {
         const editorUser: SessionUser = {
             ...user,
             role: OrganizationMemberRole.EDITOR,
-            ability: new Ability([
+            ability: new AppAbility([
                 {
                     subject: 'Dashboard',
                     action: ['view', 'update', 'delete', 'create'],

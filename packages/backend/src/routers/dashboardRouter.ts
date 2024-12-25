@@ -5,7 +5,8 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const dashboardRouter = express.Router({ mergeParams: true });
+export const dashboardRouter: ReturnType<typeof express.Router> =
+    express.Router({ mergeParams: true });
 
 dashboardRouter.get(
     '/:dashboardUuid',

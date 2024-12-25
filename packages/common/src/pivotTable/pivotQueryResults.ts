@@ -1,5 +1,4 @@
-import isNumber from 'lodash/isNumber';
-import last from 'lodash/last';
+import { isNumber, last } from 'lodash-es';
 import { type Entries } from 'type-fest';
 import { FieldType, isField, isSummable, type ItemsMap } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';

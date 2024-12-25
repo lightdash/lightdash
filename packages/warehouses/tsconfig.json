@@ -70,9 +70,5 @@
         "src/**/*.ts",
         "src/**/*.json"
     ],
-    "references": [
-        {
-            "path": "../common"
-        }
-    ]
+    "references": []
 }

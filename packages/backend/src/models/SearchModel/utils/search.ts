@@ -1,6 +1,6 @@
 import { CompiledField, CompiledTable } from '@lightdash/common';
 import { Knex } from 'knex';
-import { compact, escapeRegExp } from 'lodash';
+import { compact, escapeRegExp } from 'lodash-es';
 
 // To query multiple words with tsquery, we need to split the query and add `:*` to each word
 export function getFullTextSearchQuery(searchQuery: string) {

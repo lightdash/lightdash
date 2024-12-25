@@ -17,7 +17,7 @@ import {
     UpdateSqlChart,
     VIZ_DEFAULT_AGGREGATION,
 } from '@lightdash/common';
-import { uniq } from 'lodash';
+import { uniq } from 'lodash-es';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,

@@ -46,8 +46,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
-import { merge } from 'lodash';
-import uniqWith from 'lodash/uniqWith';
+import { merge, uniqWith } from 'lodash-es';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';

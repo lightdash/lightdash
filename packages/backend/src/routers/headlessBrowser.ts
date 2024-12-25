@@ -4,7 +4,10 @@ import express from 'express';
 import playwright from 'playwright';
 import { lightdashConfig } from '../config/lightdashConfig';
 
-export const headlessBrowserRouter = express.Router({ mergeParams: true });
+export const headlessBrowserRouter: ReturnType<typeof express.Router> =
+    express.Router({
+        mergeParams: true,
+    });
 
 export const getAuthenticationToken = (value: string) =>
     createHmac('sha512', lightdashConfig.lightdashSecret)

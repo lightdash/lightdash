@@ -1,4 +1,4 @@
-import { type Ability, type ForcedSubject } from '@casl/ability';
+import { Ability, AbilityClass, type ForcedSubject } from '@casl/ability';
 import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
 
 export type AbilityAction =
@@ -18,7 +18,7 @@ interface Organization {
     organizationUuid: string;
 }
 
-type Subject =
+type AbilitySubject =
     | Project
     | Organization
     | OrganizationMemberProfile
@@ -53,7 +53,9 @@ type Subject =
 
 type PossibleAbilities = [
     AbilityAction,
-    Subject | ForcedSubject<Exclude<Subject, 'all'>>,
+    AbilitySubject | ForcedSubject<Exclude<AbilitySubject, 'all'>>,
 ];
 
 export type MemberAbility = Ability<PossibleAbilities>;
+
+export const AppAbility = Ability as AbilityClass<MemberAbility>;

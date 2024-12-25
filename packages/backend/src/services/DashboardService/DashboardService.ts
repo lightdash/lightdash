@@ -31,7 +31,7 @@ import {
     type ExploreError,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { uniq } from 'lodash';
+import { uniq } from 'lodash-es';
 import { v4 as uuidv4 } from 'uuid';
 import {
     CreateDashboardOrVersionEvent,

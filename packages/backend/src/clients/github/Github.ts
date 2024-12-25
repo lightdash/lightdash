@@ -1,12 +1,7 @@
-import {
-    AlreadyExistsError,
-    NotFoundError,
-    ParameterError,
-} from '@lightdash/common';
+import { AlreadyExistsError, NotFoundError } from '@lightdash/common';
 import { App } from '@octokit/app';
-import { Octokit as OctokitRest } from '@octokit/rest';
-
-const { createAppAuth } = require('@octokit/auth-app');
+import { createAppAuth } from '@octokit/auth-app';
+import { Octokit } from '@octokit/rest';
 
 const privateKey = process.env.GITHUB_PRIVATE_KEY
     ? Buffer.from(process.env.GITHUB_PRIVATE_KEY, 'base64').toString('utf-8')
@@ -35,7 +30,7 @@ export const getGithubApp = () => {
 };
 
 export const getOctokitRestForUser = (authToken: string) => {
-    const octokit = new OctokitRest();
+    const octokit = new Octokit();
     const headers = {
         authorization: `Bearer ${authToken}`,
     };
@@ -48,7 +43,7 @@ export const getOctokitRestForApp = (installationId: string) => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
 
-    return new OctokitRest({
+    return new Octokit({
         authStrategy: createAppAuth,
         auth: {
             appId,
@@ -95,7 +90,7 @@ export const getLastCommit = async ({
     branch: string;
     token: string; // TODO use installationId instead, to act as a bot
 }) => {
-    const response = await new OctokitRest().rest.repos.listCommits({
+    const response = await new Octokit().rest.repos.listCommits({
         owner,
         repo,
         ref: branch,

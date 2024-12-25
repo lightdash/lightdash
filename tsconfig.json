@@ -19,5 +19,9 @@
             "path": "./packages/e2e"
         }
     ],
-    "exclude": ["dist", "build", "node_modules"]
+    "exclude": [
+        "dist",
+        "build",
+        "node_modules"
+    ]
 }

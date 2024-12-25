@@ -1,5 +1,5 @@
-import { Ability } from '@casl/ability';
 import {
+    AppAbility,
     CreateInviteLink,
     InviteLink,
     LightdashUser,
@@ -41,7 +41,7 @@ export const sessionUser: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([{ subject: 'InviteLink', action: ['create'] }]),
+    ability: new AppAbility([{ subject: 'InviteLink', action: ['create'] }]),
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),
@@ -90,7 +90,7 @@ export const newUser: SessionUser = {
     isSetupComplete: false,
     userId: 0,
     role: inviteUser.role,
-    ability: new Ability([]),
+    ability: new AppAbility([]),
     isActive: true,
     abilityRules: [],
     createdAt: new Date(),

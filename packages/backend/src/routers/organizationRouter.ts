@@ -11,7 +11,8 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const organizationRouter = express.Router();
+export const organizationRouter: ReturnType<typeof express.Router> =
+    express.Router();
 
 organizationRouter.post(
     '/projects/precompiled',

@@ -1,5 +1,5 @@
-import { Ability } from '@casl/ability';
 import {
+    AppAbility,
     LightdashMode,
     Organization,
     OrganizationMemberRole,
@@ -20,7 +20,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new AppAbility([
         { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
     ]),
     isActive: true,

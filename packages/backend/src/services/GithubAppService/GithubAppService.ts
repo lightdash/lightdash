@@ -8,7 +8,7 @@ import {
     ParameterError,
     SessionUser,
 } from '@lightdash/common';
-import { Octokit as OctokitRest } from '@octokit/rest';
+import { Octokit } from '@octokit/rest';
 import { SessionData } from 'express-session';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -112,7 +112,7 @@ export class GithubAppService extends BaseService {
 
                 const interval = setInterval(async () => {
                     const response =
-                        await new OctokitRest().apps.listInstallationsForAuthenticatedUser(
+                        await new Octokit().apps.listInstallationsForAuthenticatedUser(
                             {
                                 headers: {
                                     authorization: `Bearer ${token}`,
@@ -154,13 +154,11 @@ export class GithubAppService extends BaseService {
             }
             // Verify installation
             const response =
-                await new OctokitRest().apps.listInstallationsForAuthenticatedUser(
-                    {
-                        headers: {
-                            authorization: `Bearer ${token}`,
-                        },
+                await new Octokit().apps.listInstallationsForAuthenticatedUser({
+                    headers: {
+                        authorization: `Bearer ${token}`,
                     },
-                );
+                });
             const installation = response.data.installations.find(
                 (i) => `${i.id}` === installation_id,
             );

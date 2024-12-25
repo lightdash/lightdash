@@ -20,7 +20,7 @@ import { savedChartRouter } from './savedChartRouter';
 import { slackRouter } from './slackRouter';
 import { userRouter } from './userRouter';
 
-export const apiV1Router = express.Router();
+export const apiV1Router: ReturnType<typeof express.Router> = express.Router();
 
 apiV1Router.get('/livez', async (req, res, next) => {
     res.json({

@@ -8,7 +8,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const userRouter = express.Router();
+export const userRouter: ReturnType<typeof express.Router> = express.Router();
 
 userRouter.patch(
     '/me',

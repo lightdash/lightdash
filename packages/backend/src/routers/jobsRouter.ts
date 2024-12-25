@@ -4,7 +4,9 @@ import {
     isAuthenticated,
 } from '../controllers/authentication';
 
-export const jobsRouter = express.Router({ mergeParams: true });
+export const jobsRouter: ReturnType<typeof express.Router> = express.Router({
+    mergeParams: true,
+});
 
 jobsRouter.get('/', isAuthenticated, async (req, res, next) => {
     next('Not implemented');

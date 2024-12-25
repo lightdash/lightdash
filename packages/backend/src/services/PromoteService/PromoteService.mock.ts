@@ -1,5 +1,5 @@
-import { Ability } from '@casl/ability';
 import {
+    AppAbility,
     ChartKind,
     ChartType,
     DashboardChartTile,
@@ -30,7 +30,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new AppAbility([
         { subject: 'Project', action: ['update', 'view'] },
         { subject: 'Job', action: ['view'] },
         { subject: 'SqlRunner', action: ['manage'] },

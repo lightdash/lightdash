@@ -1,5 +1,5 @@
-import { Ability } from '@casl/ability';
 import {
+    AppAbility,
     Dashboard,
     DashboardTileTypes,
     DimensionType,
@@ -39,7 +39,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new AppAbility([
         {
             subject: 'Validation',
             action: ['manage'],

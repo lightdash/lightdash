@@ -5,7 +5,8 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const savedChartRouter = express.Router();
+export const savedChartRouter: ReturnType<typeof express.Router> =
+    express.Router();
 
 savedChartRouter.get(
     '/:savedQueryUuid',

@@ -16,7 +16,9 @@ import {
 
 const fs = require('fs');
 
-export const projectRouter = express.Router({ mergeParams: true });
+export const projectRouter: ReturnType<typeof express.Router> = express.Router({
+    mergeParams: true,
+});
 
 projectRouter.patch(
     '/',

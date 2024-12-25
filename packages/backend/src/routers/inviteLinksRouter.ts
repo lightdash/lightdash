@@ -6,7 +6,8 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
-export const inviteLinksRouter = express.Router();
+export const inviteLinksRouter: ReturnType<typeof express.Router> =
+    express.Router();
 
 inviteLinksRouter.get(
     '/:inviteLinkCode',

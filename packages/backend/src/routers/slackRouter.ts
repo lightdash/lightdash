@@ -26,7 +26,9 @@ const analytics = new LightdashAnalytics({
     },
 });
 
-export const slackRouter = express.Router({ mergeParams: true });
+export const slackRouter: ReturnType<typeof express.Router> = express.Router({
+    mergeParams: true,
+});
 
 slackRouter.get(
     '/',

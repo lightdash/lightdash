@@ -4,7 +4,8 @@ import {
     isAuthenticated,
 } from '../controllers/authentication';
 
-export const analyticsRouter = express.Router({ mergeParams: true });
+export const analyticsRouter: ReturnType<typeof express.Router> =
+    express.Router({ mergeParams: true });
 
 analyticsRouter.get(
     '/user-activity/:projectUuid',

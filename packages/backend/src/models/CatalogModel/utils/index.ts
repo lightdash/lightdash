@@ -11,7 +11,7 @@ import {
     type ChartFieldUsageChanges,
     type ExploreError,
 } from '@lightdash/common';
-import { uniq } from 'lodash';
+import { uniq } from 'lodash-es';
 import { DbCatalogIn } from '../../../database/entities/catalog';
 
 export const convertExploresToCatalog = (
