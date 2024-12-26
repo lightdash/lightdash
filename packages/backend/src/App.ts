@@ -654,4 +654,16 @@ export default class App {
             }
         }
     }
+
+    getServiceRepository() {
+        return this.serviceRepository;
+    }
+
+    getModels() {
+        return this.models;
+    }
+
+    getDatabase() {
+        return this.database;
+    }
 }
