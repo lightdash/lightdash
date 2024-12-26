@@ -1,3 +1,10 @@
+## [0.1428.3](https://github.com/lightdash/lightdash/compare/0.1428.2...0.1428.3) (2024-12-26)
+
+
+### Bug Fixes
+
+* null error in SQL runner save dialog ([#13024](https://github.com/lightdash/lightdash/issues/13024)) ([ea65a14](https://github.com/lightdash/lightdash/commit/ea65a1490ffc0e43da858a15440a4f9030281e96))
+
 ## [0.1428.2](https://github.com/lightdash/lightdash/compare/0.1428.1...0.1428.2) (2024-12-26)
 
 
