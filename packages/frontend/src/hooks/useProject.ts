@@ -67,7 +67,7 @@ export const useProject = (id: string | undefined) => {
     return useQuery<Project, ApiError>({
         queryKey: ['project', id],
         queryFn: () => getProject(id || ''),
-        enabled: id !== undefined,
+        enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
     });
