@@ -454,6 +454,7 @@ const MetricsVisualization: FC<Props> = ({
                         showTimeDimensionIntervalPicker={
                             showTimeDimensionIntervalPicker
                         }
+                        isFetching={isFetching}
                         timeDimensionBaseField={timeDimensionBaseField}
                         setTimeDimensionOverride={setTimeDimensionOverride}
                         timeInterval={results.metric.timeDimension.interval}
