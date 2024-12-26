@@ -177,6 +177,7 @@ const SaveChartForm: FC<
                     <Textarea
                         label="Description"
                         {...form.getInputProps('description')}
+                        value={form.values.description ?? ''}
                     />
                 </Stack>
                 <SaveToSpaceForm
