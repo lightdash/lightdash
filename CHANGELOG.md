@@ -1,3 +1,11 @@
+## [0.1428.4](https://github.com/lightdash/lightdash/compare/0.1428.3...0.1428.4) (2024-12-26)
+
+
+### Bug Fixes
+
+* optimistically set time dimension interval picker ([#13028](https://github.com/lightdash/lightdash/issues/13028)) ([2426429](https://github.com/lightdash/lightdash/commit/24264294ed2ba3517559f28fe9c0f3b28b3e18ef))
+* use loading inside table ([#13010](https://github.com/lightdash/lightdash/issues/13010)) ([8a5821f](https://github.com/lightdash/lightdash/commit/8a5821fda07abf538a081d7c4e4632b50389d889))
+
 ## [0.1428.3](https://github.com/lightdash/lightdash/compare/0.1428.2...0.1428.3) (2024-12-26)
 
 
