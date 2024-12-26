@@ -27,7 +27,7 @@ import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
 import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
-import { getOmnibarItemColor } from './OmnibarItemIcon';
+import { getOmnibarItemColor } from './utils';
 
 const getOmnibarItemIcon = (itemType: SearchItemType) => {
     switch (itemType) {

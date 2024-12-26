@@ -18,8 +18,8 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
-import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
+import useApp from '../providers/App/useApp';
+import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();

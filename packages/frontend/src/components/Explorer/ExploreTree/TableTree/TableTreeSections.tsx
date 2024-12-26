@@ -9,12 +9,13 @@ import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useApp } from '../../../../providers/AppProvider';
-import { useExplorerContext } from '../../../../providers/ExplorerProvider';
+import useApp from '../../../../providers/App/useApp';
+import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
-import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
+import { TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
+import { getSearchResults } from './Tree/utils';
 
 type Props = {
     searchQuery?: string;

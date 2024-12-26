@@ -9,8 +9,8 @@ import {
 import { IconDownload } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { DEFAULT_SQL_LIMIT } from '../../constants';
 import { useDownloadResults } from '../../hooks/useDownloadResults';
-import { DEFAULT_SQL_LIMIT } from '../ContentPanel';
 
 type Props = {
     fileUrl: string | undefined;

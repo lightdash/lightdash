@@ -54,10 +54,7 @@ import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import ContentTypeFilter from './ContentTypeFilter';
-import ResourceActionHandlers, {
-    ResourceViewItemAction,
-    type ResourceViewItemActionState,
-} from './ResourceActionHandlers';
+import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
@@ -65,6 +62,10 @@ import {
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
 } from './resourceUtils';
+import {
+    ResourceViewItemAction,
+    type ResourceViewItemActionState,
+} from './types';
 
 type ResourceView2Props = {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {

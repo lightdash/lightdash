@@ -2,7 +2,7 @@ import { ActionIcon } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
-import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../common/CollapsableCard';
+import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../common/CollapsableCard/constants';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {

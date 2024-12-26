@@ -10,7 +10,7 @@ import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';

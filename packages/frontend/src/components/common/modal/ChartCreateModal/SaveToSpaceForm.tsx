@@ -4,26 +4,19 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { z } from 'zod';
-import { useApp } from '../../../../providers/AppProvider';
+import useApp from '../../../../providers/App/useApp';
 import { Can } from '../../Authorization';
 import MantineIcon from '../../MantineIcon';
+import { type SaveToSpaceFormType } from './types';
 
-export const saveToSpaceSchema = z.object({
-    spaceUuid: z.string().nullable(),
-    newSpaceName: z.string().min(1).nullable(),
-});
-
-type FormType = z.infer<typeof saveToSpaceSchema>;
-
-type Props<T extends FormType> = {
+type Props<T extends SaveToSpaceFormType> = {
     form: UseFormReturnType<T>;
     isLoading: boolean;
     spaces: SpaceSummary[] | undefined;
     projectUuid: string;
 };
 
-const SaveToSpaceForm = <T extends FormType>({
+const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
     form,
     isLoading,
     spaces = [],

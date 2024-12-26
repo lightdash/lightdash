@@ -3,13 +3,10 @@ import { Button, Flex, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { z } from 'zod';
+import { type z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
 import TimeZonePicker from '../common/TimeZonePicker';
-
-export const schedulerSettingsSchema = z.object({
-    timezone: z.string(),
-});
+import { schedulerSettingsSchema } from './types';
 
 type Props = {
     isLoading: boolean;

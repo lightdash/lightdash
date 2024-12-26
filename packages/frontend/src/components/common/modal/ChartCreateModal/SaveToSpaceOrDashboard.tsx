@@ -35,11 +35,10 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
-import { useApp } from '../../../../providers/AppProvider';
-import SaveToDashboardForm, {
-    saveToDashboardSchema,
-} from './SaveToDashboardForm';
-import SaveToSpaceForm, { saveToSpaceSchema } from './SaveToSpaceForm';
+import useApp from '../../../../providers/App/useApp';
+import SaveToDashboardForm from './SaveToDashboardForm';
+import SaveToSpaceForm from './SaveToSpaceForm';
+import { saveToDashboardSchema, saveToSpaceSchema } from './types';
 
 enum SaveDestination {
     Dashboard = 'dashboard',

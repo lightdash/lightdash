@@ -40,7 +40,7 @@ import {
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
 import PaginateControl from '../PaginateControl';
-import { DEFAULT_PAGE_SIZE } from '../Table/types';
+import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import {
     UserAccessAction,
     UserAccessOptions,

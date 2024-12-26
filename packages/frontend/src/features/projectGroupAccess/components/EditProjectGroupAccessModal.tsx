@@ -9,7 +9,7 @@ import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { TrackPage } from '../../../providers/TrackingProvider';
+import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
 
 interface EditProjectGroupAccessModalProps {
