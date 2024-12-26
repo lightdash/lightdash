@@ -10,6 +10,7 @@ import {
 import * as rudderSDK from 'rudder-sdk-js';
 import { PageType } from '../../types/Events';
 import useApp from '../App/useApp';
+import { LIGHTDASH_APP_NAME } from './constants';
 import TrackingContext from './context';
 import {
     type EventData,
@@ -19,8 +20,6 @@ import {
     type TrackingData,
 } from './types';
 import useTracking from './useTracking';
-
-const LIGHTDASH_APP_NAME = 'lightdash_webapp';
 
 const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     rudder,
