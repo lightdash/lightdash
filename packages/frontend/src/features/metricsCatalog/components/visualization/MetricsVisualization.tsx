@@ -496,23 +496,18 @@ const MetricsVisualization: FC<Props> = ({
                 </Tooltip> */}
             </Group>
 
-            {showEmptyState && !isFetching && (
-                <Flex sx={{ flex: 1, position: 'relative' }}>
-                    <MetricsVisualizationEmptyState />
-                </Flex>
-            )}
+            <Flex mih={0} sx={{ flex: 1, position: 'relative' }}>
+                <LoadingOverlay
+                    visible={isFetching}
+                    loaderProps={{
+                        size: 'sm',
+                        color: 'dark',
+                        variant: 'dots',
+                    }}
+                />
+                {showEmptyState && <MetricsVisualizationEmptyState />}
 
-            {!showEmptyState && results && (
-                <Flex mih={0} sx={{ flex: 1, position: 'relative' }}>
-                    <LoadingOverlay
-                        visible={isFetching}
-                        loaderProps={{
-                            size: 'sm',
-                            color: 'dark',
-                            variant: 'dots',
-                        }}
-                    />
-
+                {!showEmptyState && results && (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                             ref={(instance) => setChartRef(instance)}
@@ -689,8 +684,8 @@ const MetricsVisualization: FC<Props> = ({
                             */}
                         </LineChart>
                     </ResponsiveContainer>
-                </Flex>
-            )}
+                )}
+            </Flex>
             <Group
                 position="center"
                 mt="auto"
