@@ -1,3 +1,10 @@
+## [0.1428.2](https://github.com/lightdash/lightdash/compare/0.1428.1...0.1428.2) (2024-12-26)
+
+
+### Bug Fixes
+
+* fetch segments to prevent long running query when segmenting ([#13012](https://github.com/lightdash/lightdash/issues/13012)) ([1c5fbb0](https://github.com/lightdash/lightdash/commit/1c5fbb01b5169fb0561753eef0ed2601657140a2))
+
 ## [0.1428.1](https://github.com/lightdash/lightdash/compare/0.1428.0...0.1428.1) (2024-12-23)
 
 
