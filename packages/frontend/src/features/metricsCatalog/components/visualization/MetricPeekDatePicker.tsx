@@ -141,7 +141,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
             <Popover.Target>
                 <Group position="apart" w="fill-available" noWrap>
                     <SegmentedControl
-                        disabled={isFetching}
+                        disabled={!effectiveMatchingPresetLabel}
                         size="xs"
                         h={32}
                         data={customWithPresets}
