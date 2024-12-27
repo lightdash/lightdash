@@ -5,7 +5,7 @@ FROM node:20-bookworm-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable pnpm
 
 WORKDIR /usr/app
 
@@ -155,7 +155,7 @@ FROM node:20-bookworm-slim as prod
 
 ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable pnpm
 
 WORKDIR /usr/app
 
