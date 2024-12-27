@@ -122,7 +122,7 @@ git pull upstream main
 4. Install the dependencies with pnpm (npm/yarn isn't supported):
 
 ```sh
-pnpm i
+pnpm install
 ```
 
 5. Create a new topic branch:
@@ -334,7 +334,7 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 
 # 9 Install packages
-pnpm i
+pnpm install
 
 # 10 Build / migrate / seed
 pnpm load:env ./scripts/build.sh
@@ -358,7 +358,7 @@ Password: demo_password!
 
 ```shell
 # Prepare dependencies
-pnpm i
+pnpm install
 pnpm common-build
 pnpm warehouses-build
 
@@ -372,7 +372,7 @@ Before running e2e tests make sure you're running the app locally.
 
 ```shell
 # Prepare dependencies
-pnpm i
+pnpm install
 pnpm common-build
 pnpm warehouses-build
 

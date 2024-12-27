@@ -135,7 +135,7 @@ RUN pnpm -F @lightdash/warehouses build
 # Build backend
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src
-RUN pnpm -F @lightdash/backend build
+RUN pnpm -F backend build
 
 # Build frontend
 COPY packages/frontend ./packages/frontend
