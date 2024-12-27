@@ -94,7 +94,7 @@
         "fix-lint": "pnpm run common-fix-lint && pnpm run backend-fix-lint && pnpm run frontend-fix-lint && pnpm run e2e-fix-lint && pnpm run cli-fix-lint",
         "fix-format": "pnpm run common-fix-format && pnpm run backend-fix-format && pnpm run frontend-fix-format && pnpm run e2e-fix-format && pnpm run cli-fix-format",
         "test": "pnpm run common-test && pnpm run warehouses-test && pnpm run cli-test && pnpm run backend-test && pnpm run frontend-test",
-        "dev": "pnpm -r run dev --parallel -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend",
+        "dev": "pnpm -r --parallel --stream --filter @lightdash/common --filter @lightdash/warehouses --filter backend --filter frontend run dev",
         "build": "pnpm common-build && pnpm warehouses-build && pnpm backend-build && pnpm frontend-build",
         "build-published-packages": "pnpm run common-build && pnpm run warehouses-build && pnpm run cli-build",
         "start": "pnpm run backend-start",
