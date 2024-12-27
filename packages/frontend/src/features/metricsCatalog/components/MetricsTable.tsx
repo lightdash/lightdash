@@ -106,7 +106,6 @@ export const MetricsTable = () => {
         isFetching,
         isLoading,
         isPreviousData,
-        refetch,
     } = useMetricsCatalog({
         projectUuid,
         pageSize: 50,
@@ -546,11 +545,12 @@ export const MetricsTable = () => {
                 metricCatalogView === MetricCatalogView.LIST &&
                 prevView.current === MetricCatalogView.TREE
             ) {
-                void refetch();
+                table.setRowSelection({}); // Force a re-render of the table
             }
+
             prevView.current = metricCatalogView;
         },
-        [metricCatalogView, data, refetch],
+        [metricCatalogView, data, table],
     );
 
     switch (metricCatalogView) {
