@@ -6,6 +6,7 @@ FROM node:20-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
+RUN corepack prepare pnpm@latest --activate
 
 WORKDIR /usr/app
 
@@ -121,7 +122,9 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
-RUN yes | pnpm i --frozen-lockfile
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Build common
 COPY packages/common/tsconfig.json ./packages/common/
@@ -148,7 +151,8 @@ RUN rm -rf node_modules \
 
 # Install production dependencies
 ENV NODE_ENV production
-RUN yes | pnpm i --frozen-lockfile --prod
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --prod --frozen-lockfile
 
 # -----------------------------
 # Stage 3: execution environment for backend
@@ -159,6 +163,7 @@ FROM node:20-bookworm-slim as prod
 ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
+RUN corepack prepare pnpm@latest --activate
 
 WORKDIR /usr/app
 
