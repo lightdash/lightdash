@@ -75,7 +75,6 @@ jobs:
             - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
-                  install: false
                   working-directory: packages/e2e
                   spec: cypress/e2e/api/**/*
                   # Set the PR deployment url and disable video recording
@@ -163,7 +162,6 @@ jobs:
             - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
-                  install: false
                   browser: firefox
                   working-directory: packages/e2e
                   # Set the PR deployment url and disable video recording
@@ -239,7 +237,6 @@ jobs:
             - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
-                  install: false
                   browser: firefox
                   working-directory: packages/e2e
                   spec: cypress/e2e/app/dates.cy.ts
