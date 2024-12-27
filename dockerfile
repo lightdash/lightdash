@@ -155,9 +155,12 @@ RUN yes | pnpm i --frozen-lockfile --prod
 # -----------------------------
 
 FROM node:20-bookworm-slim as prod
-WORKDIR /usr/app
 
 ENV NODE_ENV production
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
