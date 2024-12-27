@@ -121,7 +121,7 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
-RUN pnpm i --pure-lockfile --non-interactive
+RUN pnpm i --frozen-lockfile
 
 # Build common
 COPY packages/common/tsconfig.json ./packages/common/
