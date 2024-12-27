@@ -1,3 +1,10 @@
+## [0.1428.5](https://github.com/lightdash/lightdash/compare/0.1428.4...0.1428.5) (2024-12-27)
+
+
+### Bug Fixes
+
+* show the sidebar when switching to the viz tab ([#13029](https://github.com/lightdash/lightdash/issues/13029)) ([ca28091](https://github.com/lightdash/lightdash/commit/ca280915e407dc96fd58600d6335585730bdf09a))
+
 ## [0.1428.4](https://github.com/lightdash/lightdash/compare/0.1428.3...0.1428.4) (2024-12-26)
 
 
