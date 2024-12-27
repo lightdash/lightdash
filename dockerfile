@@ -121,7 +121,7 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
-RUN pnpm i --frozen-lockfile
+RUN yes | pnpm i --frozen-lockfile
 
 # Build common
 COPY packages/common/tsconfig.json ./packages/common/
@@ -148,7 +148,7 @@ RUN rm -rf node_modules \
 
 # Install production dependencies
 ENV NODE_ENV production
-RUN pnpm i --frozen-lockfile --prod
+RUN yes | pnpm i --frozen-lockfile --prod
 
 # -----------------------------
 # Stage 3: execution environment for backend

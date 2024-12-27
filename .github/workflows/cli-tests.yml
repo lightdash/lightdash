@@ -93,7 +93,7 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
       - name: Install packages
-        run: pnpm i --frozen-lockfile
+        run: yes | pnpm i --frozen-lockfile
       # Build packages
       - name: Build packages/common module
         run: pnpm common-build

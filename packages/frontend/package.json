@@ -15,7 +15,7 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
-        "unused-exports": "pnpm exec ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles=__mocks__"
+        "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles=__mocks__"
     },
     "peerDependencies": {
         "react": "^18.2.0",
