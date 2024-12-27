@@ -18,7 +18,7 @@ jobs:
                   node-version: '20'
                   cache: 'pnpm'
             - name: Install packages
-              run: yes | pnpm i --frozen-lockfile
+              run: pnpm install --frozen-lockfile
             - name: Run dangerjs
               if: github.event_name == 'pull_request'
               run: pnpm danger-ci-lint
