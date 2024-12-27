@@ -157,7 +157,7 @@ export const parseTimestamp = (
 function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const hasCurrency =
         format?.type === CustomFormatType.CURRENCY && format?.currency;
-    const currencyOptions = hasCurrency
+    const currencyOptions: Intl.NumberFormatOptions = hasCurrency
         ? { style: 'currency', currency: format.currency }
         : {};
 
