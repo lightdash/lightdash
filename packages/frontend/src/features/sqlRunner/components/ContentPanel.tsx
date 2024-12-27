@@ -349,6 +349,7 @@ export const ContentPanel: FC = () => {
                                                 >
                                                     <Group spacing={4} noWrap>
                                                         <MantineIcon
+                                                            color="gray.6"
                                                             icon={
                                                                 IconCodeCircle
                                                             }
