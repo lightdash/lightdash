@@ -1,4 +1,3 @@
-import { ChartKind } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -31,7 +30,7 @@ import {
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { updateName } from '../store/sqlRunnerSlice';
+import { selectDefaultTableConfig, updateName } from '../store/sqlRunnerSlice';
 import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
 const saveChartFormSchema = z
@@ -65,7 +64,7 @@ const SaveChartForm: FC<
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
     const defaultChartConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, ChartKind.TABLE),
+        selectDefaultTableConfig(state),
     );
 
     const currentVizConfig = useAppSelector((state) =>

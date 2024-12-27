@@ -272,6 +272,7 @@ export const sqlRunnerSlice = createSlice({
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
                 if (!state.userHasSelectedChartType) {
                     state.selectedChartType = ChartKind.VERTICAL_BAR;
+                    state.userHasSelectedChartType = true;
                 }
             }
             if (action.payload === EditorTabs.SQL) {
@@ -457,5 +458,19 @@ export const selectSqlRunnerResultsRunner = createSelector(
             sql,
             sortBy,
         });
+    },
+);
+
+export const selectDefaultTableConfig = createSelector(
+    [selectResultsTableConfig],
+    (resultsTableConfig) => {
+        return {
+            metadata: {
+                version: 1,
+            },
+            type: ChartKind.TABLE,
+            columns: resultsTableConfig?.columns ?? {},
+            display: {},
+        } as VizTableConfig;
     },
 );
