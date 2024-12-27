@@ -8,7 +8,7 @@ import {
     MetricTotalComparisonType,
     type TimeFrames,
 } from '@lightdash/common';
-import { Group, Stack, Text, Title } from '@mantine/core';
+import { Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
@@ -95,59 +95,65 @@ const MetricTreeConnectedNode: React.FC<
     }, [totalQuery.data]);
 
     return (
-        <div
-            style={{
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                backgroundColor: '#fff',
-            }}
+        <Paper
+            p="xs"
+            fz="xs"
+            sx={(theme) => ({
+                backgroundColor: theme.colors.gray[0],
+            })}
         >
             <Handle
                 type="target"
                 position={Position.Top}
                 hidden={!isConnectable && !data.isEdgeTarget}
             />
-            <Stack spacing="xxs" key={data.label}>
+            <Stack key={data.label} spacing="sm">
                 <Stack spacing="2xs" align="flex-start">
                     <Title order={6}>{title}</Title>
                     {data.tableName && (
-                        <Text fz="xs" c="dimmed">
+                        <Text fz="xs" c="gray.7">
                             {data.tableName}
                         </Text>
                     )}
                 </Stack>
 
-                <Group align="flex-end" mt="sm">
-                    <Text fz="md" fw={700}>
-                        {formattedValue}
-                    </Text>
-                    {change && (
-                        <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
-                            <Text fz="sm" fw={500}>
-                                <Text span>{formattedChange}</Text>
-                            </Text>
-                            <MantineIcon
-                                icon={change > 0 ? IconArrowUp : IconArrowDown}
-                                size={16}
-                                stroke={1.5}
-                            />
-                        </Group>
-                    )}
-                </Group>
+                <Stack spacing="two">
+                    <Group position="apart">
+                        <Text fz="md" fw={700}>
+                            {formattedValue}
+                        </Text>
+                        {change && (
+                            <Group
+                                spacing={1}
+                                c={change > 0 ? 'green.7' : 'red.6'}
+                            >
+                                <Text fz="sm" fw={500}>
+                                    {formattedChange}
+                                </Text>
+                                <MantineIcon
+                                    icon={
+                                        change > 0 ? IconArrowUp : IconArrowDown
+                                    }
+                                    size={12}
+                                    stroke={1.8}
+                                />
+                            </Group>
+                        )}
+                    </Group>
 
-                {change && (
-                    <Text fz="xs" c="dimmed">
-                        {compareString}
-                    </Text>
-                )}
+                    {change && (
+                        <Text fz={11} c="gray.6">
+                            {compareString}
+                        </Text>
+                    )}
+                </Stack>
             </Stack>
             <Handle
                 type="source"
                 position={Position.Bottom}
                 hidden={!isConnectable && !data.isEdgeSource}
             />
-        </div>
+        </Paper>
     );
 };
 
