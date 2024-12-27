@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile
+        run: yes | pnpm i --frozen-lockfile
       - name: Build
         run: pnpm build-published-packages
       - name: Semantic Release
