@@ -272,6 +272,7 @@ export const sqlRunnerSlice = createSlice({
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
                 if (!state.userHasSelectedChartType) {
                     state.selectedChartType = ChartKind.VERTICAL_BAR;
+                    state.userHasSelectedChartType = true;
                 }
             }
             if (action.payload === EditorTabs.SQL) {
