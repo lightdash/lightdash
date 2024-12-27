@@ -147,20 +147,6 @@ export const selectCompleteConfigByKind = createSelector(
     },
 );
 
-export const selectCurrentVizConfig = createSelector(
-    [
-        (state) => state.sqlRunner.selectedChartType,
-        (state) => state.sqlRunner.userHasSelectedChartType,
-        (state) => state,
-    ],
-    (selectedChartType, userHasSelectedChartType, state) => {
-        const chartKind = userHasSelectedChartType
-            ? selectedChartType
-            : ChartKind.TABLE;
-        return selectCompleteConfigByKind(state, chartKind);
-    },
-);
-
 export const selectCurrentCartesianChartState = createSelector(
     [
         (state, chartKind) => chartKind,

@@ -24,17 +24,14 @@ import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
-import {
-    selectCompleteConfigByKind,
-    selectCurrentVizConfig,
-} from '../../../components/DataViz/store/selectors';
+import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { updateName } from '../store/sqlRunnerSlice';
+import { EditorTabs, updateName } from '../store/sqlRunnerSlice';
 import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
 const saveChartFormSchema = z
@@ -64,13 +61,17 @@ const SaveChartForm: FC<
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
-
-    const defaultChartConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, ChartKind.TABLE),
+    const activeEditorTab = useAppSelector(
+        (state) => state.sqlRunner.activeEditorTab,
     );
 
     const currentVizConfig = useAppSelector((state) =>
-        selectCurrentVizConfig(state),
+        selectCompleteConfigByKind(
+            state,
+            activeEditorTab === EditorTabs.SQL
+                ? ChartKind.TABLE
+                : ChartKind.VERTICAL_BAR,
+        ),
     );
 
     // TODO: this sometimes runs `/api/v1/projects//spaces` request
@@ -130,21 +131,14 @@ const SaveChartForm: FC<
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
-        console.log('currentVizConfig', {
-            currentVizConfig,
-            defaultChartConfig,
-        });
-
-        const currentConfig = currentVizConfig ?? defaultChartConfig;
-
-        if (currentConfig && sql) {
+        if (currentVizConfig && sql) {
             try {
                 await createSavedSqlChart({
                     name: form.values.name,
                     description: form.values.description || '',
                     sql,
                     limit,
-                    config: currentConfig,
+                    config: currentVizConfig,
                     spaceUuid: spaceUuid,
                 });
 
@@ -162,7 +156,6 @@ const SaveChartForm: FC<
         form.values.description,
         createSpace,
         currentVizConfig,
-        defaultChartConfig,
         sql,
         createSavedSqlChart,
         limit,

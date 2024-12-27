@@ -96,7 +96,6 @@ export interface SqlRunnerState {
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
     selectedChartType: ChartKind | undefined;
-    userHasSelectedChartType: boolean;
     resultsTableConfig: VizTableColumnsConfig | undefined;
     modals: {
         saveChartModal: {
@@ -149,7 +148,6 @@ export const initialState: SqlRunnerState = {
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
     selectedChartType: ChartKind.VERTICAL_BAR,
-    userHasSelectedChartType: false,
     resultsTableConfig: undefined,
     modals: {
         saveChartModal: {
@@ -270,9 +268,8 @@ export const sqlRunnerSlice = createSlice({
             }
             if (action.payload === EditorTabs.VISUALIZATION) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
-                if (!state.userHasSelectedChartType) {
+                if (!state.selectedChartType) {
                     state.selectedChartType = ChartKind.VERTICAL_BAR;
-                    state.userHasSelectedChartType = true;
                 }
             }
             if (action.payload === EditorTabs.SQL) {
@@ -293,7 +290,6 @@ export const sqlRunnerSlice = createSlice({
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
-            state.userHasSelectedChartType = true;
             if (!state.activeConfigs.includes(action.payload)) {
                 state.activeConfigs.push(action.payload);
             }
