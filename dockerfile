@@ -143,7 +143,7 @@ RUN pnpm -F backend build
 
 # Build frontend
 COPY packages/frontend ./packages/frontend
-RUN pnpm -F @lightdash/frontend build
+RUN pnpm -F frontend build
 
 # Cleanup development dependencies
 RUN rm -rf node_modules \
