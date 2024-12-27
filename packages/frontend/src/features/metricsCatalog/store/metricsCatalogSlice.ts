@@ -1,5 +1,6 @@
 import type { CatalogField } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { MetricCatalogView } from '../types';
 
 type MetricsCatalogState = {
     modals: {
@@ -20,6 +21,7 @@ type MetricsCatalogState = {
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
+    view: MetricCatalogView;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
     popovers: {
         category: {
@@ -42,6 +44,7 @@ const initialState: MetricsCatalogState = {
         canManageExplore: false,
         canManageMetricsTree: false,
     },
+    view: MetricCatalogView.LIST,
     modals: {
         chartUsageModal: {
             isOpen: false,
@@ -115,6 +118,12 @@ export const metricsCatalogSlice = createSlice({
             state.modals.metricPeekModal.isOpen = Boolean(action.payload);
             state.modals.metricPeekModal.metric = action.payload;
         },
+        setMetricCatalogView: (
+            state,
+            action: PayloadAction<MetricCatalogView>,
+        ) => {
+            state.view = action.payload;
+        },
     },
 });
 
@@ -127,4 +136,5 @@ export const {
     setCategoryPopoverIsClosing,
     setDescriptionPopoverIsClosing,
     toggleMetricPeekModal,
+    setMetricCatalogView,
 } = metricsCatalogSlice.actions;
