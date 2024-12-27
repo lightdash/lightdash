@@ -18,9 +18,9 @@ jobs:
         with:
           node-version: '20'
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm i --frozen-lockfile
       - name: Build
-        run: yarn build-published-packages
+        run: pnpm build-published-packages
       - name: Semantic Release
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
