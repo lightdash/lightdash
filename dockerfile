@@ -2,6 +2,11 @@
 # Stage 0: install dependencies
 # -----------------------------
 FROM node:20-bookworm-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
