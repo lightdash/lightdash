@@ -8,7 +8,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useRefreshTables } from '../hooks/useTables';
@@ -17,7 +17,7 @@ import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
 import { TablesPanel } from './TablesPanel';
 
 type Props = {
-    setSidebarOpen: Dispatch<SetStateAction<boolean>>;
+    setSidebarOpen: (isOpen: boolean) => void;
 };
 
 export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
