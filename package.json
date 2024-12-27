@@ -4,10 +4,6 @@
     "main": "index.js",
     "license": "MIT",
     "private": true,
-    "resolutions": {
-        "@types/react": "^18.2.48",
-        "@types/react-dom": "^18.2.18"
-    },
     "dependencies": {
         "tslib": "^2.6.2"
     },
