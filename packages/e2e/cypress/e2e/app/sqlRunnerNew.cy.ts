@@ -179,7 +179,7 @@ describe('SQL Runner (new)', () => {
         ).should('exist');
     });
 
-    it.only('Should save a chart', () => {
+    it('Should save a chart', () => {
         // Verify that the Run query button is disabled by default
         cy.contains('Run query').should('be.disabled');
 
