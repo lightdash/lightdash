@@ -72,12 +72,12 @@ jobs:
                   name: 'credentials.json'
                   json: ${{ secrets.GCP_CREDENTIALS }}
                   dir: './packages/e2e/cypress/fixtures/'
-            # Run API tests
-            - name: Cypress run
+            - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
-                  working-directory: ./packages/e2e
-                  spec: packages/e2e/cypress/e2e/api/**/*
+                  install: false
+                  working-directory: packages/e2e
+                  spec: cypress/e2e/api/**/*
                   # Set the PR deployment url and disable video recording
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}},video=false'
               env:
@@ -160,14 +160,15 @@ jobs:
                   name: 'credentials.json'
                   json: ${{ secrets.GCP_CREDENTIALS }}
                   dir: './packages/e2e/cypress/fixtures/'
-            # Run E2E tests
-            - name: Cypress run
+            - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
+                  install: false
                   browser: firefox
-                  working-directory: ./packages/e2e
+                  working-directory: packages/e2e
+                  spec: cypress/e2e/app/**/*
                   # Set the PR deployment url and disable video recording
-                  config: 'baseUrl=${{needs.prepare-preview.outputs.url}},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false'
+                  config: 'baseUrl=${{needs.prepare-preview.outputs.url}},video=false'
               env:
                   SPLIT: ${{ strategy.job-total }}
                   SPLIT_INDEX: ${{ strategy.job-index }}
@@ -236,13 +237,13 @@ jobs:
                   name: 'credentials.json'
                   json: ${{ secrets.GCP_CREDENTIALS }}
                   dir: './packages/e2e/cypress/fixtures/'
-            # Run E2E tests
-            - name: Cypress run
+            - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
+                  install: false
                   browser: firefox
-                  working-directory: ./packages/e2e
-                  spec: packages/e2e/cypress/e2e/app/dates.cy.ts
+                  working-directory: packages/e2e
+                  spec: cypress/e2e/app/dates.cy.ts
                   # Set the PR deployment url and disable video recording
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}},video=false'
               env:
