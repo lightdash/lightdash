@@ -7,6 +7,7 @@ settings:
 overrides:
   '@types/react': ^18.2.48
   '@types/react-dom': ^18.2.18
+  '@databricks/sql>lz4': '-'
 
 importers:
 
@@ -601,6 +602,9 @@ importers:
       cypress-split:
         specifier: ^1.24.0
         version: 1.24.0(@babel/core@7.25.2)
+      dayjs:
+        specifier: ^1.11.10
+        version: 1.11.10
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
@@ -5317,9 +5321,6 @@ packages:
   csv-stringify@6.5.1:
     resolution: {integrity: sha512-+9lpZfwpLntpTIEpFbwQyWuW/hmI/eHuJZD1XzeZpfZTqkf1fyvBbBLXTJJMsBuuS11uTShMqPwzx4A6ffXgRQ==}
 
-  cuint@0.2.2:
-    resolution: {integrity: sha512-d4ZVpCW31eWwCMe1YT3ur7mUDnTXbgwyzaL320DrcRT45rfjYxkt5QWLrmOJ+/UEAI2+fQgKe/fCjR8l4TpRgw==}
-
   cypress-file-upload@5.0.8:
     resolution: {integrity: sha512-+8VzNabRk3zG6x8f8BWArF/xA/W0VK4IZNx3MV0jFWrJS/qKn8eHfa5nU73P9fOQAgwHFJx7zjg4lwOnljMO8g==}
     engines: {node: '>=8.2.1'}
@@ -7763,10 +7764,6 @@ packages:
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
-
-  lz4@0.6.5:
-    resolution: {integrity: sha512-KSZcJU49QZOlJSItaeIU3p8WoAvkTmD9fJqeahQXNu1iQ/kR0/mQLdbrK8JY9MY8f6AhJoMrihp1nu1xDbscSQ==}
-    engines: {node: '>= 0.10'}
 
   magic-string@0.30.11:
     resolution: {integrity: sha512-+Wri9p0QHMy+545hKww7YAu5NyzF8iomPL/RQazugQ9+Ez4Ic3mERMd8ZTX5rfK944j+560ZJi8iAwgak1Ac7A==}
@@ -11031,9 +11028,6 @@ packages:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
 
-  xxhashjs@0.2.2:
-    resolution: {integrity: sha512-AkTuIuVTET12tpsVIQo+ZU6f/qDmKuRUcjaqR+OIvm+aCBsZ95i7UVY5WJ9TMsSaZ0DA2WxoZ4acu0sPH+OKAw==}
-
   y18n@4.0.3:
     resolution: {integrity: sha512-JKhqTOwSrqNA1NY5lSztJ1GrBiUodLMmIZuLiDaMRJ+itFd+ABVE8XBjOvIWL+rSqNDC74LCSFmlb/U4UZ4hJQ==}
 
@@ -12040,8 +12034,6 @@ snapshots:
       thrift: 0.16.0
       uuid: 9.0.1
       winston: 3.13.0
-    optionalDependencies:
-      lz4: 0.6.5
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -16618,9 +16610,6 @@ snapshots:
 
   csv-stringify@6.5.1: {}
 
-  cuint@0.2.2:
-    optional: true
-
   cypress-file-upload@5.0.8(cypress@13.14.2):
     dependencies:
       cypress: 13.14.2
@@ -19744,14 +19733,6 @@ snapshots:
   luxon@3.2.1: {}
 
   lz-string@1.5.0: {}
-
-  lz4@0.6.5:
-    dependencies:
-      buffer: 5.7.1
-      cuint: 0.2.2
-      nan: 2.18.0
-      xxhashjs: 0.2.2
-    optional: true
 
   magic-string@0.30.11:
     dependencies:
@@ -23695,11 +23676,6 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xtend@4.0.2: {}
-
-  xxhashjs@0.2.2:
-    dependencies:
-      cuint: 0.2.2
-    optional: true
 
   y18n@4.0.3: {}
 

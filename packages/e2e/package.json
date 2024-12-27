@@ -13,13 +13,13 @@
         "format": "pnpm run formatter ./cypress --check",
         "fix-format": "pnpm run formatter ./cypress --write"
     },
-    "devDependencies": {},
     "dependencies": {
         "@lightdash/common": "workspace:*",
         "@testing-library/cypress": "^10.0.2",
         "cypress": "^13.14.2",
         "cypress-file-upload": "^5.0.8",
         "cypress-split": "^1.24.0",
+        "dayjs": "^1.11.10",
         "js-yaml": "^4.1.0",
         "node-fetch": "^2.7.0"
     }
