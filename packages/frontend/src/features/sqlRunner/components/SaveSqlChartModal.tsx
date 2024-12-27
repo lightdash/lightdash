@@ -61,6 +61,11 @@ const SaveChartForm: FC<
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
+
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+
     const activeEditorTab = useAppSelector(
         (state) => state.sqlRunner.activeEditorTab,
     );
@@ -70,7 +75,7 @@ const SaveChartForm: FC<
             state,
             activeEditorTab === EditorTabs.SQL
                 ? ChartKind.TABLE
-                : ChartKind.VERTICAL_BAR,
+                : selectedChartType,
         ),
     );
 
