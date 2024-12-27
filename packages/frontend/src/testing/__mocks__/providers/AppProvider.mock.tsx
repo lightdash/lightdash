@@ -7,7 +7,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { type FC, type PropsWithChildren } from 'react';
 import { type UserWithAbility } from '../../../hooks/user/useUser';
-import { AppProviderContext } from '../../../providers/AppProvider';
+import AppProviderContext from '../../../providers/App/context';
 import mockHealthResponse from '../api/healthResponse.mock';
 import { mockUserResponse } from '../api/userResponse.mock';
 

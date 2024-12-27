@@ -28,7 +28,8 @@ import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/u
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
+import { SyncModalAction } from '../providers/types';
+import { useSyncModal } from '../providers/useSyncModal';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 
 export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {

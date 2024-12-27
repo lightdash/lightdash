@@ -16,7 +16,7 @@ import {
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';

@@ -1,182 +1,18 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Collapse,
-    CopyButton,
-    Group,
-    Stack,
-    Text,
-    Title,
-    Tooltip,
-    type ButtonProps,
-} from '@mantine/core';
+import { Button, Stack } from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
-import { type PolymorphicComponentProps } from '@mantine/utils';
 import {
     IconAlertTriangleFilled,
-    IconCheck,
-    IconChevronDown,
-    IconChevronUp,
     IconCircleCheckFilled,
-    IconCopy,
     IconInfoCircleFilled,
-    IconX,
-    type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import React, { useCallback, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useRef, type ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
-
-const ApiErrorDisplay = ({ apiError }: { apiError: ApiErrorDetail }) => {
-    return apiError.id ? (
-        <Stack spacing="xxs">
-            <Text mb={0}>{apiError.message}</Text>
-            <Text mb={0} weight="bold">
-                You can contact support with this error ID
-            </Text>
-            <Group spacing="xxs">
-                <Text mb={0} weight="bold">
-                    {apiError.id}
-                </Text>
-                <CopyButton value={apiError.id}>
-                    {({ copied, copy }) => (
-                        <Tooltip
-                            label={copied ? 'Copied' : 'Copy error ID'}
-                            withArrow
-                            position="right"
-                        >
-                            <ActionIcon
-                                size="xs"
-                                onClick={copy}
-                                variant={'transparent'}
-                            >
-                                <MantineIcon
-                                    color={'white'}
-                                    icon={copied ? IconCheck : IconCopy}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </CopyButton>
-            </Group>
-        </Stack>
-    ) : (
-        <>{apiError.message}</>
-    );
-};
-
-const MultipleToastBody = ({
-    toastsData,
-    onCloseError,
-}: {
-    title?: ReactNode;
-    toastsData: NotificationData[];
-    onCloseError?: (errorData: NotificationData) => void;
-}) => {
-    const [listCollapsed, setListCollapsed] = useState(true);
-
-    return (
-        <Stack spacing="xs" align="stretch">
-            <Group>
-                <Title order={6}>Errors</Title>
-                <Button
-                    size="xs"
-                    compact
-                    variant="outline"
-                    color="red.1"
-                    rightIcon={
-                        <MantineIcon
-                            color="red.1"
-                            icon={
-                                listCollapsed ? IconChevronUp : IconChevronDown
-                            }
-                        />
-                    }
-                    onClick={() => setListCollapsed(!listCollapsed)}
-                >
-                    <Text>{`${listCollapsed ? 'Show' : 'Hide'} ${
-                        toastsData.length
-                    }`}</Text>
-                </Button>
-            </Group>
-
-            <Collapse
-                in={!listCollapsed}
-                style={{
-                    maxHeight: 155,
-                    overflow: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                }}
-            >
-                <Stack spacing="xs" pb="sm">
-                    {toastsData.map((toastData, index) => (
-                        <Group
-                            key={`${toastData.subtitle}-${index}`}
-                            position="apart"
-                            spacing="xxs"
-                            noWrap
-                            sx={(theme) => ({
-                                width: '100%',
-                                border: `1px solid ${theme.colors.red[3]}`,
-                                borderRadius: '4px',
-                                padding: theme.spacing.xs,
-                            })}
-                        >
-                            {toastData.apiError ? (
-                                <ApiErrorDisplay
-                                    apiError={toastData.apiError}
-                                />
-                            ) : (
-                                <>
-                                    {toastData.title && (
-                                        <Title order={6}>
-                                            {toastData.title}
-                                        </Title>
-                                    )}
-                                    {toastData.subtitle && (
-                                        <MarkdownPreview
-                                            source={toastData.subtitle.toString()}
-                                            linkTarget="_blank"
-                                            style={{
-                                                backgroundColor: 'transparent',
-                                                color: 'white',
-                                                fontSize: '12px',
-                                            }}
-                                        />
-                                    )}
-                                </>
-                            )}
-
-                            <ActionIcon
-                                variant="transparent"
-                                size="xs"
-                                onClick={() => onCloseError?.(toastData)}
-                            >
-                                <MantineIcon icon={IconX} color="white" />
-                            </ActionIcon>
-                        </Group>
-                    ))}
-                </Stack>
-            </Collapse>
-        </Stack>
-    );
-};
-
-type NotificationData = Omit<
-    Parameters<typeof notifications.show>[0],
-    'message' | 'key'
-> & {
-    key?: string;
-    subtitle?: string | ReactNode;
-    action?: PolymorphicComponentProps<'button', ButtonProps> & {
-        icon?: Icon;
-    };
-    apiError?: ApiErrorDetail;
-    messageKey?: string;
-};
+import ApiErrorDisplay from './ApiErrorDisplay';
+import MultipleToastBody from './MultipleToastBody';
+import { type NotificationData } from './types';
 
 const useToaster = () => {
     const openedKeys = useRef(new Set<string>());

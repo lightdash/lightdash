@@ -14,12 +14,13 @@ import { memo, useState, type FC } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import { Can } from '../common/Authorization';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
-import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
+import SpaceActionModal from '../common/SpaceActionModal';
+import { ActionType } from '../common/SpaceActionModal/types';
 
 type Props = {
     projectUuid: string;

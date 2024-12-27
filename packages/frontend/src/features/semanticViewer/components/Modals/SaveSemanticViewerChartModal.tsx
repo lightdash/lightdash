@@ -13,9 +13,8 @@ import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import SaveToSpaceForm, {
-    saveToSpaceSchema,
-} from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+import SaveToSpaceForm from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+import { saveToSpaceSchema } from '../../../../components/common/modal/ChartCreateModal/types';
 import { selectCompleteConfigByKind } from '../../../../components/DataViz/store/selectors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {

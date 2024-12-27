@@ -36,7 +36,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
@@ -48,12 +48,10 @@ import {
     setCategoryFilters,
     toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
+import { MetricCatalogView } from '../types';
 import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
-import {
-    MetricCatalogView,
-    MetricsTableTopToolbar,
-} from './MetricsTableTopToolbar';
+import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import MetricTree from './MetricTree';
 
 export const MetricsTable = () => {
@@ -76,14 +74,16 @@ export const MetricsTable = () => {
     const isMetricPeekModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
     );
+    const metricCatalogView = useAppSelector(
+        (state) => state.metricsCatalog.view,
+    );
+    const prevView = useRef(metricCatalogView);
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
-    const [metricCatalogView, setMetricCatalogView] =
-        useState<MetricCatalogView>(MetricCatalogView.LIST);
 
     // Enable sorting by highest popularity(how many charts use the metric) by default
     const initialSorting = [
@@ -177,10 +177,6 @@ export const MetricsTable = () => {
     useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
-
-    const handleViewChange = (view: MetricCatalogView) => {
-        setMetricCatalogView(view);
-    };
 
     const handleSetCategoryFilters = (selectedCategories: string[]) => {
         dispatch(setCategoryFilters(selectedCategories));
@@ -461,8 +457,6 @@ export const MetricsTable = () => {
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
-                    onMetricCatalogViewChange={handleViewChange}
-                    metricCatalogView={metricCatalogView}
                     isValidMetricsTree={isValidMetricsTree}
                     segmentedControlTooltipLabel={segmentedControlTooltipLabel}
                 />
@@ -544,6 +538,21 @@ export const MetricsTable = () => {
         });
     }, [canManageTags, dataHasCategories, table]);
 
+    useEffect(
+        function handleRefetchOnViewChange() {
+            if (
+                data &&
+                metricCatalogView === MetricCatalogView.LIST &&
+                prevView.current === MetricCatalogView.TREE
+            ) {
+                table.setRowSelection({}); // Force a re-render of the table
+            }
+
+            prevView.current = metricCatalogView;
+        },
+        [metricCatalogView, data, table],
+    );
+
     switch (metricCatalogView) {
         case MetricCatalogView.LIST:
             return (
@@ -573,8 +582,6 @@ export const MetricsTable = () => {
                             showCategoriesFilter={
                                 canManageTags || dataHasCategories
                             }
-                            onMetricCatalogViewChange={handleViewChange}
-                            metricCatalogView={metricCatalogView}
                             isValidMetricsTree={isValidMetricsTree}
                             segmentedControlTooltipLabel={
                                 segmentedControlTooltipLabel

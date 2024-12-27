@@ -52,8 +52,9 @@ import {
     useFeatureFlagEnabled,
 } from '../hooks/useFeatureFlagEnabled';
 import { useProject } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
-import { TrackPage, useTracking } from '../providers/TrackingProvider';
+import useApp from '../providers/App/useApp';
+import { TrackPage } from '../providers/Tracking/TrackingProvider';
+import useTracking from '../providers/Tracking/useTracking';
 import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 

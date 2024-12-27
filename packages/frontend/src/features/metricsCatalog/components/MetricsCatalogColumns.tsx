@@ -1,9 +1,9 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Flex, Group, Text, Tooltip } from '@mantine/core';
+import { Box, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
-import { useMemo, type FC, type SVGProps } from 'react';
+import { useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     Description,
@@ -15,38 +15,11 @@ import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
 import { ExploreMetricButton } from './ExploreMetricButton';
+import { MetricCatalogColumnHeaderCell } from './MetricCatalogColumnHeaderCell';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
-
-const HeaderCell = ({
-    children,
-    Icon,
-    tooltipLabel,
-}: {
-    children: React.ReactNode;
-    tooltipLabel?: string;
-    Icon: FC<SVGProps<SVGSVGElement>>;
-}) => {
-    return (
-        <Tooltip variant="xs" label={tooltipLabel} disabled={!tooltipLabel}>
-            <Group spacing={6} mr={6} h="100%" noWrap>
-                <Icon />
-                <Text
-                    fz="xs"
-                    fw={600}
-                    color="dark.3"
-                    sx={{
-                        userSelect: 'none',
-                    }}
-                >
-                    {children}
-                </Text>
-            </Group>
-        </Tooltip>
-    );
-};
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -56,7 +29,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableEditing: false,
         size: 400,
         Header: ({ column }) => (
-            <HeaderCell Icon={Hash}>{column.columnDef.header}</HeaderCell>
+            <MetricCatalogColumnHeaderCell Icon={Hash}>
+                {column.columnDef.header}
+            </MetricCatalogColumnHeaderCell>
         ),
         Cell: ({ row, table }) => {
             const canManageExplore = useAppSelector(
@@ -91,12 +66,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         size: 500,
         header: 'Description',
         Header: ({ column }) => (
-            <HeaderCell
+            <MetricCatalogColumnHeaderCell
                 Icon={Description}
                 tooltipLabel="Defined in the metric's .yml file"
             >
                 {column.columnDef.header}
-            </HeaderCell>
+            </MetricCatalogColumnHeaderCell>
         ),
         Cell: ({ row, table }) => {
             return <MetricsCatalogColumnDescription row={row} table={table} />;
@@ -121,12 +96,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Header: ({ column }) => (
-            <HeaderCell
+            <MetricCatalogColumnHeaderCell
                 Icon={Tag}
                 tooltipLabel="Categories help you organize your metrics and KPIs. Click on the cell to add or edit a category, if you have the required permissions."
             >
                 {column.columnDef.header}
-            </HeaderCell>
+            </MetricCatalogColumnHeaderCell>
         ),
         Edit: ({ table, row, cell }) => {
             const dispatch = useAppDispatch();
@@ -270,12 +245,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Header: ({ column }) => (
-            <HeaderCell
+            <MetricCatalogColumnHeaderCell
                 Icon={Popularity}
                 tooltipLabel="Shows how many charts use this metric"
             >
                 {column.columnDef.header}
-            </HeaderCell>
+            </MetricCatalogColumnHeaderCell>
         ),
         Cell: ({ row }) => <MetricChartUsageButton row={row} />,
     },

@@ -13,11 +13,9 @@ import { useChartPinningMutation } from '../hooks/pinning/useChartPinningMutatio
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useApp } from '../providers/AppProvider';
-import {
-    ExplorerProvider,
-    ExplorerSection,
-} from '../providers/ExplorerProvider';
+import useApp from '../providers/App/useApp';
+import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
+import { ExplorerSection } from '../providers/Explorer/types';
 
 const SavedExplorer = () => {
     const { health } = useApp();

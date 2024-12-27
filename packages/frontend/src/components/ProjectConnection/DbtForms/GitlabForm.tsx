@@ -7,7 +7,7 @@ import {
     isGitRepository,
     startWithSlash,
 } from '../../../utils/fieldValidators';
-import { useProjectFormContext } from '../ProjectFormProvider';
+import { useProjectFormContext } from '../useProjectFormContext';
 
 const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();

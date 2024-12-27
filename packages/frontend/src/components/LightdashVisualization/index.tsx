@@ -6,7 +6,7 @@ import SimpleChart from '../SimpleChart';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
-import { useVisualizationContext } from './VisualizationProvider';
+import { useVisualizationContext } from './useVisualizationContext';
 
 interface LightdashVisualizationProps {
     isDashboard?: boolean;

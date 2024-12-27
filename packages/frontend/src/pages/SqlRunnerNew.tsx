@@ -1,7 +1,7 @@
 import { getFieldQuoteChar } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount, useUnmount } from 'react-use';
@@ -29,6 +29,7 @@ import {
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
+    setSidebarOpen,
     setSql,
     setState,
     setWarehouseConnectionType,
@@ -57,7 +58,9 @@ const SqlRunnerNew = ({
     const location = useLocation<{ sql?: string }>();
     const history = useHistory();
 
-    const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
+    const isLeftSidebarOpen = useAppSelector(
+        (state) => state.sqlRunner.isLeftSidebarOpen,
+    );
     const { data: project } = useProject(projectUuid);
     const { showToastError } = useToaster();
 
@@ -147,6 +150,10 @@ const SqlRunnerNew = ({
         }
     }, [dispatch, project?.warehouseConnection?.type]);
 
+    const handleSetSidebarOpen = (isOpen: boolean) => {
+        dispatch(setSidebarOpen(isOpen));
+    };
+
     if (chartError) {
         return <ErrorState error={chartError.error} />;
     }
@@ -164,7 +171,7 @@ const SqlRunnerNew = ({
                 )
             }
             isSidebarOpen={isLeftSidebarOpen}
-            sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
+            sidebar={<Sidebar setSidebarOpen={handleSetSidebarOpen} />}
             noSidebarPadding
         >
             <Group
@@ -191,7 +198,7 @@ const SqlRunnerNew = ({
                             >
                                 <ActionIcon
                                     size="sm"
-                                    onClick={() => setLeftSidebarOpen(true)}
+                                    onClick={() => handleSetSidebarOpen(true)}
                                 >
                                     <MantineIcon
                                         icon={IconLayoutSidebarLeftExpand}

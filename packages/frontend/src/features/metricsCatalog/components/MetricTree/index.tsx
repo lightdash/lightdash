@@ -4,7 +4,8 @@ import {
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Button, useMantineTheme, type MantineTheme } from '@mantine/core';
+import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     addEdge,
     Background,
@@ -22,6 +23,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateMetricsTreeEdge,
@@ -88,7 +90,7 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
 const getNodeLayout = (
     nodes: MetricTreeNode[],
     edges: Edge[],
-    _options?: {},
+    theme: MantineTheme,
 ): {
     nodes: MetricTreeNode[];
     edges: Edge[];
@@ -168,12 +170,14 @@ const getNodeLayout = (
             },
             position: { x: left - mainPadding, y: top - mainPadding },
             style: {
-                backgroundColor: '#d8c2fa',
-                opacity: 0.75,
+                backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
+                border: `1px solid ${theme.colors.gray[3]}`,
+                boxShadow: theme.shadows.subtle,
                 height: bottom - top + mainPadding * 2,
                 width: right - left + mainPadding * 2,
                 pointerEvents: 'none' as const,
-                border: '1px solid #ccc',
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.md,
             },
             type: 'group',
         },
@@ -186,6 +190,7 @@ const getNodeLayout = (
 };
 
 const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
+    const theme = useMantineTheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -395,13 +400,13 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     );
 
     const onLayout = useCallback(() => {
-        const layout = getNodeLayout(currentNodes, currentEdges);
+        const layout = getNodeLayout(currentNodes, currentEdges, theme);
 
         setCurrentNodes(layout.nodes);
         setCurrentEdges(layout.edges);
 
         setLayoutReady(true);
-    }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges]);
+    }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, theme]);
 
     // Runs layout when the nodes are initialized
     useEffect(() => {
@@ -466,7 +471,23 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
             >
                 {!viewOnly && (
                     <Panel position="bottom-left">
-                        <button onClick={() => onLayout()}>Clean up</button>
+                        <Button
+                            variant="default"
+                            radius="md"
+                            onClick={() => onLayout()}
+                            size="xs"
+                            sx={{
+                                boxShadow: theme.shadows.subtle,
+                            }}
+                            leftIcon={
+                                <MantineIcon
+                                    color="gray.5"
+                                    icon={IconLayoutGridRemove}
+                                />
+                            }
+                        >
+                            Clean up
+                        </Button>
                     </Panel>
                 )}
                 {!viewOnly && <Background />}

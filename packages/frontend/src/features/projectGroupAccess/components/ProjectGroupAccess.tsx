@@ -10,7 +10,7 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { TrackPage } from '../../../providers/TrackingProvider';
+import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
 import {
     useAddProjectGroupAccessMutation,

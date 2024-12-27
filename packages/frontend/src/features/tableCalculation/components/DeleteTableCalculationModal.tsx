@@ -9,8 +9,8 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { type FC } from 'react';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 
 type Props = Pick<ModalProps, 'onClose'> & {

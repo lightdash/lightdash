@@ -11,12 +11,8 @@ import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useHistory, useLocation } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import {
-    getReactGridLayoutConfig,
-    getResponsiveGridLayoutProps,
-} from '../../pages/Dashboard';
-import { useDashboardContext } from '../../providers/DashboardProvider';
-import { TrackSection } from '../../providers/TrackingProvider';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
@@ -26,6 +22,10 @@ import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
+import {
+    getReactGridLayoutConfig,
+    getResponsiveGridLayoutProps,
+} from './gridUtils';
 import DraggableTab from './Tab';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);

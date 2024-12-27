@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import { useSpaceSummaries } from '../useSpaces';
 
 const useCreateInAnySpaceAccess = (

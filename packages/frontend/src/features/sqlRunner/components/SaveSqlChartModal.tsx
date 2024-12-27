@@ -22,9 +22,8 @@ import {
 } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
-import SaveToSpaceForm, {
-    saveToSpaceSchema,
-} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -178,6 +177,7 @@ const SaveChartForm: FC<
                     <Textarea
                         label="Description"
                         {...form.getInputProps('description')}
+                        value={form.values.description ?? ''}
                     />
                 </Stack>
                 <SaveToSpaceForm

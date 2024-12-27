@@ -11,13 +11,13 @@ import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
-import { isPieVisualizationConfig } from '../LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import { isPieVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 export type PieChartContextMenuProps = {
     menuPosition?: {

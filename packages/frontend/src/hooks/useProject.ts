@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
-import { useActiveJob } from '../providers/ActiveJobProvider';
+import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 

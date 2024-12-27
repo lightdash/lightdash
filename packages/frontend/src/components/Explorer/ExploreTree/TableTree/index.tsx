@@ -9,7 +9,7 @@ import type { FC } from 'react';
 import { useToggle } from 'react-use';
 
 import { getMantineThemeOverride } from '../../../../mantineTheme';
-import { TrackSection } from '../../../../providers/TrackingProvider';
+import { TrackSection } from '../../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
 import { TableItemDetailPreview } from './ItemDetailPreview';

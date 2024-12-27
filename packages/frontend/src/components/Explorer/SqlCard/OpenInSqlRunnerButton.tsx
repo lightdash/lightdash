@@ -3,7 +3,7 @@ import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 
 interface OpenInSqlRunnerButtonProps {

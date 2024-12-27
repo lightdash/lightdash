@@ -13,8 +13,9 @@ import { IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
-import { FilterInputComponent, getFilterOperatorOptions } from './FilterInputs';
-import { useFiltersContext } from './FiltersProvider';
+import FilterInputComponent from './FilterInputs';
+import { getFilterOperatorOptions } from './FilterInputs/utils';
+import useFiltersContext from './useFiltersContext';
 
 type Props = {
     fields: FilterableField[];

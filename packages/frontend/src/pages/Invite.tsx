@@ -28,8 +28,8 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useInviteLink } from '../hooks/useInviteLink';
-import { useApp } from '../providers/AppProvider';
-import { useTracking } from '../providers/TrackingProvider';
+import useApp from '../providers/App/useApp';
+import useTracking from '../providers/Tracking/useTracking';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 interface WelcomeCardProps {

@@ -4,10 +4,10 @@ import React from 'react';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard';
+} from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ConfigTabs } from './BigNumberConfigTabs';
 
 const BigNumberConfig: React.FC = () => {
