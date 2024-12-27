@@ -24,7 +24,10 @@ import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
-import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
+import {
+    selectCompleteConfigByKind,
+    selectCurrentVizConfig,
+} from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
@@ -58,9 +61,7 @@ const SaveChartForm: FC<
 
     const name = useAppSelector((state) => state.sqlRunner.name);
     const description = useAppSelector((state) => state.sqlRunner.description);
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
+
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
@@ -69,7 +70,7 @@ const SaveChartForm: FC<
     );
 
     const currentVizConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, selectedChartType),
+        selectCurrentVizConfig(state),
     );
 
     // TODO: this sometimes runs `/api/v1/projects//spaces` request
@@ -128,6 +129,11 @@ const SaveChartForm: FC<
             : undefined;
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
+
+        console.log('currentVizConfig', {
+            currentVizConfig,
+            defaultChartConfig,
+        });
 
         const currentConfig = currentVizConfig ?? defaultChartConfig;
 

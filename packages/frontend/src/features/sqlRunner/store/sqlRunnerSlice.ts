@@ -148,7 +148,7 @@ export const initialState: SqlRunnerState = {
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
-    selectedChartType: ChartKind.TABLE,
+    selectedChartType: ChartKind.VERTICAL_BAR,
     userHasSelectedChartType: false,
     resultsTableConfig: undefined,
     modals: {
