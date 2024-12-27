@@ -113,6 +113,7 @@ jobs:
       - name: Run Cypress
         uses: cypress-io/github-action@v6
         with:
+          install: true
           working-directory: packages/e2e
           spec: cypress/cli/**/*
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
