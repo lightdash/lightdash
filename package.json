@@ -94,7 +94,7 @@
         "build": "pnpm -r --stream -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend build",
         "build-published-packages": "pnpm -r --stream -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli build",
         "start": "pnpm run backend-start",
-        "prepare": "husky install",
+        "prepare": "husky install || true",
         "load:env": "dotenv -c -e .env.development.local",
         "generate-api": "pnpm run common-build && pnpm -F backend generate-api && pnpm -F backend formatter --write ./src/generated",
         "generate-api-dev": "pnpm run common-build && pnpm -F backend generate-api-dev",
