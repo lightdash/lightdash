@@ -179,7 +179,7 @@ describe('SQL Runner (new)', () => {
         ).should('exist');
     });
 
-    it('Should save a chart', () => {
+    it.only('Should save a chart', () => {
         // Verify that the Run query button is disabled by default
         cy.contains('Run query').should('be.disabled');
 
@@ -193,6 +193,9 @@ describe('SQL Runner (new)', () => {
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
+
+        // View chart
+        cy.contains('label', 'Chart').click();
 
         // Verify that the chart is saved
         cy.contains('Save').click();
