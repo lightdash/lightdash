@@ -1,5 +1,5 @@
 import { friendlyName } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine/core';
+import { Paper, Text } from '@mantine/core';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 
@@ -14,34 +14,48 @@ const MetricTreeUnconnectedNode: React.FC<
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
     return (
-        <div
-            style={{
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                backgroundColor: '#fff',
-                width: '170px',
-                height: '38px',
-            }}
+        <Paper
+            miw={150}
+            fz="xs"
+            p="xs"
+            sx={(theme) => ({
+                '&[data-with-border]': {
+                    border: `none`,
+                    borderRadius: theme.radius.sm,
+                    background: `linear-gradient(90deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%), 
+                                linear-gradient(90deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%), 
+                                linear-gradient(0deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%), 
+                                linear-gradient(0deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%)`,
+                    backgroundColor: theme.colors.gray[0],
+                    backgroundRepeat: 'repeat-x, repeat-x, repeat-y, repeat-y',
+                    backgroundSize: '6px 1px, 6px 1px, 1px 6px, 1px 6px',
+                    backgroundPosition: '0% 0%, 100% 100%, 0% 100%, 100% 0px',
+                    animation: 'dash 15s linear infinite',
+                },
+                '@keyframes dash': {
+                    to: {
+                        backgroundPosition:
+                            '100% 0%, 0% 100%, 0% 0%, 100% 100%',
+                    },
+                },
+            })}
         >
             <Handle
                 type="target"
                 position={Position.Top}
                 hidden={!isConnectable}
             />
-            <Stack key={data.label}>
-                <Group>
-                    <Text size="xs" c="dimmed" truncate>
-                        {title}
-                    </Text>
-                </Group>
-            </Stack>
+
+            <Text size="xs" c="dark.3" fw={500} truncate ta="center">
+                {title}
+            </Text>
+
             <Handle
                 type="source"
                 position={Position.Bottom}
                 hidden={!isConnectable}
             />
-        </div>
+        </Paper>
     );
 };
 
