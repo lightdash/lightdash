@@ -1,3 +1,10 @@
+## [0.1428.7](https://github.com/lightdash/lightdash/compare/0.1428.6...0.1428.7) (2024-12-27)
+
+
+### Bug Fixes
+
+* refetch when tree to list view and style changes ([#13032](https://github.com/lightdash/lightdash/issues/13032)) ([dc2a1a8](https://github.com/lightdash/lightdash/commit/dc2a1a818c515faaac921427764ac3f82d957a73))
+
 ## [0.1428.6](https://github.com/lightdash/lightdash/compare/0.1428.5...0.1428.6) (2024-12-27)
 
 
