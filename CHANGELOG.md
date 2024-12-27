@@ -1,3 +1,10 @@
+## [0.1428.6](https://github.com/lightdash/lightdash/compare/0.1428.5...0.1428.6) (2024-12-27)
+
+
+### Bug Fixes
+
+* show loading spinner in between empty states ([#13031](https://github.com/lightdash/lightdash/issues/13031)) ([18d1044](https://github.com/lightdash/lightdash/commit/18d104447c83567eab01213bf7db5a158d1b5d4f))
+
 ## [0.1428.5](https://github.com/lightdash/lightdash/compare/0.1428.4...0.1428.5) (2024-12-27)
 
 
