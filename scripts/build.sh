@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-pnpm i
+pnpm install
 pnpm common-build
 pnpm warehouses-build
 pnpm cli-build

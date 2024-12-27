@@ -14,7 +14,7 @@ tasks:
 
   - name: Run FE & BE
     init: |
-      pnpm i
+      pnpm install
       pnpm common-build
       pnpm warehouses-build
     command: |

@@ -9,4 +9,4 @@ rm -rf packages/*/build
 rm -rf packages/*/dist
 
 # Reinstall dependencies
-pnpm i
+pnpm install
