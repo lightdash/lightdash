@@ -445,20 +445,11 @@ export const getDefaultMetricTreeNodeDateRange = (
                 now.endOf('day').subtract(1, 'day').toDate(),
             ];
         case TimeFrames.WEEK:
-            return [
-                now.startOf('isoWeek').subtract(1, 'week').toDate(),
-                now.endOf('isoWeek').subtract(1, 'week').toDate(),
-            ];
+            return [now.startOf('isoWeek').toDate(), now.toDate()];
         case TimeFrames.MONTH:
-            return [
-                now.startOf('month').subtract(1, 'month').toDate(),
-                now.endOf('month').subtract(1, 'month').toDate(),
-            ];
+            return [now.startOf('month').toDate(), now.toDate()];
         case TimeFrames.YEAR:
-            return [
-                now.startOf('year').subtract(1, 'year').toDate(),
-                now.endOf('year').subtract(1, 'year').toDate(),
-            ];
+            return [now.startOf('year').toDate(), now.toDate()];
         default:
             return assertUnimplementedTimeframe(timeFrame);
     }
