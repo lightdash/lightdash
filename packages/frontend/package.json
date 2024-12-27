@@ -3,7 +3,7 @@
     "version": "0.1428.8",
     "private": true,
     "scripts": {
-        "start": "vite",
+        "dev": "vite",
         "typecheck": "tsc --project tsconfig.build.json --noEmit",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "serve": "vite preview",
