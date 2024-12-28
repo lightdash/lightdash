@@ -1,6 +1,6 @@
-name: Setup Node and PNPM
+name: Setup Node, PNPM, and Cypress
 
-description: Sets up Node.js, PNPM, and installs dependencies.
+description: Sets up Node.js, PNPM, and Cypress.
 
 runs:
     using: 'composite'
@@ -38,3 +38,8 @@ runs:
         - name: Install Dependencies
           run: pnpm install --frozen-lockfile --prefer-offline
           shell: bash
+
+        - name: Cypress install
+          uses: cypress-io/github-action@v6
+          with:
+              runTests: false
