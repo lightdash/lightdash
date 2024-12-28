@@ -30,3 +30,4 @@ runs:
         - uses: cypress-io/github-action@v6
           with:
             runTests: false
+            working-directory: packages/e2e
