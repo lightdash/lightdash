@@ -57,7 +57,7 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
             - name: Setup Node and PNPM
-              uses: .github/workflows/_setup_node_pnpm_cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
 
             ## Install pip
             - uses: actions/setup-python@v4
