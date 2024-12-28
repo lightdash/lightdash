@@ -24,10 +24,12 @@ runs:
 
         - uses: actions/cache@v4
           with:
-            path: ~/.cache/Cypress
-            key: cypress-${{ runner.os }}-cypress-${{ hashFiles('pnpm-lock.yaml') }}
+              path: ~/.cache/Cypress
+              key: cypress-${{ runner.os }}-cypress-${{ hashFiles('pnpm-lock.yaml') }}
 
         - uses: cypress-io/github-action@v6
           with:
-            runTests: false
-            working-directory: packages/e2e
+              runTests: false
+
+        - run: pnpm cypress verify || pnpm cypress install
+          working-directory: packages/e2e
