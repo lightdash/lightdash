@@ -110,17 +110,10 @@ jobs:
                   lightdash_version=$(lightdash --version)
                   package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
                   if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
-            - name: Install Cypress
-              uses: cypress-io/github-action@v6
-              with:
-                  working-directory: .
-                  install: true
-                  runTests: false
             - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
                   install: false
-                  runTests: true
                   working-directory: packages/e2e
                   spec: cypress/cli/**/*
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
