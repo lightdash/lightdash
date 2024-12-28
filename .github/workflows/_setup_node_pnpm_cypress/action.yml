@@ -27,10 +27,6 @@ runs:
               path: ~/.cache/Cypress
               key: cypress-${{ runner.os }}-cypress-${{ hashFiles('pnpm-lock.yaml') }}
 
-        - uses: cypress-io/github-action@v6
-          with:
-              runTests: false
-
         - run: pnpm -F e2e exec cypress verify || pnpm -F e2e exec cypress install
           working-directory: packages/e2e
           shell: bash
