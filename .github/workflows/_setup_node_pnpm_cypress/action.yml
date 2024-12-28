@@ -33,3 +33,4 @@ runs:
 
         - run: pnpm cypress verify || pnpm cypress install
           working-directory: packages/e2e
+          shell: bash
