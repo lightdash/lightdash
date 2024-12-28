@@ -87,17 +87,31 @@ jobs:
                   PGUSER: postgres
                   PGDATABASE: postgres
                   SEED_SCHEMA: jaffle-${{strategy.job-index}}
-            # Install packages
-            - uses: pnpm/action-setup@v4
-              with:
-                  version: 9
+            # Setup Node/PNPM and install dependencies
             - uses: actions/setup-node@v4
               with:
                   node-version: '20'
                   cache: 'pnpm'
                   cache-dependency-path: 'pnpm-lock.yaml'
-            - name: Install packages
-              run: pnpm install --frozen-lockfile
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+                  run_install: false
+            - name: Get pnpm store directory
+              id: pnpm-store
+              run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+            - name: Use pnpm store
+              uses: actions/cache@v4
+              id: pnpm-cache
+              with:
+                path: |
+                  ~/.cache/Cypress
+                  ${{ steps.pnpm-store.outputs.pnpm_cache_dir }}
+                key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+                restore-keys: |
+                  ${{ runner.os }}-pnpm-
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile --prefer-offline
             # Build packages
             - name: Build packages/common module
               run: pnpm common-build
@@ -110,11 +124,13 @@ jobs:
                   lightdash_version=$(lightdash --version)
                   package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
                   if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+            # Run Cypress
             - name: Run Cypress
               uses: cypress-io/github-action@v6
               with:
                   install: false
                   working-directory: packages/e2e
+                  command: pnpm cypress run
                   spec: cypress/cli/**/*
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
               env:
