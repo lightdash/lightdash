@@ -36,3 +36,4 @@ runs:
 
         - name: Install Dependencies
           run: pnpm install --frozen-lockfile --prefer-offline
+          shell: bash
