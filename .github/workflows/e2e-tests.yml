@@ -51,20 +51,12 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
-            # Install packages
-            - uses: pnpm/action-setup@v4
-              with:
-                  version: 9
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'pnpm'
-                  cache-dependency-path: 'pnpm-lock.yaml'
-            - name: Install packages
-              run: pnpm install --frozen-lockfile
+            - name: Setup Node, PNPM, and Cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
             # Build packages
             - name: Build packages/common module
               run: pnpm common-build
+            # Prepare bigquery credentials for Cypress
             - name: create-json
               id: create-json
               uses: jsdaniell/create-json@v1.2.2
@@ -138,17 +130,8 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
-            # Install packages
-            - uses: pnpm/action-setup@v4
-              with:
-                  version: 9
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'pnpm'
-                  cache-dependency-path: 'pnpm-lock.yaml'
-            - name: Install packages
-              run: pnpm install --frozen-lockfile
+            - name: Setup Node, PNPM, and Cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
             # Build packages
             - name: Build packages/common module
               run: pnpm common-build
@@ -214,18 +197,8 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
-            # Install packages
-            - uses: pnpm/action-setup@v4
-              with:
-                  node-version: '20'
-                  version: 9
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'pnpm'
-                  cache-dependency-path: 'pnpm-lock.yaml'
-            - name: Install packages
-              run: pnpm install --frozen-lockfile
+            - name: Setup Node, PNPM, and Cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
             # Build packages
             - name: Build packages/common module
               run: pnpm common-build
