@@ -31,6 +31,6 @@ runs:
           with:
               runTests: false
 
-        - run: pnpm cypress verify || pnpm cypress install
+        - run: pnpm -F e2e exec cypress verify || pnpm -F e2e exec cypress install
           working-directory: packages/e2e
           shell: bash
