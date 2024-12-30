@@ -117,7 +117,7 @@ export const TableFields: FC = () => {
     });
 
     return (
-        <Stack spacing="xs" h="calc(100% - 20px)" pt="sm" py="xs">
+        <Stack spacing="xs" h="100%" pt="sm">
             {activeTable ? (
                 <Box px="sm">
                     <Text fz="sm" fw={600} c="gray.7">
