@@ -41,7 +41,7 @@ const MinimalDashboard: FC = () => {
         data: scheduler,
         isError: isSchedulerError,
         error: schedulerError,
-    } = useScheduler(schedulerUuid!, {
+    } = useScheduler(schedulerUuid, {
         enabled: !!schedulerUuid && !sendNowSchedulerFilters,
     });
 

@@ -168,7 +168,8 @@ const Dashboard: FC = () => {
     );
 
     const handleDashboardPinning = useCallback(() => {
-        toggleDashboardPinning({ uuid: dashboardUuid! });
+        if (!dashboardUuid) return;
+        toggleDashboardPinning({ uuid: dashboardUuid });
     }, [dashboardUuid, toggleDashboardPinning]);
 
     const isPinned = useMemo(() => {

@@ -56,7 +56,7 @@ const ChartHistory = () => {
     const chartQuery = useSavedQuery({
         id: savedQueryUuid,
     });
-    const historyQuery = useChartHistory(savedQueryUuid!);
+    const historyQuery = useChartHistory(savedQueryUuid);
 
     useEffect(() => {
         const currentVersion = historyQuery.data?.history[0];
@@ -66,16 +66,16 @@ const ChartHistory = () => {
     }, [selectedVersionUuid, historyQuery.data]);
 
     const chartVersionQuery = useChartVersion(
-        savedQueryUuid!,
+        savedQueryUuid,
         selectedVersionUuid,
     );
 
     const queryResults = useChartVersionResultsMutation(
-        savedQueryUuid!,
+        savedQueryUuid,
         selectedVersionUuid,
     );
 
-    const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid!, {
+    const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
         onSuccess: () => {
             history.push(
                 `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,

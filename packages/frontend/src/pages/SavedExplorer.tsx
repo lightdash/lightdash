@@ -48,7 +48,8 @@ const SavedExplorer = () => {
     );
 
     const handleChartPinning = useCallback(() => {
-        togglePinChart({ uuid: savedQueryUuid! });
+        if (!savedQueryUuid) return;
+        togglePinChart({ uuid: savedQueryUuid });
     }, [savedQueryUuid, togglePinChart]);
 
     const isPinned = useMemo(() => {

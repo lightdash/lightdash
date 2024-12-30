@@ -114,12 +114,18 @@ const updateSpace = async (
         body: JSON.stringify(data),
     });
 
-export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
+export const useUpdateMutation = (
+    projectUuid: string,
+    spaceUuid: string | undefined,
+) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, UpdateSpace>(
-        (data) => updateSpace(projectUuid, spaceUuid, data),
+        (data) =>
+            projectUuid && spaceUuid
+                ? updateSpace(projectUuid, spaceUuid, data)
+                : Promise.reject(),
         {
             mutationKey: ['space_update', projectUuid],
             onSuccess: async (data) => {

@@ -133,7 +133,7 @@ const Invite: FC = () => {
             });
         },
     });
-    const inviteLinkQuery = useInviteLink(inviteCode!);
+    const inviteLinkQuery = useInviteLink(inviteCode);
 
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;

@@ -51,12 +51,13 @@ const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
     });
 
 export const useScheduler = (
-    uuid: string,
+    uuid: string | null,
     useQueryOptions?: UseQueryOptions<SchedulerAndTargets, ApiError>,
 ) =>
     useQuery<SchedulerAndTargets, ApiError>({
         queryKey: ['scheduler', uuid],
-        queryFn: () => getScheduler(uuid),
+        queryFn: () => getScheduler(uuid!),
+        enabled: !!uuid,
         ...useQueryOptions,
     });
 
