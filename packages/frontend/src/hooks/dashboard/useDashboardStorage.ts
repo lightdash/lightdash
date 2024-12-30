@@ -6,16 +6,17 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useState } from 'react';
 
-const useDashboardStorage = () => {
-    const [isEditingDashboardChart, setIsEditingDashboardChart] =
-        useState(false);
+const getIsEditingDashboardChart = () => {
+    return (
+        !!sessionStorage.getItem('fromDashboard') ||
+        !!sessionStorage.getItem('dashboardUuid')
+    );
+};
 
-    const getIsEditingDashboardChart = useCallback(() => {
-        return (
-            !!sessionStorage.getItem('fromDashboard') ||
-            !!sessionStorage.getItem('dashboardUuid')
-        );
-    }, []);
+const useDashboardStorage = () => {
+    const [isEditingDashboardChart, setIsEditingDashboardChart] = useState(
+        getIsEditingDashboardChart(),
+    );
 
     // Update isEditingDashboardChart when storage changes, so that NavBar can update accordingly
     useEffect(() => {
@@ -25,7 +26,7 @@ const useDashboardStorage = () => {
 
         window.addEventListener('storage', handleStorage);
         return () => window.removeEventListener('storage', handleStorage);
-    }, [getIsEditingDashboardChart]);
+    }, []);
 
     const clearIsEditingDashboardChart = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
