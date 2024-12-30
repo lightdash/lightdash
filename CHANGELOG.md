@@ -1,3 +1,10 @@
+# [0.1432.0](https://github.com/lightdash/lightdash/compare/0.1431.0...0.1432.0) (2024-12-30)
+
+
+### Features
+
+* override metric format ([#12978](https://github.com/lightdash/lightdash/issues/12978)) ([42ee946](https://github.com/lightdash/lightdash/commit/42ee946512201853afe44c4b93f3b523555a599d))
+
 # [0.1431.0](https://github.com/lightdash/lightdash/compare/0.1430.1...0.1431.0) (2024-12-30)
 
 
