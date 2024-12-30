@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-yarn install
-yarn common-build
-yarn warehouses-build
-yarn cli-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
+pnpm cli-build

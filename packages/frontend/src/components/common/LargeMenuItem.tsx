@@ -17,7 +17,9 @@ interface LargeMenuItemProps extends Omit<MenuItemProps, 'icon'> {
     description: string | ReactNode;
 }
 
-const LargeMenuItem = createPolymorphicComponent<'button', LargeMenuItemProps>(
+const LargeMenuItem: ReturnType<
+    typeof createPolymorphicComponent<'button', LargeMenuItemProps>
+> = createPolymorphicComponent<'button', LargeMenuItemProps>(
     forwardRef<HTMLButtonElement, LargeMenuItemProps>(
         ({ icon, title, description, iconProps, ...rest }, ref) => {
             return (

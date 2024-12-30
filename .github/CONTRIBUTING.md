@@ -119,10 +119,10 @@ git checkout main
 git pull upstream main
 ```
 
-4. Install the dependencies with yarn (npm isn't supported):
+4. Install the dependencies with pnpm (npm/yarn isn't supported):
 
 ```sh
-yarn install
+pnpm install
 ```
 
 5. Create a new topic branch:
@@ -206,11 +206,11 @@ Once connected run the following commands in the VS Code terminal:
 
 ```shell
 # Setup the database
-yarn workspace backend migrate
-yarn workspace backend seed
+pnpm -F backend migrate
+pnpm -F backend seed
 
 # Run Lightdash frontend and backend in dev mode
-yarn dev
+pnpm dev
 ```
 
 #### using Docker compose
@@ -251,7 +251,7 @@ export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
 ./scripts/seed-lightdash.sh
 
 # Run Lightdash frontend and backend in dev mode
-yarn dev # http://localhost:3000
+pnpm dev # http://localhost:3000
 
 # Log in dev mode
 # When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
@@ -260,14 +260,14 @@ yarn dev # http://localhost:3000
 # Password: demo_password!
 
 # Or run in production mode
-# yarn build
-# yarn start # http://localhost:8080
+# pnpm build
+# pnpm start # http://localhost:8080
 ```
 
 Notes:
 
--   If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
--   If you change files inside `/packages/warehouses` you should run `yarn warehouses-build` before `yarn dev`
+-   If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
+-   If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
 -   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 -   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
 
@@ -288,7 +288,7 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 -   node >= v18.x (20 is preferred)
--   yarn
+-   pnpm
 -   postgres >= 12
 -   dbt 1.4.x or 1.5.x
 
@@ -334,16 +334,16 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 
 # 9 Install packages
-yarn
+pnpm install
 
 # 10 Build / migrate / seed
-yarn load:env ./scripts/build.sh
-yarn load:env ./scripts/seed-jaffle.sh
-yarn load:env ./scripts/migrate.sh
-yarn load:env ./scripts/seed-lightdash.sh
+pnpm load:env ./scripts/build.sh
+pnpm load:env ./scripts/seed-jaffle.sh
+pnpm load:env ./scripts/migrate.sh
+pnpm load:env ./scripts/seed-lightdash.sh
 
 # Run
-yarn load:env yarn dev
+pnpm load:env pnpm dev
 
 # Log in dev mode
 When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
@@ -352,18 +352,18 @@ Username: demo@lightdash.com
 Password: demo_password!
 ```
 
-> ⚠️ you can add env variables to your system and ignore running `yarn load:env` before each command
+> ⚠️ you can add env variables to your system and ignore running `pnpm load:env` before each command
 
 #### How to run unit tests
 
 ```shell
 # Prepare dependencies
-yarn install
-yarn common-build
-yarn warehouses-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
 
 # Run unit tests
-yarn test
+pnpm test
 ```
 
 #### How to run e2e tests
@@ -372,15 +372,15 @@ Before running e2e tests make sure you're running the app locally.
 
 ```shell
 # Prepare dependencies
-yarn install
-yarn common-build
-yarn warehouses-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
 
 # Run cypress in interactive mode
-yarn e2e-open
+pnpm e2e-open
 
 # Or run cypress in cli mode
-yarn e2e-run
+pnpm e2e-run
 ```
 
 Note:
@@ -390,8 +390,8 @@ Note:
 #### How to check code quality
 
 ```shell
-yarn lint
-yarn format
+pnpm lint
+pnpm format
 ```
 
 #### Developing API endpoints
@@ -401,7 +401,7 @@ then registered in `packages/backend/src/index.ts` but in order to be made avail
 `routes.ts` file by executing:
 
 ```shell
-yarn workspace backend run tsoa routes
+pnpm -F backend run tsoa routes
 ```
 
 ### Running headless browser locally

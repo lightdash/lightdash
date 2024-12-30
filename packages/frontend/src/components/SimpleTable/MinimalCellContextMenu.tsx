@@ -29,9 +29,9 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
 
     return (
         <>
-            {item && value.raw && isField(item) && (
+            {item && value.raw && isField(item) ? (
                 <UrlMenuItems urls={item.urls} cell={cell} showErrors={false} />
-            )}
+            ) : null}
 
             {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
 

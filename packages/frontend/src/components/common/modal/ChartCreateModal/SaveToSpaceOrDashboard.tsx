@@ -20,7 +20,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { uuid4 } from '@sentry/utils';
+import { v4 as uuid4 } from 'uuid';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { z } from 'zod';

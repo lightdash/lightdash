@@ -364,10 +364,10 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                     accessType.value === UserAccessAction.DELETE
                         ? {
                               ...accessType,
-                              title: { isPrivate }
+                              title: isPrivate
                                   ? 'Remove access'
                                   : 'Reset access',
-                              selectDescription: { isPrivate }
+                              selectDescription: isPrivate
                                   ? `Remove group's access`
                                   : `Reset group's access`,
                           }

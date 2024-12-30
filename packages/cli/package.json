@@ -11,8 +11,8 @@
     ],
     "dependencies": {
         "@actions/core": "^1.11.1",
-        "@lightdash/common": "^0.1428.8",
-        "@lightdash/warehouses": "^0.1428.8",
+        "@lightdash/common": "workspace:*",
+        "@lightdash/warehouses": "workspace:*",
         "@types/columnify": "^1.5.1",
         "ajv": "^8.11.0",
         "ajv-formats": "^2.1.1",
@@ -26,29 +26,32 @@
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
         "lodash": "^4.17.21",
-        "node-fetch": "^2.6.1",
+        "node-fetch": "^2.7.0",
         "nunjucks": "^3.2.3",
         "ora": "5.4.1",
         "parse-node-version": "^2.0.0",
         "unique-names-generator": "^4.7.1",
-        "uuid": "^8.3.2"
+        "uuid": "^11.0.3"
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
         "@types/inquirer": "^8.2.1",
+        "@types/js-yaml": "^4.0.9",
         "@types/lodash": "^4.14.185",
+        "@types/node-fetch": "2.x",
         "@types/nunjucks": "^3.2.1",
-        "@types/parse-node-version": "^1.0.0"
+        "@types/parse-node-version": "^1.0.0",
+        "@types/uuid": "^10.0.0"
     },
     "scripts": {
         "test": "jest",
         "build": "tsc --build tsconfig.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
-        "lint": "yarn run linter ./src",
-        "fix-lint": "yarn run linter ./src --fix",
-        "format": "yarn run formatter ./src --check",
-        "fix-format": "yarn run formatter ./src --write",
+        "lint": "pnpm run linter ./src",
+        "fix-lint": "pnpm run linter ./src --fix",
+        "format": "pnpm run formatter ./src --check",
+        "fix-format": "pnpm run formatter ./src --write",
         "preinstall": "bash track.sh started || echo 'skipping preinstall'",
         "postinstall": "bash track.sh completed || echo 'skipping postinstall'"
     }
