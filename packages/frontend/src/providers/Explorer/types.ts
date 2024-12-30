@@ -6,10 +6,12 @@ import {
     type ChartType,
     type CreateSavedChartVersion,
     type CustomDimension,
+    type CustomFormat,
     type CustomVisConfig,
     type Dimension,
     type FieldId,
     type FunnelChartConfig,
+    type Metric,
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
@@ -70,6 +72,8 @@ export enum ActionType {
     EDIT_CUSTOM_DIMENSION,
     REMOVE_CUSTOM_DIMENSION,
     TOGGLE_CUSTOM_DIMENSION_MODAL,
+    TOGGLE_FORMAT_MODAL,
+    UPDATE_METRIC_FORMAT,
 }
 
 export type ConfigCacheMap = {
@@ -203,6 +207,14 @@ export type Action =
               ExplorerReduceState['modals']['customDimension'],
               'isOpen'
           >;
+      }
+    | {
+          type: ActionType.TOGGLE_FORMAT_MODAL;
+          payload?: { metric: Metric };
+      }
+    | {
+          type: ActionType.UPDATE_METRIC_FORMAT;
+          payload: { metric: Metric; formatOptions: CustomFormat | undefined };
       };
 
 export interface ExplorerReduceState {
@@ -215,6 +227,10 @@ export interface ExplorerReduceState {
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     modals: {
+        format: {
+            isOpen: boolean;
+            metric?: Metric;
+        };
         additionalMetric: {
             isOpen: boolean;
             isEditing?: boolean;
@@ -300,5 +316,10 @@ export interface ExplorerContextType {
                 'isOpen'
             >,
         ) => void;
+        toggleFormatModal: (args?: { metric: Metric }) => void;
+        updateMetricFormat: (args: {
+            metric: Metric;
+            formatOptions: CustomFormat | undefined;
+        }) => void;
     };
 }

@@ -4347,8 +4347,27 @@
                 "enum": ["Day", "Week", "Month", "Quarter", "Year"],
                 "type": "string"
             },
+            "Pick_Metric.formatOptions_": {
+                "properties": {
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "MetricOverrides": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Pick_Metric.formatOptions_"
+                },
+                "type": "object"
+            },
             "MetricQueryRequest": {
                 "properties": {
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
+                    },
                     "timezone": {
                         "type": "string"
                     },
@@ -4603,6 +4622,9 @@
                     },
                     "timezone": {
                         "type": "string"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
                     },
                     "customDimensions": {
                         "items": {
@@ -12867,7 +12889,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1427.0",
+        "version": "0.1428.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

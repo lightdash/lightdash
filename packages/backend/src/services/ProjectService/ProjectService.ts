@@ -1997,7 +1997,25 @@ export class ProjectService extends BaseService {
                         granularity,
                     );
 
-                    const { fields, query, hasExampleMetric } = fullQuery;
+                    const { query, hasExampleMetric } = fullQuery;
+
+                    const fieldsWithOverrides: ItemsMap = Object.fromEntries(
+                        Object.entries(fullQuery.fields).map(([key, value]) => {
+                            if (
+                                metricQuery.metricOverrides &&
+                                metricQuery.metricOverrides[key]
+                            ) {
+                                return [
+                                    key,
+                                    {
+                                        ...value,
+                                        ...metricQuery.metricOverrides[key],
+                                    },
+                                ];
+                            }
+                            return [key, value];
+                        }),
+                    );
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
@@ -2104,6 +2122,11 @@ export class ProjectService extends BaseService {
                             ...(explore.type === ExploreType.VIRTUAL
                                 ? { virtualViewId: explore.name }
                                 : {}),
+                            metricOverridesCount: Object.keys(
+                                metricQuery.metricOverrides || {},
+                            ).filter((metricOverrideKey) =>
+                                metricQuery.metrics.includes(metricOverrideKey),
+                            ).length,
                         },
                     });
                     this.logger.debug(
@@ -2128,7 +2151,7 @@ export class ProjectService extends BaseService {
                             invalidateCache,
                         });
                     await sshTunnel.disconnect();
-                    return { rows, cacheMetadata, fields };
+                    return { rows, cacheMetadata, fields: fieldsWithOverrides };
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
