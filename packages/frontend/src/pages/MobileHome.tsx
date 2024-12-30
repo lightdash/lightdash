@@ -1,6 +1,6 @@
 import { Stack, Title } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import PageSpinner from '../components/PageSpinner';

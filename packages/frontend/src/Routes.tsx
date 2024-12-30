@@ -1,7 +1,11 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Redirect, Route, Switch } from 'react-router-dom';
-
+import { Switch } from 'react-router-dom';
+import {
+    CompatRoute as Route,
+    Navigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import { TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 
@@ -13,7 +17,6 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
-import { useParams } from 'react-router-dom-v5-compat';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -356,7 +359,7 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Redirect to="/projects" />
+                                    <Navigate to="/projects" />
                                 </Switch>
                             </ProjectRoute>
 
@@ -364,7 +367,7 @@ const Routes: FC = () => {
                                 <Projects />
                             </Route>
 
-                            <Redirect to="/projects" />
+                            <Navigate to="/projects" />
                         </Switch>
                     </AppRoute>
                 </Switch>

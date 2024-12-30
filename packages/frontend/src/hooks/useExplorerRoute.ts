@@ -41,7 +41,7 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
 };
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     createSavedChart: CreateSavedChartVersion,
     // Pass true to preserve long url. This is sometimes desireable when we want
     // all of the information in the URL, but don't use it for navigation.
@@ -49,6 +49,9 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     // shareable, shortened links.
     preserveLongUrl?: boolean,
 ): { pathname: string; search: string } => {
+    if (!projectUuid) {
+        return { pathname: '', search: '' };
+    }
     const newParams = new URLSearchParams();
 
     let stringifiedChart = JSON.stringify(createSavedChart);

@@ -1,6 +1,6 @@
 import { Box } from '@mantine/core';
 import { useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import Page from '../components/common/Page/Page';
 import { CatalogPanel } from '../features/catalog/components';
 import { CatalogMetadata } from '../features/catalog/components/CatalogMetadata';

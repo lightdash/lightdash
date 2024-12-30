@@ -15,8 +15,7 @@ import { IconGripVertical } from '@tabler/icons-react';
 import { produce } from 'immer';
 import orderBy from 'lodash/orderBy';
 import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { Link, useParams } from 'react-router-dom-v5-compat';
 import { type ResourceViewCommonProps } from '..';
 import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider';
 import MantineIcon from '../../MantineIcon';
@@ -197,6 +196,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         });
         reorderItems(pinnedItemsOrder(newDraggableItems));
     };
+
+    if (!projectUuid) {
+        return null;
+    }
 
     return (
         <Stack spacing="xl" p="lg">

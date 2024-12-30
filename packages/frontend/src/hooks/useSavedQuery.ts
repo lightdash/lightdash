@@ -123,10 +123,11 @@ const getChartHistoryQuery = async (chartUuid: string): Promise<ChartHistory> =>
         body: undefined,
     });
 
-export const useChartHistory = (chartUuid: string) =>
+export const useChartHistory = (chartUuid: string | undefined) =>
     useQuery<ChartHistory, ApiError>({
         queryKey: ['chart_history', chartUuid],
-        queryFn: () => getChartHistoryQuery(chartUuid),
+        queryFn: () => getChartHistoryQuery(chartUuid!),
+        enabled: chartUuid !== undefined,
         retry: false,
     });
 const getChartVersionQuery = async (
@@ -139,11 +140,14 @@ const getChartVersionQuery = async (
         body: undefined,
     });
 
-export const useChartVersion = (chartUuid: string, versionUuid?: string) =>
+export const useChartVersion = (
+    chartUuid: string | undefined,
+    versionUuid?: string,
+) =>
     useQuery<ChartVersion, ApiError>({
         queryKey: ['chart_version', chartUuid, versionUuid],
-        queryFn: () => getChartVersionQuery(chartUuid, versionUuid!),
-        enabled: versionUuid !== undefined,
+        queryFn: () => getChartVersionQuery(chartUuid!, versionUuid!),
+        enabled: versionUuid !== undefined && chartUuid !== undefined,
         retry: false,
     });
 
@@ -157,7 +161,7 @@ const rollbackChartQuery = async (
         body: undefined,
     });
 export const useChartVersionRollbackMutation = (
-    chartUuid: string,
+    chartUuid: string | undefined,
     useMutationOptions?: Omit<
         UseMutationOptions<null, ApiError, string, unknown>,
         'mutationFn'
@@ -165,7 +169,10 @@ export const useChartVersionRollbackMutation = (
 ) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
-        (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
+        (versionUuid: string) =>
+            chartUuid && versionUuid
+                ? rollbackChartQuery(chartUuid, versionUuid)
+                : Promise.reject(),
         {
             mutationKey: ['saved_query_rollback'],
             ...useMutationOptions,

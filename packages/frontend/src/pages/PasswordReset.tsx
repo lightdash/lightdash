@@ -11,8 +11,8 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { useHistory } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -67,6 +67,7 @@ const PasswordReset: FC = () => {
                                         name="password-reset"
                                         onSubmit={form.onSubmit(
                                             ({ password }) =>
+                                                code &&
                                                 passwordResetMutation.mutate({
                                                     code,
                                                     newPassword: password,

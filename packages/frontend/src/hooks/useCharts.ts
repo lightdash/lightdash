@@ -11,12 +11,13 @@ const getChartsInProject = async (projectUuid: string) => {
 };
 
 export const useCharts = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     useQueryFetchOptions?: UseQueryOptions<SpaceQuery[], ApiError>,
 ) => {
     return useQuery<SpaceQuery[], ApiError>({
         queryKey: ['project', projectUuid, 'charts'],
-        queryFn: () => getChartsInProject(projectUuid),
+        queryFn: () => getChartsInProject(projectUuid!),
+        enabled: !!projectUuid,
         ...useQueryFetchOptions,
     });
 };

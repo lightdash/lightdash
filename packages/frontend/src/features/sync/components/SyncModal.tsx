@@ -1,7 +1,8 @@
 import { Flex, Modal, Title, type ModalProps } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';

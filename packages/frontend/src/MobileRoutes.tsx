@@ -19,8 +19,13 @@ import {
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
 import React, { useCallback, useState, type FC } from 'react';
-import { Redirect, Route, Switch } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { Route, Switch } from 'react-router-dom';
+import {
+    CompatRoute,
+    Link,
+    Navigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';
@@ -45,6 +50,27 @@ import ShareRedirect from './pages/ShareRedirect';
 import { TrackPage } from './providers/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
+
+const RedirectToResource: FC = () => {
+    const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
+    if (dashboardUuid) {
+        return (
+            <Navigate
+                to={`/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}`}
+                replace
+            />
+        );
+    }
+    if (savedQueryUuid) {
+        return (
+            <Navigate
+                to={`/minimal/projects/${projectUuid}/saved/${savedQueryUuid}`}
+                replace
+            />
+        );
+    }
+    return <Navigate to="/no-mobile-page" />;
+};
 
 const MobileNavBar: FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -167,7 +193,9 @@ const MobileRoutes: FC = () => {
                 <MobileView />
             </Route>
             {routesNotSupportedInMobile.map((route) => (
-                <Redirect key={route} from={route} to="/no-mobile-page" />
+                <Route key={route} path={route}>
+                    <Navigate to="/no-mobile-page" />
+                </Route>
             ))}
             <PrivateRoute path="/">
                 <MobileNavBar />
@@ -204,15 +232,12 @@ const MobileRoutes: FC = () => {
                             </PrivateRoute>
                             <ProjectRoute path="/projects/:projectUuid">
                                 <Switch>
-                                    <Redirect
-                                        from="/projects/:projectUuid/saved/:savedQueryUuid/:mode?"
-                                        to="/minimal/projects/:projectUuid/saved/:savedQueryUuid"
-                                    />
-                                    <Redirect
-                                        from="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
-                                        to="/minimal/projects/:projectUuid/dashboards/:dashboardUuid"
-                                    />
-
+                                    <CompatRoute path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
+                                        <RedirectToResource />
+                                    </CompatRoute>
+                                    <CompatRoute path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
+                                        <RedirectToResource />
+                                    </CompatRoute>
                                     <Route path="/projects/:projectUuid/saved">
                                         <TrackPage
                                             name={PageName.SAVED_QUERIES}
@@ -250,7 +275,7 @@ const MobileRoutes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Redirect to="/projects" />
+                                    <Navigate to="/projects" />
                                 </Switch>
                             </ProjectRoute>
 
@@ -258,7 +283,7 @@ const MobileRoutes: FC = () => {
                                 <Projects />
                             </Route>
 
-                            <Redirect to="/projects" />
+                            <Navigate to="/projects" />
                         </Switch>
                     </AppRoute>
                 </Switch>
