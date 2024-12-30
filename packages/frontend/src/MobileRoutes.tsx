@@ -20,7 +20,12 @@ import {
 import posthog from 'posthog-js';
 import React, { useCallback, useState, type FC } from 'react';
 import { Route, Switch } from 'react-router-dom';
-import { Link, Navigate } from 'react-router-dom-v5-compat';
+import {
+    CompatRoute,
+    Link,
+    Navigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';
@@ -45,6 +50,27 @@ import ShareRedirect from './pages/ShareRedirect';
 import { TrackPage } from './providers/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
+
+const RedirectToResource: FC = () => {
+    const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
+    if (dashboardUuid) {
+        return (
+            <Navigate
+                to={`/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}`}
+                replace
+            />
+        );
+    }
+    if (savedQueryUuid) {
+        return (
+            <Navigate
+                to={`/minimal/projects/${projectUuid}/saved/${savedQueryUuid}`}
+                replace
+            />
+        );
+    }
+    return <Navigate to="/no-mobile-page" />;
+};
 
 const MobileNavBar: FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -206,24 +232,12 @@ const MobileRoutes: FC = () => {
                             </PrivateRoute>
                             <ProjectRoute path="/projects/:projectUuid">
                                 <Switch>
-                               <Route
-                                        path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?"
-                                        render={({ match }) => (
-                                            <Navigate
-                                                to={`/minimal/projects/${match.params.projectUuid}/saved/${match.params.savedQueryUuid}`}
-                                                replace
-                                            />
-                                        )}
-                                    />
-                                    <Route
-                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
-                                        render={({ match }) => (
-                                            <Navigate
-                                                to={`/minimal/projects/${match.params.projectUuid}/dashboards/${match.params.dashboardUuid}`}
-                                                replace
-                                            />
-                                        )}
-                                    />
+                                    <CompatRoute path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
+                                        <RedirectToResource />
+                                    </CompatRoute>
+                                    <CompatRoute path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
+                                        <RedirectToResource />
+                                    </CompatRoute>
                                     <Route path="/projects/:projectUuid/saved">
                                         <TrackPage
                                             name={PageName.SAVED_QUERIES}
