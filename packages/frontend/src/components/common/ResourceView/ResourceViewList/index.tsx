@@ -11,8 +11,7 @@ import {
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { Link, useParams } from 'react-router-dom-v5-compat';
+import { Link, useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { type ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
@@ -81,7 +80,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 }) => {
     const { classes } = useTableStyles();
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const canUserManageValidation = useValidationUserAbility(projectUuid);
@@ -470,7 +469,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         key={item.data.uuid}
                         onClick={() =>
                             projectUuid &&
-                            history.push(getResourceUrl(projectUuid, item))
+                            navigate(getResourceUrl(projectUuid, item))
                         }
                         onMouseEnter={() => setHoveredItem(item.data.uuid)}
                         onMouseLeave={() => setHoveredItem(undefined)}

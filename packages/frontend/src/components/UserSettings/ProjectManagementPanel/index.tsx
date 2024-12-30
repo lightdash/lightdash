@@ -19,8 +19,7 @@ import {
 } from '@mantine/core';
 import { IconSettings, IconTrash } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { Link, Navigate } from 'react-router-dom-v5-compat';
+import { Link, Navigate, useNavigate } from 'react-router-dom-v5-compat';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import {
@@ -53,7 +52,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
     onDelete,
 }) => {
     const { user } = useApp();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const { mutateAsync: updateActiveProjectMutation } =
         useUpdateActiveProjectMutation();
@@ -65,7 +64,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
         // a lot of cache invalidation happens after the mutation above
         // so we need to wait for the next event loop to navigate to the new project
         setTimeout(() => {
-            history.replace(
+            navigate(
                 `/generalSettings/projectManagement/${project.projectUuid}/settings`,
             );
         }, 0);

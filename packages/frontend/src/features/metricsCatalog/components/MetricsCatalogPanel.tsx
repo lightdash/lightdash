@@ -15,8 +15,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { useIntercom } from 'react-use-intercom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -164,7 +163,7 @@ export const MetricsCatalogPanel = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const history = useHistory();
+    const navigate = useNavigate();
     const categoriesParam = useSearchParams('categories');
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
@@ -229,8 +228,8 @@ export const MetricsCatalogPanel = () => {
         } else {
             queryParams.delete('categories');
         }
-        history.replace({ search: queryParams.toString() });
-    }, [categories, history]);
+        navigate({ search: queryParams.toString() });
+    }, [categories, navigate]);
 
     useEffect(
         function handleAbilities() {

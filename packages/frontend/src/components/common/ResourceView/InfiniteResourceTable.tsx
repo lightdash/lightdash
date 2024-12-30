@@ -34,7 +34,7 @@ import {
     type MRT_SortingState,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
-import React, {
+import {
     useCallback,
     useDeferredValue,
     useEffect,
@@ -43,8 +43,7 @@ import React, {
     useState,
     type UIEvent,
 } from 'react';
-import { useHistory } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { Link, useNavigate } from 'react-router-dom-v5-compat';
 import {
     useInfiniteContent,
     type ContentArgs,
@@ -82,7 +81,7 @@ const InfiniteResourceTable = ({
     contentTypeFilter,
 }: ResourceView2Props) => {
     const theme = useMantineTheme();
-    const history = useHistory();
+    const navigate = useNavigate();
     const { data: spaces = [] } = useSpaceSummaries(
         filters.projectUuid,
         true,
@@ -507,7 +506,7 @@ const InfiniteResourceTable = ({
                     return;
                 }
 
-                history.push(getResourceUrl(filters.projectUuid, row.original));
+                navigate(getResourceUrl(filters.projectUuid, row.original));
             },
         }),
         mantineTableBodyCellProps: () => {

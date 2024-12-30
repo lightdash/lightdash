@@ -15,8 +15,7 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { useExplores } from '../../../hooks/useExplores';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -44,7 +43,7 @@ const LoadingSkeleton = () => (
 );
 
 const BasePanel = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
@@ -157,7 +156,7 @@ const BasePanel = () => {
                                                 explore={explore}
                                                 query={search}
                                                 onClick={() => {
-                                                    history.push(
+                                                    navigate(
                                                         `/projects/${projectUuid}/tables/${explore.name}`,
                                                     );
                                                 }}
@@ -173,7 +172,7 @@ const BasePanel = () => {
                                     explore={explore}
                                     query={search}
                                     onClick={() => {
-                                        history.push(
+                                        navigate(
                                             `/projects/${projectUuid}/tables/${explore.name}`,
                                         );
                                     }}
@@ -198,7 +197,7 @@ const BasePanel = () => {
                                     explore={explore}
                                     query={search}
                                     onClick={() => {
-                                        history.push(
+                                        navigate(
                                             `/projects/${projectUuid}/tables/${explore.name}`,
                                         );
                                     }}
@@ -227,12 +226,12 @@ const ExploreSideBar = memo(() => {
     const clearExplore = useExplorerContext(
         (context) => context.actions.clearExplore,
     );
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const handleBack = useCallback(() => {
         clearExplore();
-        history.push(`/projects/${projectUuid}/tables`);
-    }, [clearExplore, history, projectUuid]);
+        navigate(`/projects/${projectUuid}/tables`);
+    }, [clearExplore, navigate, projectUuid]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>

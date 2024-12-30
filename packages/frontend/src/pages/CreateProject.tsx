@@ -1,6 +1,5 @@
 import { useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
@@ -23,7 +22,7 @@ export enum ConnectMethod {
 }
 
 const CreateProject: FC = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { isInitialLoading: isLoadingOrganization, data: organization } =
         useOrganization();
 
@@ -58,7 +57,7 @@ const CreateProject: FC = () => {
                             <UnsupportedWarehouse
                                 onBack={() => {
                                     setWarehouse(undefined);
-                                    history.replace('/createProject');
+                                    navigate('/createProject');
                                 }}
                             />
                         ) : (
@@ -69,8 +68,9 @@ const CreateProject: FC = () => {
                                             isCreatingFirstProject
                                         }
                                         onSelect={(newMethod) => {
-                                            history.replace(
+                                            navigate(
                                                 `/createProject/${newMethod}`,
+                                                { replace: true },
                                             );
                                         }}
                                         onBack={() => {
@@ -84,7 +84,9 @@ const CreateProject: FC = () => {
                                         siteUrl={health.siteUrl}
                                         version={health.version}
                                         onBack={() => {
-                                            history.replace('/createProject');
+                                            navigate('/createProject', {
+                                                replace: true,
+                                            });
                                         }}
                                     />
                                 )}
@@ -97,9 +99,9 @@ const CreateProject: FC = () => {
                                             }
                                             selectedWarehouse={warehouse}
                                             onBack={() => {
-                                                history.replace(
-                                                    '/createProject',
-                                                );
+                                                navigate('/createProject', {
+                                                    replace: true,
+                                                });
                                             }}
                                         />
                                     )}

@@ -7,7 +7,8 @@ import {
 import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory, useRouteMatch } from 'react-router-dom';
+import { useRouteMatch } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,
@@ -103,7 +104,7 @@ const swappableProjectRoutes = (activeProjectUuid: string) => [
 
 const ProjectSwitcher = () => {
     const { showToastSuccess } = useToaster();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const { user } = useApp();
 
@@ -143,7 +144,7 @@ const ProjectSwitcher = () => {
                               children: 'Go to project home',
                               icon: IconArrowRight,
                               onClick: () => {
-                                  history.push(
+                                  navigate(
                                       `/projects/${project.projectUuid}/home`,
                                   );
                               },
@@ -152,19 +153,19 @@ const ProjectSwitcher = () => {
             });
 
             if (shouldSwapProjectRoute) {
-                history.push(
+                navigate(
                     swappableRouteMatch.path.replace(
                         activeProjectUuid,
                         project.projectUuid,
                     ),
                 );
             } else {
-                history.push(`/projects/${project.projectUuid}/home`);
+                navigate(`/projects/${project.projectUuid}/home`);
             }
         },
         [
             activeProjectUuid,
-            history,
+            navigate,
             isHomePage,
             projects,
             setLastProjectMutation,

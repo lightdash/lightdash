@@ -24,8 +24,11 @@ import React, {
     type Dispatch,
     type SetStateAction,
 } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useLocation, useParams } from 'react-router-dom-v5-compat';
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs';
@@ -137,7 +140,7 @@ export const DashboardProvider: React.FC<
     children,
 }) => {
     const { search, pathname } = useLocation();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const { dashboardUuid } = useParams<{
         dashboardUuid: string;
@@ -230,11 +233,14 @@ export const DashboardProvider: React.FC<
             newParams.set('dateZoom', dateZoomGranularity.toLowerCase());
         }
 
-        history.replace({
-            pathname,
-            search: newParams.toString(),
-        });
-    }, [dateZoomGranularity, search, history, pathname]);
+        navigate(
+            {
+                pathname,
+                search: newParams.toString(),
+            },
+            { replace: true },
+        );
+    }, [dateZoomGranularity, search, navigate, pathname]);
 
     const {
         overridesForSavedDashboardFilters,
@@ -319,14 +325,17 @@ export const DashboardProvider: React.FC<
             );
         }
 
-        history.replace({
-            pathname,
-            search: newParams.toString(),
-        });
+        navigate(
+            {
+                pathname,
+                search: newParams.toString(),
+            },
+            { replace: true },
+        );
     }, [
         dashboardFilters,
         dashboardTemporaryFilters,
-        history,
+        navigate,
         pathname,
         overridesForSavedDashboardFilters,
         search,

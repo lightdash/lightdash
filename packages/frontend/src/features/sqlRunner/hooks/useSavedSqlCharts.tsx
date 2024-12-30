@@ -12,7 +12,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -69,16 +69,14 @@ export const useSavedSqlChart = (
 
 export const useCreateSqlChartMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     return useMutation<ApiCreateSqlChart['results'], ApiError, CreateSqlChart>(
         (data) => createSavedSqlChart(projectUuid, data),
         {
             mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
             onSuccess: (data) => {
-                history.push(
-                    `/projects/${projectUuid}/sql-runner/${data.slug}`,
-                );
+                navigate(`/projects/${projectUuid}/sql-runner/${data.slug}`);
 
                 showToastSuccess({
                     title: `Success! SQL chart created`,

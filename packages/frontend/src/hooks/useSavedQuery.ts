@@ -16,7 +16,8 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
@@ -276,7 +277,7 @@ export const useUpdateMutation = (
     dashboardUuid?: string,
     savedQueryUuid?: string,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -313,7 +314,7 @@ export const useUpdateMutation = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
                                   ),
                           }
@@ -337,7 +338,7 @@ export const useMoveChartMutation = (
         Pick<SavedChart, 'uuid' | 'spaceUuid'>
     >,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -364,7 +365,7 @@ export const useMoveChartMutation = (
                     children: 'Go to space',
                     icon: IconArrowRight,
                     onClick: () =>
-                        history.push(
+                        navigate(
                             `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
                         ),
                 },
@@ -381,7 +382,7 @@ export const useMoveChartMutation = (
 };
 
 export const useCreateMutation = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -394,8 +395,8 @@ export const useCreateMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
                 });
-                history.push({
-                    pathname: `/projects/${projectUuid}/saved/${data.uuid}/view`,
+                navigate(`/projects/${projectUuid}/saved/${data.uuid}/view`, {
+                    replace: true,
                 });
             },
             onError: ({ error }) => {
@@ -417,7 +418,7 @@ type DuplicateChartMutationOptions = {
 export const useDuplicateChartMutation = (
     options?: DuplicateChartMutationOptions,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -445,9 +446,7 @@ export const useDuplicateChartMutation = (
                     !options?.showRedirectButton &&
                     options?.autoRedirect !== false
                 ) {
-                    history.push({
-                        pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
-                    });
+                    navigate(`/projects/${projectUuid}/saved/${data.uuid}`);
                 }
 
                 showToastSuccess({
@@ -459,7 +458,7 @@ export const useDuplicateChartMutation = (
                               children: 'Open chart',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/saved/${data.uuid}`,
                                   ),
                           }
@@ -477,7 +476,7 @@ export const useDuplicateChartMutation = (
 };
 
 export const useAddVersionMutation = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const dashboardUuid = useSearchParams('fromDashboard');
 
@@ -504,7 +503,7 @@ export const useAddVersionMutation = () => {
                         children: 'Open dashboard',
                         icon: IconArrowRight,
                         onClick: () =>
-                            history.push(
+                            navigate(
                                 `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
                             ),
                     },
@@ -513,9 +512,9 @@ export const useAddVersionMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was updated.`,
                 });
-                history.push({
-                    pathname: `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
-                });
+                navigate(
+                    `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
+                );
             }
         },
         onError: ({ error }) => {

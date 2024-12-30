@@ -2,8 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
 
@@ -12,7 +11,7 @@ type Props = {
 };
 
 export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
         mode?: 'edit' | 'view';
@@ -75,7 +74,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
-        history.push(
+        navigate(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
                 savedQueryUuid ? 'view' : 'edit'
             }`,
@@ -85,7 +84,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             // Clear the banner after navigating back to dashboard, but only after a delay so that the user can see the banner change
             setIsCancelling(false);
         }, 1000);
-    }, [dashboardUuid, history, projectUuid, savedQueryUuid]);
+    }, [dashboardUuid, navigate, projectUuid, savedQueryUuid]);
 
     return (
         <>

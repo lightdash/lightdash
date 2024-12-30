@@ -9,7 +9,7 @@ import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { z } from 'zod';
 import {
     appendNewTilesToBottom,
@@ -74,7 +74,7 @@ export const SaveToDashboard: FC<Props> = ({
     ]);
 
     const { showToastSuccess } = useToaster();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const { mutateAsync: createChart } = useCreateMutation();
     const {
@@ -127,7 +127,7 @@ export const SaveToDashboard: FC<Props> = ({
             );
 
             clearIsEditingDashboardChart();
-            history.push(
+            navigate(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
             );
             showToastSuccess({
@@ -141,7 +141,7 @@ export const SaveToDashboard: FC<Props> = ({
             setUnsavedDashboardTiles,
             unsavedDashboardTiles,
             clearIsEditingDashboardChart,
-            history,
+            navigate,
             projectUuid,
             showToastSuccess,
             dashboardName,

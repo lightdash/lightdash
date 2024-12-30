@@ -14,7 +14,7 @@ import {
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -232,16 +232,14 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid, {
         enabled: !!spaceUuid,
     });
-    const history = useHistory();
+    const navigate = useNavigate();
 
     // Redirect to space on creation
     const { mutateAsync: createMutation, isLoading: isCreating } =
         useCreateMutation(projectUuid, {
             onSuccess: (space) => {
                 if (shouldRedirect) {
-                    history.push(
-                        `/projects/${projectUuid}/spaces/${space.uuid}`,
-                    );
+                    navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
                 }
             },
         });

@@ -1,6 +1,6 @@
 import { Menu, UnstyledButton, type MenuItemProps } from '@mantine/core';
 import React, { type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { useTracking, type EventData } from '../../providers/TrackingProvider';
 
 export interface LinkMenuItemProps extends MenuItemProps {
@@ -22,7 +22,7 @@ const LinkMenuItem: FC<React.PropsWithChildren<LinkMenuItemProps>> = ({
     children,
     ...rest
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { track } = useTracking();
 
     return (
@@ -43,7 +43,7 @@ const LinkMenuItem: FC<React.PropsWithChildren<LinkMenuItemProps>> = ({
                         href
                     ) {
                         e.preventDefault();
-                        history.push(href);
+                        navigate(href);
                     }
 
                     onClick?.(e);

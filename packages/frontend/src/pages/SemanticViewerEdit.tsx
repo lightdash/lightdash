@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { useHistory, useRouteMatch } from 'react-router-dom';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useRouteMatch } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
@@ -39,7 +39,7 @@ const SemanticViewerEditorPageWithStore = () => {
         path: `/projects/${projectUuid}/semantic-viewer`,
         exact: true,
     });
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const dispatch = useAppDispatch();
     const semanticViewerState = useAppSelector(selectSemanticViewerState);
@@ -125,9 +125,9 @@ const SemanticViewerEditorPageWithStore = () => {
 
     useEffect(() => {
         if (infoQuery.isSuccess && !infoQuery.data) {
-            history.replace(`/projects/${projectUuid}`);
+            navigate(`/projects/${projectUuid}`);
         }
-    }, [infoQuery.isSuccess, infoQuery.data, history, projectUuid]);
+    }, [infoQuery.isSuccess, infoQuery.data, navigate, projectUuid]);
 
     useEffect(() => {
         if (!projectUuid) {
@@ -180,14 +180,14 @@ const SemanticViewerEditorPageWithStore = () => {
                 }),
             );
             if (!!rootRouteMatch) {
-                history.replace(rootRouteMatch.path + '/new');
+                navigate(rootRouteMatch.path + '/new', { replace: true });
             }
         }
     }, [
         projectUuid,
         savedSemanticViewerChartSlug,
         rootRouteMatch,
-        history,
+        navigate,
         dispatch,
         semanticViewerState,
         infoQuery.isSuccess,

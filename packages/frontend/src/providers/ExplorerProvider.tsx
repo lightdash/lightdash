@@ -40,7 +40,7 @@ import {
     useRef,
     type FC,
 } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../hooks/useDefaultSortField';
@@ -1789,7 +1789,7 @@ export const ExplorerProvider: FC<
         resetQueryResults();
     }, [resetQueryResults, defaultStateWithConfig]);
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const clearQuery = useCallback(async () => {
         dispatch({
             type: ActionType.RESET,
@@ -1803,12 +1803,15 @@ export const ExplorerProvider: FC<
         });
         resetQueryResults();
         // clear state in url params
-        history.replace({
-            search: '',
-        });
+        navigate(
+            {
+                search: '',
+            },
+            { replace: true },
+        );
     }, [
         defaultStateWithConfig,
-        history,
+        navigate,
         resetQueryResults,
         unsavedChartVersion.tableName,
     ]);

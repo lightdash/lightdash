@@ -9,8 +9,7 @@ import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useHistory } from 'react-router-dom';
-import { useLocation } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
 import { v4 as uuid4 } from 'uuid';
 import {
     getReactGridLayoutConfig,
@@ -75,7 +74,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const { search } = useLocation();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
@@ -227,7 +226,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     const newParams = new URLSearchParams(
                                         search,
                                     );
-                                    history.replace({
+                                    navigate({
                                         pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
                                         search: newParams.toString(),
                                     });

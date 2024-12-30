@@ -16,7 +16,8 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -220,7 +221,7 @@ export const useUpdateDashboard = (
     id?: string,
     showRedirectButton: boolean = false,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -258,7 +259,7 @@ export const useUpdateDashboard = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/dashboards/${id}`,
                                   ),
                           }
@@ -277,7 +278,7 @@ export const useUpdateDashboard = (
 };
 
 export const useMoveDashboardMutation = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -307,7 +308,7 @@ export const useMoveDashboardMutation = () => {
                         children: 'Go to space',
                         icon: IconArrowRight,
                         onClick: () =>
-                            history.push(
+                            navigate(
                                 `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
                             ),
                     },
@@ -327,7 +328,7 @@ export const useCreateMutation = (
     projectUuid: string | undefined,
     showRedirectButton: boolean = false,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
@@ -350,7 +351,7 @@ export const useCreateMutation = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/dashboards/${result.uuid}`,
                                   ),
                           }
@@ -374,7 +375,7 @@ type DuplicateDashboardMutationOptions = {
 export const useDuplicateDashboardMutation = (
     options?: DuplicateDashboardMutationOptions,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -407,7 +408,7 @@ export const useDuplicateDashboardMutation = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/dashboards/${data.uuid}`,
                                   ),
                           }

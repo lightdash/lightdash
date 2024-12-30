@@ -15,8 +15,11 @@ import {
     IconSquarePlus,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useLocation, useParams } from 'react-router-dom-v5-compat';
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
@@ -85,7 +88,7 @@ const Space: FC = () => {
     const { user, health } = useApp();
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const history = useHistory();
+    const navigate = useNavigate();
     const location = useLocation();
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
@@ -319,7 +322,7 @@ const Space: FC = () => {
                                             )
                                         ) {
                                             //Redirect to home if we are on the space we are deleting
-                                            history.push(
+                                            navigate(
                                                 `/projects/${projectUuid}/home`,
                                             );
                                         }
@@ -361,7 +364,7 @@ const Space: FC = () => {
                     opened={isCreateDashboardOpen}
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
-                        history.push(
+                        navigate(
                             `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
                         );
 
