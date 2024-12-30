@@ -255,32 +255,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             {sortedTabs && sortedTabs?.length > 0 && (
                                 <Tabs.List bg="gray.0" px="lg">
                                     <ScrollArea
-                                        scrollbarSize={6}
                                         type="hover"
+                                        offsetScrollbars
                                         scrollHideDelay={200}
-                                        styles={(theme) => ({
-                                            scrollbar: {
-                                                '&[data-orientation="horizontal"] .mantine-ScrollArea-thumb':
-                                                    {
-                                                        backgroundColor:
-                                                            theme.fn.rgba(
-                                                                theme.colors
-                                                                    .gray[6],
-                                                                0.3,
-                                                            ),
-                                                    },
-                                                '&:not([data-disabled]):hover':
-                                                    {
-                                                        background:
-                                                            'transparent',
-                                                    },
+                                        variant="primary"
+                                        scrollbarSize={6}
+                                        styles={{
+                                            viewport: {
+                                                paddingBottom: 0,
                                             },
-                                            root: {
-                                                marginBottom: -1,
-                                            },
-                                        })}
+                                        }}
                                     >
-                                        <Group noWrap>
+                                        <Group noWrap spacing={0}>
                                             {sortedTabs?.map((tab, idx) => {
                                                 return (
                                                     <DraggableTab
