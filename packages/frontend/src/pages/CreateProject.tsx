@@ -57,7 +57,9 @@ const CreateProject: FC = () => {
                             <UnsupportedWarehouse
                                 onBack={() => {
                                     setWarehouse(undefined);
-                                    navigate('/createProject');
+                                    navigate('/createProject', {
+                                        replace: true,
+                                    });
                                 }}
                             />
                         ) : (

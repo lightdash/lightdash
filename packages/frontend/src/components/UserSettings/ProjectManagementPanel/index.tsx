@@ -66,6 +66,9 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
         setTimeout(() => {
             navigate(
                 `/generalSettings/projectManagement/${project.projectUuid}/settings`,
+                {
+                    replace: true,
+                },
             );
         }, 0);
     };

@@ -226,10 +226,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     const newParams = new URLSearchParams(
                                         search,
                                     );
-                                    navigate({
-                                        pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                                        search: newParams.toString(),
-                                    });
+                                    navigate(
+                                        {
+                                            pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                                            search: newParams.toString(),
+                                        },
+                                        { replace: true },
+                                    );
                                 }
                             }}
                             mt={tabsEnabled ? 'sm' : 'xs'}

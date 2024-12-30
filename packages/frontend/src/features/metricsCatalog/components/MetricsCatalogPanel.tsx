@@ -228,7 +228,7 @@ export const MetricsCatalogPanel = () => {
         } else {
             queryParams.delete('categories');
         }
-        navigate({ search: queryParams.toString() });
+        navigate({ search: queryParams.toString() }, { replace: true });
     }, [categories, navigate]);
 
     useEffect(

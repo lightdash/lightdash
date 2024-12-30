@@ -125,7 +125,7 @@ const SemanticViewerEditorPageWithStore = () => {
 
     useEffect(() => {
         if (infoQuery.isSuccess && !infoQuery.data) {
-            navigate(`/projects/${projectUuid}`);
+            navigate(`/projects/${projectUuid}`, { replace: true });
         }
     }, [infoQuery.isSuccess, infoQuery.data, navigate, projectUuid]);
 

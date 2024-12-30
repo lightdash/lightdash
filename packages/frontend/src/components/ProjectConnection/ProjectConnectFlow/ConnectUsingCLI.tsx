@@ -63,7 +63,9 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
                 await queryClient.invalidateQueries(['organization']);
 
-                navigate(`/createProject/cli?projectUuid=${newProjectUuid}`);
+                navigate(`/createProject/cli?projectUuid=${newProjectUuid}`, {
+                    replace: true,
+                });
             }
         },
     });

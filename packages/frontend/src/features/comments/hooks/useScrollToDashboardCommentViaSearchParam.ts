@@ -67,10 +67,13 @@ export const useScrollToDashboardCommentViaSearchParam = ({
 
                     // Clear the search param after scrolling to the comment
                     searchParams.delete('tileUuid');
-                    navigate({
-                        pathname,
-                        search: searchParams.toString(),
-                    });
+                    navigate(
+                        {
+                            pathname,
+                            search: searchParams.toString(),
+                        },
+                        { replace: true },
+                    );
                 }
             }, 200);
         }
