@@ -177,7 +177,7 @@ const SqlRunnerPage = () => {
     }
 
     const getCsvLink = async () => {
-        if (sql) {
+        if (sql && projectUuid) {
             const customLabels = getCustomLabelsFromTableConfig(
                 createSavedChart?.chartConfig.config,
             );
@@ -190,7 +190,7 @@ const SqlRunnerPage = () => {
                   )
                 : undefined;
             const csvResponse = await downloadCsvFromSqlRunner({
-                projectUuid: projectUuid!,
+                projectUuid,
                 sql,
                 customLabels: customLabelsWithoutTablePrefix,
             });
@@ -338,9 +338,11 @@ const SqlRunnerPage = () => {
                                             disabled={!sql}
                                         />
                                     )}
-                                    <ChartDownloadMenu
-                                        projectUuid={projectUuid!}
-                                    />
+                                    {projectUuid && (
+                                        <ChartDownloadMenu
+                                            projectUuid={projectUuid}
+                                        />
+                                    )}
                                 </>
                             )
                         }

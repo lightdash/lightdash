@@ -18,9 +18,8 @@ import { useApp } from '../providers/AppProvider';
 
 const MobileCharts: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isInitialLoading, data: savedQueries = [] } = useCharts(
-        projectUuid!,
-    );
+    const { isInitialLoading, data: savedQueries = [] } =
+        useCharts(projectUuid);
     const { user } = useApp();
     const cannotView = user.data?.ability?.cannot('view', 'SavedChart');
     const [search, setSearch] = useState<string>('');

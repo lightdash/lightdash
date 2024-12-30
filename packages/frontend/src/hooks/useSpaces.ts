@@ -24,14 +24,14 @@ const getSpaceSummaries = async (projectUuid: string) => {
 };
 
 export const useSpaceSummaries = (
-    projectUuid: string,
+    projectUuid?: string,
     includePrivateSpaces: boolean = false,
     queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
 ) => {
     const { data: user } = useUser(true);
     return useQuery<SpaceSummary[], ApiError>(
         ['projects', projectUuid, 'spaces'],
-        () => getSpaceSummaries(projectUuid),
+        () => getSpaceSummaries(projectUuid!),
         {
             select: (data) =>
                 // only get spaces that the user has direct access to
@@ -42,6 +42,7 @@ export const useSpaceSummaries = (
                               (!!user && space.access.includes(user.userUuid)),
                       )
                     : data,
+            enabled: !!projectUuid,
             ...queryOptions,
         },
     );
@@ -55,13 +56,14 @@ const getSpace = async (projectUuid: string, spaceUuid: string) =>
     });
 
 export const useSpace = (
-    projectUuid: string,
-    spaceUuid: string,
+    projectUuid: string | undefined,
+    spaceUuid: string | undefined,
     useQueryOptions?: UseQueryOptions<Space, ApiError>,
 ) =>
     useQuery<Space, ApiError>({
         queryKey: ['space', projectUuid, spaceUuid],
-        queryFn: () => getSpace(projectUuid, spaceUuid),
+        queryFn: () => getSpace(projectUuid!, spaceUuid!),
+        enabled: !!projectUuid && !!spaceUuid,
         ...useQueryOptions,
     });
 
@@ -155,7 +157,7 @@ const createSpace = async (projectUuid: string, data: CreateSpace) =>
     });
 
 export const useCreateMutation = (
-    projectUuid: string,
+    projectUuid?: string,
     options?: {
         onSuccess?: (space: Space) => void;
     },
@@ -164,13 +166,14 @@ export const useCreateMutation = (
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, CreateSpace>(
-        (data) => createSpace(projectUuid, data),
+        (data) =>
+            projectUuid ? createSpace(projectUuid, data) : Promise.reject(),
         {
             mutationKey: ['space_create', projectUuid],
             onSuccess: async (space) => {
                 await queryClient.invalidateQueries([
                     'projects',
-                    projectUuid,
+                    projectUuid!,
                     'spaces',
                 ]);
 

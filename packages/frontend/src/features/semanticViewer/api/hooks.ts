@@ -34,7 +34,7 @@ import {
 } from './requests';
 
 type SemanticLayerInfoParams = {
-    projectUuid: string;
+    projectUuid: string | undefined;
 };
 
 export const useSemanticLayerInfo = (
@@ -43,7 +43,8 @@ export const useSemanticLayerInfo = (
 ) =>
     useQuery<SemanticLayerClientInfo | null, ApiError>({
         queryKey: [projectUuid, 'semanticLayer', 'info'],
-        queryFn: () => apiGetSemanticLayerInfo({ projectUuid }),
+        queryFn: () => apiGetSemanticLayerInfo({ projectUuid: projectUuid! }),
+        enabled: !!projectUuid,
         ...useQueryParams,
     });
 
@@ -60,7 +61,7 @@ export const useSemanticLayerViews = ({
     });
 
 type SemanticLayerViewFieldsParams = {
-    projectUuid: string;
+    projectUuid: string | undefined;
     semanticLayerView: string | undefined;
     semanticLayerQuery:
         | Pick<
@@ -100,13 +101,14 @@ export const useSemanticLayerViewFields = (
             }
 
             return apiPostSemanticLayerViewFields({
-                projectUuid,
+                projectUuid: projectUuid!,
                 view: semanticLayerView,
                 selectedFields: allFieldsInUse,
             });
         },
         ...useQueryParams,
         enabled:
+            !!projectUuid &&
             (useQueryParams?.enabled ?? true) &&
             !!semanticLayerView &&
             !!allFieldsInUse,
@@ -178,7 +180,7 @@ export const useSavedSemanticViewerChart = (
         projectUuid,
         findBy: { uuid, slug },
     }: {
-        projectUuid: string;
+        projectUuid: string | undefined;
         findBy: { uuid?: string; slug?: string };
     },
     useQueryParams?: UseQueryOptions<
@@ -194,12 +196,12 @@ export const useSavedSemanticViewerChart = (
             }
 
             return apiGetSavedSemanticViewerChart({
-                projectUuid,
+                projectUuid: projectUuid!,
                 findBy: { uuid, slug },
             });
         },
         {
-            enabled: !!uuid || !!slug,
+            enabled: (!!uuid || !!slug) && !!projectUuid,
             ...useQueryParams,
         },
     );
@@ -214,7 +216,7 @@ export const useSavedSemanticViewerChartResults = (
         projectUuid,
         findBy: { uuid, slug },
     }: {
-        projectUuid: string;
+        projectUuid: string | undefined;
         findBy: { uuid?: string; slug?: string };
     },
     useQueryParams?: UseQueryOptions<
@@ -233,14 +235,14 @@ export const useSavedSemanticViewerChartResults = (
             }
 
             const results = await apiGetSavedSemanticViewerChartResults({
-                projectUuid,
+                projectUuid: projectUuid!,
                 findBy: { uuid, slug },
             });
 
             return results;
         },
         {
-            enabled: !!uuid || !!slug,
+            enabled: (!!uuid || !!slug) && !!projectUuid,
             ...useQueryParams,
         },
     );

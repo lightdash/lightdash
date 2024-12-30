@@ -35,7 +35,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     const {
         data: relatedDashboards,
         isInitialLoading: isLoadingRelatedDashboards,
-    } = useDashboardsContainingChart(projectUuid!, uuid);
+    } = useDashboardsContainingChart(projectUuid, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =
         useSavedQueryDeleteMutation();
 

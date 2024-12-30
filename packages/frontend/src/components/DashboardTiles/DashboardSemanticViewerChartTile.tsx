@@ -72,18 +72,18 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         tile.properties.savedSemanticViewerChartUuid ?? undefined;
 
     const chartQuery = useSavedSemanticViewerChart({
-        projectUuid: projectUuid!,
+        projectUuid,
         findBy: { uuid: savedSemanticViewerChartUuid },
     });
 
     const chartResultsQuery = useSavedSemanticViewerChartResults({
-        projectUuid: projectUuid!,
+        projectUuid,
         findBy: { uuid: savedSemanticViewerChartUuid },
     });
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
-            projectUuid: projectUuid!,
+            projectUuid,
             // TODO: this should never be empty or that hook should receive a null view!
             semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
             semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
@@ -99,13 +99,14 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         if (
             !fieldsQuery.isSuccess ||
             !chartQuery.isSuccess ||
-            !chartResultsQuery.isSuccess
+            !chartResultsQuery.isSuccess ||
+            !projectUuid
         ) {
             return;
         }
 
         return new SemanticViewerResultsRunnerFrontend({
-            projectUuid: projectUuid!,
+            projectUuid,
             fields: fieldsQuery.data,
             rows: chartResultsQuery.data.results,
             columnNames: chartResultsQuery.data.columns,

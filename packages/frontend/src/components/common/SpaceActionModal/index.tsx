@@ -117,6 +117,10 @@ const SpaceModal: FC<ActionModalProps> = ({
         }
     };
 
+    if (!projectUuid) {
+        return null;
+    }
+
     return (
         <MantineProvider inherit theme={{ colorScheme: 'light' }}>
             <Modal

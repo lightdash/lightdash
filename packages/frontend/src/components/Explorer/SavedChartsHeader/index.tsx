@@ -229,16 +229,16 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         useDisclosure();
 
     const { user, health } = useApp();
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid!, true);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-    const { data: gitIntegration } = useGitIntegration(projectUuid!);
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
     const createPullRequest = useCreatePullRequestForChartFieldsMutation(
-        projectUuid!,
+        projectUuid,
         savedChart?.uuid,
     );
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;

@@ -35,7 +35,7 @@ const getDashboardsContainingChart = async (
     });
 
 export const useDashboards = (
-    projectUuid: string,
+    projectUuid?: string,
     useQueryOptions?: UseQueryOptions<
         DashboardBasicDetailsWithTileTypes[],
         ApiError
@@ -46,20 +46,21 @@ export const useDashboards = (
 
     return useQuery<DashboardBasicDetailsWithTileTypes[], ApiError>(
         ['dashboards', projectUuid, includePrivateSpaces],
-        () => getDashboards(projectUuid, includePrivateSpaces),
+        () => getDashboards(projectUuid!, includePrivateSpaces),
         {
             ...useQueryOptions,
             onError: (result) => {
                 setErrorResponse(result);
                 useQueryOptions?.onError?.(result);
             },
+            enabled: !!projectUuid,
         },
     );
 };
 
 export const useDashboardsContainingChart = (
-    projectUuid: string,
-    chartId: string,
+    projectUuid?: string,
+    chartId?: string,
     includePrivate = true,
 ) => {
     const setErrorResponse = useQueryError();
@@ -71,8 +72,13 @@ export const useDashboardsContainingChart = (
             includePrivate,
         ],
         queryFn: () =>
-            getDashboardsContainingChart(projectUuid, chartId, includePrivate),
+            getDashboardsContainingChart(
+                projectUuid!,
+                chartId!,
+                includePrivate,
+            ),
         onError: (result) => setErrorResponse(result),
+        enabled: !!projectUuid && !!chartId,
     });
 };
 

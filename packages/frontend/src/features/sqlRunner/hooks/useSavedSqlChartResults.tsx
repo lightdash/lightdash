@@ -36,7 +36,7 @@ export const useSavedSqlChartResults = ({
         ['savedSqlChart', savedSqlUuid ?? slug],
         async () =>
             fetchSavedSqlChart({
-                projectUuid: projectUuid!, // safe to assume these are defined because of the enabled flag
+                projectUuid: projectUuid!,
                 uuid: savedSqlUuid,
                 slug,
             }),

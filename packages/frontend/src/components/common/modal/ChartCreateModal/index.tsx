@@ -68,7 +68,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         >
             {saveMode === SaveMode.TO_DASHBOARD && (
                 <SaveToDashboard
-                    projectUuid={projectUuid!}
+                    projectUuid={projectUuid}
                     dashboardName={editingDashboardInfo.name}
                     dashboardUuid={editingDashboardInfo.dashboardUuid}
                     savedData={savedData}
@@ -78,7 +78,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
             {saveMode === SaveMode.DEFAULT && (
                 <SaveToSpaceOrDashboard
-                    projectUuid={projectUuid!}
+                    projectUuid={projectUuid}
                     savedData={savedData}
                     onConfirm={onConfirm}
                     onClose={onClose}

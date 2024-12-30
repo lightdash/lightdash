@@ -197,6 +197,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         reorderItems(pinnedItemsOrder(newDraggableItems));
     };
 
+    if (!projectUuid) {
+        return null;
+    }
+
     return (
         <Stack spacing="xl" p="lg">
             {groupedItems.map((group) => (
@@ -234,7 +238,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                             allowDelete={allowDelete}
                                             index={index}
                                             onAction={onAction}
-                                            projectUuid={projectUuid!}
+                                            projectUuid={projectUuid}
                                             hasReorder={hasReorder}
                                         />
                                     ))}

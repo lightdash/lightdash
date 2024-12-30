@@ -28,7 +28,7 @@ const MobileSpace: FC = () => {
         data: space,
         isInitialLoading,
         error,
-    } = useSpace(projectUuid!, spaceUuid);
+    } = useSpace(projectUuid, spaceUuid);
     const { user } = useApp();
     const [search, setSearch] = useState<string>('');
     const visibleItems = useMemo(() => {

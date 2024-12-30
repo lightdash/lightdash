@@ -17,7 +17,7 @@ const SavedQueries: FC = () => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     const userCanCreateCharts = useCreateInAnySpaceAccess(
-        projectUuid!,
+        projectUuid,
         'SavedChart',
     );
 
@@ -51,12 +51,14 @@ const SavedQueries: FC = () => {
                     ) : undefined}
                 </Group>
 
-                <InfiniteResourceTable
-                    filters={{
-                        projectUuid: projectUuid!,
-                        contentTypes: [ContentType.CHART],
-                    }}
-                />
+                {projectUuid ? (
+                    <InfiniteResourceTable
+                        filters={{
+                            projectUuid,
+                            contentTypes: [ContentType.CHART],
+                        }}
+                    />
+                ) : null}
             </Stack>
         </Page>
     );

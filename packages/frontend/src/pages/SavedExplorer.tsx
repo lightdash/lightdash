@@ -43,7 +43,7 @@ const SavedExplorer = () => {
 
     const { mutate: togglePinChart } = useChartPinningMutation();
     const { data: pinnedItems } = usePinnedItems(
-        projectUuid!,
+        projectUuid,
         data?.pinnedListUuid ?? undefined,
     );
 

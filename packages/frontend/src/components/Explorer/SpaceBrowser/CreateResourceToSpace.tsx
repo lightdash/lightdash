@@ -21,7 +21,7 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
         isSuccess: hasCreatedDashboard,
         mutate: createDashboard,
         data: newDashboard,
-    } = useCreateMutation(projectUuid!);
+    } = useCreateMutation(projectUuid);
 
     useEffect(() => {
         if (hasCreatedDashboard && newDashboard) {

@@ -25,9 +25,7 @@ import { useApp } from '../providers/AppProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const Spaces: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>() as {
-        projectUuid: string;
-    };
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const { data: spaces = [], isInitialLoading: spaceIsLoading } =
         useSpaceSummaries(projectUuid, true);

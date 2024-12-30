@@ -83,8 +83,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid!);
-    const canUserManageValidation = useValidationUserAbility(projectUuid!);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid);
+    const canUserManageValidation = useValidationUserAbility(projectUuid);
 
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(
         defaultSort ? new Map(Object.entries(defaultSort)) : new Map(),
@@ -116,6 +116,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'name',
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
+                    if (!projectUuid) {
+                        return null;
+                    }
+
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
@@ -130,7 +134,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     textDecoration: 'none',
                                 },
                             }}
-                            to={getResourceUrl(projectUuid!, item)}
+                            to={getResourceUrl(projectUuid, item)}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <Group noWrap>
@@ -203,14 +207,15 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     item,
                                                 )) &&
                                             canBelongToSpace &&
-                                            hoveredItem === item.data.uuid && (
+                                            hoveredItem === item.data.uuid &&
+                                            projectUuid && (
                                                 <Box>
                                                     <ResourceInfoPopup
                                                         resourceUuid={
                                                             item.data.uuid
                                                         }
                                                         projectUuid={
-                                                            projectUuid!
+                                                            projectUuid
                                                         }
                                                         description={
                                                             item.data
@@ -464,7 +469,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     <tr
                         key={item.data.uuid}
                         onClick={() =>
-                            history.push(getResourceUrl(projectUuid!, item))
+                            projectUuid &&
+                            history.push(getResourceUrl(projectUuid, item))
                         }
                         onMouseEnter={() => setHoveredItem(item.data.uuid)}
                         onMouseLeave={() => setHoveredItem(undefined)}

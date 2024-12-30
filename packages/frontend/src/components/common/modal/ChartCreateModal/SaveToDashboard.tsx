@@ -23,7 +23,7 @@ type Props = {
     dashboardName: string | null;
     dashboardUuid: string | null;
     savedData: CreateSavedChartVersion;
-    projectUuid: string;
+    projectUuid?: string;
     onClose: () => void;
 };
 
@@ -96,7 +96,7 @@ export const SaveToDashboard: FC<Props> = ({
 
     const handleSaveChartInDashboard = useCallback(
         async (values: SaveToDashboardFormValues) => {
-            if (!dashboardUuid) {
+            if (!dashboardUuid || !projectUuid) {
                 return;
             }
             const newChartInDashboard: CreateChartInDashboard = {

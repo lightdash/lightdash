@@ -69,7 +69,7 @@ const ChartUpdateModal = ({
         fetchNextPage,
     } = useChartSummariesV2(
         {
-            projectUuid: projectUuid!,
+            projectUuid,
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,

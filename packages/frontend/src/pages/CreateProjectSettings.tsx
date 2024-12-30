@@ -40,10 +40,12 @@ const CreateProjectSettings: FC = () => {
                     </Text>
                 </Stack>
 
-                <ProjectTablesConfiguration
-                    projectUuid={projectUuid!}
-                    onSuccess={onSuccess}
-                />
+                {!!projectUuid && (
+                    <ProjectTablesConfiguration
+                        projectUuid={projectUuid}
+                        onSuccess={onSuccess}
+                    />
+                )}
             </Stack>
         </Page>
     );

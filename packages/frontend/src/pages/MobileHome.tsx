@@ -24,17 +24,17 @@ import { useApp } from '../providers/AppProvider';
 const MobileHome: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const selectedProjectUuid = params.projectUuid;
-    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid!);
+    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
     const pinnedItems = usePinnedItems(
-        selectedProjectUuid!,
+        selectedProjectUuid,
         project.data?.pinnedListUuid,
     );
 
     const {
         data: mostPopularAndRecentlyUpdated,
         isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
-    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid!);
+    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
     const items = useMemo(() => {
