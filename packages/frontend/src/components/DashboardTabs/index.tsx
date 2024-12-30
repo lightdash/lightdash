@@ -4,7 +4,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { ActionIcon, Group, Tabs } from '@mantine/core';
+import { ActionIcon, Group, ScrollArea, Tabs } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
@@ -240,6 +240,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               backgroundColor: 'white',
                                               flexGrow: 1,
                                           },
+                                          tabsList: {
+                                              flexWrap: 'nowrap',
+                                          },
+                                          tab: {
+                                              borderBottom:
+                                                  '1px solid var(--mantine-color-gray-3)',
+                                          },
                                       }
                                     : undefined
                             }
@@ -247,31 +254,51 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         >
                             {sortedTabs && sortedTabs?.length > 0 && (
                                 <Tabs.List bg="gray.0" px="lg">
-                                    {sortedTabs?.map((tab, idx) => {
-                                        return (
-                                            <DraggableTab
-                                                key={tab.uuid}
-                                                idx={idx}
-                                                tab={tab}
-                                                isEditMode={isEditMode}
-                                                sortedTabs={sortedTabs}
-                                                currentTabHasTiles={
-                                                    currentTabHasTiles
-                                                }
-                                                isActive={
-                                                    activeTab?.uuid === tab.uuid
-                                                }
-                                                setEditingTab={setEditingTab}
-                                                handleDeleteTab={
-                                                    handleDeleteTab
-                                                }
-                                                setDeletingTab={setDeletingTab}
-                                            />
-                                        );
-                                    })}
+                                    <ScrollArea
+                                        type="hover"
+                                        offsetScrollbars
+                                        scrollHideDelay={200}
+                                        variant="primary"
+                                        scrollbarSize={6}
+                                        styles={{
+                                            viewport: {
+                                                paddingBottom: 0,
+                                            },
+                                        }}
+                                    >
+                                        <Group noWrap spacing={0}>
+                                            {sortedTabs?.map((tab, idx) => {
+                                                return (
+                                                    <DraggableTab
+                                                        key={tab.uuid}
+                                                        idx={idx}
+                                                        tab={tab}
+                                                        isEditMode={isEditMode}
+                                                        sortedTabs={sortedTabs}
+                                                        currentTabHasTiles={
+                                                            currentTabHasTiles
+                                                        }
+                                                        isActive={
+                                                            activeTab?.uuid ===
+                                                            tab.uuid
+                                                        }
+                                                        setEditingTab={
+                                                            setEditingTab
+                                                        }
+                                                        handleDeleteTab={
+                                                            handleDeleteTab
+                                                        }
+                                                        setDeletingTab={
+                                                            setDeletingTab
+                                                        }
+                                                    />
+                                                );
+                                            })}
+                                        </Group>
+                                    </ScrollArea>
                                     {provided.placeholder}
                                     {isEditMode && (
-                                        <Group>
+                                        <Group pl="md">
                                             <ActionIcon
                                                 size="xs"
                                                 variant="light"
