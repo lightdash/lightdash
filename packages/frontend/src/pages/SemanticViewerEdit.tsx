@@ -44,14 +44,14 @@ const SemanticViewerEditorPageWithStore = () => {
     const dispatch = useAppDispatch();
     const semanticViewerState = useAppSelector(selectSemanticViewerState);
 
-    const infoQuery = useSemanticLayerInfo({ projectUuid: projectUuid! });
+    const infoQuery = useSemanticLayerInfo({ projectUuid });
 
     const isSemanticLayerConnected =
         infoQuery.isSuccess && infoQuery.data !== undefined;
 
     const chartQuery = useSavedSemanticViewerChart(
         {
-            projectUuid: projectUuid!,
+            projectUuid,
             findBy: { slug: savedSemanticViewerChartSlug },
         },
         { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
@@ -59,7 +59,7 @@ const SemanticViewerEditorPageWithStore = () => {
 
     const chartResultsQuery = useSavedSemanticViewerChartResults(
         {
-            projectUuid: projectUuid!,
+            projectUuid,
             findBy: { slug: savedSemanticViewerChartSlug },
         },
         { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
@@ -67,7 +67,7 @@ const SemanticViewerEditorPageWithStore = () => {
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
-            projectUuid: projectUuid!,
+            projectUuid,
             // TODO: this should never be empty or that hook should receive a null view!
             semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
             semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
@@ -79,13 +79,14 @@ const SemanticViewerEditorPageWithStore = () => {
         if (
             !fieldsQuery.isSuccess ||
             !chartQuery.isSuccess ||
-            !chartResultsQuery.isSuccess
+            !chartResultsQuery.isSuccess ||
+            !projectUuid
         ) {
             return;
         }
 
         return new SemanticViewerResultsRunnerFrontend({
-            projectUuid: projectUuid!,
+            projectUuid,
             fields: fieldsQuery.data,
             rows: chartResultsQuery.data.results,
             columnNames: chartResultsQuery.data.columns,
@@ -129,6 +130,10 @@ const SemanticViewerEditorPageWithStore = () => {
     }, [infoQuery.isSuccess, infoQuery.data, history, projectUuid]);
 
     useEffect(() => {
+        if (!projectUuid) {
+            return;
+        }
+
         if (semanticViewerState === SemanticViewerStateStatus.INITIALIZED) {
             return;
         }
@@ -151,7 +156,7 @@ const SemanticViewerEditorPageWithStore = () => {
             dispatch(setChartOptionsAndConfig(chartResultOptions));
             dispatch(
                 initializeSemanticViewer({
-                    projectUuid: projectUuid!,
+                    projectUuid,
                     info: infoQuery.data,
                     chartData: {
                         chart: chartQuery.data,
@@ -169,7 +174,7 @@ const SemanticViewerEditorPageWithStore = () => {
         ) {
             dispatch(
                 initializeSemanticViewer({
-                    projectUuid: projectUuid!,
+                    projectUuid,
                     info: infoQuery.data,
                     chartData: undefined,
                 }),

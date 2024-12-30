@@ -3,8 +3,8 @@ import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 type GetSegmentDimensionsArgs = {
-    projectUuid?: string;
-    tableName: string;
+    projectUuid: string | undefined;
+    tableName: string | undefined;
 };
 
 const getSegmentDimensions = async ({

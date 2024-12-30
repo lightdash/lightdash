@@ -8,7 +8,7 @@ import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
-    projectUuid: string;
+    projectUuid: string | undefined;
 };
 
 export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
@@ -67,6 +67,9 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     }, [action]);
 
     const handleOnCancel = useCallback(() => {
+        if (!projectUuid) {
+            return;
+        }
         // Cancel the action and navigate back to the dashboard, restoring the existing state (in case there were some unsaved changes)
         // Similar to the behaviour from `SaveToDashboard`
         // so do not clear the storage here

@@ -17,9 +17,8 @@ import { useDashboards } from '../hooks/dashboard/useDashboards';
 
 const MobileDashboards = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isInitialLoading, data: dashboards = [] } = useDashboards(
-        projectUuid!,
-    );
+    const { isInitialLoading, data: dashboards = [] } =
+        useDashboards(projectUuid);
     const [search, setSearch] = useState<string>('');
     const visibleItems = useMemo(() => {
         const items = wrapResourceView(

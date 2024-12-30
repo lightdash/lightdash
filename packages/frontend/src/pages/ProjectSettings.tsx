@@ -28,7 +28,7 @@ const ProjectSettings: FC = () => {
         return <ErrorState error={error.error} />;
     }
 
-    if (isInitialLoading || !project) {
+    if (isInitialLoading || !project || !projectUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading project" loading />
@@ -61,65 +61,63 @@ const ProjectSettings: FC = () => {
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/settings`}
                     >
-                        <UpdateProjectConnection projectUuid={projectUuid!} />
+                        <UpdateProjectConnection projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/tablesConfiguration`}
                     >
-                        <ProjectTablesConfiguration
-                            projectUuid={projectUuid!}
-                        />
+                        <ProjectTablesConfiguration projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                     >
-                        <ProjectUserAccess projectUuid={projectUuid!} />
+                        <ProjectUserAccess projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/semanticLayer`}
                     >
-                        <SettingsSemanticLayer projectUuid={projectUuid!} />
+                        <SettingsSemanticLayer projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/usageAnalytics`}
                     >
-                        <SettingsUsageAnalytics projectUuid={projectUuid!} />
+                        <SettingsUsageAnalytics projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries`}
                     >
-                        <SettingsScheduler projectUuid={projectUuid!} />
+                        <SettingsScheduler projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/validator`}
                     >
-                        <SettingsValidator projectUuid={projectUuid!} />
+                        <SettingsValidator projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/customSql`}
                     >
-                        <CustomSqlPanel projectUuid={projectUuid!} />
+                        <CustomSqlPanel projectUuid={projectUuid} />
                     </Route>
 
                     <Route
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/dataOps`}
                     >
-                        <DataOps projectUuid={projectUuid!} />
+                        <DataOps projectUuid={projectUuid} />
                     </Route>
 
                     <Navigate to={`/generalSettings/`} />

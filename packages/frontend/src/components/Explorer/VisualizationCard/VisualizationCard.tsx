@@ -206,12 +206,13 @@ const VisualizationCard: FC<{
                                         onClose={closeSidebar}
                                     />
                                 ) : null}
-
-                                <ChartDownloadMenu
-                                    getCsvLink={getCsvLink}
-                                    projectUuid={projectUuid!}
-                                    getGsheetLink={getGsheetLink}
-                                />
+                                {!!projectUuid && (
+                                    <ChartDownloadMenu
+                                        getCsvLink={getCsvLink}
+                                        projectUuid={projectUuid}
+                                        getGsheetLink={getGsheetLink}
+                                    />
+                                )}
                             </>
                         )
                     }

@@ -29,7 +29,7 @@ const PasswordReset: FC = () => {
     const history = useHistory();
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();
-    const { isInitialLoading, error } = usePasswordResetLink(code!);
+    const { isInitialLoading, error } = usePasswordResetLink(code);
     const passwordResetMutation = usePasswordResetMutation();
 
     const form = useForm<ResetPasswordForm>({
@@ -67,8 +67,9 @@ const PasswordReset: FC = () => {
                                         name="password-reset"
                                         onSubmit={form.onSubmit(
                                             ({ password }) =>
+                                                code &&
                                                 passwordResetMutation.mutate({
-                                                    code: code!,
+                                                    code,
                                                     newPassword: password,
                                                 }),
                                         )}

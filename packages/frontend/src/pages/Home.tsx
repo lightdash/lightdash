@@ -27,14 +27,13 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const pinnedItems = usePinnedItems(
-        selectedProjectUuid!,
+        selectedProjectUuid,
         project.data?.pinnedListUuid,
     );
-    console.log('home', params, selectedProjectUuid);
     const {
         data: mostPopularAndRecentlyUpdated,
         isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
-    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid!);
+    } = useMostPopularAndRecentlyUpdated(selectedProjectUuid);
 
     const { user } = useApp();
 

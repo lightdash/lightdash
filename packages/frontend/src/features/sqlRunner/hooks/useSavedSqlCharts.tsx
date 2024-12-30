@@ -95,7 +95,7 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
 };
 
 export const useUpdateSqlChartMutation = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     savedSqlUuid: string,
     slug: string,
 ) => {
@@ -108,11 +108,13 @@ export const useUpdateSqlChartMutation = (
         UpdateSqlChart & { savedSqlUuid?: string }
     >(
         (data) =>
-            updateSavedSqlChart(
-                projectUuid,
-                data.savedSqlUuid || savedSqlUuid!,
-                data,
-            ),
+            projectUuid
+                ? updateSavedSqlChart(
+                      projectUuid,
+                      data.savedSqlUuid || savedSqlUuid!,
+                      data,
+                  )
+                : Promise.reject(),
         {
             mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
             onSuccess: async () => {

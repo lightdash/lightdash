@@ -43,12 +43,13 @@ const SavedExplorer = () => {
 
     const { mutate: togglePinChart } = useChartPinningMutation();
     const { data: pinnedItems } = usePinnedItems(
-        projectUuid!,
+        projectUuid,
         data?.pinnedListUuid ?? undefined,
     );
 
     const handleChartPinning = useCallback(() => {
-        togglePinChart({ uuid: savedQueryUuid! });
+        if (!savedQueryUuid) return;
+        togglePinChart({ uuid: savedQueryUuid });
     }, [savedQueryUuid, togglePinChart]);
 
     const isPinned = useMemo(() => {

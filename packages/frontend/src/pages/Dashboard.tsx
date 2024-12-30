@@ -87,7 +87,7 @@ const Dashboard: FC = () => {
         mode?: string;
         tabUuid?: string;
     }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid!);
+    const { data: spaces } = useSpaceSummaries(projectUuid);
 
     const { clearIsEditingDashboardChart } = useDashboardStorage();
 
@@ -163,12 +163,13 @@ const Dashboard: FC = () => {
     const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
     const { mutate: toggleDashboardPinning } = useDashboardPinningMutation();
     const { data: pinnedItems } = usePinnedItems(
-        projectUuid!,
+        projectUuid,
         dashboard?.pinnedListUuid ?? undefined,
     );
 
     const handleDashboardPinning = useCallback(() => {
-        toggleDashboardPinning({ uuid: dashboardUuid! });
+        if (!dashboardUuid) return;
+        toggleDashboardPinning({ uuid: dashboardUuid });
     }, [dashboardUuid, toggleDashboardPinning]);
 
     const isPinned = useMemo(() => {

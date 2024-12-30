@@ -453,14 +453,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 (f) => getItemId(f) === filter.target.fieldId,
             );
 
-            track({
-                name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
-                properties: {
-                    fieldType: field?.type,
-                    projectId: projectUuid!,
-                    dashboardId: dashboardUuid!,
-                },
-            });
+            if (projectUuid && dashboardUuid) {
+                track({
+                    name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                    properties: {
+                        fieldType: field?.type,
+                        projectId: projectUuid,
+                        dashboardId: dashboardUuid,
+                    },
+                });
+            }
 
             addDimensionDashboardFilter(filter, !isEditMode);
         },

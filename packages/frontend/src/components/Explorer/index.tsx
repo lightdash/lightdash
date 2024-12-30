@@ -55,7 +55,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <ResultsCard />
 
-                    <SqlCard projectUuid={projectUuid!} />
+                    {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
                 </Stack>
 
                 <UnderlyingDataModal />

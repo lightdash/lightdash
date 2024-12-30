@@ -9,10 +9,10 @@ const getGitIntegration = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useGitIntegration = (projectUuid: string) =>
+export const useGitIntegration = (projectUuid: string | undefined) =>
     useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['git-integration', projectUuid],
-        queryFn: () => getGitIntegration(projectUuid),
+        queryFn: () => getGitIntegration(projectUuid!),
         enabled: !!projectUuid, // Don't fetch if is empty string
         retry: false,
     });

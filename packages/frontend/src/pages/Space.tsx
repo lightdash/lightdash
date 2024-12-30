@@ -274,10 +274,12 @@ const Space: FC = () => {
                                 </Menu>
                             )}
                         <Can I="manage" this={subject('Space', space)}>
-                            <ShareSpaceModal
-                                space={space!}
-                                projectUuid={projectUuid}
-                            />
+                            {!!space && (
+                                <ShareSpaceModal
+                                    space={space}
+                                    projectUuid={projectUuid}
+                                />
+                            )}
                             <SpaceBrowserMenu
                                 onRename={() => setUpdateSpace(true)}
                                 onDelete={() => setDeleteSpace(true)}

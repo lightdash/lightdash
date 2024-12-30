@@ -144,7 +144,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const segmentDimensionsQuery = useCatalogSegmentDimensions({
         projectUuid,
-        tableName: tableName!,
+        tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
+        },
     });
 
     const queryHasEmptyMetric = useMemo(() => {

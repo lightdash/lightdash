@@ -19,22 +19,25 @@ export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 const SavedDashboards = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isInitialLoading, data: dashboards = [] } = useDashboards(
-        projectUuid!,
-    );
+    const { isInitialLoading, data: dashboards = [] } =
+        useDashboards(projectUuid);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
     const { health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
-        useSpaceSummaries(projectUuid!);
+        useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
     const userCanCreateDashboards = useCreateInAnySpaceAccess(
-        projectUuid!,
+        projectUuid,
         'Dashboard',
     );
+
+    if (!projectUuid) {
+        return null;
+    }
 
     if (isInitialLoading || isLoadingSpaces) {
         return <LoadingState title="Loading dashboards" />;
@@ -76,14 +79,14 @@ const SavedDashboards = () => {
 
                 <InfiniteResourceTable
                     filters={{
-                        projectUuid: projectUuid!,
+                        projectUuid,
                         contentTypes: [ContentType.DASHBOARD],
                     }}
                 />
             </Stack>
 
             <DashboardCreateModal
-                projectUuid={projectUuid!}
+                projectUuid={projectUuid}
                 defaultSpaceUuid={spaces?.[0]?.uuid}
                 opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}

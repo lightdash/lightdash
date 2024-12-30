@@ -73,7 +73,7 @@ const NavBar = memo(() => {
     const renderNavBarContent = () => {
         switch (navBarMode) {
             case NavBarMode.EDITING_DASHBOARD_CHART:
-                return <DashboardExplorerBanner projectUuid={projectUuid!} />;
+                return <DashboardExplorerBanner projectUuid={projectUuid} />;
             case NavBarMode.DEFAULT:
                 return (
                     <MainNavBarContent

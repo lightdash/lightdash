@@ -138,7 +138,7 @@ export const useValidationMutation = (
     });
 };
 
-export const useValidationUserAbility = (projectUuid: string) => {
+export const useValidationUserAbility = (projectUuid?: string) => {
     const { data: user } = useUser(true);
     const { data: project } = useProject(projectUuid);
     const canUserSeeValidationErrorsNotifications =

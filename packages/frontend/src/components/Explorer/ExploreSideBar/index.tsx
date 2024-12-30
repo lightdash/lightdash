@@ -47,7 +47,7 @@ const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [search, setSearch] = useState<string>('');
-    const exploresResult = useExplores(projectUuid!, true);
+    const exploresResult = useExplores(projectUuid, true);
 
     const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
         useMemo(() => {

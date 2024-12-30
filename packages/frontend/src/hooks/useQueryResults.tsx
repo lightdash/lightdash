@@ -326,12 +326,15 @@ const getChartVersionResults = async (
 };
 
 export const useChartVersionResultsMutation = (
-    chartUuid: string,
+    chartUuid: string | undefined,
     versionUuid?: string,
 ) => {
     const { showToastApiError } = useToaster();
     const mutation = useMutation<ApiQueryResults, ApiError>(
-        () => getChartVersionResults(chartUuid, versionUuid!),
+        () =>
+            chartUuid && versionUuid
+                ? getChartVersionResults(chartUuid, versionUuid)
+                : Promise.reject(),
         {
             mutationKey: ['chartVersionResults', chartUuid, versionUuid],
             onError: ({ error }) => {

@@ -46,14 +46,14 @@ const ExplorerHeader: FC = memo(() => {
     const { getHasDashboardChanges } = useDashboardStorage();
 
     const userCanCreateCharts = useCreateInAnySpaceAccess(
-        projectUuid!,
+        projectUuid,
         'SavedChart',
     );
 
     const urlToShare = useMemo(() => {
         if (unsavedChartVersion) {
             const urlArgs = getExplorerUrlFromCreateSavedChartVersion(
-                projectUuid!,
+                projectUuid,
                 unsavedChartVersion,
                 true,
             );

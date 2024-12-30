@@ -37,10 +37,10 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
-    const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid!);
+    const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid);
 
     const userCanCreateDashboard = useCreateInAnySpaceAccess(
-        projectUuid!,
+        projectUuid,
         'Dashboard',
     );
 

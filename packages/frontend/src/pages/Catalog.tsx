@@ -13,7 +13,7 @@ const Catalog: FC = () => {
 
     return (
         <CatalogProvider
-            projectUuid={selectedProjectUuid!}
+            projectUuid={selectedProjectUuid}
             isSidebarOpen={isSidebarOpen}
             setSidebarOpen={setSidebarOpen}
         >

@@ -115,8 +115,8 @@ const createPullRequestForChartFields = async (
     });
 
 const useCreatePullRequestForChartFieldsMutation = (
-    projectUuid: string,
-    chartUuid?: string,
+    projectUuid: string | undefined,
+    chartUuid: string | undefined,
 ) => {
     /* useMutation<GitIntegrationConfiguration, ApiError>(
         ['git-integration', 'pull-request'],
@@ -126,7 +126,10 @@ const useCreatePullRequestForChartFieldsMutation = (
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<PullRequestCreated, ApiError>(
-        () => createPullRequestForChartFields(projectUuid, chartUuid!),
+        () =>
+            projectUuid && chartUuid
+                ? createPullRequestForChartFields(projectUuid, chartUuid)
+                : Promise.reject(),
         {
             mutationKey: ['git-integration', 'pull-request'],
             retry: false,
@@ -229,16 +232,16 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         useDisclosure();
 
     const { user, health } = useApp();
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid!, true);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-    const { data: gitIntegration } = useGitIntegration(projectUuid!);
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
     const createPullRequest = useCreatePullRequestForChartFieldsMutation(
-        projectUuid!,
+        projectUuid,
         savedChart?.uuid,
     );
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;

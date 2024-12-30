@@ -293,7 +293,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             },
         };
         const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
-            projectUuid!,
+            projectUuid,
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
@@ -361,18 +361,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                 >
                                     Export CSV
                                 </Button>
-                                <ExportCSVModal
-                                    getCsvLink={getCsvLink}
-                                    onClose={() =>
-                                        setIsCSVExportModalOpen(false)
-                                    }
-                                    onConfirm={() =>
-                                        setIsCSVExportModalOpen(false)
-                                    }
-                                    opened={isCSVExportModalOpen}
-                                    projectUuid={projectUuid!}
-                                    rows={resultsData?.rows}
-                                />
+                                {!!projectUuid && (
+                                    <ExportCSVModal
+                                        getCsvLink={getCsvLink}
+                                        onClose={() =>
+                                            setIsCSVExportModalOpen(false)
+                                        }
+                                        onConfirm={() =>
+                                            setIsCSVExportModalOpen(false)
+                                        }
+                                        opened={isCSVExportModalOpen}
+                                        projectUuid={projectUuid}
+                                        rows={resultsData?.rows}
+                                    />
+                                )}
                             </Can>
                             <Can
                                 I="manage"
