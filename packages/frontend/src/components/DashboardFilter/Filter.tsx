@@ -257,6 +257,7 @@ const Filter: FC<Props> = ({
                             fz="xs"
                             label={inactiveFilterInfo}
                             disabled={!inactiveFilterInfo}
+                            withinPortal
                         >
                             <Button
                                 pos="relative"
