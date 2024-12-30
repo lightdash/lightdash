@@ -11,6 +11,7 @@ import {
     getItemLabelWithoutTableName,
     getItemType,
     getResultValueArray,
+    hasFormatting,
     hashFieldReference,
     isCompleteLayout,
     isCustomBinDimension,
@@ -944,10 +945,7 @@ const getEchartAxes = ({
         rotate?: number;
         defaultNameGap?: number;
     }) => {
-        const hasFormattingConfig =
-            (isField(axisItem) &&
-                (axisItem.format || axisItem.round || axisItem.compact)) ||
-            (axisItem && isTableCalculation(axisItem) && axisItem.format);
+        const hasFormattingConfig = hasFormatting(axisItem);
 
         const axisMinInterval =
             isDimension(axisItem) &&

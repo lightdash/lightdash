@@ -97,29 +97,43 @@ export const useColumns = (): TableColumn[] => {
         refetchOnMount: false,
     });
 
-    const { activeItemsMap, invalidActiveItems } = useMemo<{
-        activeItemsMap: ItemsMap;
-        invalidActiveItems: string[];
-    }>(() => {
-        if (exploreData) {
-            const allItemsMap = getItemMap(
+    const itemsMap = useMemo<ItemsMap | undefined>(() => {
+        // If there are no results, use the explore data to render placeholder columns
+        if (resultsData) {
+            return resultsData?.fields;
+        } else if (exploreData) {
+            return getItemMap(
                 exploreData,
                 additionalMetrics,
                 tableCalculations,
                 customDimensions,
             );
+        }
+    }, [
+        resultsData,
+        exploreData,
+        additionalMetrics,
+        tableCalculations,
+        customDimensions,
+    ]);
 
+    const { activeItemsMap, invalidActiveItems } = useMemo<{
+        activeItemsMap: ItemsMap;
+        invalidActiveItems: string[];
+    }>(() => {
+        if (itemsMap) {
             return Array.from(activeFields).reduce<{
                 activeItemsMap: ItemsMap;
                 invalidActiveItems: string[];
             }>(
                 (acc, key) => {
-                    return allItemsMap[key]
+                    const item = itemsMap?.[key];
+                    return item
                         ? {
                               ...acc,
                               activeItemsMap: {
                                   ...acc.activeItemsMap,
-                                  [key]: allItemsMap[key],
+                                  [key]: item,
                               },
                           }
                         : {
@@ -134,13 +148,7 @@ export const useColumns = (): TableColumn[] => {
             );
         }
         return { activeItemsMap: {}, invalidActiveItems: [] };
-    }, [
-        additionalMetrics,
-        exploreData,
-        tableCalculations,
-        activeFields,
-        customDimensions,
-    ]);
+    }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,

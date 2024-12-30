@@ -50,6 +50,7 @@ export const TabEditModal: FC<AddProps> = ({
                     <TextInput
                         label="Tab name"
                         placeholder="Name your tab"
+                        data-autofocus
                         required
                         {...form.getInputProps('newTabName')}
                     ></TextInput>

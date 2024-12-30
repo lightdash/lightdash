@@ -8,6 +8,7 @@ import {
     Format,
     isCustomSqlDimension,
     isDimension,
+    isMetric,
     isTableCalculation,
     MetricType,
     NumberSeparator,
@@ -278,6 +279,31 @@ export function getCustomFormatFromLegacy({
                 compact,
             };
     }
+}
+
+export function hasFormatting(
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+): boolean {
+    if (!item) return false;
+    if (hasFormatOptions(item)) {
+        return true;
+    }
+    if (isTableCalculation(item)) {
+        return item.format !== undefined;
+    }
+    if (isDimension(item) || isMetric(item)) {
+        return (
+            item.format !== undefined ||
+            item.compact !== undefined ||
+            item.round !== undefined
+        );
+    }
+    return false;
 }
 
 export function getCustomFormat(

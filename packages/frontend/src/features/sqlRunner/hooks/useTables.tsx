@@ -49,6 +49,7 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
                 projectUuid,
             }),
         retry: false,
+        enabled: !!projectUuid,
         select(data) {
             const tablesBySchema = Object.entries(data).flatMap(([, schemas]) =>
                 Object.entries(schemas).map(([schema, tables]) => ({

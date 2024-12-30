@@ -30,21 +30,25 @@ describe('SQL Runner (new)', () => {
         // Verify that the query is run and the results are displayed
         cy.contains('Run query').click();
 
-        cy.get('table thead th').should('have.length', 12);
-        cy.get('table thead th').eq(0).should('contain.text', 'order_id');
-        cy.get('table thead th').eq(1).should('contain.text', 'customer_id');
-        cy.get('table thead th').eq(2).should('contain.text', 'order_date');
-        cy.get('table thead th').eq(3).should('contain.text', 'status');
-        cy.get('table tbody tr')
-            .first()
-            .within(() => {
-                cy.get('td').eq(0).should('contain.text', '1');
-                cy.get('td').eq(1).should('contain.text', '1');
-                cy.get('td')
-                    .eq(2)
-                    .should('contain.text', '2018-01-01T00:00:00.000Z');
-                cy.get('td').eq(3).should('contain.text', 'returned');
-            });
+        cy.get('#sql-runner-panel-results').within(() => {
+            cy.get('table thead th').should('have.length', 12);
+            cy.get('table thead th').eq(0).should('contain.text', 'order_id');
+            cy.get('table thead th')
+                .eq(1)
+                .should('contain.text', 'customer_id');
+            cy.get('table thead th').eq(2).should('contain.text', 'order_date');
+            cy.get('table thead th').eq(3).should('contain.text', 'status');
+            cy.get('table tbody tr')
+                .first()
+                .within(() => {
+                    cy.get('td').eq(0).should('contain.text', '1');
+                    cy.get('td').eq(1).should('contain.text', '1');
+                    cy.get('td')
+                        .eq(2)
+                        .should('contain.text', '2018-01-01T00:00:00.000Z');
+                    cy.get('td').eq(3).should('contain.text', 'returned');
+                });
+        });
 
         // Verify that the query is saved in the draft history
         cy.get('button[data-testid="sql-query-history-button"]').click();
@@ -193,6 +197,9 @@ describe('SQL Runner (new)', () => {
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
+
+        // View chart
+        cy.contains('label', 'Chart').click();
 
         // Verify that the chart is saved
         cy.contains('Save').click();

@@ -259,6 +259,9 @@ const ChartHistory = () => {
                         expandedSections: [ExplorerSection.VISUALIZATION],
                         unsavedChartVersion: chartVersionQuery.data.chart,
                         modals: {
+                            format: {
+                                isOpen: false,
+                            },
                             additionalMetric: {
                                 isOpen: false,
                             },
