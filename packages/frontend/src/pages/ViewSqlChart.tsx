@@ -92,9 +92,13 @@ const ViewSqlChart = () => {
                     <Group position="apart">
                         <Group position="apart">
                             <SegmentedControl
-                                color="dark"
+                                styles={(theme) => ({
+                                    root: {
+                                        backgroundColor: theme.colors.gray[2],
+                                    },
+                                })}
                                 size="sm"
-                                radius="sm"
+                                radius="md"
                                 disabled={isChartResultsLoading}
                                 data={[
                                     {
