@@ -324,14 +324,15 @@ export const useMoveDashboardMutation = () => {
 };
 
 export const useCreateMutation = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     showRedirectButton: boolean = false,
 ) => {
     const history = useHistory();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
-        (data) => createDashboard(projectUuid, data),
+        (data) =>
+            projectUuid ? createDashboard(projectUuid, data) : Promise.reject(),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (result) => {

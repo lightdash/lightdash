@@ -39,10 +39,11 @@ const inviteLinkQuery = async (inviteCode: string) =>
         body: undefined,
     });
 
-export const useInviteLink = (inviteCode: string) =>
+export const useInviteLink = (inviteCode: string | undefined) =>
     useQuery<InviteLink, ApiError>({
         queryKey: ['invite_link', inviteCode],
-        queryFn: () => inviteLinkQuery(inviteCode),
+        queryFn: () => inviteLinkQuery(inviteCode!),
+        enabled: inviteCode !== undefined,
     });
 
 export const useCreateInviteLinkMutation = () => {

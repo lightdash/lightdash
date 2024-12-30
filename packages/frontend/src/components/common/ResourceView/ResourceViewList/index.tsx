@@ -11,8 +11,8 @@ import {
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom-v5-compat';
+import { useHistory } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom-v5-compat';
 import { type ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
@@ -116,6 +116,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'name',
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
+                    if (!projectUuid) {
+                        return null;
+                    }
+
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
@@ -203,7 +207,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     item,
                                                 )) &&
                                             canBelongToSpace &&
-                                            hoveredItem === item.data.uuid && (
+                                            hoveredItem === item.data.uuid &&
+                                            projectUuid && (
                                                 <Box>
                                                     <ResourceInfoPopup
                                                         resourceUuid={
@@ -464,6 +469,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     <tr
                         key={item.data.uuid}
                         onClick={() =>
+                            projectUuid &&
                             history.push(getResourceUrl(projectUuid, item))
                         }
                         onMouseEnter={() => setHoveredItem(item.data.uuid)}

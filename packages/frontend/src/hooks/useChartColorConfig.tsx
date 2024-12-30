@@ -8,7 +8,7 @@ import {
     useRef,
     type FC,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 import { type EChartSeries } from './echarts/useEchartsCartesianConfig';
 
 /**

@@ -1,14 +1,10 @@
 import { assertUnreachable } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { AddToSpaceResources } from './AddResourceToSpaceModal';
-
-interface RouteProps {
-    projectUuid: string;
-    spaceUuid: string;
-}
 
 interface Props {
     resourceType: AddToSpaceResources;
@@ -16,7 +12,10 @@ interface Props {
 
 const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
     const history = useHistory();
-    const { projectUuid, spaceUuid } = useParams<RouteProps>();
+    const { projectUuid, spaceUuid } = useParams<{
+        projectUuid: string;
+        spaceUuid: string;
+    }>();
 
     const {
         isSuccess: hasCreatedDashboard,

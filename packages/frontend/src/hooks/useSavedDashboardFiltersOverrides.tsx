@@ -4,7 +4,7 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { useReducer } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 
 export const hasSavedFiltersOverrides = (
     overrides: DashboardFilters | undefined,

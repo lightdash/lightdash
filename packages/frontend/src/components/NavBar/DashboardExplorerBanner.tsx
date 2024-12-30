@@ -2,12 +2,13 @@ import { assertUnreachable } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
-    projectUuid: string;
+    projectUuid: string | undefined;
 };
 
 export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
@@ -66,6 +67,9 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     }, [action]);
 
     const handleOnCancel = useCallback(() => {
+        if (!projectUuid) {
+            return;
+        }
         // Cancel the action and navigate back to the dashboard, restoring the existing state (in case there were some unsaved changes)
         // Similar to the behaviour from `SaveToDashboard`
         // so do not clear the storage here

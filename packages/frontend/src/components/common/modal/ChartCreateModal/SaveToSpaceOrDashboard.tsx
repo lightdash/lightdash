@@ -22,7 +22,6 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
 import { z } from 'zod';
 import {
     appendNewTilesToBottom,
@@ -59,7 +58,7 @@ const saveToSpaceOrDashboardSchema = z
 type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 
 type Props = {
-    projectUuid: string;
+    projectUuid?: string;
     savedData: CreateSavedChartVersion;
     defaultSpaceUuid: string | undefined;
     dashboardInfoFromSavedData: {
@@ -71,6 +70,7 @@ type Props = {
 };
 
 export const SaveToSpaceOrDashboard: FC<Props> = ({
+    projectUuid,
     savedData,
     defaultSpaceUuid,
     dashboardInfoFromSavedData,
@@ -78,7 +78,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     onClose,
 }) => {
     const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
         useCreateMutation();

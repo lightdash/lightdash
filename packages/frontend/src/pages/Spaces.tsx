@@ -8,7 +8,7 @@ import {
 import { Button, Group, Stack } from '@mantine/core';
 import { IconFolderPlus, IconFolders, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';

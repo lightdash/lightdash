@@ -17,8 +17,7 @@ import {
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
-import { Navigate } from 'react-router-dom-v5-compat';
+import { Navigate, useLocation, useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
@@ -174,7 +173,7 @@ const Invite: FC = () => {
             ))}
         </Stack>
     );
-    const passwordLogin = allowPasswordAuthentication && (
+    const passwordLogin = allowPasswordAuthentication && inviteCode && (
         <CreateUserForm
             isLoading={isLoading || isSuccess}
             readOnlyEmail={inviteLinkQuery.data?.email}

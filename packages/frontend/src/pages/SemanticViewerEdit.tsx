@@ -1,7 +1,8 @@
 import { subject } from '@casl/ability';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
+import { useHistory, useRouteMatch } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
@@ -49,12 +50,18 @@ const SemanticViewerEditorPageWithStore = () => {
         infoQuery.isSuccess && infoQuery.data !== undefined;
 
     const chartQuery = useSavedSemanticViewerChart(
-        { projectUuid, findBy: { slug: savedSemanticViewerChartSlug } },
+        {
+            projectUuid,
+            findBy: { slug: savedSemanticViewerChartSlug },
+        },
         { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
     );
 
     const chartResultsQuery = useSavedSemanticViewerChartResults(
-        { projectUuid, findBy: { slug: savedSemanticViewerChartSlug } },
+        {
+            projectUuid,
+            findBy: { slug: savedSemanticViewerChartSlug },
+        },
         { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
     );
 
@@ -72,7 +79,8 @@ const SemanticViewerEditorPageWithStore = () => {
         if (
             !fieldsQuery.isSuccess ||
             !chartQuery.isSuccess ||
-            !chartResultsQuery.isSuccess
+            !chartResultsQuery.isSuccess ||
+            !projectUuid
         ) {
             return;
         }
@@ -122,6 +130,10 @@ const SemanticViewerEditorPageWithStore = () => {
     }, [infoQuery.isSuccess, infoQuery.data, history, projectUuid]);
 
     useEffect(() => {
+        if (!projectUuid) {
+            return;
+        }
+
         if (semanticViewerState === SemanticViewerStateStatus.INITIALIZED) {
             return;
         }

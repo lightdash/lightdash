@@ -19,7 +19,7 @@ type PinnedItemsContext = {
 const Context = createContext<PinnedItemsContext | null>(null);
 
 type PinnedItemsProviderProps = {
-    projectUuid: string;
+    projectUuid: string | undefined;
     pinnedListUuid: string;
     organizationUuid: string;
     allowDelete?: boolean;

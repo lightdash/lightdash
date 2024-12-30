@@ -1,8 +1,8 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { Route, Switch, useParams } from 'react-router-dom';
-import { Navigate } from 'react-router-dom-v5-compat';
+import { Route, Switch } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -28,7 +28,7 @@ const ProjectSettings: FC = () => {
         return <ErrorState error={error.error} />;
     }
 
-    if (isInitialLoading || !project) {
+    if (isInitialLoading || !project || !projectUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading project" loading />
