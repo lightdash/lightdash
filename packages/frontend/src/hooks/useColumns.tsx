@@ -1,6 +1,7 @@
 import {
     formatItemValue,
     friendlyName,
+    getItemMap,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -73,6 +74,18 @@ export const useColumns = (): TableColumn[] => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
@@ -84,22 +97,43 @@ export const useColumns = (): TableColumn[] => {
         refetchOnMount: false,
     });
 
+    const itemsMap = useMemo<ItemsMap | undefined>(() => {
+        // If there are no results, use the explore data to render placeholder columns
+        if (resultsData) {
+            return resultsData?.fields;
+        } else if (exploreData) {
+            return getItemMap(
+                exploreData,
+                additionalMetrics,
+                tableCalculations,
+                customDimensions,
+            );
+        }
+    }, [
+        resultsData,
+        exploreData,
+        additionalMetrics,
+        tableCalculations,
+        customDimensions,
+    ]);
+
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
         invalidActiveItems: string[];
     }>(() => {
-        if (resultsData) {
+        if (itemsMap) {
             return Array.from(activeFields).reduce<{
                 activeItemsMap: ItemsMap;
                 invalidActiveItems: string[];
             }>(
                 (acc, key) => {
-                    return resultsData?.fields[key]
+                    const item = itemsMap?.[key];
+                    return item
                         ? {
                               ...acc,
                               activeItemsMap: {
                                   ...acc.activeItemsMap,
-                                  [key]: resultsData?.fields[key],
+                                  [key]: item,
                               },
                           }
                         : {
@@ -114,7 +148,7 @@ export const useColumns = (): TableColumn[] => {
             );
         }
         return { activeItemsMap: {}, invalidActiveItems: [] };
-    }, [resultsData, activeFields]);
+    }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsData?.metricQuery,
