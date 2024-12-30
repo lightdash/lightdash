@@ -98,9 +98,9 @@ const SavedExplorer = () => {
                               pivotConfig: data.pivotConfig,
                           },
                           modals: {
-                                format: {
-                                    isOpen: false,
-                                },
+                              format: {
+                                  isOpen: false,
+                              },
                               additionalMetric: {
                                   isOpen: false,
                               },

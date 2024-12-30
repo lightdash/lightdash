@@ -5,11 +5,13 @@ import {
     type ChartConfig,
     type ChartType,
     type CreateSavedChartVersion,
-    type CustomDimension, type CustomFormat,
+    type CustomDimension,
+    type CustomFormat,
     type CustomVisConfig,
     type Dimension,
     type FieldId,
-    type FunnelChartConfig, type Metric,
+    type FunnelChartConfig,
+    type Metric,
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
@@ -205,14 +207,15 @@ export type Action =
               ExplorerReduceState['modals']['customDimension'],
               'isOpen'
           >;
-      }    | {
-    type: ActionType.TOGGLE_FORMAT_MODAL;
-    payload?: { metric: Metric };
-}
+      }
     | {
-    type: ActionType.UPDATE_METRIC_FORMAT;
-    payload: { metric: Metric; formatOptions: CustomFormat | undefined; };
-};
+          type: ActionType.TOGGLE_FORMAT_MODAL;
+          payload?: { metric: Metric };
+      }
+    | {
+          type: ActionType.UPDATE_METRIC_FORMAT;
+          payload: { metric: Metric; formatOptions: CustomFormat | undefined };
+      };
 
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
