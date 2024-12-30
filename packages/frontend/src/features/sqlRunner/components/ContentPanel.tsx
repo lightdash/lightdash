@@ -568,7 +568,7 @@ export const ContentPanel: FC = () => {
                                                                             }
                                                                             style={{
                                                                                 height: inputSectionHeight,
-                                                                                flex: 1,
+                                                                                flex: inputSectionWidth,
                                                                             }}
                                                                             onChartReady={(
                                                                                 instance,

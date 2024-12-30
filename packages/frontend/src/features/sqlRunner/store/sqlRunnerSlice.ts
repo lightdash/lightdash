@@ -178,7 +178,7 @@ export const initialState: SqlRunnerState = {
     warehouseConnectionType: undefined,
     sqlColumns: undefined,
     sqlRows: undefined,
-    activeConfigs: [ChartKind.VERTICAL_BAR],
+    activeConfigs: [ChartKind.TABLE, ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
     queryIsLoading: false,
     queryError: undefined,
@@ -270,7 +270,7 @@ export const sqlRunnerSlice = createSlice({
             }
             if (action.payload === EditorTabs.VISUALIZATION) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
-                if (state.selectedChartType === undefined) {
+                if (!state.selectedChartType) {
                     state.selectedChartType = ChartKind.VERTICAL_BAR;
                 }
                 // Show the sidebar when switching to the chart tab
