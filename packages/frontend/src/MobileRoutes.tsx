@@ -206,12 +206,24 @@ const MobileRoutes: FC = () => {
                             </PrivateRoute>
                             <ProjectRoute path="/projects/:projectUuid">
                                 <Switch>
-                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
-                                        <Navigate to="/minimal/projects/:projectUuid/saved/:savedQueryUuid" />
-                                    </Route>
-                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
-                                        <Navigate to="/minimal/projects/:projectUuid/dashboards/:dashboardUuid" />
-                                    </Route>
+                               <Route
+                                        path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?"
+                                        render={({ match }) => (
+                                            <Navigate
+                                                to={`/minimal/projects/${match.params.projectUuid}/saved/${match.params.savedQueryUuid}`}
+                                                replace
+                                            />
+                                        )}
+                                    />
+                                    <Route
+                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
+                                        render={({ match }) => (
+                                            <Navigate
+                                                to={`/minimal/projects/${match.params.projectUuid}/dashboards/${match.params.dashboardUuid}`}
+                                                replace
+                                            />
+                                        )}
+                                    />
                                     <Route path="/projects/:projectUuid/saved">
                                         <TrackPage
                                             name={PageName.SAVED_QUERIES}
