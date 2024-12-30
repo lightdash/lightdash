@@ -14,7 +14,7 @@ type RouterNavLinkProps = Omit<NavLinkProps, 'component' | 'active'> & {
 const RouterNavLink: FC<RouterNavLinkProps> = (props) => {
     const location = useLocation();
     const exactMatch = useMatch(props.to.toString());
-    const isPartialMatch = location.pathname.startsWith('/example');
+    const isPartialMatch = location.pathname.startsWith(props.to.toString());
     return (
         <NavLink
             {...props}
