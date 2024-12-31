@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Redirect, Route, Switch } from 'react-router-dom';
+import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
@@ -12,7 +12,6 @@ import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
-
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -45,6 +44,20 @@ import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
+
+const DashboardPageWrapper: FC<{ keyParam: 'dashboardUuid' | 'tabUuid' }> = ({
+    keyParam,
+}) => {
+    const params = useParams<{ dashboardUuid?: string; tabUuid?: string }>();
+    return (
+        <>
+            <NavBar />
+            <TrackPage name={PageName.DASHBOARD}>
+                <Dashboard key={params[keyParam]} />
+            </TrackPage>
+        </>
+    );
+};
 
 const Routes: FC = () => {
     return (
@@ -179,43 +192,17 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route
-                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?/tabs/:tabUuid?"
-                                        render={(props) => (
-                                            <>
-                                                <NavBar />
-                                                <TrackPage
-                                                    name={PageName.DASHBOARD}
-                                                >
-                                                    <Dashboard
-                                                        key={
-                                                            props.match.params
-                                                                .tabUuid
-                                                        }
-                                                    />
-                                                </TrackPage>
-                                            </>
-                                        )}
-                                    />
+                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?/tabs/:tabUuid?">
+                                        <DashboardPageWrapper
+                                            keyParam={'tabUuid'}
+                                        />
+                                    </Route>
 
-                                    <Route
-                                        path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
-                                        render={(props) => (
-                                            <>
-                                                <NavBar />
-                                                <TrackPage
-                                                    name={PageName.DASHBOARD}
-                                                >
-                                                    <Dashboard
-                                                        key={
-                                                            props.match.params
-                                                                .dashboardUuid
-                                                        }
-                                                    />
-                                                </TrackPage>
-                                            </>
-                                        )}
-                                    />
+                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
+                                        <DashboardPageWrapper
+                                            keyParam={'dashboardUuid'}
+                                        />
+                                    </Route>
 
                                     <Route path="/projects/:projectUuid/dashboards">
                                         <NavBar />
