@@ -16,8 +16,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -385,10 +384,12 @@ export const useDuplicateDashboardMutation = (
         Pick<Dashboard, 'uuid' | 'name' | 'description'>
     >(
         ({ uuid, name, description }) =>
-            duplicateDashboard(projectUuid, uuid, {
-                dashboardName: name,
-                dashboardDesc: description ?? '',
-            }),
+            projectUuid
+                ? duplicateDashboard(projectUuid, uuid, {
+                      dashboardName: name,
+                      dashboardDesc: description ?? '',
+                  })
+                : Promise.reject(),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (data) => {

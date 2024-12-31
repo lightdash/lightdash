@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useExplore } from '../../../../hooks/useExplore';
 import { useProject } from '../../../../hooks/useProject';
 import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
