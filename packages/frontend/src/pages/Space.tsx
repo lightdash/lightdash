@@ -15,7 +15,11 @@ import {
     IconSquarePlus,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
@@ -42,7 +46,10 @@ const Space: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;
-    }>();
+    }>() as {
+        projectUuid: string;
+        spaceUuid: string;
+    };
     const {
         data: space,
         isInitialLoading,
@@ -79,7 +86,7 @@ const Space: FC = () => {
     const { user, health } = useApp();
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const history = useHistory();
+    const navigate = useNavigate();
     const location = useLocation();
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
@@ -268,10 +275,12 @@ const Space: FC = () => {
                                 </Menu>
                             )}
                         <Can I="manage" this={subject('Space', space)}>
-                            <ShareSpaceModal
-                                space={space!}
-                                projectUuid={projectUuid}
-                            />
+                            {!!space && (
+                                <ShareSpaceModal
+                                    space={space}
+                                    projectUuid={projectUuid}
+                                />
+                            )}
                             <SpaceBrowserMenu
                                 onRename={() => setUpdateSpace(true)}
                                 onDelete={() => setDeleteSpace(true)}
@@ -311,7 +320,7 @@ const Space: FC = () => {
                                             )
                                         ) {
                                             //Redirect to home if we are on the space we are deleting
-                                            history.push(
+                                            navigate(
                                                 `/projects/${projectUuid}/home`,
                                             );
                                         }
@@ -353,7 +362,7 @@ const Space: FC = () => {
                     opened={isCreateDashboardOpen}
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
-                        history.push(
+                        navigate(
                             `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
                         );
 

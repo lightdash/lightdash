@@ -128,10 +128,13 @@ const getMostPopularAndRecentlyUpdated = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useMostPopularAndRecentlyUpdated = (projectUuid: string) =>
+export const useMostPopularAndRecentlyUpdated = (
+    projectUuid: string | undefined,
+) =>
     useQuery<MostPopularAndRecentlyUpdated, ApiError>({
         queryKey: ['most-popular-and-recently-updated', projectUuid],
-        queryFn: () => getMostPopularAndRecentlyUpdated(projectUuid || ''),
+        queryFn: () => getMostPopularAndRecentlyUpdated(projectUuid!),
+        enabled: !!projectUuid,
     });
 
 export const useProjectSemanticLayerUpdateMutation = (uuid: string) => {

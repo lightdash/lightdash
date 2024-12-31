@@ -1,7 +1,7 @@
 import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useExplore } from '../../hooks/useExplore';
 import { useProjects } from '../../hooks/useProjects';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
@@ -56,7 +56,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <ResultsCard />
 
-                    <SqlCard projectUuid={projectUuid} />
+                    {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
                 </Stack>
 
                 <UnderlyingDataModal />

@@ -8,7 +8,7 @@ import {
 import { Button, Group, Stack } from '@mantine/core';
 import { IconFolderPlus, IconFolders, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -92,7 +92,7 @@ const Spaces: FC = () => {
                 </Group>
 
                 <PinnedItemsProvider
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     organizationUuid={user.data?.organizationUuid ?? ''}
                     pinnedListUuid={project.data?.pinnedListUuid ?? ''}
                 >
@@ -149,7 +149,7 @@ const Spaces: FC = () => {
 
             {isCreateModalOpen && (
                 <SpaceActionModal
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"

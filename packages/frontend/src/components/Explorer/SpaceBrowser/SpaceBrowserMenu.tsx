@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import { IconEdit, IconPin, IconPinned, IconTrash } from '@tabler/icons-react';
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 

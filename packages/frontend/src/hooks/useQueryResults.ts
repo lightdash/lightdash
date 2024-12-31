@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import {
@@ -144,7 +144,7 @@ export const useQueryResults = (props?: {
                 ...metricQuery.tableCalculations.map(({ name }) => name),
             ]);
             const isValidQuery = fields.size > 0;
-            if (!!tableName && isValidQuery) {
+            if (!!tableName && isValidQuery && projectUuid) {
                 await mutateAsync({
                     projectUuid,
                     tableId: tableName,
@@ -213,7 +213,7 @@ export const useUnderlyingDataResults = (
         queryKey,
         queryFn: () =>
             getUnderlyingDataResults({
-                projectUuid,
+                projectUuid: projectUuid!,
                 tableId,
                 query,
             }),
@@ -326,12 +326,15 @@ const getChartVersionResults = async (
 };
 
 export const useChartVersionResultsMutation = (
-    chartUuid: string,
+    chartUuid: string | undefined,
     versionUuid?: string,
 ) => {
     const { showToastApiError } = useToaster();
     const mutation = useMutation<ApiQueryResults, ApiError>(
-        () => getChartVersionResults(chartUuid, versionUuid!),
+        () =>
+            chartUuid && versionUuid
+                ? getChartVersionResults(chartUuid, versionUuid)
+                : Promise.reject(),
         {
             mutationKey: ['chartVersionResults', chartUuid, versionUuid],
             onError: ({ error }) => {

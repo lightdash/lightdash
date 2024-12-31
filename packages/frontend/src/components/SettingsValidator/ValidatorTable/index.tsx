@@ -27,7 +27,7 @@ import {
     type ReactNode,
     type RefObject,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import MantineIcon from '../../common/MantineIcon';
@@ -215,7 +215,7 @@ export const ValidatorTable: FC<{
     const { cx, classes } = useTableStyles();
     const { colors } = useMantineTheme();
 
-    const location = useLocation<{ validationId: number }>();
+    const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
     const validationId = searchParams.get('validationId');
     const refs = useMemo(

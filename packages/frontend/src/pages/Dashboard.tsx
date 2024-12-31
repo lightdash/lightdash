@@ -11,7 +11,8 @@ import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -129,6 +130,7 @@ const Dashboard: FC = () => {
     );
 
     const handleDashboardPinning = useCallback(() => {
+        if (!dashboardUuid) return;
         toggleDashboardPinning({ uuid: dashboardUuid });
     }, [dashboardUuid, toggleDashboardPinning]);
 

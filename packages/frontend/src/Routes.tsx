@@ -1,7 +1,11 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Redirect, Route, Switch, useParams } from 'react-router-dom';
-
+import { Switch } from 'react-router-dom';
+import {
+    CompatRoute as Route,
+    Navigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
 
@@ -356,7 +360,7 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Redirect to="/projects" />
+                                    <Navigate to="/projects" />
                                 </Switch>
                             </ProjectRoute>
 
@@ -364,7 +368,7 @@ const Routes: FC = () => {
                                 <Projects />
                             </Route>
 
-                            <Redirect to="/projects" />
+                            <Navigate to="/projects" />
                         </Switch>
                     </AppRoute>
                 </Switch>

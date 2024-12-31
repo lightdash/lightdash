@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import { groupBy } from 'lodash';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
@@ -335,7 +335,7 @@ export const HeaderVirtualView: FC<{
     >(undefined);
 
     const [showWarningModal, setShowWarningModal] = useState(false);
-    const history = useHistory();
+    const navigate = useNavigate();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const warehouseConnectionType = useAppSelector(
@@ -417,7 +417,7 @@ export const HeaderVirtualView: FC<{
                 sql,
                 columns: columnsFromQuery,
             });
-            return history.go(0);
+            return navigate(0);
         }
 
         // Create a temporary virtual view so that we can create a preview validation
@@ -441,7 +441,7 @@ export const HeaderVirtualView: FC<{
                         sql,
                         columns: columnsFromQuery,
                     });
-                    history.go(0);
+                    navigate(0);
                 } else {
                     if (handleDiff && initialColumns) {
                         setChartValidationErrors(response);
@@ -459,7 +459,7 @@ export const HeaderVirtualView: FC<{
                                 sql,
                                 columns: columnsFromQuery,
                             });
-                            history.go(0);
+                            navigate(0);
                         } else {
                             // If there are diffs, we show the warning modal
                             setColumnDiffs(diffs);

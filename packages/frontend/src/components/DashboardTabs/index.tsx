@@ -9,7 +9,7 @@ import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
 import { v4 as uuid4 } from 'uuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
@@ -74,7 +74,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const { search } = useLocation();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
@@ -226,10 +226,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     const newParams = new URLSearchParams(
                                         search,
                                     );
-                                    history.replace({
-                                        pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                                        search: newParams.toString(),
-                                    });
+                                    navigate(
+                                        {
+                                            pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                                            search: newParams.toString(),
+                                        },
+                                        { replace: true },
+                                    );
                                 }
                             }}
                             mt={tabsEnabled ? 'sm' : 'xs'}

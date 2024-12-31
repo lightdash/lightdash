@@ -11,7 +11,7 @@ import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';

@@ -8,7 +8,7 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
@@ -126,7 +126,7 @@ export const useRefreshServer = () => {
     const { showToastApiError } = useToaster();
     return useMutation<ApiRefreshResults, ApiError>({
         mutationKey: ['refresh', projectUuid],
-        mutationFn: () => refresh(projectUuid),
+        mutationFn: () => refresh(projectUuid!),
         onSettled: async () =>
             queryClient.setQueryData(['status', projectUuid], 'loading'),
         onSuccess: (data) => setActiveJobId(data.jobUuid),

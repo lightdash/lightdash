@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -132,7 +132,7 @@ const deleteVirtualView = async ({
     });
 
 export const useDeleteVirtualView = (projectUuid: string) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
@@ -150,7 +150,7 @@ export const useDeleteVirtualView = (projectUuid: string) => {
                 title: 'Success! Virtual view deleted',
             });
 
-            history.push(`/projects/${projectUuid}/tables`);
+            navigate(`/projects/${projectUuid}/tables`);
         },
         onError: () => {
             showToastError({

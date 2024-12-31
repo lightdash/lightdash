@@ -13,7 +13,7 @@ type Props<T extends SaveToSpaceFormType> = {
     form: UseFormReturnType<T>;
     isLoading: boolean;
     spaces: SpaceSummary[] | undefined;
-    projectUuid: string;
+    projectUuid?: string;
 };
 
 const SaveToSpaceForm = <T extends SaveToSpaceFormType>({

@@ -2,8 +2,7 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
@@ -15,7 +14,7 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 
 const SavedDashboards = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isInitialLoading, data: dashboards = [] } =
         useDashboards(projectUuid);
@@ -32,6 +31,10 @@ const SavedDashboards = () => {
         projectUuid,
         'Dashboard',
     );
+
+    if (!projectUuid) {
+        return null;
+    }
 
     if (isInitialLoading || isLoadingSpaces) {
         return <LoadingState title="Loading dashboards" />;
@@ -85,7 +88,7 @@ const SavedDashboards = () => {
                 opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
-                    history.push(
+                    navigate(
                         `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
                     );
 

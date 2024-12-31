@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import useApp from '../../../providers/App/useApp';
@@ -55,28 +55,34 @@ const ResultsCard: FC = memo(() => {
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
-        const csvResponse = await downloadCsv({
-            projectUuid,
-            tableId: tableName,
-            query: metricQuery,
-            csvLimit,
-            onlyRaw,
-            columnOrder,
-            showTableNames: true,
-            pivotColumns: undefined, // results are always unpivoted
-        });
-        return csvResponse;
+        if (projectUuid) {
+            return downloadCsv({
+                projectUuid,
+                tableId: tableName,
+                query: metricQuery,
+                csvLimit,
+                onlyRaw,
+                columnOrder,
+                showTableNames: true,
+                pivotColumns: undefined, // results are always unpivoted
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
     };
 
     const getGsheetLink = async () => {
-        const gsheetResponse = await uploadGsheet({
-            projectUuid,
-            exploreId: tableName,
-            metricQuery,
-            columnOrder,
-            showTableNames: true,
-        });
-        return gsheetResponse;
+        if (projectUuid) {
+            return uploadGsheet({
+                projectUuid,
+                exploreId: tableName,
+                metricQuery,
+                columnOrder,
+                showTableNames: true,
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
     };
 
     const resultsIsOpen = useMemo(
@@ -102,6 +108,7 @@ const ResultsCard: FC = memo(() => {
                 </>
             }
             rightHeaderElement={
+                projectUuid &&
                 resultsIsOpen &&
                 tableName && (
                     <>

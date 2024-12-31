@@ -30,10 +30,11 @@ const resetPasswordQuery = async (data: PasswordReset): Promise<null> =>
         body: JSON.stringify(data),
     });
 
-export const usePasswordResetLink = (code: string) =>
+export const usePasswordResetLink = (code: string | undefined) =>
     useQuery<null, ApiError>({
         queryKey: ['password_reset_link'],
-        queryFn: () => getPasswordResetLinkQuery(code),
+        queryFn: () => getPasswordResetLinkQuery(code!),
+        enabled: code !== undefined,
     });
 
 export const usePasswordResetLinkMutation = () => {
