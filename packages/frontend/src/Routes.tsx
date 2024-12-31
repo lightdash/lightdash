@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Redirect, Route, Switch } from 'react-router-dom';
+import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
@@ -12,8 +12,6 @@ import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
-
-import { useParams } from 'react-router-dom-v5-compat';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -47,8 +45,10 @@ import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
 
-const DashboardPageWrapper: FC<{ keyParam: string }> = ({ keyParam }) => {
-    const params = useParams();
+const DashboardPageWrapper: FC<{ keyParam: 'dashboardUuid' | 'tabUuid' }> = ({
+    keyParam,
+}) => {
+    const params = useParams<{ dashboardUuid?: string; tabUuid?: string }>();
     return (
         <>
             <NavBar />
