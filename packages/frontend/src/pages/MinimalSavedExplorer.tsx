@@ -1,6 +1,6 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';

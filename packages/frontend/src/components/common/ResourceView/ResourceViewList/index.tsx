@@ -11,7 +11,7 @@ import {
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';

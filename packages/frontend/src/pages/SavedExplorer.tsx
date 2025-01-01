@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 
 import { ResourceViewItemType } from '@lightdash/common';
 import { useCallback, useEffect, useMemo } from 'react';

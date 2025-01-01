@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,

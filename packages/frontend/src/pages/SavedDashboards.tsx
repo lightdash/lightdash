@@ -2,7 +2,7 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';

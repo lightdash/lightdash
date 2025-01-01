@@ -11,7 +11,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';

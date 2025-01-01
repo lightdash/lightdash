@@ -1,7 +1,7 @@
 import { Anchor, Box } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom-v5-compat';
+import { Link } from 'react-router-dom';
 import { Can } from './common/Authorization';
 import SuboptimalState from './common/SuboptimalState/SuboptimalState';
 

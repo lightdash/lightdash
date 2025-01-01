@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { useMatch, useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';

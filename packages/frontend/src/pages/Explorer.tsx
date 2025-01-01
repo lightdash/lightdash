@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { memo } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 
 import { useHotkeys } from '@mantine/hooks';
 import Page from '../components/common/Page/Page';

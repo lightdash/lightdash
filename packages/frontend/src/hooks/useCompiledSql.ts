@@ -4,7 +4,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { convertDateFilters } from '../utils/dateFilter';

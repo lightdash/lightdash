@@ -20,7 +20,7 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';

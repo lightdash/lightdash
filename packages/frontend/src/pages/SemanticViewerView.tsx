@@ -17,7 +17,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import { useAsync } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';

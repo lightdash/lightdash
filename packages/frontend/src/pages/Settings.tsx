@@ -22,8 +22,7 @@ import {
     IconUserShield,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Route, Switch } from 'react-router-dom';
-import { Navigate } from 'react-router-dom-v5-compat';
+import { Route, Routes } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -454,84 +453,99 @@ const Settings: FC = () => {
                 </Stack>
             }
         >
-            <Switch>
+            <Routes>
                 {allowPasswordAuthentication && (
-                    <Route exact path="/generalSettings/password">
-                        <Stack spacing="xl">
-                            <SettingsGridCard>
-                                <Title order={4}>Password settings</Title>
-                                <PasswordPanel />
-                            </SettingsGridCard>
-
-                            {hasSocialLogin && (
+                    <Route
+                        path="/generalSettings/password"
+                        element={
+                            <Stack spacing="xl">
                                 <SettingsGridCard>
-                                    <Title order={4}>Social logins</Title>
-                                    <SocialLoginsPanel />
+                                    <Title order={4}>Password settings</Title>
+                                    <PasswordPanel />
                                 </SettingsGridCard>
-                            )}
-                        </Stack>
-                    </Route>
+
+                                {hasSocialLogin && (
+                                    <SettingsGridCard>
+                                        <Title order={4}>Social logins</Title>
+                                        <SocialLoginsPanel />
+                                    </SettingsGridCard>
+                                )}
+                            </Stack>
+                        }
+                    />
+                    // </Route>
                 )}
                 {isPassthroughLoginFeatureEnabled && (
-                    <Route exact path="/generalSettings/myWarehouseConnections">
-                        <Stack spacing="xl">
-                            <MyWarehouseConnectionsPanel />
-                        </Stack>
-                    </Route>
+                    <Route
+                        path="/generalSettings/myWarehouseConnections"
+                        element={
+                            <Stack spacing="xl">
+                                <MyWarehouseConnectionsPanel />
+                            </Stack>
+                        }
+                    />
                 )}
 
                 {user.ability.can('manage', 'Organization') && (
-                    <Route exact path="/generalSettings/organization">
-                        <Stack spacing="xl">
-                            <SettingsGridCard>
-                                <Title order={4}>General</Title>
-                                <OrganizationPanel />
-                            </SettingsGridCard>
+                    <Route
+                        path="/generalSettings/organization"
+                        element={
+                            <Stack spacing="xl">
+                                <SettingsGridCard>
+                                    <Title order={4}>General</Title>
+                                    <OrganizationPanel />
+                                </SettingsGridCard>
 
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={4}>
-                                        Allowed email domains
-                                    </Title>
-                                    <Text c="gray.6" fz="xs">
-                                        Anyone with email addresses at these
-                                        domains can automatically join the
-                                        organization.
-                                    </Text>
-                                </div>
-                                <AllowedDomainsPanel />
-                            </SettingsGridCard>
-
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={4}>Default Project</Title>
-                                    <Text c="gray.6" fz="xs">
-                                        This is the project users will see when
-                                        they log in for the first time or from a
-                                        new device. If a user does not have
-                                        access, they will see their next
-                                        accessible project.
-                                    </Text>
-                                </div>
-                                <DefaultProjectPanel />
-                            </SettingsGridCard>
-
-                            {user.ability?.can('delete', 'Organization') && (
                                 <SettingsGridCard>
                                     <div>
-                                        <Title order={4}>Danger zone </Title>
+                                        <Title order={4}>
+                                            Allowed email domains
+                                        </Title>
                                         <Text c="gray.6" fz="xs">
-                                            This action deletes the whole
-                                            workspace and all its content,
-                                            including users. This action is not
-                                            reversible.
+                                            Anyone with email addresses at these
+                                            domains can automatically join the
+                                            organization.
                                         </Text>
                                     </div>
-                                    <DeleteOrganizationPanel />
+                                    <AllowedDomainsPanel />
                                 </SettingsGridCard>
-                            )}
-                        </Stack>
-                    </Route>
+
+                                <SettingsGridCard>
+                                    <div>
+                                        <Title order={4}>Default Project</Title>
+                                        <Text c="gray.6" fz="xs">
+                                            This is the project users will see
+                                            when they log in for the first time
+                                            or from a new device. If a user does
+                                            not have access, they will see their
+                                            next accessible project.
+                                        </Text>
+                                    </div>
+                                    <DefaultProjectPanel />
+                                </SettingsGridCard>
+
+                                {user.ability?.can(
+                                    'delete',
+                                    'Organization',
+                                ) && (
+                                    <SettingsGridCard>
+                                        <div>
+                                            <Title order={4}>
+                                                Danger zone{' '}
+                                            </Title>
+                                            <Text c="gray.6" fz="xs">
+                                                This action deletes the whole
+                                                workspace and all its content,
+                                                including users. This action is
+                                                not reversible.
+                                            </Text>
+                                        </div>
+                                        <DeleteOrganizationPanel />
+                                    </SettingsGridCard>
+                                )}
+                            </Stack>
+                        }
+                    />
                 )}
 
                 {user.ability.can(
@@ -540,9 +554,10 @@ const Settings: FC = () => {
                         organizationUuid: organization.organizationUuid,
                     }),
                 ) && (
-                    <Route path="/generalSettings/userManagement">
-                        <UsersAndGroupsPanel />
-                    </Route>
+                    <Route
+                        path="/generalSettings/userManagement"
+                        element={<UsersAndGroupsPanel />}
+                    />
                 )}
 
                 {user.ability.can(
@@ -551,17 +566,19 @@ const Settings: FC = () => {
                         organizationUuid: organization.organizationUuid,
                     }),
                 ) && (
-                    <Route path="/generalSettings/userAttributes">
-                        <UserAttributesPanel />
-                    </Route>
+                    <Route
+                        path="/generalSettings/userAttributes"
+                        element={<UserAttributesPanel />}
+                    />
                 )}
 
                 {organization &&
                     !organization.needsProject &&
                     user.ability.can('view', 'Project') && (
-                        <Route exact path="/generalSettings/projectManagement">
-                            <ProjectManagementPanel />
-                        </Route>
+                        <Route
+                            path="/generalSettings/projectManagement"
+                            element={<ProjectManagementPanel />}
+                        />
                     )}
 
                 {project &&
@@ -578,46 +595,54 @@ const Settings: FC = () => {
                             path={[
                                 '/generalSettings/projectManagement/:projectUuid/:tab?',
                             ]}
-                            exact
-                        >
-                            <TrackPage name={PageName.PROJECT_SETTINGS}>
-                                <ProjectSettings />
-                            </TrackPage>
-                        </Route>
+                            element={
+                                <TrackPage name={PageName.PROJECT_SETTINGS}>
+                                    <ProjectSettings />
+                                </TrackPage>
+                            }
+                        />
                     )}
 
-                <Route exact path="/generalSettings/appearance">
-                    <AppearanceSettingsPanel />
-                </Route>
+                <Route
+                    path="/generalSettings/appearance"
+                    element={<AppearanceSettingsPanel />}
+                />
 
                 {user.ability.can('manage', 'PersonalAccessToken') && (
-                    <Route exact path="/generalSettings/personalAccessTokens">
-                        <AccessTokensPanel />
-                    </Route>
+                    <Route
+                        path="/generalSettings/personalAccessTokens"
+                        element={<AccessTokensPanel />}
+                    />
                 )}
 
                 {user.ability.can('manage', 'Organization') && (
-                    <Route exact path="/generalSettings/integrations">
-                        <Stack>
-                            <Title order={4}>Integrations</Title>
-                            {!health.hasSlack &&
-                                !health.hasGithub &&
-                                'No integrations available'}
-                            {health.hasSlack && <SlackSettingsPanel />}
-                            {health.hasGithub && <GithubSettingsPanel />}
-                        </Stack>
-                    </Route>
+                    <Route
+                        path="/generalSettings/integrations"
+                        element={
+                            <Stack>
+                                <Title order={4}>Integrations</Title>
+                                {!health.hasSlack &&
+                                    !health.hasGithub &&
+                                    'No integrations available'}
+                                {health.hasSlack && <SlackSettingsPanel />}
+                                {health.hasGithub && <GithubSettingsPanel />}
+                            </Stack>
+                        }
+                    />
                 )}
 
-                <Route exact path="/generalSettings">
-                    <SettingsGridCard>
-                        <Title order={4}>Profile settings</Title>
-                        <ProfilePanel />
-                    </SettingsGridCard>
-                </Route>
+                <Route
+                    path="/generalSettings"
+                    element={
+                        <SettingsGridCard>
+                            <Title order={4}>Profile settings</Title>
+                            <ProfilePanel />
+                        </SettingsGridCard>
+                    }
+                />
 
-                <Navigate to="/generalSettings" />
-            </Switch>
+                {/* <Navigate to="/generalSettings" /> */}
+            </Routes>
         </Page>
     );
 };

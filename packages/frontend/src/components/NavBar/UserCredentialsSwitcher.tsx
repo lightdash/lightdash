@@ -1,7 +1,7 @@
 import { ActionIcon, MantineProvider, Menu, Text, Title } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
-import { matchRoutes, useLocation } from 'react-router-dom-v5-compat';
+import { matchRoutes, useLocation } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 import {

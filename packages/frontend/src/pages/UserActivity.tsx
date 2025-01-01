@@ -7,7 +7,7 @@ import { Box, Card, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';

@@ -3,11 +3,7 @@ import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMount, useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';

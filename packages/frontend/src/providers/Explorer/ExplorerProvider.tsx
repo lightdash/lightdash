@@ -32,7 +32,7 @@ import {
     useRef,
     type FC,
 } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {

@@ -5,7 +5,7 @@ import {
     useLocation,
     useMatch,
     type NavLinkProps as ReactRouterNavLinkProps,
-} from 'react-router-dom-v5-compat';
+} from 'react-router-dom';
 
 type RouterNavLinkProps = Omit<NavLinkProps, 'component' | 'active'> & {
     exact?: boolean;

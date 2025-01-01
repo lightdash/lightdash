@@ -24,7 +24,7 @@ import { IconExclamationCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useForm, useFormContext, type FieldErrors } from 'react-hook-form';
 import { type SubmitErrorHandler } from 'react-hook-form/dist/types/form';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useCreateMutation,

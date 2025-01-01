@@ -2,7 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
 

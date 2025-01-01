@@ -24,7 +24,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';

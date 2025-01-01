@@ -9,7 +9,7 @@ import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useRef, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import { useProjects } from '../../../hooks/useProjects';

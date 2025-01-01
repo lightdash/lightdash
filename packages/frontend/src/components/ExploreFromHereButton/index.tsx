@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useCreateShareMutation } from '../../hooks/useShare';

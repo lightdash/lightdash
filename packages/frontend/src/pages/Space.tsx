@@ -15,11 +15,7 @@ import {
     IconSquarePlus,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';

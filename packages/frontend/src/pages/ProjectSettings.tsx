@@ -1,8 +1,7 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { Route, Switch } from 'react-router-dom';
-import { Navigate, useParams } from 'react-router-dom-v5-compat';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -56,72 +55,63 @@ const ProjectSettings: FC = () => {
                     ]}
                 />
 
-                <Switch>
+                <Routes>
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/settings`}
                     >
                         <UpdateProjectConnection projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/tablesConfiguration`}
                     >
                         <ProjectTablesConfiguration projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                     >
                         <ProjectUserAccess projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/semanticLayer`}
                     >
                         <SettingsSemanticLayer projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/usageAnalytics`}
                     >
                         <SettingsUsageAnalytics projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries`}
                     >
                         <SettingsScheduler projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/validator`}
                     >
                         <SettingsValidator projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/customSql`}
                     >
                         <CustomSqlPanel projectUuid={projectUuid} />
                     </Route>
 
                     <Route
-                        exact
                         path={`/generalSettings/projectManagement/${projectUuid}/dataOps`}
                     >
                         <DataOps projectUuid={projectUuid} />
                     </Route>
 
                     <Navigate to={`/generalSettings/`} />
-                </Switch>
+                </Routes>
             </Stack>
         </>
     );

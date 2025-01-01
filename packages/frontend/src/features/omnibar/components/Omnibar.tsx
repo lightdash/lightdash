@@ -30,7 +30,7 @@ import {
     type FC,
     type MouseEventHandler,
 } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/constants';
 import { useProject } from '../../../hooks/useProject';

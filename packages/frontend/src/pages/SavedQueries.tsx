@@ -2,7 +2,7 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';

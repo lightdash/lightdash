@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink, useParams } from 'react-router-dom-v5-compat';
+import { NavLink, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 
 import { IconAlertCircle } from '@tabler/icons-react';

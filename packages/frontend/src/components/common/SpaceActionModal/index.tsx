@@ -14,7 +14,7 @@ import {
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';

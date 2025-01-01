@@ -15,7 +15,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';

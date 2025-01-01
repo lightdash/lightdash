@@ -43,7 +43,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
-import { Link, useNavigate } from 'react-router-dom-v5-compat';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     useInfiniteContent,
     type ContentArgs,

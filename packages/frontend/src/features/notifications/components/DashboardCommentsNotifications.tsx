@@ -3,7 +3,7 @@ import { Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';

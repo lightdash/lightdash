@@ -19,13 +19,7 @@ import {
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
 import React, { useCallback, useState, type FC } from 'react';
-import { Route, Switch } from 'react-router-dom';
-import {
-    CompatRoute,
-    Link,
-    Navigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';
@@ -180,7 +174,7 @@ const routesNotSupportedInMobile = [
 
 const MobileRoutes: FC = () => {
     return (
-        <Switch>
+        <Routes>
             <Route path="/auth/popup/:status">
                 <AuthPopupResult />
             </Route>
@@ -199,7 +193,7 @@ const MobileRoutes: FC = () => {
             ))}
             <PrivateRoute path="/">
                 <MobileNavBar />
-                <Switch>
+                <Routes>
                     <Route path="/no-access">
                         <TrackPage name={PageName.NO_ACCESS}>
                             <ForbiddenPanel />
@@ -216,9 +210,9 @@ const MobileRoutes: FC = () => {
                         </TrackPage>
                     </Route>
                     <AppRoute path="/">
-                        <Switch>
+                        <Routes>
                             <PrivateRoute path="/minimal">
-                                <Switch>
+                                <Routes>
                                     <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
                                         <Stack p="lg" h="90vh">
                                             <MinimalSavedExplorer />
@@ -228,16 +222,16 @@ const MobileRoutes: FC = () => {
                                     <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
                                         <MinimalDashboard />
                                     </Route>
-                                </Switch>
+                                </Routes>
                             </PrivateRoute>
                             <ProjectRoute path="/projects/:projectUuid">
-                                <Switch>
-                                    <CompatRoute path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
+                                <Routes>
+                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                         <RedirectToResource />
-                                    </CompatRoute>
-                                    <CompatRoute path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
+                                    </Route>
+                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
                                         <RedirectToResource />
-                                    </CompatRoute>
+                                    </Route>
                                     <Route path="/projects/:projectUuid/saved">
                                         <TrackPage
                                             name={PageName.SAVED_QUERIES}
@@ -276,7 +270,7 @@ const MobileRoutes: FC = () => {
                                     </Route>
 
                                     <Navigate to="/projects" />
-                                </Switch>
+                                </Routes>
                             </ProjectRoute>
 
                             <Route path="/projects/:projectUuid?" exact>
@@ -284,11 +278,11 @@ const MobileRoutes: FC = () => {
                             </Route>
 
                             <Navigate to="/projects" />
-                        </Switch>
+                        </Routes>
                     </AppRoute>
-                </Switch>
+                </Routes>
             </PrivateRoute>
-        </Switch>
+        </Routes>
     );
 };
 

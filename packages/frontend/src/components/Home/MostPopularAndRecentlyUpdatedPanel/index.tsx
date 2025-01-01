@@ -8,7 +8,7 @@ import {
 import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';

@@ -9,11 +9,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     ExplorerSection,
     type ExplorerReduceState,

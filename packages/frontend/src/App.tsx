@@ -6,7 +6,7 @@ import {
     createRoutesFromElements,
     Outlet,
     RouterProvider,
-} from 'react-router-dom-v5-compat';
+} from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization/context';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import { ErrorBoundary } from './features/errorBoundary';

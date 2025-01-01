@@ -49,7 +49,7 @@ import {
     useLocation,
     useNavigate,
     useParams,
-} from 'react-router-dom-v5-compat';
+} from 'react-router-dom';
 import { lightdashApi } from '../../../api';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {

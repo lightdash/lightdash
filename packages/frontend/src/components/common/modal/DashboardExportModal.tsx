@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { IconCsv, IconEyeCog, IconFileExport } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import { useLocation } from 'react-router-dom-v5-compat';
+import { useLocation } from 'react-router-dom';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
 import {

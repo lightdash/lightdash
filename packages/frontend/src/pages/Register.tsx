@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
-import { useLocation } from 'react-router-dom-v5-compat';
+import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';

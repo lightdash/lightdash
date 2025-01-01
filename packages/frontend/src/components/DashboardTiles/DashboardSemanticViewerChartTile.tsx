@@ -7,7 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import { useAsync } from 'react-use';
 import {
     useSavedSemanticViewerChart,

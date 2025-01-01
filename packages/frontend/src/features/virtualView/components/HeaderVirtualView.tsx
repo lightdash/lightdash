@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import { groupBy } from 'lodash';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';

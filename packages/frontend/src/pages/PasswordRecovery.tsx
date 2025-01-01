@@ -1,6 +1,6 @@
 import { Card, Image, Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Navigate } from 'react-router-dom-v5-compat';
+import { Navigate } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import useApp from '../providers/App/useApp';

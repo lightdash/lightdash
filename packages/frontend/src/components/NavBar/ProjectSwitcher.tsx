@@ -12,7 +12,7 @@ import {
     useLocation,
     useMatch,
     useNavigate,
-} from 'react-router-dom-v5-compat';
+} from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,

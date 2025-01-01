@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { ExplorerSection } from '../../../providers/Explorer/types';

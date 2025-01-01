@@ -22,7 +22,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';

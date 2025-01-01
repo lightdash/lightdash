@@ -7,7 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';

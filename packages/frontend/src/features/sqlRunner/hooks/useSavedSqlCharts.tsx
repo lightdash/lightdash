@@ -12,7 +12,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 

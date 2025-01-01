@@ -27,7 +27,7 @@ import {
     type ReactNode,
     type RefObject,
 } from 'react';
-import { useLocation } from 'react-router-dom-v5-compat';
+import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import MantineIcon from '../../common/MantineIcon';

@@ -16,7 +16,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';

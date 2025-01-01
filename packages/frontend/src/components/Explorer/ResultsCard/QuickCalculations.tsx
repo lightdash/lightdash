@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router-dom';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
 import { useProject } from '../../../hooks/useProject';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';

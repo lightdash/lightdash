@@ -1,5 +1,5 @@
 import { type FC } from 'react';
-import { Navigate } from 'react-router-dom-v5-compat';
+import { Navigate } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import PageSpinner from '../components/PageSpinner';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';

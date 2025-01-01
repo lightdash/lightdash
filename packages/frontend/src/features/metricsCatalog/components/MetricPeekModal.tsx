@@ -31,11 +31,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';

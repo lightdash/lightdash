@@ -9,7 +9,7 @@ import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';

@@ -15,7 +15,7 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useExplores } from '../../../hooks/useExplores';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';

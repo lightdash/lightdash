@@ -5,7 +5,7 @@ import {
     Outlet,
     useParams,
     type RouteObject,
-} from 'react-router-dom-v5-compat';
+} from 'react-router-dom';
 import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
