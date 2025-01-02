@@ -1,6 +1,6 @@
 import { type ApiError, type ApiSqlQueryResults } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -15,7 +15,8 @@ export const useSqlQueryMutation = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastApiError } = useToaster();
     return useMutation<ApiSqlQueryResults, ApiError, string>(
-        (sql) => runSqlQuery(projectUuid, sql),
+        (sql) =>
+            projectUuid ? runSqlQuery(projectUuid, sql) : Promise.reject(),
         {
             mutationKey: ['run_sql_query', projectUuid],
             onError: ({ error }) => {

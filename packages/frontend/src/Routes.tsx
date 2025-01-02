@@ -1,14 +1,11 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Switch } from 'react-router-dom';
 import {
-    CompatRoute as Route,
     Navigate,
+    Outlet,
     useParams,
+    type RouteObject,
 } from 'react-router-dom-v5-compat';
-import { TrackPage } from './providers/Tracking/TrackingProvider';
-import { PageName } from './types/Events';
-
 import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
@@ -48,6 +45,8 @@ import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
+import { TrackPage } from './providers/Tracking/TrackingProvider';
+import { PageName } from './types/Events';
 
 const DashboardPageWrapper: FC<{ keyParam: 'dashboardUuid' | 'tabUuid' }> = ({
     keyParam,
@@ -63,318 +62,473 @@ const DashboardPageWrapper: FC<{ keyParam: 'dashboardUuid' | 'tabUuid' }> = ({
     );
 };
 
-const Routes: FC = () => {
-    return (
-        <Switch>
-            <Route path="/auth/popup/:status">
-                <AuthPopupResult />
-            </Route>
-            <PrivateRoute path="/minimal">
-                <Switch>
-                    <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                        <Stack p="lg" h="100vh">
-                            <MinimalSavedExplorer />
-                        </Stack>
-                    </Route>
+const FALLBACK_ROUTE: RouteObject = {
+    path: '*',
+    element: <Navigate to="/projects" />,
+};
 
-                    <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
-                        <MinimalDashboard />
-                    </Route>
-                </Switch>
-            </PrivateRoute>
+const PUBLIC_ROUTES: RouteObject[] = [
+    {
+        path: '/auth/popup/:status',
+        element: <AuthPopupResult />,
+    },
+    {
+        path: '/register',
+        element: (
+            <TrackPage name={PageName.REGISTER}>
+                <Register />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/login',
+        element: (
+            <TrackPage name={PageName.LOGIN}>
+                <Login />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/recover-password',
+        element: (
+            <TrackPage name={PageName.PASSWORD_RECOVERY}>
+                <PasswordRecovery />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/reset-password/:code',
+        element: (
+            <TrackPage name={PageName.PASSWORD_RESET}>
+                <PasswordReset />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/invite/:inviteCode',
+        element: (
+            <TrackPage name={PageName.SIGNUP}>
+                <Invite />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/verify-email',
+        element: (
+            <TrackPage name={PageName.VERIFY_EMAIL}>
+                <VerifyEmailPage />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/join-organization',
+        element: (
+            <TrackPage name={PageName.JOIN_ORGANIZATION}>
+                <JoinOrganization />
+            </TrackPage>
+        ),
+    },
+];
 
-            <Route path="/register">
-                <TrackPage name={PageName.REGISTER}>
-                    <Register />
+const MINIMAL_ROUTES: RouteObject[] = [
+    {
+        path: '/minimal',
+        children: [
+            {
+                path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
+                element: (
+                    <Stack p="lg" h="100vh">
+                        <MinimalSavedExplorer />
+                    </Stack>
+                ),
+            },
+            {
+                path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid',
+                element: <MinimalDashboard />,
+            },
+        ],
+    },
+];
+
+const CHART_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/saved',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.SAVED_QUERIES}>
+                    <SavedQueries />
                 </TrackPage>
-            </Route>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/saved/:savedQueryUuid',
+        element: (
+            <>
+                <NavBar />
+                <Outlet />
+            </>
+        ),
+        children: [
+            {
+                path: '/projects/:projectUuid/saved/:savedQueryUuid/history',
+                element: (
+                    <TrackPage name={PageName.CHART_HISTORY}>
+                        <ChartHistory />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
+                element: (
+                    <TrackPage name={PageName.SAVED_QUERY_EXPLORER}>
+                        <SavedExplorer />
+                    </TrackPage>
+                ),
+            },
+        ],
+    },
+];
 
-            <Route path="/login">
-                <TrackPage name={PageName.LOGIN}>
-                    <Login />
+const DASHBOARD_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/dashboards',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.SAVED_DASHBOARDS}>
+                    <SavedDashboards />
                 </TrackPage>
-            </Route>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/dashboards/:dashboardUuid',
+        children: [
+            {
+                path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
+                element: <DashboardPageWrapper keyParam={'dashboardUuid'} />,
+            },
+            {
+                path: '/projects/:projectUuid/dashboards/:dashboardUuid:mode/tabs/:tabUuid?',
+                element: <DashboardPageWrapper keyParam={'tabUuid'} />,
+            },
+        ],
+    },
+];
 
-            <Route path="/recover-password">
-                <TrackPage name={PageName.PASSWORD_RECOVERY}>
-                    <PasswordRecovery />
+const SQL_RUNNER_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/sqlRunner', // Legacy route
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.SQL_RUNNER}>
+                    <SqlRunner />
                 </TrackPage>
-            </Route>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/sql-runner',
+        element: (
+            <>
+                <NavBar />
+                <Outlet />
+            </>
+        ),
+        children: [
+            {
+                path: '/projects/:projectUuid/sql-runner',
+                element: <SqlRunnerNew />,
+            },
+            {
+                path: '/projects/:projectUuid/sql-runner/:slug',
+                element: <ViewSqlChart />,
+            },
+            {
+                path: '/projects/:projectUuid/sql-runner:slug/edit',
+                element: <SqlRunnerNew isEditMode />,
+            },
+        ],
+    },
+];
 
-            <Route path="/reset-password/:code">
-                <TrackPage name={PageName.PASSWORD_RESET}>
-                    <PasswordReset />
-                </TrackPage>
-            </Route>
+const SEMANTIC_VIEWER_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/semantic-viewer',
+        element: (
+            <>
+                <NavBar />
+                <Outlet />
+            </>
+        ),
+        children: [
+            {
+                path: '/projects/:projectUuid/semantic-viewer',
+                element: (
+                    <TrackPage name={PageName.SEMANTIC_VIEWER_EDIT}>
+                        <SemanticViewerEditPage />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/projects/:projectUuid/semantic-viewer/new',
+                element: (
+                    <TrackPage name={PageName.SEMANTIC_VIEWER_EDIT}>
+                        <SemanticViewerEditPage />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug',
+                element: (
+                    <TrackPage name={PageName.SEMANTIC_VIEWER_VIEW}>
+                        <SemanticViewerViewPage />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug/edit',
+                element: (
+                    <TrackPage name={PageName.SEMANTIC_VIEWER_EDIT}>
+                        <SemanticViewerEditPage />
+                    </TrackPage>
+                ),
+            },
+        ],
+    },
+];
 
-            <Route path="/invite/:inviteCode">
-                <TrackPage name={PageName.SIGNUP}>
-                    <Invite />
+const TABLES_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/tables',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.EXPLORE_TABLES}>
+                    <Explorer />
                 </TrackPage>
-            </Route>
-            <Route path="/verify-email">
-                <TrackPage name={PageName.VERIFY_EMAIL}>
-                    <VerifyEmailPage />
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/tables/:tableId',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.EXPLORER}>
+                    <Explorer />
                 </TrackPage>
-            </Route>
+            </>
+        ),
+    },
+];
 
-            <Route path="/join-organization">
-                <TrackPage name={PageName.JOIN_ORGANIZATION}>
-                    <JoinOrganization />
+const SPACES_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/spaces',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.SPACES}>
+                    <Spaces />
                 </TrackPage>
-            </Route>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/spaces/:spaceUuid',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.SPACE}>
+                    <Space />
+                </TrackPage>
+            </>
+        ),
+    },
+];
 
-            <PrivateRoute path="/">
+const METRICS_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/metrics',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.METRICS_CATALOG}>
+                    <MetricsCatalog />
+                </TrackPage>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/metrics/peek/:tableName/:metricName',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.METRICS_CATALOG}>
+                    <MetricsCatalog />
+                </TrackPage>
+            </>
+        ),
+    },
+];
+
+const APP_ROUTES: RouteObject[] = [
+    {
+        path: '/projects',
+        element: (
+            <AppRoute>
+                <Outlet />
+            </AppRoute>
+        ),
+        children: [
+            {
+                path: '/projects',
+                element: <Projects />,
+            },
+            {
+                path: '/projects/:projectUuid',
+                element: (
+                    <ProjectRoute>
+                        <Outlet />
+                    </ProjectRoute>
+                ),
+                children: [
+                    ...TABLES_ROUTES,
+                    ...SQL_RUNNER_ROUTES,
+                    ...CHART_ROUTES,
+                    ...DASHBOARD_ROUTES,
+                    ...SEMANTIC_VIEWER_ROUTES,
+                    ...SPACES_ROUTES,
+                    ...METRICS_ROUTES,
+                    {
+                        path: '/projects/:projectUuid/home',
+                        element: (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.HOME}>
+                                    <Home />
+                                </TrackPage>
+                            </>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/user-activity',
+                        element: (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.USER_ACTIVITY}>
+                                    <UserActivity />
+                                </TrackPage>
+                            </>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/catalog',
+                        element: (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.CATALOG}>
+                                    <Catalog />
+                                </TrackPage>
+                            </>
+                        ),
+                    },
+                ],
+            },
+        ],
+    },
+];
+
+const PRIVATE_ROUTES: RouteObject[] = [
+    {
+        path: '/',
+        element: (
+            <PrivateRoute>
                 <UserCompletionModal />
                 <JobDetailsDrawer />
-
-                <Switch>
-                    <Route path="/createProject/:method?">
+                <Outlet />
+            </PrivateRoute>
+        ),
+        children: [
+            ...MINIMAL_ROUTES,
+            ...APP_ROUTES,
+            {
+                path: '/',
+                element: <Navigate to="/projects" replace />,
+            },
+            {
+                path: '/createProject/:method?',
+                element: (
+                    <>
                         <NavBar />
                         <TrackPage name={PageName.CREATE_PROJECT}>
                             <CreateProject />
                         </TrackPage>
-                    </Route>
-                    <Route path="/createProjectSettings/:projectUuid">
+                    </>
+                ),
+            },
+            {
+                path: '/createProjectSettings/:projectUuid',
+                element: (
+                    <>
                         <NavBar />
                         <TrackPage name={PageName.CREATE_PROJECT_SETTINGS}>
                             <CreateProjectSettings />
                         </TrackPage>
-                    </Route>
-                    <Route path="/generalSettings/:tab?">
+                    </>
+                ),
+            },
+            {
+                path: '/generalSettings/*',
+                element: (
+                    <>
                         <NavBar />
                         <TrackPage name={PageName.GENERAL_SETTINGS}>
                             <Settings />
                         </TrackPage>
-                    </Route>
-                    <Route path="/no-access">
+                    </>
+                ),
+            },
+            {
+                path: '/no-access',
+                element: (
+                    <>
                         <NavBar />
                         <TrackPage name={PageName.NO_ACCESS}>
                             <ForbiddenPanel />
                         </TrackPage>
-                    </Route>
-                    <Route path="/no-project-access">
+                    </>
+                ),
+            },
+            {
+                path: '/no-project-access',
+                element: (
+                    <>
                         <NavBar />
                         <TrackPage name={PageName.NO_PROJECT_ACCESS}>
                             <ForbiddenPanel subject="project" />
                         </TrackPage>
-                    </Route>
-                    <Route path="/share/:shareNanoid">
+                    </>
+                ),
+            },
+            {
+                path: '/share/:shareNanoid',
+                element: (
+                    <>
                         <NavBar />
                         <TrackPage name={PageName.SHARE}>
                             <ShareRedirect />
                         </TrackPage>
-                    </Route>
+                    </>
+                ),
+            },
+        ],
+    },
+];
 
-                    <AppRoute path="/">
-                        <Switch>
-                            <ProjectRoute path="/projects/:projectUuid">
-                                <Switch>
-                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/history">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.CHART_HISTORY}
-                                        >
-                                            <ChartHistory />
-                                        </TrackPage>
-                                    </Route>
-                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.SAVED_QUERY_EXPLORER}
-                                        >
-                                            <SavedExplorer />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/saved">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.SAVED_QUERIES}
-                                        >
-                                            <SavedQueries />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?/tabs/:tabUuid?">
-                                        <DashboardPageWrapper
-                                            keyParam={'tabUuid'}
-                                        />
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
-                                        <DashboardPageWrapper
-                                            keyParam={'dashboardUuid'}
-                                        />
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/dashboards">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.SAVED_DASHBOARDS}
-                                        >
-                                            <SavedDashboards />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/sqlRunner">
-                                        <NavBar />
-                                        <TrackPage name={PageName.SQL_RUNNER}>
-                                            <SqlRunner />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        exact
-                                        path="/projects/:projectUuid/sql-runner/:slug"
-                                    >
-                                        <NavBar />
-
-                                        <ViewSqlChart />
-                                    </Route>
-
-                                    <Route
-                                        exact
-                                        path="/projects/:projectUuid/sql-runner/:slug/edit"
-                                    >
-                                        <NavBar />
-
-                                        <SqlRunnerNew isEditMode />
-                                    </Route>
-
-                                    <Route
-                                        exact
-                                        path="/projects/:projectUuid/sql-runner"
-                                    >
-                                        <NavBar />
-
-                                        <SqlRunnerNew />
-                                    </Route>
-
-                                    <Route
-                                        exact
-                                        path={[
-                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug/edit',
-                                            '/projects/:projectUuid/semantic-viewer/new',
-                                            '/projects/:projectUuid/semantic-viewer',
-                                        ]}
-                                    >
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.SEMANTIC_VIEWER_EDIT}
-                                        >
-                                            <SemanticViewerEditPage />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        exact
-                                        path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug"
-                                    >
-                                        <NavBar />
-
-                                        <TrackPage
-                                            name={PageName.SEMANTIC_VIEWER_VIEW}
-                                        >
-                                            <SemanticViewerViewPage />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/tables/:tableId">
-                                        <NavBar />
-                                        <TrackPage name={PageName.EXPLORER}>
-                                            <Explorer />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/tables">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.EXPLORE_TABLES}
-                                        >
-                                            <Explorer />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/spaces/:spaceUuid">
-                                        <NavBar />
-                                        <TrackPage name={PageName.SPACE}>
-                                            <Space />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/spaces">
-                                        <NavBar />
-                                        <TrackPage name={PageName.SPACES}>
-                                            <Spaces />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        path="/projects/:projectUuid/home"
-                                        exact
-                                    >
-                                        <NavBar />
-                                        <TrackPage name={PageName.HOME}>
-                                            <Home />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        path="/projects/:projectUuid/user-activity"
-                                        exact
-                                    >
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.USER_ACTIVITY}
-                                        >
-                                            <UserActivity />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        path="/projects/:projectUuid/catalog"
-                                        exact
-                                    >
-                                        <NavBar />
-                                        <TrackPage name={PageName.CATALOG}>
-                                            <Catalog />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/metrics/peek/:tableName/:metricName">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.METRICS_CATALOG}
-                                        >
-                                            <MetricsCatalog />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/metrics">
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.METRICS_CATALOG}
-                                        >
-                                            <MetricsCatalog />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Navigate to="/projects" />
-                                </Switch>
-                            </ProjectRoute>
-
-                            <Route path="/projects/:projectUuid?" exact>
-                                <Projects />
-                            </Route>
-
-                            <Navigate to="/projects" />
-                        </Switch>
-                    </AppRoute>
-                </Switch>
-            </PrivateRoute>
-        </Switch>
-    );
-};
-
-export default Routes;
+const WebAppRoutes = [...PUBLIC_ROUTES, ...PRIVATE_ROUTES, FALLBACK_ROUTE];
+export default WebAppRoutes;

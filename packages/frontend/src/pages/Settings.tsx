@@ -21,9 +21,12 @@ import {
     IconUsers,
     IconUserShield,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
-import { Route, Switch } from 'react-router-dom';
-import { Navigate } from 'react-router-dom-v5-compat';
+import { useMemo, type FC } from 'react';
+import {
+    Navigate,
+    useRoutes,
+    type RouteObject,
+} from 'react-router-dom-v5-compat';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -97,6 +100,214 @@ const Settings: FC = () => {
         error: projectError,
     } = useProject(activeProjectUuid);
 
+    const allowPasswordAuthentication =
+        !health?.auth.disablePasswordAuthentication;
+
+    const hasSocialLogin =
+        health?.auth.google.enabled ||
+        health?.auth.okta.enabled ||
+        health?.auth.oneLogin.enabled ||
+        health?.auth.azuread.enabled ||
+        health?.auth.oidc.enabled;
+
+    const isGroupManagementEnabled = UserGroupFeatureFlag?.enabled;
+
+    const routes = useMemo<RouteObject[]>(() => {
+        const allowedRoutes: RouteObject[] = [
+            {
+                path: '/appearance',
+                element: <AppearanceSettingsPanel />,
+            },
+            {
+                path: '/profile',
+                element: (
+                    <SettingsGridCard>
+                        <Title order={4}>Profile settings</Title>
+                        <ProfilePanel />
+                    </SettingsGridCard>
+                ),
+            },
+            {
+                path: '*',
+                element: <Navigate to="/generalSettings/profile" />,
+            },
+        ];
+
+        if (allowPasswordAuthentication) {
+            allowedRoutes.push({
+                path: '/password',
+                element: (
+                    <Stack spacing="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>Password settings</Title>
+                            <PasswordPanel />
+                        </SettingsGridCard>
+
+                        {hasSocialLogin && (
+                            <SettingsGridCard>
+                                <Title order={4}>Social logins</Title>
+                                <SocialLoginsPanel />
+                            </SettingsGridCard>
+                        )}
+                    </Stack>
+                ),
+            });
+        }
+        if (isPassthroughLoginFeatureEnabled) {
+            allowedRoutes.push({
+                path: '/myWarehouseConnections',
+                element: (
+                    <Stack spacing="xl">
+                        <MyWarehouseConnectionsPanel />
+                    </Stack>
+                ),
+            });
+        }
+        if (user?.ability.can('manage', 'PersonalAccessToken')) {
+            allowedRoutes.push({
+                path: '/organization',
+                element: (
+                    <Stack spacing="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>General</Title>
+                            <OrganizationPanel />
+                        </SettingsGridCard>
+
+                        <SettingsGridCard>
+                            <div>
+                                <Title order={4}>Allowed email domains</Title>
+                                <Text c="gray.6" fz="xs">
+                                    Anyone with email addresses at these domains
+                                    can automatically join the organization.
+                                </Text>
+                            </div>
+                            <AllowedDomainsPanel />
+                        </SettingsGridCard>
+
+                        <SettingsGridCard>
+                            <div>
+                                <Title order={4}>Default Project</Title>
+                                <Text c="gray.6" fz="xs">
+                                    This is the project users will see when they
+                                    log in for the first time or from a new
+                                    device. If a user does not have access, they
+                                    will see their next accessible project.
+                                </Text>
+                            </div>
+                            <DefaultProjectPanel />
+                        </SettingsGridCard>
+
+                        {user.ability?.can('delete', 'Organization') && (
+                            <SettingsGridCard>
+                                <div>
+                                    <Title order={4}>Danger zone </Title>
+                                    <Text c="gray.6" fz="xs">
+                                        This action deletes the whole workspace
+                                        and all its content, including users.
+                                        This action is not reversible.
+                                    </Text>
+                                </div>
+                                <DeleteOrganizationPanel />
+                            </SettingsGridCard>
+                        )}
+                    </Stack>
+                ),
+            });
+        }
+        if (
+            user?.ability.can(
+                'manage',
+                subject('OrganizationMemberProfile', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/userManagement',
+                element: <UsersAndGroupsPanel />,
+            });
+        }
+
+        if (
+            user?.ability.can(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/userAttributes',
+                element: <UserAttributesPanel />,
+            });
+        }
+        if (
+            organization &&
+            !organization.needsProject &&
+            user?.ability.can('view', 'Project')
+        ) {
+            allowedRoutes.push({
+                path: '/projectManagement',
+                element: <ProjectManagementPanel />,
+            });
+        }
+
+        if (
+            project &&
+            organization &&
+            !organization.needsProject &&
+            user?.ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/projectManagement/:projectUuid/*',
+                element: (
+                    <TrackPage name={PageName.PROJECT_SETTINGS}>
+                        <ProjectSettings />
+                    </TrackPage>
+                ),
+            });
+        }
+        if (user?.ability.can('manage', 'PersonalAccessToken')) {
+            allowedRoutes.push({
+                path: '/personalAccessTokens',
+                element: <AccessTokensPanel />,
+            });
+        }
+
+        if (user?.ability.can('manage', 'Organization')) {
+            allowedRoutes.push({
+                path: '/integrations',
+                element: (
+                    <Stack>
+                        <Title order={4}>Integrations</Title>
+                        {!health?.hasSlack &&
+                            !health?.hasGithub &&
+                            'No integrations available'}
+                        {health?.hasSlack && <SlackSettingsPanel />}
+                        {health?.hasGithub && <GithubSettingsPanel />}
+                    </Stack>
+                ),
+            });
+        }
+
+        return allowedRoutes;
+    }, [
+        isPassthroughLoginFeatureEnabled,
+        allowPasswordAuthentication,
+        hasSocialLogin,
+        user,
+        organization,
+        project,
+        health,
+    ]);
+    const routeElements = useRoutes(routes);
+
     if (
         isHealthLoading ||
         isUserLoading ||
@@ -121,18 +332,6 @@ const Settings: FC = () => {
     }
 
     if (!health || !user || !organization) return null;
-
-    const allowPasswordAuthentication =
-        !health.auth.disablePasswordAuthentication;
-
-    const hasSocialLogin =
-        health.auth.google.enabled ||
-        health.auth.okta.enabled ||
-        health.auth.oneLogin.enabled ||
-        health.auth.azuread.enabled ||
-        health.auth.oidc.enabled;
-
-    const isGroupManagementEnabled = UserGroupFeatureFlag?.enabled;
 
     return (
         <Page
@@ -454,170 +653,7 @@ const Settings: FC = () => {
                 </Stack>
             }
         >
-            <Switch>
-                {allowPasswordAuthentication && (
-                    <Route exact path="/generalSettings/password">
-                        <Stack spacing="xl">
-                            <SettingsGridCard>
-                                <Title order={4}>Password settings</Title>
-                                <PasswordPanel />
-                            </SettingsGridCard>
-
-                            {hasSocialLogin && (
-                                <SettingsGridCard>
-                                    <Title order={4}>Social logins</Title>
-                                    <SocialLoginsPanel />
-                                </SettingsGridCard>
-                            )}
-                        </Stack>
-                    </Route>
-                )}
-                {isPassthroughLoginFeatureEnabled && (
-                    <Route exact path="/generalSettings/myWarehouseConnections">
-                        <Stack spacing="xl">
-                            <MyWarehouseConnectionsPanel />
-                        </Stack>
-                    </Route>
-                )}
-
-                {user.ability.can('manage', 'Organization') && (
-                    <Route exact path="/generalSettings/organization">
-                        <Stack spacing="xl">
-                            <SettingsGridCard>
-                                <Title order={4}>General</Title>
-                                <OrganizationPanel />
-                            </SettingsGridCard>
-
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={4}>
-                                        Allowed email domains
-                                    </Title>
-                                    <Text c="gray.6" fz="xs">
-                                        Anyone with email addresses at these
-                                        domains can automatically join the
-                                        organization.
-                                    </Text>
-                                </div>
-                                <AllowedDomainsPanel />
-                            </SettingsGridCard>
-
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={4}>Default Project</Title>
-                                    <Text c="gray.6" fz="xs">
-                                        This is the project users will see when
-                                        they log in for the first time or from a
-                                        new device. If a user does not have
-                                        access, they will see their next
-                                        accessible project.
-                                    </Text>
-                                </div>
-                                <DefaultProjectPanel />
-                            </SettingsGridCard>
-
-                            {user.ability?.can('delete', 'Organization') && (
-                                <SettingsGridCard>
-                                    <div>
-                                        <Title order={4}>Danger zone </Title>
-                                        <Text c="gray.6" fz="xs">
-                                            This action deletes the whole
-                                            workspace and all its content,
-                                            including users. This action is not
-                                            reversible.
-                                        </Text>
-                                    </div>
-                                    <DeleteOrganizationPanel />
-                                </SettingsGridCard>
-                            )}
-                        </Stack>
-                    </Route>
-                )}
-
-                {user.ability.can(
-                    'manage',
-                    subject('OrganizationMemberProfile', {
-                        organizationUuid: organization.organizationUuid,
-                    }),
-                ) && (
-                    <Route path="/generalSettings/userManagement">
-                        <UsersAndGroupsPanel />
-                    </Route>
-                )}
-
-                {user.ability.can(
-                    'manage',
-                    subject('Organization', {
-                        organizationUuid: organization.organizationUuid,
-                    }),
-                ) && (
-                    <Route path="/generalSettings/userAttributes">
-                        <UserAttributesPanel />
-                    </Route>
-                )}
-
-                {organization &&
-                    !organization.needsProject &&
-                    user.ability.can('view', 'Project') && (
-                        <Route exact path="/generalSettings/projectManagement">
-                            <ProjectManagementPanel />
-                        </Route>
-                    )}
-
-                {project &&
-                    organization &&
-                    !organization.needsProject &&
-                    user.ability.can(
-                        'view',
-                        subject('Project', {
-                            organizationUuid: organization.organizationUuid,
-                            projectUuid: project.projectUuid,
-                        }),
-                    ) && (
-                        <Route
-                            path={[
-                                '/generalSettings/projectManagement/:projectUuid/:tab?',
-                            ]}
-                            exact
-                        >
-                            <TrackPage name={PageName.PROJECT_SETTINGS}>
-                                <ProjectSettings />
-                            </TrackPage>
-                        </Route>
-                    )}
-
-                <Route exact path="/generalSettings/appearance">
-                    <AppearanceSettingsPanel />
-                </Route>
-
-                {user.ability.can('manage', 'PersonalAccessToken') && (
-                    <Route exact path="/generalSettings/personalAccessTokens">
-                        <AccessTokensPanel />
-                    </Route>
-                )}
-
-                {user.ability.can('manage', 'Organization') && (
-                    <Route exact path="/generalSettings/integrations">
-                        <Stack>
-                            <Title order={4}>Integrations</Title>
-                            {!health.hasSlack &&
-                                !health.hasGithub &&
-                                'No integrations available'}
-                            {health.hasSlack && <SlackSettingsPanel />}
-                            {health.hasGithub && <GithubSettingsPanel />}
-                        </Stack>
-                    </Route>
-                )}
-
-                <Route exact path="/generalSettings">
-                    <SettingsGridCard>
-                        <Title order={4}>Profile settings</Title>
-                        <ProfilePanel />
-                    </SettingsGridCard>
-                </Route>
-
-                <Navigate to="/generalSettings" />
-            </Switch>
+            {routeElements}
         </Page>
     );
 };

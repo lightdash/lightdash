@@ -5,7 +5,7 @@ import {
     type QueryClient,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useDefaultProject, useProjects } from './useProjects';
 
 const LAST_PROJECT_KEY = 'lastProject';

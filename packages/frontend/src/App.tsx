@@ -1,8 +1,11 @@
 import { Ability } from '@casl/ability';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
-import { BrowserRouter } from 'react-router-dom';
-import { CompatRouter } from 'react-router-dom-v5-compat';
+import {
+    createBrowserRouter,
+    Outlet,
+    RouterProvider,
+} from 'react-router-dom-v5-compat';
 import { AbilityContext } from './components/common/Authorization/context';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import { ErrorBoundary } from './features/errorBoundary';
@@ -27,46 +30,39 @@ const isMobile = window.innerWidth < 768;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
+const router = createBrowserRouter([
+    {
+        path: '/',
+        element: (
+            <AppProvider>
+                <VersionAutoUpdater />
+                <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
+                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                        <TrackingProvider enabled={isMobile || !isMinimalPage}>
+                            <AbilityContext.Provider value={defaultAbility}>
+                                <ActiveJobProvider>
+                                    <ChartColorMappingContextProvider>
+                                        <Outlet />
+                                    </ChartColorMappingContextProvider>
+                                </ActiveJobProvider>
+                            </AbilityContext.Provider>
+                        </TrackingProvider>
+                    </ErrorBoundary>
+                </ThirdPartyProvider>
+            </AppProvider>
+        ),
+        children: isMobile ? MobileRoutes : Routes,
+    },
+]);
 const App = () => (
     <>
         <Helmet>
             <title>Lightdash</title>
         </Helmet>
-
         <ReactQueryProvider>
             <MantineProvider>
-                <BrowserRouter>
-                    <CompatRouter>
-                        <AppProvider>
-                            <VersionAutoUpdater />
-                            <ThirdPartyProvider
-                                enabled={isMobile || !isMinimalPage}
-                            >
-                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                    <TrackingProvider
-                                        enabled={isMobile || !isMinimalPage}
-                                    >
-                                        <AbilityContext.Provider
-                                            value={defaultAbility}
-                                        >
-                                            <ActiveJobProvider>
-                                                <ChartColorMappingContextProvider>
-                                                    {isMobile ? (
-                                                        <MobileRoutes />
-                                                    ) : (
-                                                        <Routes />
-                                                    )}
-                                                </ChartColorMappingContextProvider>
-                                            </ActiveJobProvider>
-                                        </AbilityContext.Provider>
-                                    </TrackingProvider>
-                                </ErrorBoundary>
-                            </ThirdPartyProvider>
-                        </AppProvider>
-                    </CompatRouter>
-                </BrowserRouter>
+                <RouterProvider router={router} />
             </MantineProvider>
-
             <ReactQueryDevtools initialIsOpen={false} />
         </ReactQueryProvider>
     </>

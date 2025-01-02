@@ -1,7 +1,6 @@
 import { useMantineTheme } from '@mantine/core';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
 
 /**
  * Scroll to dashboard comment via search param `tileUuid`

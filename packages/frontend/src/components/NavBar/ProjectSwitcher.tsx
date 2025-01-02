@@ -7,8 +7,12 @@ import {
 import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useRouteMatch } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import {
+    matchRoutes,
+    useLocation,
+    useMatch,
+    useNavigate,
+} from 'react-router-dom-v5-compat';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,
@@ -113,17 +117,19 @@ const ProjectSwitcher = () => {
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
+    const location = useLocation();
+    const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
 
-    const isHomePage = !!useRouteMatch({
-        path: '/projects/:projectUuid/home',
-        exact: true,
-    });
-
-    const swappableRouteMatch = useRouteMatch(
-        activeProjectUuid
-            ? { path: swappableProjectRoutes(activeProjectUuid), exact: true }
-            : [],
-    );
+    const routeMatches =
+        matchRoutes(
+            activeProjectUuid
+                ? swappableProjectRoutes(activeProjectUuid).map((path) => ({
+                      path,
+                  }))
+                : [],
+            location,
+        ) || [];
+    const swappableRouteMatch = routeMatches ? routeMatches[0]?.route : null;
 
     const shouldSwapProjectRoute = !!swappableRouteMatch && activeProjectUuid;
 
