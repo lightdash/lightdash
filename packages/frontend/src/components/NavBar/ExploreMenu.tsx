@@ -11,7 +11,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom-v5-compat';
 import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
@@ -27,7 +27,8 @@ type Props = {
 };
 
 const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const isSemanticLayerEnabled = useFeatureFlagEnabled(
         FeatureFlags.SemanticLayerEnabled,
@@ -120,7 +121,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 to={`/projects/${projectUuid}/sql-runner`}
                                 onClick={(event) => {
                                     if (
-                                        history.location.pathname.startsWith(
+                                        location.pathname.startsWith(
                                             `/projects/${projectUuid}/sql-runner`,
                                         )
                                     ) {
@@ -179,7 +180,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     onClose={() => setIsCreateSpaceOpen(false)}
                     onSubmitForm={(space) => {
                         if (space)
-                            history.push(
+                            navigate(
                                 `/projects/${projectUuid}/spaces/${space.uuid}`,
                             );
                     }}
@@ -191,7 +192,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                 opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
-                    history.push(
+                    navigate(
                         `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
                     );
 

@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import { useCallback, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom-v5-compat';
 import { useProject } from '../../hooks/useProject';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';

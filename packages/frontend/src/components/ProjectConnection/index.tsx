@@ -24,7 +24,7 @@ import { IconExclamationCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useForm, useFormContext, type FieldErrors } from 'react-hook-form';
 import { type SubmitErrorHandler } from 'react-hook-form/dist/types/form';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
@@ -306,7 +306,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
     selectedWarehouse,
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
@@ -354,11 +354,11 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             createProjectJobId === activeJob?.jobUuid &&
             activeJob?.jobResults?.projectUuid
         ) {
-            history.push({
+            navigate({
                 pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
             });
         }
-    }, [activeJob, createProjectJobId, history]);
+    }, [activeJob, createProjectJobId, navigate]);
 
     const isSavingProject = useMemo<boolean>(
         () =>

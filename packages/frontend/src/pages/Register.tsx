@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
@@ -35,7 +35,7 @@ const registerQuery = async (data: CreateUserArgs) =>
     });
 
 const Register: FC = () => {
-    const location = useLocation<{ from?: Location } | undefined>();
+    const location = useLocation();
     const { health } = useApp();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();

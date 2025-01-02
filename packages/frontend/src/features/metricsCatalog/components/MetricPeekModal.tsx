@@ -31,7 +31,11 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router-dom-v5-compat';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -64,8 +68,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         metricName: string;
     }>();
 
-    const history = useHistory();
-
+    const navigate = useNavigate();
+    const location = useLocation();
     const [query, setQuery] = useState<MetricExplorerQuery>({
         comparison: MetricExplorerComparison.NONE,
         segmentDimension: null,
@@ -105,14 +109,14 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const navigateToMetric = useCallback(
         (metric: CatalogField) => {
-            history.push({
+            navigate({
                 pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
-                search: history.location.search,
+                search: location.search,
             });
 
             resetQueryState();
         },
-        [history, projectUuid, resetQueryState],
+        [navigate, projectUuid, resetQueryState, location.search],
     );
 
     const handleGoToNextMetric = useCallback(() => {
@@ -144,6 +148,9 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const segmentDimensionsQuery = useCatalogSegmentDimensions({
         projectUuid,
         tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
+        },
     });
 
     const queryHasEmptyMetric = useMemo(() => {
@@ -296,15 +303,15 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     );
 
     const handleClose = useCallback(() => {
-        history.push({
+        navigate({
             pathname: `/projects/${projectUuid}/metrics`,
-            search: history.location.search,
+            search: location.search,
         });
 
         resetQueryState();
 
         onClose();
-    }, [history, onClose, projectUuid, resetQueryState]);
+    }, [navigate, onClose, projectUuid, resetQueryState, location.search]);
 
     useEffect(() => {
         if (timeDimensionOverride) {

@@ -13,7 +13,7 @@ const getExplores = async (projectUuid: string, filtered?: boolean) =>
     });
 
 export const useExplores = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     filtered?: boolean,
     useQueryFetchOptions?: UseQueryOptions<ApiExploresResults, ApiError>,
 ) => {
@@ -21,9 +21,10 @@ export const useExplores = (
     const queryKey = ['tables', projectUuid, filtered ? 'filtered' : 'all'];
     return useQuery<ApiExploresResults, ApiError>({
         queryKey,
-        queryFn: () => getExplores(projectUuid, filtered),
+        queryFn: () => getExplores(projectUuid!, filtered),
         onError: (result) => setErrorResponse(result),
         retry: false,
+        enabled: !!projectUuid,
         ...useQueryFetchOptions,
     });
 };

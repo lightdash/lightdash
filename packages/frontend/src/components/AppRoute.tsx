@@ -1,5 +1,6 @@
 import { type ComponentProps, type FC } from 'react';
-import { Redirect, Route } from 'react-router-dom';
+import { Route } from 'react-router-dom';
+import { Navigate } from 'react-router-dom-v5-compat';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useApp from '../providers/App/useApp';
 import ErrorState from './common/ErrorState';
@@ -33,11 +34,11 @@ const AppRoute: FC<React.PropsWithChildren<ComponentProps<typeof Route>>> = ({
 
                 if (orgRequest?.data?.needsProject) {
                     return (
-                        <Redirect
+                        <Navigate
                             to={{
                                 pathname: '/createProject',
-                                state: { from: location },
                             }}
+                            state={{ from: location }}
                         />
                     );
                 }

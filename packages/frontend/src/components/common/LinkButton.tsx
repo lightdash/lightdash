@@ -1,7 +1,7 @@
 import { Button, type ButtonProps } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import React, { type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom-v5-compat';
 import { type EventData } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import MantineIcon from './MantineIcon';
@@ -22,7 +22,7 @@ const LinkButton: FC<LinkButtonProps> = ({
     onClick,
     ...rest
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { track } = useTracking();
 
     return (
@@ -42,7 +42,7 @@ const LinkButton: FC<LinkButtonProps> = ({
                     target !== '_blank'
                 ) {
                     e.preventDefault();
-                    history.push(href);
+                    navigate(href);
                 }
 
                 onClick?.(e);

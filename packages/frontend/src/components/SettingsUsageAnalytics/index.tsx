@@ -1,7 +1,7 @@
 import { Card, Group, Text } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom-v5-compat';
 import MantineIcon from '../common/MantineIcon';
 
 interface ProjectUserAccessProps {

@@ -1,13 +1,8 @@
 import { assertUnreachable } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { AddToSpaceResources } from './types';
-
-interface RouteProps {
-    projectUuid: string;
-    spaceUuid: string;
-}
 
 interface Props {
     resourceType: AddToSpaceResources;
@@ -16,8 +11,11 @@ interface Props {
 const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
 const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
-    const history = useHistory();
-    const { projectUuid, spaceUuid } = useParams<RouteProps>();
+    const navigate = useNavigate();
+    const { projectUuid, spaceUuid } = useParams<{
+        projectUuid: string;
+        spaceUuid: string;
+    }>();
 
     const {
         isSuccess: hasCreatedDashboard,
@@ -27,16 +25,16 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
 
     useEffect(() => {
         if (hasCreatedDashboard && newDashboard) {
-            return history.push(
+            return navigate(
                 `/projects/${projectUuid}/dashboards/${newDashboard.uuid}`,
             );
         }
-    }, [history, hasCreatedDashboard, newDashboard, projectUuid]);
+    }, [navigate, hasCreatedDashboard, newDashboard, projectUuid]);
 
     useEffect(() => {
         switch (resourceType) {
             case AddToSpaceResources.CHART:
-                return history.push(
+                return navigate(
                     `/projects/${projectUuid}/tables/?fromSpace=${spaceUuid}`,
                 );
             case AddToSpaceResources.DASHBOARD:
@@ -52,7 +50,7 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
                     'Unexpected resource type during create',
                 );
         }
-    }, [history, resourceType, createDashboard, projectUuid, spaceUuid]);
+    }, [navigate, resourceType, createDashboard, projectUuid, spaceUuid]);
 
     return null;
 };
