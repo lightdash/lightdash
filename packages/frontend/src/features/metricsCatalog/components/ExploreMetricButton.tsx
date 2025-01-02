@@ -2,7 +2,7 @@ import { type CatalogField } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -37,7 +37,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
             },
         });
 
-        navigate({
+        void navigate({
             pathname: `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
             search: location.search,
         });

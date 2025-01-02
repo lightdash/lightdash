@@ -1,7 +1,7 @@
 import { Button, type ButtonProps } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import React, { type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import { type EventData } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import MantineIcon from './MantineIcon';
@@ -42,7 +42,7 @@ const LinkButton: FC<LinkButtonProps> = ({
                     target !== '_blank'
                 ) {
                     e.preventDefault();
-                    navigate(href);
+                    void navigate(href);
                 }
 
                 onClick?.(e);

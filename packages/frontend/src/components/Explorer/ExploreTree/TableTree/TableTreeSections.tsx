@@ -8,7 +8,7 @@ import {
 import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router';
 import useApp from '../../../../providers/App/useApp';
 import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../../common/MantineIcon';

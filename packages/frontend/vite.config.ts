@@ -36,7 +36,7 @@ export default defineConfig({
                     react: [
                         'react',
                         'react-dom',
-                        'react-router-dom',
+                        'react-router',
                         'react-hook-form',
                         'react-use',
                         'react-draggable',

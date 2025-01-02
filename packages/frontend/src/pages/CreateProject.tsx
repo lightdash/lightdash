@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
@@ -54,7 +54,7 @@ const CreateProject: FC = () => {
                             <UnsupportedWarehouse
                                 onBack={() => {
                                     setWarehouse(undefined);
-                                    navigate('/createProject', {
+                                    void navigate('/createProject', {
                                         replace: true,
                                     });
                                 }}
@@ -67,7 +67,7 @@ const CreateProject: FC = () => {
                                             isCreatingFirstProject
                                         }
                                         onSelect={(newMethod) => {
-                                            navigate(
+                                            void navigate(
                                                 `/createProject/${newMethod}`,
                                                 { replace: true },
                                             );
@@ -83,7 +83,7 @@ const CreateProject: FC = () => {
                                         siteUrl={health.siteUrl}
                                         version={health.version}
                                         onBack={() => {
-                                            navigate('/createProject', {
+                                            void navigate('/createProject', {
                                                 replace: true,
                                             });
                                         }}
@@ -98,9 +98,12 @@ const CreateProject: FC = () => {
                                             }
                                             selectedWarehouse={warehouse}
                                             onBack={() => {
-                                                navigate('/createProject', {
-                                                    replace: true,
-                                                });
+                                                void navigate(
+                                                    '/createProject',
+                                                    {
+                                                        replace: true,
+                                                    },
+                                                );
                                             }}
                                         />
                                     )}

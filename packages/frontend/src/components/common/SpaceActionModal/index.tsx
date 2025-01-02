@@ -14,7 +14,7 @@ import {
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -232,7 +232,9 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         useCreateMutation(projectUuid, {
             onSuccess: (space) => {
                 if (shouldRedirect) {
-                    navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
+                    void navigate(
+                        `/projects/${projectUuid}/spaces/${space.uuid}`,
+                    );
                 }
             },
         });

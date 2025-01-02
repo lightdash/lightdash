@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -150,7 +150,7 @@ export const useDeleteVirtualView = (projectUuid: string) => {
                 title: 'Success! Virtual view deleted',
             });
 
-            navigate(`/projects/${projectUuid}/tables`);
+            void navigate(`/projects/${projectUuid}/tables`);
         },
         onError: () => {
             showToastError({

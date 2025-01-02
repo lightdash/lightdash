@@ -16,7 +16,7 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
@@ -397,9 +397,12 @@ export const useCreateMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
                 });
-                navigate(`/projects/${projectUuid}/saved/${data.uuid}/view`, {
-                    replace: true,
-                });
+                void navigate(
+                    `/projects/${projectUuid}/saved/${data.uuid}/view`,
+                    {
+                        replace: true,
+                    },
+                );
             },
             onError: ({ error }) => {
                 showToastApiError({
@@ -450,7 +453,9 @@ export const useDuplicateChartMutation = (
                     !options?.showRedirectButton &&
                     options?.autoRedirect !== false
                 ) {
-                    navigate(`/projects/${projectUuid}/saved/${data.uuid}`);
+                    void navigate(
+                        `/projects/${projectUuid}/saved/${data.uuid}`,
+                    );
                 }
 
                 showToastSuccess({
@@ -461,10 +466,11 @@ export const useDuplicateChartMutation = (
                         ? {
                               children: 'Open chart',
                               icon: IconArrowRight,
-                              onClick: () =>
-                                  navigate(
+                              onClick: () => {
+                                  void navigate(
                                       `/projects/${projectUuid}/saved/${data.uuid}`,
-                                  ),
+                                  );
+                              },
                           }
                         : undefined,
                 });
@@ -516,7 +522,7 @@ export const useAddVersionMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was updated.`,
                 });
-                navigate(
+                void navigate(
                     `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
                 );
             }

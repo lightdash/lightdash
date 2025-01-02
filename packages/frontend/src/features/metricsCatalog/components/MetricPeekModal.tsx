@@ -31,11 +31,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -109,7 +105,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const navigateToMetric = useCallback(
         (metric: CatalogField) => {
-            navigate({
+            void navigate({
                 pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
                 search: location.search,
             });
@@ -303,7 +299,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     );
 
     const handleClose = useCallback(() => {
-        navigate({
+        void navigate({
             pathname: `/projects/${projectUuid}/metrics`,
             search: location.search,
         });

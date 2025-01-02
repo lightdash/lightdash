@@ -22,11 +22,7 @@ import {
     IconUserShield,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import {
-    Navigate,
-    useRoutes,
-    type RouteObject,
-} from 'react-router-dom-v5-compat';
+import { Navigate, useRoutes, type RouteObject } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';

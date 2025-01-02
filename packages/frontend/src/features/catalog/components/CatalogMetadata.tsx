@@ -30,7 +30,7 @@ import {
 import { useIsMutating } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
@@ -175,7 +175,7 @@ export const CatalogMetadata: FC = () => {
                         fz="lg"
                         fw={600}
                         onDoubleClick={() => {
-                            navigate(
+                            void navigate(
                                 `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );
                         }}

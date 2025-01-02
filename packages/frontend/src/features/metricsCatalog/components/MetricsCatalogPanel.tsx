@@ -15,7 +15,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -228,7 +228,7 @@ export const MetricsCatalogPanel = () => {
         } else {
             queryParams.delete('categories');
         }
-        navigate({ search: queryParams.toString() }, { replace: true });
+        void navigate({ search: queryParams.toString() }, { replace: true });
     }, [categories, navigate]);
 
     useEffect(

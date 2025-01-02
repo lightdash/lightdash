@@ -22,7 +22,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
@@ -74,7 +74,9 @@ const ChartHistory = () => {
 
     const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
         onSuccess: () => {
-            navigate(`/projects/${projectUuid}/saved/${savedQueryUuid}/view`);
+            void navigate(
+                `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
+            );
         },
     });
 

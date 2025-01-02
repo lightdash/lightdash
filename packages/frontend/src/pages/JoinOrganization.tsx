@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../components/PageSpinner';
@@ -66,7 +66,7 @@ const JoinOrganizationPage: FC = () => {
 
     useEffect(() => {
         if ((hasCreatedOrg || hasJoinedOrg) && !createOrgError) {
-            navigate('/');
+            void navigate('/');
         }
     }, [createOrgError, hasCreatedOrg, hasJoinedOrg, navigate]);
 

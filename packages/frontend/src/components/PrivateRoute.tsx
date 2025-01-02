@@ -1,5 +1,5 @@
 import React, { useEffect, type FC } from 'react';
-import { Navigate, useLocation } from 'react-router-dom-v5-compat';
+import { Navigate, useLocation } from 'react-router';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import useApp from '../providers/App/useApp';
 import { useAbilityContext } from './common/Authorization/useAbilityContext';

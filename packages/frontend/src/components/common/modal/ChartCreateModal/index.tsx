@@ -2,7 +2,7 @@ import { type CreateSavedChartVersion } from '@lightdash/common';
 import { Group, Modal, Text } from '@mantine/core';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../../MantineIcon';
 import { SaveToDashboard } from './SaveToDashboard';

@@ -1,10 +1,6 @@
 import { type CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import useToaster from './toaster/useToaster';
 import { parseExplorerSearchParams } from './useExplorerRoute';
 
@@ -41,7 +37,7 @@ export const useSqlRunnerRoute = (sqlRunnerState: SqlRunnerState) => {
 
     useEffect(() => {
         if (sqlRunnerState && pathParams.projectUuid) {
-            navigate(
+            void navigate(
                 getSqlRunnerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     sqlRunnerState,

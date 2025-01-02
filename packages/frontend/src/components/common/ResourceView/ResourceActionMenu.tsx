@@ -21,7 +21,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { Fragment, useMemo, type FC } from 'react';
-import { useLocation, useParams } from 'react-router-dom-v5-compat';
+import { useLocation, useParams } from 'react-router';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,

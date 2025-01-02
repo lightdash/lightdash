@@ -12,7 +12,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -76,7 +76,9 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
         {
             mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
             onSuccess: (data) => {
-                navigate(`/projects/${projectUuid}/sql-runner/${data.slug}`);
+                void navigate(
+                    `/projects/${projectUuid}/sql-runner/${data.slug}`,
+                );
 
                 showToastSuccess({
                     title: `Success! SQL chart created`,

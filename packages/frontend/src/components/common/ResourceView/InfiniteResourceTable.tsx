@@ -43,7 +43,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
-import { Link, useNavigate } from 'react-router-dom-v5-compat';
+import { Link, useNavigate } from 'react-router';
 import {
     useInfiniteContent,
     type ContentArgs,
@@ -507,7 +507,9 @@ const InfiniteResourceTable = ({
                     return;
                 }
 
-                navigate(getResourceUrl(filters.projectUuid, row.original));
+                void navigate(
+                    getResourceUrl(filters.projectUuid, row.original),
+                );
             },
         }),
         mantineTableBodyCellProps: () => {

@@ -15,7 +15,7 @@ import { IconGripVertical } from '@tabler/icons-react';
 import { produce } from 'immer';
 import orderBy from 'lodash/orderBy';
 import { useMemo, type FC } from 'react';
-import { Link, useParams } from 'react-router-dom-v5-compat';
+import { Link, useParams } from 'react-router';
 import usePinnedItemsContext from '../../../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../../MantineIcon';
 import { getResourceName, getResourceUrl } from '../resourceUtils';

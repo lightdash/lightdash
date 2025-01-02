@@ -1,6 +1,6 @@
 import { type ApiError, type ApiSqlQueryResults } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
