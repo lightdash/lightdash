@@ -1,6 +1,7 @@
 import {
     rem,
     type ColorScheme,
+    type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine/core';
 
@@ -142,6 +143,8 @@ export const getMantineThemeOverride = (overrides?: {
     other: {
         transitionTimingFunction: 'ease-in-out',
         transitionDuration: 200, // in ms
+        hoverBackgroundColor: (theme: MantineTheme) =>
+            theme.fn.lighten(theme.colors.blue[2], 0.7),
     },
 
     globalStyles: (theme) => ({

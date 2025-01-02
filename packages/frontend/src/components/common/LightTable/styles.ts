@@ -132,7 +132,7 @@ export const useTableRowStyles = createStyles<
     string,
     { sectionType: SectionType; index: number }
 >((theme, { sectionType, index }) => {
-    const rowHoverBackground = rgba(theme.colors.gray[0], 0.5);
+    const rowHoverBackground = theme.fn.lighten(theme.colors.blue[2], 0.7);
 
     const getStickySectionStyles = () => {
         switch (sectionType) {
