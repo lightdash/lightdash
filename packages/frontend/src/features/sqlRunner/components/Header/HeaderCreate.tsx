@@ -154,8 +154,6 @@ export const HeaderCreate: FC = () => {
         showToastSuccess({ title: 'Shared URL copied to clipboard!' });
     }, [createShareUrl, clipboard, showToastSuccess]);
 
-    console.log('ctaAction', ctaAction);
-
     return (
         <>
             <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
