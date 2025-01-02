@@ -24,6 +24,11 @@ export const useTableStyles = createStyles((theme) => {
                 transitionTimingFunction: 'ease-out',
 
                 boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
+                '&:hover': {
+                    boxShadow: `inset -1px -1px 0 0 ${borderColor} !important`,
+                    backgroundColor: theme.colors.gray[1],
+                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                },
             },
 
             '> *:first-child > *:first-child > *': {
@@ -132,7 +137,7 @@ export const useTableRowStyles = createStyles<
     string,
     { sectionType: SectionType; index: number }
 >((theme, { sectionType, index }) => {
-    const rowHoverBackground = theme.fn.lighten(theme.colors.blue[2], 0.7);
+    const rowHoverBackground = theme.colors.gray[1];
 
     const getStickySectionStyles = () => {
         switch (sectionType) {
