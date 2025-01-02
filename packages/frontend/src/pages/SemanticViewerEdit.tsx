@@ -1,8 +1,7 @@
 import { subject } from '@casl/ability';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { useRouteMatch } from 'react-router-dom';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useMatch, useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
@@ -35,9 +34,8 @@ const SemanticViewerEditorPageWithStore = () => {
         savedSemanticViewerChartSlug?: string;
     }>();
 
-    const rootRouteMatch = useRouteMatch({
+    const rootRouteMatch = useMatch({
         path: `/projects/${projectUuid}/semantic-viewer`,
-        exact: true,
     });
     const navigate = useNavigate();
 
@@ -180,7 +178,7 @@ const SemanticViewerEditorPageWithStore = () => {
                 }),
             );
             if (!!rootRouteMatch) {
-                navigate(rootRouteMatch.path + '/new', { replace: true });
+                navigate(rootRouteMatch.pathname + '/new', { replace: true });
             }
         }
     }, [

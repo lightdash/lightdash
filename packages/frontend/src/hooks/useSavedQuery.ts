@@ -16,8 +16,7 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router-dom-v5-compat';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
@@ -387,7 +386,10 @@ export const useCreateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
-        (data) => createSavedQuery(projectUuid, data),
+        (data) =>
+            projectUuid
+                ? createSavedQuery(projectUuid, data)
+                : Promise.reject(),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
@@ -428,10 +430,12 @@ export const useDuplicateChartMutation = (
         Pick<SavedChart, 'uuid' | 'name' | 'description'>
     >(
         ({ uuid, name, description }) =>
-            duplicateSavedQuery(projectUuid, uuid, {
-                chartName: name,
-                chartDesc: description ?? '',
-            }),
+            projectUuid
+                ? duplicateSavedQuery(projectUuid, uuid, {
+                      chartName: name,
+                      chartDesc: description ?? '',
+                  })
+                : Promise.reject(),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async (data) => {
