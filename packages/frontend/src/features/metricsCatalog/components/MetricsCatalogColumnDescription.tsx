@@ -1,5 +1,8 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Highlight } from '@mantine/core';
+import { Box, Text, useMantineTheme } from '@mantine/core';
+import MarkdownPreview, {
+    type MarkdownPreviewProps,
+} from '@uiw/react-markdown-preview';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { useRef, useState, type FC } from 'react';
 import { useIsLineClamped } from '../../../hooks/useIsLineClamped';
@@ -13,6 +16,7 @@ type Props = {
 };
 
 export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
+    const theme = useMantineTheme();
     const dispatch = useAppDispatch();
     const cellRef = useRef<HTMLDivElement>(null);
     const { ref: highlightRef, isLineClamped } =
@@ -27,9 +31,33 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
         (state) => state.metricsCatalog.popovers.description.isClosing,
     );
 
+    const markdownPreviewProps: MarkdownPreviewProps = {
+        style: {
+            fontSize: theme.fontSizes.sm,
+            color: theme.colors.dark[4],
+            fontFamily: 'Inter',
+            backgroundColor: 'inherit',
+        },
+        components: {
+            h1: ({ children }) => (
+                <h1 style={{ fontWeight: 600 }}>{children}</h1>
+            ),
+            h2: ({ children }) => (
+                <h2 style={{ fontWeight: 600 }}>{children}</h2>
+            ),
+            h3: ({ children }) => (
+                <h3 style={{ fontWeight: 600 }}>{children}</h3>
+            ),
+            p: ({ children }) => <p style={{ fontWeight: 400 }}>{children}</p>,
+            li: ({ children }) => (
+                <li style={{ fontWeight: 400 }}>{children}</li>
+            ),
+        },
+    };
+
     return (
         <Box ref={cellRef}>
-            <Highlight
+            <Text
                 ref={highlightRef}
                 c={row.original.description ? 'dark.4' : 'dark.1'}
                 fz="sm"
@@ -46,15 +74,17 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
                         setIsOpen(true);
                     }
                 }}
-                highlight={table.getState().globalFilter || ''}
                 lineClamp={2}
                 sx={{
                     cursor: canOpen ? 'pointer' : 'default',
                     color: row.original.description ? 'dark.4' : 'dark.1',
                 }}
             >
-                {row.original.description ?? '-'}
-            </Highlight>
+                <MarkdownPreview
+                    source={row.original.description ?? '-'}
+                    {...markdownPreviewProps}
+                />
+            </Text>
 
             <MetricCatalogCellOverlay
                 isOpen={isOpen}
@@ -74,6 +104,7 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
                 content={row.original.description || ''}
                 cellRef={cellRef}
                 table={table}
+                markdownPreviewProps={markdownPreviewProps}
             />
         </Box>
     );
