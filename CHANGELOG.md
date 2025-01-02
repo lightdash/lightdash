@@ -1,3 +1,11 @@
+## [0.1433.3](https://github.com/lightdash/lightdash/compare/0.1433.2...0.1433.3) (2025-01-02)
+
+
+### Bug Fixes
+
+* remove duplicate loading overlay ([#13065](https://github.com/lightdash/lightdash/issues/13065)) ([31313d1](https://github.com/lightdash/lightdash/commit/31313d1b4712c4ec1e79cc2ebb943d7d94b642a9))
+* render markdown on clamped description ([#13066](https://github.com/lightdash/lightdash/issues/13066)) ([2eac878](https://github.com/lightdash/lightdash/commit/2eac878666a80acc1f3b16ea11ee175d756f922c))
+
 ## [0.1433.2](https://github.com/lightdash/lightdash/compare/0.1433.1...0.1433.2) (2025-01-02)
 
 
