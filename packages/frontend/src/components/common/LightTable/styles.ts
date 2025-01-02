@@ -24,6 +24,11 @@ export const useTableStyles = createStyles((theme) => {
                 transitionTimingFunction: 'ease-out',
 
                 boxShadow: `inset -1px -1px 0 0 ${borderColor}`,
+                '&:hover': {
+                    boxShadow: `inset -1px -1px 0 0 ${borderColor} !important`,
+                    backgroundColor: theme.colors.gray[1],
+                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                },
             },
 
             '> *:first-child > *:first-child > *': {
