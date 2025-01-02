@@ -9,7 +9,7 @@ import {
     Explore,
     ExploreError,
     friendlyName,
-    GetDbtManifestVersion,
+    getDbtManifestVersion,
     getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
@@ -90,7 +90,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const models = Object.values(manifest.nodes).filter(
             (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
         ) as DbtRawModelNode[];
-        const manifestVersion = GetDbtManifestVersion(this.dbtVersion);
+        const manifestVersion = getDbtManifestVersion(manifest);
         Logger.debug(
             `Validate ${models.length} models in manifest with version ${manifestVersion}`,
         );

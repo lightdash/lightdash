@@ -1,6 +1,4 @@
-import assertUnreachable from '../utils/assertUnreachable';
 import { type WeekDay } from '../utils/timeFrames';
-import { DbtManifestVersion } from './dbt';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 
 export enum ProjectType {
@@ -203,30 +201,6 @@ export enum SupportedDbtVersions {
     V1_8 = 'v1.8',
     V1_9 = 'v1.9',
 }
-
-export const GetDbtManifestVersion = (
-    dbtVersion: SupportedDbtVersions,
-): DbtManifestVersion => {
-    switch (dbtVersion) {
-        case SupportedDbtVersions.V1_4:
-            return DbtManifestVersion.V8;
-        case SupportedDbtVersions.V1_5:
-            return DbtManifestVersion.V9;
-        case SupportedDbtVersions.V1_6:
-            return DbtManifestVersion.V10;
-        case SupportedDbtVersions.V1_7:
-            return DbtManifestVersion.V11;
-        case SupportedDbtVersions.V1_8:
-        case SupportedDbtVersions.V1_9:
-            return DbtManifestVersion.V12;
-        default:
-            assertUnreachable(
-                dbtVersion,
-                'Missing dbt version manifest mapping',
-            );
-    }
-    return DbtManifestVersion.V8;
-};
 
 export const DefaultSupportedDbtVersion = SupportedDbtVersions.V1_4;
 

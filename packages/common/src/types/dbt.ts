@@ -525,6 +525,26 @@ export enum DbtManifestVersion {
     V12 = 'v12',
 }
 
+export const getDbtManifestVersion = (
+    manifest: DbtManifest,
+): DbtManifestVersion => {
+    const version =
+        manifest.metadata.dbt_schema_version.match(/\/(v\d+).json/)?.[1];
+    if (!version) {
+        throw new Error(
+            `Could not determine dbt manifest version from ${manifest.metadata.dbt_schema_version}`,
+        );
+    }
+    if (
+        Object.values(DbtManifestVersion).includes(
+            version as DbtManifestVersion,
+        )
+    ) {
+        return version as DbtManifestVersion;
+    }
+    throw new Error(`Unsupported dbt manifest version: ${version}`);
+};
+
 export enum DbtExposureType {
     DASHBOARD = 'dashboard',
     NOTEBOOK = 'notebook',

@@ -2,6 +2,7 @@ import {
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
+    getDbtManifestVersion,
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
@@ -15,7 +16,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
-import { getDbtManifest, loadManifest } from '../dbt/manifest';
+import { loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
 import {
     loadDbtTarget,
@@ -43,7 +44,6 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 
 export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersion = await getDbtVersion();
-    const manifestVersion = await getDbtManifest();
     GlobalState.debug(`> dbt version ${dbtVersion}`);
     const executionId = uuidv4();
     await LightdashAnalytics.track({
@@ -111,12 +111,13 @@ export const compile = async (options: CompileHandlerOptions) => {
     });
 
     const manifest = await loadManifest({ targetDir: context.targetDir });
+    const manifestVersion = getDbtManifestVersion(manifest);
     const manifestModels = getModelsFromManifest(manifest);
     const compiledModels = getCompiledModels(manifestModels, compiledModelIds);
 
     const adapterType = manifest.metadata.adapter_type;
     const { valid: validModels, invalid: failedExplores } =
-        await validateDbtModel(adapterType, compiledModels);
+        await validateDbtModel(adapterType, manifestVersion, compiledModels);
 
     if (failedExplores.length > 0) {
         const errors = failedExplores.map((failedExplore) =>
