@@ -16,7 +16,6 @@ import {
     Divider,
     Group,
     Kbd,
-    LoadingOverlay,
     Modal,
     Stack,
     Text,
@@ -392,17 +391,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         >
             <Modal.Overlay />
             <Modal.Content sx={{ overflow: 'hidden' }} radius={12} w="100%">
-                <LoadingOverlay
-                    visible={
-                        metricQuery.isLoading || metricResultsQuery.isLoading
-                    }
-                    overlayBlur={2}
-                    loaderProps={{
-                        size: 'md',
-                        color: 'dark',
-                        variant: 'dots',
-                    }}
-                />
                 <Modal.Header
                     h={52}
                     sx={(theme) => ({
