@@ -46,7 +46,10 @@ import {
 } from 'recharts';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
-import { is5YearDateRange } from '../../utils/metricPeekDate';
+import {
+    is5YearDateRange,
+    isInCurrentTimeFrame,
+} from '../../utils/metricPeekDate';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
@@ -122,7 +125,8 @@ const MetricsVisualization: FC<Props> = ({
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
 
-    const { colors } = useMantineTheme();
+    const theme = useMantineTheme();
+    const colors = theme.colors;
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -476,6 +480,28 @@ const MetricsVisualization: FC<Props> = ({
         results?.metric.timeDimension?.field,
     ]);
 
+    const splitSegments = useMemo(() => {
+        return segmentedData.map((segment) => {
+            const { data: segmentData, ...rest } = segment;
+
+            return {
+                ...rest,
+                completedPeriodData: segmentData.filter((row) => {
+                    return !isInCurrentTimeFrame(
+                        row.date,
+                        results?.metric.timeDimension?.interval,
+                    );
+                }),
+                incompletePeriodData: segmentData.filter((row) =>
+                    isInCurrentTimeFrame(
+                        row.date,
+                        results?.metric.timeDimension?.interval,
+                    ),
+                ),
+            };
+        });
+    }, [results?.metric.timeDimension?.interval, segmentedData]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -647,22 +673,47 @@ const MetricsVisualization: FC<Props> = ({
                                 isAnimationActive={false}
                             />
 
-                            {segmentedData.map((segment) => (
-                                <Line
-                                    key={segment.segment ?? 'metric'}
-                                    {...getLineProps(
-                                        segment.segment ?? 'metric',
-                                    )}
-                                    type="linear"
-                                    yAxisId="metric"
-                                    data={segment.data}
-                                    dataKey="metric.value"
-                                    stroke={segment.color}
-                                    dot={false}
-                                    legendType="plainline"
-                                    isAnimationActive={false}
-                                />
-                            ))}
+                            {splitSegments.map((segment) => {
+                                const key = segment.segment ?? 'metric';
+                                const completedPeriodKey = `${key}-completed-period`;
+                                const incompletePeriodKey = `${key}-incomplete-period`;
+
+                                return (
+                                    <>
+                                        <Line
+                                            key={incompletePeriodKey}
+                                            {...getLineProps(
+                                                incompletePeriodKey,
+                                            )}
+                                            type="linear"
+                                            yAxisId="metric"
+                                            data={segment.incompletePeriodData}
+                                            dataKey="metric.value"
+                                            stroke={segment.color}
+                                            dot={false}
+                                            legendType="plainline"
+                                            isAnimationActive={false}
+                                        />
+                                        <Line
+                                            key={completedPeriodKey}
+                                            {...getLineProps(
+                                                completedPeriodKey,
+                                            )}
+                                            type="linear"
+                                            yAxisId="metric"
+                                            data={segment.completedPeriodData}
+                                            dataKey="metric.value"
+                                            stroke={theme.fn.lighten(
+                                                segment.color,
+                                                0.4,
+                                            )}
+                                            dot={false}
+                                            legendType="plainline"
+                                            isAnimationActive={false}
+                                        />
+                                    </>
+                                );
+                            })}
 
                             {results.compareMetric && (
                                 <>

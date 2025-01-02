@@ -345,3 +345,26 @@ export const is5YearDateRange = (
     const preset = getMatchingPresetLabel(dateRange, timeInterval);
     return preset === '5Y';
 };
+
+export const isInCurrentTimeFrame = (
+    date: Date,
+    timeInterval: TimeFrames | undefined,
+): boolean => {
+    if (!timeInterval) {
+        return false;
+    }
+
+    const now = dayjs();
+    switch (timeInterval) {
+        case TimeFrames.DAY:
+            return dayjs(date).isSame(now, 'day');
+        case TimeFrames.WEEK:
+            return dayjs(date).isSame(now, 'week');
+        case TimeFrames.MONTH:
+            return dayjs(date).isSame(now, 'month');
+        case TimeFrames.YEAR:
+            return dayjs(date).isSame(now, 'year');
+        default:
+            return assertUnimplementedTimeframe(timeInterval);
+    }
+};
