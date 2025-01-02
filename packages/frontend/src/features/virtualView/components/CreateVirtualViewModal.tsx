@@ -33,6 +33,9 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+
+    const name = useAppSelector((state) => state.sqlRunner.name);
+
     const {
         mutateAsync: createVirtualView,
         isLoading: isLoadingVirtual,
@@ -42,7 +45,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     });
     const form = useForm<FormValues>({
         initialValues: {
-            name: '',
+            name: name || '',
         },
         validate: zodResolver(validationSchema),
     });

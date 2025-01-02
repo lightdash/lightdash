@@ -79,8 +79,6 @@ export const compareSqlQueries = (
     );
 };
 
-export const DEFAULT_NAME = 'Untitled SQL Query';
-
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
