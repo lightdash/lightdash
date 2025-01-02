@@ -304,11 +304,6 @@ export const MetricsTable = () => {
                 minHeight: '600px',
                 display: 'flex',
                 flexDirection: 'column',
-                '&:hover': {
-                    backgroundColor: theme.colors.gray[0], // Using Mantine's theme colors
-                    // Or you can use a direct value:
-                    // backgroundColor: '#f0f0f0',
-                },
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
@@ -320,11 +315,6 @@ export const MetricsTable = () => {
                 flexGrow: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                '&:hover': {
-                    backgroundColor: theme.colors.gray[0], // Using Mantine's theme colors
-                    // Or you can use a direct value:
-                    // backgroundColor: '#f0f0f0',
-                },
             },
         },
         mantineTableHeadProps: {
@@ -335,11 +325,6 @@ export const MetricsTable = () => {
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
-                '&:hover': {
-                    backgroundColor: theme.colors.gray[0], // Using Mantine's theme colors
-                    // Or you can use a direct value:
-                    // backgroundColor: '#f0f0f0',
-                },
 
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
@@ -390,7 +375,6 @@ export const MetricsTable = () => {
                             ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
                             : undefined,
                         transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        backgroundColor: 'green',
                     },
                 },
             };
@@ -416,7 +400,7 @@ export const MetricsTable = () => {
                 },
                 '&:hover': {
                     td: {
-                        backgroundColor: 'red',
+                        backgroundColor: theme.colors.gray[0],
                         transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
 
