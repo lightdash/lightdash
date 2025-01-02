@@ -1598,6 +1598,7 @@ export class ProjectService extends BaseService {
             queryTags,
             granularity: dateZoomGranularity,
             chartUuid: undefined,
+            invalidateCache: true, // Do not cache results for explore queries
         });
     }
 
