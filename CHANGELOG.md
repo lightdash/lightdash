@@ -1,3 +1,10 @@
+## [0.1432.2](https://github.com/lightdash/lightdash/compare/0.1432.1...0.1432.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* add loader on validator page ([#13073](https://github.com/lightdash/lightdash/issues/13073)) ([bdc7844](https://github.com/lightdash/lightdash/commit/bdc7844d0739522e7410aea3d7bea61e7e79ae11))
+
 ## [0.1432.1](https://github.com/lightdash/lightdash/compare/0.1432.0...0.1432.1) (2024-12-30)
 
 
