@@ -1,3 +1,15 @@
+# [0.1433.0](https://github.com/lightdash/lightdash/compare/0.1432.3...0.1433.0) (2025-01-02)
+
+
+### Bug Fixes
+
+* [SQL runner] make field select style match other dropdowns ([#13075](https://github.com/lightdash/lightdash/issues/13075)) ([de98685](https://github.com/lightdash/lightdash/commit/de9868506751da0e8e6bbf4e5f6b831842d0a628))
+
+
+### Features
+
+* `--skip-dbt-compile` and `--skip-warehouse-catalog` to `compile` ([#13023](https://github.com/lightdash/lightdash/issues/13023)) ([01ceccb](https://github.com/lightdash/lightdash/commit/01ceccb9fde7099f17466dd735ac8e01c755d77c))
+
 ## [0.1432.3](https://github.com/lightdash/lightdash/compare/0.1432.2...0.1432.3) (2025-01-02)
 
 
