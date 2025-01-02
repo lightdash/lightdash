@@ -1,7 +1,7 @@
 import { Flex, Modal, Title, type ModalProps } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
@@ -25,7 +25,7 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
         if (schedulerUuidFromParams) {
             setAction(SyncModalAction.EDIT);
             setCurrentSchedulerUuid(schedulerUuidFromParams);
-            navigate({ pathname }, { replace: true });
+            void navigate({ pathname }, { replace: true });
         }
     }, [navigate, pathname, search, setAction, setCurrentSchedulerUuid]);
 

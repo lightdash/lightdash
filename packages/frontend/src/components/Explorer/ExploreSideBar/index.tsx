@@ -15,7 +15,7 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import { useExplores } from '../../../hooks/useExplores';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
@@ -156,7 +156,7 @@ const BasePanel = () => {
                                                 explore={explore}
                                                 query={search}
                                                 onClick={() => {
-                                                    navigate(
+                                                    void navigate(
                                                         `/projects/${projectUuid}/tables/${explore.name}`,
                                                     );
                                                 }}
@@ -172,7 +172,7 @@ const BasePanel = () => {
                                     explore={explore}
                                     query={search}
                                     onClick={() => {
-                                        navigate(
+                                        void navigate(
                                             `/projects/${projectUuid}/tables/${explore.name}`,
                                         );
                                     }}
@@ -197,7 +197,7 @@ const BasePanel = () => {
                                     explore={explore}
                                     query={search}
                                     onClick={() => {
-                                        navigate(
+                                        void navigate(
                                             `/projects/${projectUuid}/tables/${explore.name}`,
                                         );
                                     }}
@@ -230,7 +230,7 @@ const ExploreSideBar = memo(() => {
 
     const handleBack = useCallback(() => {
         clearExplore();
-        navigate(`/projects/${projectUuid}/tables`);
+        void navigate(`/projects/${projectUuid}/tables`);
     }, [clearExplore, navigate, projectUuid]);
 
     return (

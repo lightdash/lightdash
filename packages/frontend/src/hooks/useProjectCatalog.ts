@@ -1,6 +1,6 @@
 import { type ApiError, type ProjectCatalog } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 

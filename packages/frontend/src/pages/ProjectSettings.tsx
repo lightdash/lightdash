@@ -1,12 +1,7 @@
 import { Stack } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { Helmet } from 'react-helmet';
-import {
-    Navigate,
-    useParams,
-    useRoutes,
-    type RouteObject,
-} from 'react-router-dom-v5-compat';
+import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';

@@ -11,7 +11,7 @@ import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useBlocker, useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useBlocker, useNavigate, useParams } from 'react-router';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -267,12 +267,12 @@ const Dashboard: FC = () => {
             });
             reset();
             if (dashboardTabs.length > 0) {
-                navigate(
+                void navigate(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
                     { replace: true },
                 );
             } else {
-                navigate(
+                void navigate(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
                     { replace: true },
                 );
@@ -429,12 +429,12 @@ const Dashboard: FC = () => {
         setDashboardTabs(dashboard.tabs);
 
         if (dashboardTabs.length > 0) {
-            navigate(
+            void navigate(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
-            navigate(
+            void navigate(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
                 { replace: true },
             );
@@ -500,7 +500,7 @@ const Dashboard: FC = () => {
         resetDashboardFilters();
         // Defer the redirect
         void Promise.resolve().then(() => {
-            navigate(
+            return navigate(
                 {
                     pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                     search: '',
@@ -695,9 +695,12 @@ const Dashboard: FC = () => {
                         uuid={dashboard.uuid}
                         onClose={deleteModalHandlers.close}
                         onConfirm={() => {
-                            navigate(`/projects/${projectUuid}/dashboards`, {
-                                replace: true,
-                            });
+                            void navigate(
+                                `/projects/${projectUuid}/dashboards`,
+                                {
+                                    replace: true,
+                                },
+                            );
                         }}
                     />
                 )}

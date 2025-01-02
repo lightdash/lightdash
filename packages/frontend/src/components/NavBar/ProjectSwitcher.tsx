@@ -7,12 +7,7 @@ import {
 import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import {
-    matchRoutes,
-    useLocation,
-    useMatch,
-    useNavigate,
-} from 'react-router-dom-v5-compat';
+import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,
@@ -150,7 +145,7 @@ const ProjectSwitcher = () => {
                               children: 'Go to project home',
                               icon: IconArrowRight,
                               onClick: () => {
-                                  navigate(
+                                  void navigate(
                                       `/projects/${project.projectUuid}/home`,
                                   );
                               },
@@ -159,14 +154,14 @@ const ProjectSwitcher = () => {
             });
 
             if (shouldSwapProjectRoute) {
-                navigate(
+                void navigate(
                     swappableRouteMatch.path.replace(
                         activeProjectUuid,
                         project.projectUuid,
                     ),
                 );
             } else {
-                navigate(`/projects/${project.projectUuid}/home`);
+                void navigate(`/projects/${project.projectUuid}/home`);
             }
         },
         [

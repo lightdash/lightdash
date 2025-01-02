@@ -1,7 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { Link } from 'react-router-dom-v5-compat';
+import { Link } from 'react-router';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';

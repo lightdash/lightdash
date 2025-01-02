@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
@@ -46,7 +46,7 @@ const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
     );
 
     const handleCreate = (slug: string) => {
-        navigate(`/projects/${projectUuid}/semantic-viewer/${slug}`, {
+        void navigate(`/projects/${projectUuid}/semantic-viewer/${slug}`, {
             replace: true,
         });
     };

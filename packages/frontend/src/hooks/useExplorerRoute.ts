@@ -9,11 +9,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import {
     ExplorerSection,
     type ExplorerReduceState,
@@ -170,7 +166,7 @@ export const useExplorerRoute = () => {
     // Update url params based on pristine state
     useEffect(() => {
         if (metricQuery && unsavedChartVersion.tableName) {
-            navigate(
+            void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     {

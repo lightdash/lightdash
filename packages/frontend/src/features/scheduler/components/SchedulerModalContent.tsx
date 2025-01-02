@@ -12,7 +12,7 @@ import {
     type UseQueryResult,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -290,7 +290,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
             // remove from url param after modal is open
             const newParams = new URLSearchParams(search);
             newParams.delete('scheduler_uuid');
-            navigate(
+            void navigate(
                 {
                     pathname,
                     search: newParams.toString(),
@@ -307,7 +307,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                 // remove from url param after modal is open
                 const newParams = new URLSearchParams(search);
                 newParams.delete('threshold_uuid');
-                navigate(
+                void navigate(
                     {
                         pathname,
                         search: newParams.toString(),

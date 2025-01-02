@@ -20,7 +20,7 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -109,7 +109,9 @@ const AddTileButton: FC<Props> = ({
                                     activeTabUuid,
                                     dashboardTabs,
                                 );
-                                navigate(`/projects/${projectUuid}/tables`);
+                                void navigate(
+                                    `/projects/${projectUuid}/tables`,
+                                );
                             }}
                             icon={<MantineIcon icon={IconPlus} />}
                         >

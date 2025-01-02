@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -87,10 +87,10 @@ const VerifyEmailPage: FC = () => {
                     <VerificationSuccess
                         isOpen={data.isVerified}
                         onClose={() => {
-                            navigate('/');
+                            void navigate('/');
                         }}
                         onContinue={() => {
-                            navigate('/');
+                            void navigate('/');
                         }}
                     />
                 )}

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import React, { type FC } from 'react';
-import { Navigate, useParams } from 'react-router-dom-v5-compat';
+import { Navigate, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import { useProjects } from '../hooks/useProjects';
 import useApp from '../providers/App/useApp';

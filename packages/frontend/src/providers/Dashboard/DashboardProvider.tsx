@@ -16,11 +16,7 @@ import {
 } from '@lightdash/common';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount } from 'react-use';
 import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
 import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
@@ -152,7 +148,7 @@ const DashboardProvider: React.FC<
             newParams.set('dateZoom', dateZoomGranularity.toLowerCase());
         }
 
-        navigate(
+        void navigate(
             {
                 pathname,
                 search: newParams.toString(),
@@ -244,7 +240,7 @@ const DashboardProvider: React.FC<
             );
         }
 
-        navigate(
+        void navigate(
             {
                 pathname,
                 search: newParams.toString(),

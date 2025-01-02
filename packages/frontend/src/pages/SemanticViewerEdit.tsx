@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { useMatch, useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useMatch, useNavigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
@@ -123,7 +123,7 @@ const SemanticViewerEditorPageWithStore = () => {
 
     useEffect(() => {
         if (infoQuery.isSuccess && !infoQuery.data) {
-            navigate(`/projects/${projectUuid}`, { replace: true });
+            void navigate(`/projects/${projectUuid}`, { replace: true });
         }
     }, [infoQuery.isSuccess, infoQuery.data, navigate, projectUuid]);
 
@@ -178,7 +178,9 @@ const SemanticViewerEditorPageWithStore = () => {
                 }),
             );
             if (!!rootRouteMatch) {
-                navigate(rootRouteMatch.pathname + '/new', { replace: true });
+                void navigate(rootRouteMatch.pathname + '/new', {
+                    replace: true,
+                });
             }
         }
     }, [

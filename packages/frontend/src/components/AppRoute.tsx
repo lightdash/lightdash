@@ -1,5 +1,5 @@
 import { type FC } from 'react';
-import { Navigate, useLocation } from 'react-router-dom-v5-compat';
+import { Navigate, useLocation } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useApp from '../providers/App/useApp';
 import ErrorState from './common/ErrorState';

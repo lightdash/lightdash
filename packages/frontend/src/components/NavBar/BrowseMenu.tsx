@@ -7,7 +7,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import { Link } from 'react-router-dom-v5-compat';
+import { Link } from 'react-router';
 import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useTracking from '../../providers/Tracking/useTracking';

@@ -2,7 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../common/MantineIcon';
 
@@ -74,7 +74,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
-        navigate(
+        void navigate(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
                 savedQueryUuid ? 'view' : 'edit'
             }`,

@@ -1,6 +1,6 @@
 import { useMantineTheme } from '@mantine/core';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * Scroll to dashboard comment via search param `tileUuid`
@@ -66,7 +66,7 @@ export const useScrollToDashboardCommentViaSearchParam = ({
 
                     // Clear the search param after scrolling to the comment
                     searchParams.delete('tileUuid');
-                    navigate(
+                    void navigate(
                         {
                             pathname,
                             search: searchParams.toString(),

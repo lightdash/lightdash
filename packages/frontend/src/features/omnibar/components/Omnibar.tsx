@@ -30,7 +30,7 @@ import {
     type FC,
     type MouseEventHandler,
 } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/constants';
 import { useProject } from '../../../hooks/useProject';
@@ -140,14 +140,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             },
         });
 
-        navigate(item.location);
+        void navigate(item.location);
         if (
             (item.location.pathname.includes('/tables/') &&
                 location.pathname.includes('/tables/')) ||
             (item.location.pathname.includes('/saved/') &&
                 location.pathname.includes('/saved/'))
         ) {
-            navigate(0); // force page refresh so explore page can pick up the new url params
+            void navigate(0); // force page refresh so explore page can pick up the new url params
         }
         setQuery(undefined);
     };

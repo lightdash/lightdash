@@ -1,7 +1,7 @@
 import { Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
-import { useNavigate, useParams } from 'react-router-dom-v5-compat';
+import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -19,7 +19,7 @@ const CreateProjectSettings: FC = () => {
     const onSuccess = async () => {
         await queryClient.invalidateQueries(['health']);
         await queryClient.refetchQueries(['organization']);
-        navigate(`/projects/${projectUuid}/home`);
+        await navigate(`/projects/${projectUuid}/home`);
     };
 
     return (

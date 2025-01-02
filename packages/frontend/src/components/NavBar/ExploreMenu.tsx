@@ -11,7 +11,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom-v5-compat';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
@@ -180,7 +180,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     onClose={() => setIsCreateSpaceOpen(false)}
                     onSubmitForm={(space) => {
                         if (space)
-                            navigate(
+                            void navigate(
                                 `/projects/${projectUuid}/spaces/${space.uuid}`,
                             );
                     }}
@@ -192,7 +192,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                 opened={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
-                    navigate(
+                    void navigate(
                         `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
                     );
 

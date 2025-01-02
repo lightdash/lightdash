@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import { groupBy } from 'lodash';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
-import { useNavigate } from 'react-router-dom-v5-compat';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
@@ -441,7 +441,7 @@ export const HeaderVirtualView: FC<{
                         sql,
                         columns: columnsFromQuery,
                     });
-                    navigate(0);
+                    void navigate(0);
                 } else {
                     if (handleDiff && initialColumns) {
                         setChartValidationErrors(response);
@@ -459,7 +459,7 @@ export const HeaderVirtualView: FC<{
                                 sql,
                                 columns: columnsFromQuery,
                             });
-                            navigate(0);
+                            void navigate(0);
                         } else {
                             // If there are diffs, we show the warning modal
                             setColumnDiffs(diffs);

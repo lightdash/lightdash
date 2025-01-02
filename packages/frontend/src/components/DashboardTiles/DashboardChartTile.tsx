@@ -60,7 +60,7 @@ import React, {
     type FC,
     type RefObject,
 } from 'react';
-import { useParams } from 'react-router-dom-v5-compat';
+import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { downloadCsvFromSavedChart } from '../../api/csv';
 import { DashboardTileComments } from '../../features/comments';

@@ -1,11 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import {
-    Navigate,
-    Outlet,
-    useParams,
-    type RouteObject,
-} from 'react-router-dom-v5-compat';
+import { Navigate, Outlet, useParams, type RouteObject } from 'react-router';
 import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';

@@ -25,7 +25,7 @@ import {
     Outlet,
     useParams,
     type RouteObject,
-} from 'react-router-dom-v5-compat';
+} from 'react-router';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';

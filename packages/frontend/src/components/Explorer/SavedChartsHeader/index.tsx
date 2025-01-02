@@ -44,12 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
-import {
-    useBlocker,
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router-dom-v5-compat';
+import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -364,7 +359,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     );
 
     const handleGoBackClick = () => {
-        navigate({
+        void navigate({
             pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
         });
     };
@@ -373,7 +368,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         reset();
 
         if (!isFromDashboard)
-            navigate({
+            void navigate({
                 pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
             });
     };
@@ -944,11 +939,11 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     onClose={deleteModalHandlers.close}
                     onConfirm={() => {
                         if (dashboardUuid) {
-                            navigate(
+                            void navigate(
                                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                             );
                         } else {
-                            navigate(`/`);
+                            void navigate(`/`);
                         }
                         clearIsEditingDashboardChart();
                         deleteModalHandlers.close();
@@ -991,7 +986,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
                         clearIsEditingDashboardChart();
-                        navigate(
+                        void navigate(
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );
                     }}
