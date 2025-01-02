@@ -81,7 +81,7 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
                 }}
             >
                 <MarkdownPreview
-                    source={row.original.description ?? '-'}
+                    source={row.original.description ?? '\\-'}
                     {...markdownPreviewProps}
                 />
             </Text>
