@@ -5,7 +5,7 @@ import {
     type Field,
     type FieldId,
 } from '@lightdash/common';
-import { ReactNode, useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
     columnHelper,
     type TableColumn,

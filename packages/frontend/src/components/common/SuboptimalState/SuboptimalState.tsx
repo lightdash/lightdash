@@ -1,5 +1,5 @@
 import { Loader, Stack, Text, type StackProps } from '@mantine/core';
-import { ReactNode, type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
 interface Props extends StackProps {

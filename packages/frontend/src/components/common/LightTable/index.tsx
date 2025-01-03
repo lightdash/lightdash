@@ -11,7 +11,6 @@ import debounce from 'lodash/debounce';
 import {
     createContext,
     forwardRef,
-    ReactNode,
     useCallback,
     useContext,
     useEffect,
@@ -21,6 +20,7 @@ import {
     type ForwardRefExoticComponent,
     type ForwardRefRenderFunction,
     type PropsWithoutRef,
+    type ReactNode,
     type RefAttributes,
 } from 'react';
 import { useScroll } from 'react-use';

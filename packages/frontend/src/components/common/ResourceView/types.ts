@@ -3,7 +3,7 @@ import {
     type ResourceViewDashboardItem,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 export enum ResourceViewItemAction {
     CLOSE,

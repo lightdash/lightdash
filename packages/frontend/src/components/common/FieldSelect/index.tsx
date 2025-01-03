@@ -18,14 +18,7 @@ import {
     Tooltip,
     type SelectProps,
 } from '@mantine/core';
-import {
-    forwardRef,
-    ReactNode,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-} from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 
 interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {

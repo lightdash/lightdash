@@ -1,6 +1,6 @@
 import { DEFAULT_THEME } from '@mantine/core';
 import { transparentize } from 'polished';
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 
 // FIXME: these colors are coming from the mantine's default theme.
