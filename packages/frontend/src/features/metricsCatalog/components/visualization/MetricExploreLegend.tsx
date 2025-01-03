@@ -125,6 +125,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
         [containerWidth, getItemWidth, getLegendItemText],
     );
 
+    // ! This is a workaround to ensure that the legend items are unique because we duplicate the name for the incomplete period line
     const uniqPayload = useMemo(() => {
         return uniqBy(props.payload, function (payload) {
             return `${payload.value}-${payload.dataKey}`;
