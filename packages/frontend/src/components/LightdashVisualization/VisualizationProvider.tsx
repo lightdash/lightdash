@@ -89,7 +89,8 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const chartRef = useRef<EChartsReact | null>(null);
     useEffect(() => {
-        if (setEchartsRef) setEchartsRef(chartRef as RefObject<EChartsReact | null>);
+        if (setEchartsRef)
+            setEchartsRef(chartRef as RefObject<EChartsReact | null>);
     }, [chartRef, setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();

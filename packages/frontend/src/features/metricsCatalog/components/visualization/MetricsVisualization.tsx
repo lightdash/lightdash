@@ -445,7 +445,7 @@ const MetricsVisualization: FC<Props> = ({
     ]);
 
     return (
-        (<Stack spacing="sm" w="100%" h="100%">
+        <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
                 {dateRange && results?.metric.timeDimension && (
                     <MetricPeekDatePicker
@@ -509,7 +509,7 @@ const MetricsVisualization: FC<Props> = ({
                 {!showEmptyState && results && (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                            ref={instance => {
+                            ref={(instance) => {
                                 setChartRef(instance);
                             }}
                             margin={{
@@ -727,7 +727,7 @@ const MetricsVisualization: FC<Props> = ({
                     )}
                 </Group>
             </Group>
-        </Stack>)
+        </Stack>
     );
 };
 
