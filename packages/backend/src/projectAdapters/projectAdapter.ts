@@ -34,7 +34,7 @@ export const projectAdapterFromConfig = async (
     Logger.debug(`Initialize project adaptor of type ${configType}`);
 
     const dbtVersion: SupportedDbtVersions =
-        dbtVersionOption === DbtVersionOptionLatest
+        dbtVersionOption === DbtVersionOptionLatest.LATEST
             ? getLatestSupportDbtVersion()
             : dbtVersionOption;
 

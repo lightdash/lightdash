@@ -202,18 +202,19 @@ export enum SupportedDbtVersions {
     V1_9 = 'v1.9',
 }
 
-export const DbtVersionOptionLatest = 'latest' as const;
+// Make it an enum to avoid TSOA errors
+export enum DbtVersionOptionLatest {
+    LATEST = 'latest',
+}
 
-export type DbtVersionOption =
-    | SupportedDbtVersions
-    | typeof DbtVersionOptionLatest;
+export type DbtVersionOption = SupportedDbtVersions | DbtVersionOptionLatest;
 
 export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {
     const versions = Object.values(SupportedDbtVersions);
     return versions[versions.length - 1];
 };
 
-export const DefaultSupportedDbtVersion = DbtVersionOptionLatest;
+export const DefaultSupportedDbtVersion = DbtVersionOptionLatest.LATEST;
 
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;

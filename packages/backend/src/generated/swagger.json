@@ -7217,6 +7217,20 @@
                 "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8", "v1.9"],
                 "type": "string"
             },
+            "DbtVersionOptionLatest": {
+                "enum": ["latest"],
+                "type": "string"
+            },
+            "DbtVersionOption": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SupportedDbtVersions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DbtVersionOptionLatest"
+                    }
+                ]
+            },
             "SemanticLayerType.DBT": {
                 "enum": ["DBT"],
                 "type": "string"
@@ -7281,7 +7295,7 @@
                         "$ref": "#/components/schemas/SemanticLayerConnection"
                     },
                     "dbtVersion": {
-                        "$ref": "#/components/schemas/SupportedDbtVersions"
+                        "$ref": "#/components/schemas/DbtVersionOption"
                     },
                     "upstreamProjectUuid": {
                         "type": "string"
@@ -12889,7 +12903,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1428.1",
+        "version": "0.1434.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

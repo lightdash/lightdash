@@ -184,7 +184,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             label="dbt version"
                             data={[
                                 {
-                                    value: DbtVersionOptionLatest,
+                                    value: DbtVersionOptionLatest.LATEST,
                                     label: `latest (${getLatestSupportDbtVersion()})`,
                                 },
                                 ...Object.values(SupportedDbtVersions)
