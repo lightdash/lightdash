@@ -1,3 +1,10 @@
+## [0.1434.2](https://github.com/lightdash/lightdash/compare/0.1434.1...0.1434.2) (2025-01-03)
+
+
+### Bug Fixes
+
+* adds month to prev period comparison legend when years in date range are different ([#13085](https://github.com/lightdash/lightdash/issues/13085)) ([ff0825d](https://github.com/lightdash/lightdash/commit/ff0825de54b90bee1dba6ca08e6f66d001fba292))
+
 ## [0.1434.1](https://github.com/lightdash/lightdash/compare/0.1434.0...0.1434.1) (2025-01-03)
 
 
