@@ -202,7 +202,18 @@ export enum SupportedDbtVersions {
     V1_9 = 'v1.9',
 }
 
-export const DefaultSupportedDbtVersion = SupportedDbtVersions.V1_4;
+export const DbtVersionOptionLatest = 'latest' as const;
+
+export type DbtVersionOption =
+    | SupportedDbtVersions
+    | typeof DbtVersionOptionLatest;
+
+export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {
+    const versions = Object.values(SupportedDbtVersions);
+    return versions[versions.length - 1];
+};
+
+export const DefaultSupportedDbtVersion = DbtVersionOptionLatest;
 
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
@@ -304,7 +315,7 @@ export type Project = {
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
-    dbtVersion: SupportedDbtVersions;
+    dbtVersion: DbtVersionOption;
     semanticLayerConnection?: SemanticLayerConnection;
     schedulerTimezone: string;
     createdByUserUuid: string | null;

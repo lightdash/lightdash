@@ -2,7 +2,6 @@ import {
     CreatePostgresCredentials,
     DbtLocalProjectConfig,
     DbtProjectType,
-    DefaultSupportedDbtVersion,
     generateSlug,
     OrganizationMemberRole,
     SEED_ORG_1,
@@ -15,6 +14,7 @@ import {
     SEED_ORG_2_ADMIN_PASSWORD,
     SEED_PROJECT,
     SEED_SPACE,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
@@ -114,7 +114,7 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_PROJECT,
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
-            dbt_version: DefaultSupportedDbtVersion,
+            dbt_version: SupportedDbtVersions.V1_4,
             semantic_layer_connection: null,
             created_by_user_uuid: user.user_uuid,
         })
@@ -183,7 +183,7 @@ export async function seed(knex: Knex): Promise<void> {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
-            DefaultSupportedDbtVersion,
+            SupportedDbtVersions.V1_4,
         );
         const explores = await adapter.compileAllExplores();
         await new ProjectModel({

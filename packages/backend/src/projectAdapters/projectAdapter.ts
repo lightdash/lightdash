@@ -2,6 +2,9 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DbtProjectType,
+    DbtVersionOption,
+    DbtVersionOptionLatest,
+    getLatestSupportDbtVersion,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
@@ -19,7 +22,7 @@ export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
-    dbtVersion: SupportedDbtVersions,
+    dbtVersionOption: DbtVersionOption,
     useDbtLs: boolean = true,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
@@ -29,6 +32,11 @@ export const projectAdapterFromConfig = async (
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
+
+    const dbtVersion: SupportedDbtVersions =
+        dbtVersionOption === DbtVersionOptionLatest
+            ? getLatestSupportDbtVersion()
+            : dbtVersionOption;
 
     switch (config.type) {
         case DbtProjectType.DBT:
