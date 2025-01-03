@@ -521,6 +521,7 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
+            const showExpirationWarning = format !== SchedulerFormat.IMAGE;
             const schedulerFooter = includeLinks
                 ? `<${url}?scheduler_uuid=${
                       schedulerUuid || ''
@@ -537,7 +538,9 @@ export default class SchedulerTask {
                     cron,
                     timezone ?? defaultSchedulerTimezone,
                 )} from Lightdash\n${
-                    this.s3Client.getExpirationWarning()?.slack || ''
+                    showExpirationWarning
+                        ? this.s3Client.getExpirationWarning()?.slack || ''
+                        : ''
                 }`,
                 includeLinks,
             };
