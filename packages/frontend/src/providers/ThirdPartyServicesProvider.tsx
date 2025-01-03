@@ -1,7 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
 import { PostHogProvider, usePostHog } from 'posthog-js/react';
 import { useEffect, type FC } from 'react';
-import { Helmet } from 'react-helmet';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
@@ -38,11 +37,9 @@ const Pylon = () => {
     }
 
     return (
-        <Helmet>
-            <script type="text/javascript">
-                {`(function(){var e=window;var t=document;var n=function(){n.e(arguments)};n.q=[];n.e=function(e){n.q.push(e)};e.Pylon=n;var r=function(){var e=t.createElement("script");e.setAttribute("type","text/javascript");e.setAttribute("async","true");e.setAttribute("src","https://widget.usepylon.com/widget/${health.data.pylon.appId}");var n=t.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};if(t.readyState==="complete"){r()}else if(e.addEventListener){e.addEventListener("load",r,false)}})();`}
-            </script>
-        </Helmet>
+        <script type="text/javascript">
+            {`(function(){var e=window;var t=document;var n=function(){n.e(arguments)};n.q=[];n.e=function(e){n.q.push(e)};e.Pylon=n;var r=function(){var e=t.createElement("script");e.setAttribute("type","text/javascript");e.setAttribute("async","true");e.setAttribute("src","https://widget.usepylon.com/widget/${health.data.pylon.appId}");var n=t.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};if(t.readyState==="complete"){r()}else if(e.addEventListener){e.addEventListener("load",r,false)}})();`}
+        </script>
     );
 };
 
@@ -54,15 +51,13 @@ const Clarity = () => {
     }
 
     return (
-        <Helmet>
-            <script type="text/javascript">
-                {`(function(c,l,a,r,i,t,y){
+        <script type="text/javascript">
+            {`(function(c,l,a,r,i,t,y){
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "ngeq4wyadb");`}
-            </script>
-        </Helmet>
+        </script>
     );
 };
 

@@ -100,7 +100,7 @@ const AnchorToResource: FC<{
                     textDecoration: 'none',
                 },
             }}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.stopPropagation();
             }}
         >
@@ -187,7 +187,9 @@ const TableValidationItem = forwardRef<
                     <Box w={24}>
                         {hovered && (
                             <ActionIcon
-                                onClick={(e) => {
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
                                     deleteValidation(
                                         validationError.validationId,
                                     );
@@ -221,9 +223,10 @@ export const ValidatorTable: FC<{
     const refs = useMemo(
         () =>
             data.reduce((acc, value) => {
-                acc[value.validationId.toString()] = createRef();
+                acc[value.validationId.toString()] =
+                    createRef<HTMLTableRowElement | null>();
                 return acc;
-            }, {} as { [key: string]: RefObject<HTMLTableRowElement> }),
+            }, {} as { [key: string]: RefObject<HTMLTableRowElement | null> }),
         [data],
     );
 

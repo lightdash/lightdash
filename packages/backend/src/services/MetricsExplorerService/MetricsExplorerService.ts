@@ -1,14 +1,7 @@
 import { subject } from '@casl/ability';
-import type {
-    Dimension,
-    ItemsMap,
-    MetricExploreDataPoint,
-    MetricExplorerQuery,
-    MetricsExplorerQueryResults,
-    MetricTotalResults,
-} from '@lightdash/common';
 import {
     assertUnreachable,
+    Dimension,
     ForbiddenError,
     getDateCalcUtils,
     getDateRangeFromString,
@@ -20,9 +13,14 @@ import {
     getMetricExplorerDateRangeFilters,
     getMetricsExplorerSegmentFilters,
     isDimension,
+    ItemsMap,
     MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
+    MetricExploreDataPoint,
     MetricExplorerComparison,
+    MetricExplorerQuery,
+    MetricsExplorerQueryResults,
     MetricTotalComparisonType,
+    MetricTotalResults,
     parseMetricValue,
     TimeFrames,
     type MetricExplorerDateRange,

@@ -117,7 +117,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 <CellMenu
                     cell={cell as Cell<ResultRow, ResultRow[0]>}
                     menuItems={cellContextMenu}
-                    elementBounds={elementRef.current.getBoundingClientRect()}
+                    elementBounds={
+                        elementRef.current?.getBoundingClientRect() ?? null
+                    }
                     onClose={toggleMenu}
                 />
             ) : null}
@@ -126,7 +128,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 <CellTooltip
                     position="top"
                     label={tooltipContent}
-                    elementBounds={elementRef.current.getBoundingClientRect()}
+                    elementBounds={
+                        elementRef.current?.getBoundingClientRect() ?? null
+                    }
                 />
             ) : null}
         </>

@@ -132,7 +132,9 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 },
                             }}
                             to={getResourceUrl(projectUuid, item)}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                                e.stopPropagation()
+                            }
                         >
                             <Group noWrap>
                                 {canBelongToSpace &&
@@ -280,7 +282,9 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             color="gray.7"
                             component={Link}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                                e.stopPropagation()
+                            }
                             fz={12}
                             fw={500}
                         >
@@ -344,7 +348,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 cell: (item: ResourceViewItem) => (
                     <Box
                         component="div"
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                             e.stopPropagation();
                             e.preventDefault();
                         }}

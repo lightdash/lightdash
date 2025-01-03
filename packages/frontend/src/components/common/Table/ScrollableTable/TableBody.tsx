@@ -129,7 +129,9 @@ const TableRow: FC<TableRowProps> = ({
                                             marginRight: 0,
                                         },
                                     })}
-                                    onClick={(e) => {
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
                                         e.stopPropagation();
                                         e.preventDefault();
                                         toggleExpander();
@@ -175,7 +177,7 @@ const TableRow: FC<TableRowProps> = ({
 };
 
 const VirtualizedTableBody: FC<{
-    tableContainerRef: React.RefObject<HTMLDivElement>;
+    tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ tableContainerRef }) => {
     const { table, cellContextMenu, conditionalFormattings } =
         useTableContext();
@@ -247,7 +249,7 @@ const NormalTableBody: FC = () => {
 
 interface TableBodyProps {
     minimal?: boolean;
-    tableContainerRef: React.RefObject<HTMLDivElement>;
+    tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const TableBody: FC<TableBodyProps> = ({ minimal, tableContainerRef }) => {

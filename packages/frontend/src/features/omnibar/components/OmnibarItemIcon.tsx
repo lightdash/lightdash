@@ -53,7 +53,9 @@ export const OmnibarItemIconWithIndicator: FC<
                         <Anchor
                             component={Link}
                             fw={600}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                                e.stopPropagation()
+                            }
                             to={{
                                 pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
                                 search: `?validationId=${item.item.validationErrors[0].validationId}`,

@@ -11,7 +11,7 @@ interface CollapsableCardProps {
     toggleTooltip?: string;
     title: string;
     headingRef?: Ref<HTMLDivElement>;
-    headerElement?: JSX.Element;
+    headerElement?: React.ReactNode;
     rightHeaderElement?: React.ReactNode;
     isVisualizationCard?: boolean;
 }

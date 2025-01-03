@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { Helmet } from 'react-helmet';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { AbilityContext } from './components/common/Authorization/context';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
@@ -52,9 +51,8 @@ const router = createBrowserRouter([
 ]);
 const App = () => (
     <>
-        <Helmet>
-            <title>Lightdash</title>
-        </Helmet>
+        <title>Lightdash</title>
+
         <ReactQueryProvider>
             <MantineProvider>
                 <RouterProvider router={router} />

@@ -17,7 +17,7 @@ type Props = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
     content: string;
-    cellRef: React.RefObject<HTMLDivElement>;
+    cellRef: React.RefObject<HTMLDivElement | null>;
     table: MRT_TableInstance<CatalogField>;
     markdownPreviewProps?: Omit<MarkdownPreviewProps, 'source'>;
 };

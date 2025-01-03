@@ -103,7 +103,7 @@ const SaveSemanticViewerChart: FC = () => {
                 w="100%"
                 placeholder="Untitled chart"
                 value={name}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     dispatch(updateName(e.currentTarget.value));
                 }}
                 styles={{

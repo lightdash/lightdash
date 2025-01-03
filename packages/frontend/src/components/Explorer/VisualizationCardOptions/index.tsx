@@ -19,7 +19,7 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC, type ReactNode } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -73,7 +73,7 @@ const VisualizationCardOptions: FC = memo(() => {
 
     const selectedChartType = useMemo<{
         text: string;
-        icon: JSX.Element;
+        icon: ReactNode;
     }>(() => {
         switch (visualizationConfig.chartType) {
             case ChartType.CARTESIAN: {

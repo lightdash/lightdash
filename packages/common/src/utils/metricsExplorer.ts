@@ -6,12 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
 import { type CompiledTable } from '../types/explore';
-import type { Dimension } from '../types/field';
 import {
     DimensionType,
     MetricType,
     type CompiledDimension,
     type CompiledMetric,
+    type Dimension,
 } from '../types/field';
 import {
     type DateFilterSettings,

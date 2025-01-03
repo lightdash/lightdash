@@ -10,6 +10,7 @@ import {
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useState, type ReactNode } from 'react';
+import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import { type NotificationData } from './types';
@@ -86,7 +87,12 @@ const MultipleToastBody = ({
                                     {toastData.subtitle && (
                                         <MarkdownPreview
                                             source={toastData.subtitle.toString()}
-                                            linkTarget="_blank"
+                                            rehypePlugins={[
+                                                [
+                                                    rehypeExternalLinks,
+                                                    { target: '_blank' },
+                                                ],
+                                            ]}
                                             style={{
                                                 backgroundColor: 'transparent',
                                                 color: 'white',

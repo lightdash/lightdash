@@ -7,7 +7,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
@@ -17,7 +17,7 @@ type Props = {
     label: string;
     disabled?: boolean;
     documentationUrl?: string;
-    labelHelp?: string | JSX.Element;
+    labelHelp?: string | ReactNode;
 };
 export const MultiKeyValuePairsInput = ({
     name,
@@ -51,7 +51,9 @@ export const MultiKeyValuePairsInput = ({
 
                     {labelHelp && (
                         <ActionIcon
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.preventDefault();
                                 setIsLabelInfoOpen(!isLabelInfoOpen);
                             }}

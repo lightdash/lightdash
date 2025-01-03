@@ -45,7 +45,11 @@ export const AccordionControl: FC<Props> = ({
             })}
         >
             {extraControlElements && (
-                <Box onClick={(e) => e.stopPropagation()}>
+                <Box
+                    onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+                        e.stopPropagation()
+                    }
+                >
                     {extraControlElements}
                 </Box>
             )}

@@ -2,7 +2,6 @@ import { ProjectType } from '@lightdash/common';
 import { Box, createStyles } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
-import { Helmet } from 'react-helmet';
 import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
@@ -270,11 +269,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <>
-            {title ? (
-                <Helmet>
-                    <title>{title} - Lightdash</title>
-                </Helmet>
-            ) : null}
+            {title ? <title>{title} - Lightdash</title> : null}
 
             {header}
 

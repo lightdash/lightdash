@@ -9,6 +9,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
+import { type JSX } from 'react';
 import type useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';

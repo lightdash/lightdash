@@ -44,6 +44,14 @@ import { countSubRows } from '../Table/utils';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
+type MenuCallbackProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    onCopy: () => void;
+};
+
+type RenderCallback = () => React.ReactNode;
+
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     cell: (props) => props.row.index + 1,
@@ -603,8 +611,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                         withInteractions={allowInteractions}
                                         withValue={value?.formatted}
                                         withMenu={(
-                                            { isOpen, onClose, onCopy },
-                                            render,
+                                            {
+                                                isOpen,
+                                                onClose,
+                                                onCopy,
+                                            }: MenuCallbackProps,
+                                            render: RenderCallback,
                                         ) => (
                                             <ValueCellMenu
                                                 opened={isOpen}
@@ -648,7 +660,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             marginRight: 0,
                                                         },
                                                     })}
-                                                    onClick={(e) => {
+                                                    onClick={(
+                                                        e: React.MouseEvent<HTMLButtonElement>,
+                                                    ) => {
                                                         e.stopPropagation();
                                                         e.preventDefault();
                                                         toggleExpander();
@@ -754,8 +768,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                         withInteractions
                                         withValue={value.formatted}
                                         withMenu={(
-                                            { isOpen, onClose, onCopy },
-                                            render,
+                                            {
+                                                isOpen,
+                                                onClose,
+                                                onCopy,
+                                            }: MenuCallbackProps,
+                                            render: RenderCallback,
                                         ) => (
                                             <TotalCellMenu
                                                 opened={isOpen}

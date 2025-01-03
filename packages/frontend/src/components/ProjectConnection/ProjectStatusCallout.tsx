@@ -5,6 +5,7 @@ import {
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
+import rehypeExternalLinks from 'rehype-external-links';
 import {
     type useCreateMutation,
     type useUpdateMutation,
@@ -45,7 +46,9 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             children: error ? (
                 <MDEditor.Markdown
                     source={error.error.message.replaceAll('\n', '\n\n')}
-                    linkTarget="_blank"
+                    rehypePlugins={[
+                        [rehypeExternalLinks, { target: '_blank' }],
+                    ]}
                     style={{
                         background: 'transparent',
                         fontSize: '12px',

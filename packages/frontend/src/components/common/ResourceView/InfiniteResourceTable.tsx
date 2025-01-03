@@ -125,7 +125,9 @@ const InfiniteResourceTable = ({
                             },
                         }}
                         to={getResourceUrl(filters.projectUuid, item)}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                            e.stopPropagation()
+                        }
                     >
                         <Group noWrap>
                             {canBelongToSpace &&
@@ -256,7 +258,9 @@ const InfiniteResourceTable = ({
                         color="gray.7"
                         component={Link}
                         to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                            e.stopPropagation()
+                        }
                         fz={12}
                         fw={500}
                     >
@@ -645,7 +649,7 @@ const InfiniteResourceTable = ({
         renderRowActions: ({ row }) => (
             <Box
                 component="div"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                     e.stopPropagation();
                     e.preventDefault();
                 }}

@@ -85,7 +85,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         {sortedTabs.length === 1 ||
                                         !currentTabHasTiles ? (
                                             <Menu.Item
-                                                onClick={(e) => {
+                                                onClick={(
+                                                    e: React.MouseEvent<HTMLButtonElement>,
+                                                ) => {
                                                     handleDeleteTab(tab.uuid);
                                                     e.stopPropagation();
                                                 }}

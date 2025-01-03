@@ -91,7 +91,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         },
                     }}
                     size="sm"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
                         e.preventDefault();
                         open();

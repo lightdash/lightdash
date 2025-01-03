@@ -421,7 +421,9 @@ const DashboardHeader = ({
                                                     icon={IconFolders}
                                                 />
                                             }
-                                            onClick={(e) => {
+                                            onClick={(
+                                                e: React.MouseEvent<HTMLButtonElement>,
+                                            ) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                             }}
@@ -487,7 +489,7 @@ const DashboardHeader = ({
                                                                             : ''
                                                                     }
                                                                     onClick={(
-                                                                        e,
+                                                                        e: React.MouseEvent<HTMLButtonElement>,
                                                                     ) => {
                                                                         e.preventDefault();
                                                                         e.stopPropagation();
@@ -529,7 +531,9 @@ const DashboardHeader = ({
                                                                     }
                                                                 />
                                                             }
-                                                            onClick={(e) => {
+                                                            onClick={(
+                                                                e: React.MouseEvent<HTMLButtonElement>,
+                                                            ) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
                                                                 setIsCreatingNewSpace(

@@ -8,7 +8,7 @@ import { type CellContextMenuProps } from '../types';
 type CellMenuProps = MenuProps & {
     menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;
     cell: Cell<ResultRow, ResultRow[0]>;
-    elementBounds: DOMRect;
+    elementBounds: DOMRect | null;
 };
 
 const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
@@ -42,10 +42,10 @@ const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
                             pointerEvents: 'none',
                             position: 'absolute',
                             zIndex: -1,
-                            left: elementBounds.x + window.scrollX,
-                            top: elementBounds.y + window.scrollY,
-                            width: elementBounds.width,
-                            height: elementBounds.height,
+                            left: elementBounds?.x ?? 0 + window.scrollX,
+                            top: elementBounds?.y ?? 0 + window.scrollY,
+                            width: elementBounds?.width ?? 0,
+                            height: elementBounds?.height ?? 0,
                         }}
                     />
                 </Menu.Target>

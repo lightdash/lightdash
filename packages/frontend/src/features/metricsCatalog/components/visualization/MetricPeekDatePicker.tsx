@@ -106,7 +106,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                 'Custom'
             ) : (
                 <UnstyledButton
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
                         handleOpen(true);
                     }}

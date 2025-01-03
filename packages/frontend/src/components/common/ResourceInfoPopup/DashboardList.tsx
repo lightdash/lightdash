@@ -32,7 +32,9 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
                             <Anchor
                                 href={`${window.location.origin}/projects/${projectUuid}/dashboards/${uuid}/view/`}
                                 target="_blank"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLAnchorElement>,
+                                ) => e.stopPropagation()}
                             >
                                 {name}
                             </Anchor>

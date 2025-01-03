@@ -67,7 +67,7 @@ const FieldTimeGranularityItems: FC<Props> = ({
                             <MantineIcon icon={IconCheck} />
                         ) : null
                     }
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
                         e.preventDefault();
 

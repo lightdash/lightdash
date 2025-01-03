@@ -6,7 +6,7 @@ import { useEffect, type RefObject } from 'react';
  * @param isLocked - boolean
  */
 export const useLockScroll = (
-    ref: RefObject<HTMLElement>,
+    ref: RefObject<HTMLElement | null>,
     isLocked: boolean = false,
 ) => {
     useEffect(() => {

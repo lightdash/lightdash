@@ -155,7 +155,9 @@ const SpaceModal: FC<ActionModalProps> = ({
                                 <>
                                     <Button
                                         variant="light"
-                                        onClick={(ev) => {
+                                        onClick={(
+                                            ev: React.MouseEvent<HTMLButtonElement>,
+                                        ) => {
                                             form.setValues({
                                                 access: undefined,
                                             });

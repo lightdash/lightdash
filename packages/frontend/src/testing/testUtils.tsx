@@ -41,7 +41,7 @@ export function renderWithProviders<
     Container extends Element | DocumentFragment = HTMLElement,
     BaseElement extends Element | DocumentFragment = Container,
 >(
-    ui: ReactElement,
+    ui: ReactElement<any>,
     appMocks?: AppProviderMockProps['mocks'],
     options?: RenderOptions<Q, Container, BaseElement>,
 ): RenderResult<Q, Container, BaseElement> {

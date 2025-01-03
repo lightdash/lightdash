@@ -2,7 +2,7 @@ import { Portal, Tooltip, type TooltipProps } from '@mantine/core';
 import { type FC } from 'react';
 
 type CellTooltipProps = Omit<TooltipProps, 'children'> & {
-    elementBounds: DOMRect;
+    elementBounds: DOMRect | null;
 };
 
 const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => (
@@ -13,10 +13,10 @@ const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => (
                     pointerEvents: 'none',
                     position: 'absolute',
                     zIndex: -1,
-                    left: elementBounds.x,
-                    top: elementBounds.y,
-                    width: elementBounds.width,
-                    height: elementBounds.height,
+                    left: elementBounds?.x ?? 0,
+                    top: elementBounds?.y ?? 0,
+                    width: elementBounds?.width ?? 0,
+                    height: elementBounds?.height ?? 0,
                 }}
             />
         </Tooltip>
