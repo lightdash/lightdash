@@ -6,7 +6,6 @@ import {
     IconChevronRight,
     IconLineDashed,
 } from '@tabler/icons-react';
-import { uniqBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type LegendProps } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -125,25 +124,25 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
         [containerWidth, getItemWidth, getLegendItemText],
     );
 
-    // ! This is a workaround to ensure that the legend items are unique because we duplicate the name for the incomplete period line
-    const uniqPayload = useMemo(() => {
-        return uniqBy(props.payload, function (payload) {
-            return `${payload.value}-${payload.dataKey}`;
+    // ! When type of legend is none, don't render it
+    const legendItems = useMemo(() => {
+        return props.payload?.filter((payload) => {
+            return payload.type !== 'none';
         });
     }, [props.payload]);
 
-    const itemsPerRow = calculateItemsPerRow(uniqPayload || []);
+    const itemsPerRow = calculateItemsPerRow(legendItems || []);
     const itemsPerPage = itemsPerRow * ROWS;
 
-    const totalPages = Math.ceil((uniqPayload?.length ?? 0) / itemsPerPage);
+    const totalPages = Math.ceil((legendItems?.length ?? 0) / itemsPerPage);
     const requiresPagination = totalPages > 1;
 
     const visibleItems = useMemo(() => {
-        return uniqPayload?.slice(
+        return legendItems?.slice(
             (activePage - 1) * itemsPerPage,
             activePage * itemsPerPage,
         );
-    }, [activePage, itemsPerPage, uniqPayload]);
+    }, [activePage, itemsPerPage, legendItems]);
 
     useEffect(
         function resetPagination() {

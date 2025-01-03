@@ -721,7 +721,7 @@ const MetricsVisualization: FC<Props> = ({
                                             dataKey="metric.value"
                                             stroke={segment.color}
                                             dot={false}
-                                            legendType="plainline"
+                                            legendType="none" // Don't render legend for the incomplete period line
                                             isAnimationActive={false}
                                             strokeDasharray={'5 5'}
                                         />
