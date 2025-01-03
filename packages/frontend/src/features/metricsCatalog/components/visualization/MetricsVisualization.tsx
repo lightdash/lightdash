@@ -126,7 +126,7 @@ const MetricsVisualization: FC<Props> = ({
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
 
-    const { colors } = useMantineTheme();
+    const { colors, fn: themeFn } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -699,6 +699,21 @@ const MetricsVisualization: FC<Props> = ({
                                 const incompletePeriodKey = `${key}-incomplete-period`;
 
                                 return [
+                                    <defs key={`${key}-gradient`}>
+                                        <linearGradient id={`${key}-gradient`}>
+                                            <stop
+                                                offset="0%"
+                                                stopColor={segment.color}
+                                            />
+                                            <stop
+                                                offset={`${100}%`}
+                                                stopColor={themeFn.lighten(
+                                                    segment.color,
+                                                    0.8,
+                                                )}
+                                            />
+                                        </linearGradient>
+                                    </defs>,
                                     <Line
                                         key={completedPeriodKey}
                                         {...getLineProps(key)}
@@ -718,7 +733,7 @@ const MetricsVisualization: FC<Props> = ({
                                         yAxisId="metric"
                                         data={segment.incompletePeriodData}
                                         dataKey="metric.value"
-                                        stroke={segment.color}
+                                        stroke={`url(#${key}-gradient)`}
                                         dot={false}
                                         legendType="none" // Don't render legend for the incomplete period line
                                         isAnimationActive={false}
