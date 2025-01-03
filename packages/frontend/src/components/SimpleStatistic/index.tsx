@@ -188,7 +188,9 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             component={Stack}
             spacing={0}
             pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
-            ref={(elem) => setRef(elem)}
+            ref={elem => {
+                setRef(elem);
+            }}
             {...wrapperProps}
         >
             <Flex style={{ flexShrink: 1 }}>

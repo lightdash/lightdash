@@ -37,7 +37,7 @@ import { CellType, SectionType } from './types';
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
 type TableProps = PolymorphicComponentProps<'table', BoxProps> & {
-    containerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
 };
 type TableSectionProps = PolymorphicComponentProps<
     'thead' | 'tbody' | 'tfoot',

@@ -34,7 +34,7 @@ export interface InputWrapperProps {
         controllerProps: ArgumentsOf<
             React.ComponentPropsWithRef<typeof Controller>['render']
         >[0],
-    ) => ReactElement;
+    ) => ReactElement<any>;
     style?: React.CSSProperties;
 }
 
