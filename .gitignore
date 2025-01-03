@@ -68,3 +68,6 @@ dangerfile.development.ts
 
 # Charts as code
 lightdash
+
+.pnpm-debug.log*
+.pnpm-store

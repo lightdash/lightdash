@@ -4,16 +4,15 @@
     "main": "index.js",
     "license": "MIT",
     "private": true,
-    "resolutions": {
-        "@types/react": "^18.2.48",
-        "@types/react-dom": "^18.2.18"
-    },
     "dependencies": {
         "tslib": "^2.6.2"
     },
     "pnpm": {
         "overrides": {
-            "@databricks/sql>lz4": "-"
+            "@databricks/sql>lz4": "-",
+            "@types/react": "19.0.0",
+            "@types/react-dom": "19.0.0",
+            "react-is": "19.0.0"
         }
     },
     "devDependencies": {
