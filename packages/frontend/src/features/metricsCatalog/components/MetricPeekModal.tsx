@@ -400,30 +400,70 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                 >
                     <Group spacing="xs">
                         <Group spacing="xxs">
-                            <ActionIcon
-                                variant="outline"
-                                size="sm"
-                                radius="sm"
-                                sx={(theme) => ({
-                                    border: `1px solid ${theme.colors.gray[2]}`,
-                                })}
-                                onClick={handleGoToPreviousMetric}
-                                disabled={!previousMetricInList}
+                            <Tooltip
+                                label={
+                                    <Text>
+                                        Press{' '}
+                                        <Kbd
+                                            sx={{
+                                                background: '#575656',
+                                                color: 'white',
+                                                borderRadius: '5px',
+                                                border: '1px solid #2b2b2a',
+                                            }}
+                                        >
+                                            ↑
+                                        </Kbd>{' '}
+                                        to move to the previous metric.
+                                    </Text>
+                                }
+                                position="bottom"
                             >
-                                <MantineIcon icon={IconChevronUp} />
-                            </ActionIcon>
-                            <ActionIcon
-                                variant="outline"
-                                size="sm"
-                                radius="sm"
-                                sx={(theme) => ({
-                                    border: `1px solid ${theme.colors.gray[2]}`,
-                                })}
-                                onClick={handleGoToNextMetric}
-                                disabled={!nextMetricInList}
+                                <ActionIcon
+                                    variant="outline"
+                                    size="sm"
+                                    radius="sm"
+                                    sx={(theme) => ({
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                    })}
+                                    onClick={handleGoToPreviousMetric}
+                                    disabled={!previousMetricInList}
+                                >
+                                    <MantineIcon icon={IconChevronUp} />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip
+                                label={
+                                    <Text>
+                                        Press{' '}
+                                        <Kbd
+                                            sx={{
+                                                background: '#575656',
+                                                color: 'white',
+                                                borderRadius: '5px',
+                                                border: '1px solid #2b2b2a',
+                                            }}
+                                        >
+                                            ↓
+                                        </Kbd>{' '}
+                                        to move to the next metric.
+                                    </Text>
+                                }
+                                position="bottom"
                             >
-                                <MantineIcon icon={IconChevronDown} />
-                            </ActionIcon>
+                                <ActionIcon
+                                    variant="outline"
+                                    size="sm"
+                                    radius="sm"
+                                    sx={(theme) => ({
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                    })}
+                                    onClick={handleGoToNextMetric}
+                                    disabled={!nextMetricInList}
+                                >
+                                    <MantineIcon icon={IconChevronDown} />
+                                </ActionIcon>
+                            </Tooltip>
                         </Group>
                         <Text fw={600} fz="md" color="gray.8">
                             {metricQuery.data?.label}
@@ -526,23 +566,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     }
                                 />
                             </Stack>
-                        </Stack>
-                        <Stack
-                            p="lg"
-                            spacing="xs"
-                            align="center"
-                            mt="auto"
-                            sx={(theme) => ({
-                                borderTop: `1px solid ${theme.colors.gray[2]}`,
-                            })}
-                        >
-                            <Text size="xs" fw={500} color="gray.7">
-                                Keyboard shortcuts
-                            </Text>
-                            <Text size="xs" color="gray.6">
-                                <Kbd>↑</Kbd> <Kbd>↓</Kbd> to navigate between
-                                metrics
-                            </Text>
                         </Stack>
                     </Stack>
 
