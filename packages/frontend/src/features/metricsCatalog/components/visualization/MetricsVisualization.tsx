@@ -693,40 +693,38 @@ const MetricsVisualization: FC<Props> = ({
                                 isAnimationActive={false}
                             />
 
-                            {splitSegments.map((segment) => {
+                            {splitSegments.flatMap((segment) => {
                                 const key = segment.segment ?? 'metric';
                                 const completedPeriodKey = `${key}-completed-period`;
                                 const incompletePeriodKey = `${key}-incomplete-period`;
 
-                                return (
-                                    <>
-                                        <Line
-                                            key={completedPeriodKey}
-                                            {...getLineProps(key)}
-                                            type="linear"
-                                            yAxisId="metric"
-                                            data={segment.completedPeriodData}
-                                            dataKey="metric.value"
-                                            stroke={segment.color}
-                                            dot={false}
-                                            legendType="plainline"
-                                            isAnimationActive={false}
-                                        />
-                                        <Line
-                                            key={incompletePeriodKey}
-                                            {...getLineProps(key)}
-                                            type="linear"
-                                            yAxisId="metric"
-                                            data={segment.incompletePeriodData}
-                                            dataKey="metric.value"
-                                            stroke={segment.color}
-                                            dot={false}
-                                            legendType="none" // Don't render legend for the incomplete period line
-                                            isAnimationActive={false}
-                                            strokeDasharray={'5 5'}
-                                        />
-                                    </>
-                                );
+                                return [
+                                    <Line
+                                        key={completedPeriodKey}
+                                        {...getLineProps(key)}
+                                        type="linear"
+                                        yAxisId="metric"
+                                        data={segment.completedPeriodData}
+                                        dataKey="metric.value"
+                                        stroke={segment.color}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />,
+                                    <Line
+                                        key={incompletePeriodKey}
+                                        {...getLineProps(key)}
+                                        type="linear"
+                                        yAxisId="metric"
+                                        data={segment.incompletePeriodData}
+                                        dataKey="metric.value"
+                                        stroke={segment.color}
+                                        dot={false}
+                                        legendType="none" // Don't render legend for the incomplete period line
+                                        isAnimationActive={false}
+                                        strokeDasharray={'5 5'}
+                                    />,
+                                ];
                             })}
 
                             {results.compareMetric && (
