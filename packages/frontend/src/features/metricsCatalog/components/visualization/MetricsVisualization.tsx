@@ -4,6 +4,7 @@ import {
     friendlyName,
     getCustomFormat,
     MetricExplorerComparison,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
@@ -46,7 +47,10 @@ import {
 } from 'recharts';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
-import { is5YearDateRange } from '../../utils/metricPeekDate';
+import {
+    is5YearDateRange,
+    isInCurrentTimeFrame,
+} from '../../utils/metricPeekDate';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
@@ -122,7 +126,7 @@ const MetricsVisualization: FC<Props> = ({
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
 
-    const { colors } = useMantineTheme();
+    const { colors, fn: themeFn } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -476,6 +480,48 @@ const MetricsVisualization: FC<Props> = ({
         results?.metric.timeDimension?.field,
     ]);
 
+    const splitSegments = useMemo(() => {
+        return segmentedData.map((segment) => {
+            const { data: segmentData, ...rest } = segment;
+            const completedPeriodData: MetricExploreDataPointWithDateValue[] =
+                [];
+            const incompletePeriodData: MetricExploreDataPointWithDateValue[] =
+                [];
+
+            segmentData.forEach((row) => {
+                if (
+                    isInCurrentTimeFrame(
+                        row.date,
+                        results?.metric.timeDimension?.interval,
+                    )
+                ) {
+                    incompletePeriodData.push(row);
+                } else {
+                    completedPeriodData.push(row);
+                }
+            });
+
+            const lastCompletedPeriodDataPoint = completedPeriodData.sort(
+                (a, b) => b.date.getTime() - a.date.getTime(),
+            )[0];
+
+            // Add the last completed period data to the incomplete period data, this will fill in the gap between the last completed period and the first incomplete period
+            // Only do this if there is an incomplete period
+            if (
+                incompletePeriodData.length > 0 &&
+                lastCompletedPeriodDataPoint
+            ) {
+                incompletePeriodData.push(lastCompletedPeriodDataPoint);
+            }
+
+            return {
+                ...rest,
+                completedPeriodData,
+                incompletePeriodData,
+            };
+        });
+    }, [results?.metric.timeDimension?.interval, segmentedData]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -646,22 +692,54 @@ const MetricsVisualization: FC<Props> = ({
                                 isAnimationActive={false}
                             />
 
-                            {segmentedData.map((segment) => (
-                                <Line
-                                    key={segment.segment ?? 'metric'}
-                                    {...getLineProps(
-                                        segment.segment ?? 'metric',
-                                    )}
-                                    type="linear"
-                                    yAxisId="metric"
-                                    data={segment.data}
-                                    dataKey="metric.value"
-                                    stroke={segment.color}
-                                    dot={false}
-                                    legendType="plainline"
-                                    isAnimationActive={false}
-                                />
-                            ))}
+                            {splitSegments.flatMap((segment) => {
+                                const key = segment.segment ?? 'metric';
+                                const completedPeriodKey = `${key}-completed-period`;
+                                const incompletePeriodKey = `${key}-incomplete-period`;
+
+                                return [
+                                    <defs key={`${key}-gradient`}>
+                                        <linearGradient id={`${key}-gradient`}>
+                                            <stop
+                                                offset="0%"
+                                                stopColor={segment.color}
+                                            />
+                                            <stop
+                                                offset={`${100}%`}
+                                                stopColor={themeFn.lighten(
+                                                    segment.color,
+                                                    0.8,
+                                                )}
+                                            />
+                                        </linearGradient>
+                                    </defs>,
+                                    <Line
+                                        key={completedPeriodKey}
+                                        {...getLineProps(key)}
+                                        type="linear"
+                                        yAxisId="metric"
+                                        data={segment.completedPeriodData}
+                                        dataKey="metric.value"
+                                        stroke={segment.color}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />,
+                                    <Line
+                                        key={incompletePeriodKey}
+                                        {...getLineProps(key)}
+                                        type="linear"
+                                        yAxisId="metric"
+                                        data={segment.incompletePeriodData}
+                                        dataKey="metric.value"
+                                        stroke={`url(#${key}-gradient)`}
+                                        dot={false}
+                                        legendType="none" // Don't render legend for the incomplete period line
+                                        isAnimationActive={false}
+                                        strokeDasharray={'5 5'}
+                                    />,
+                                ];
+                            })}
 
                             {results.compareMetric && (
                                 <>
