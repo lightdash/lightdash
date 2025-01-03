@@ -502,12 +502,18 @@ const MetricsVisualization: FC<Props> = ({
                 }
             });
 
-            const lastCompletedPeriodData = completedPeriodData.sort(
+            const lastCompletedPeriodDataPoint = completedPeriodData.sort(
                 (a, b) => b.date.getTime() - a.date.getTime(),
             )[0];
 
             // Add the last completed period data to the incomplete period data, this will fill in the gap between the last completed period and the first incomplete period
-            incompletePeriodData.push(lastCompletedPeriodData);
+            // Only do this if there is an incomplete period
+            if (
+                incompletePeriodData.length > 0 &&
+                lastCompletedPeriodDataPoint
+            ) {
+                incompletePeriodData.push(lastCompletedPeriodDataPoint);
+            }
 
             return {
                 ...rest,
