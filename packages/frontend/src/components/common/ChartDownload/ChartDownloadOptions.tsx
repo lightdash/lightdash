@@ -1,9 +1,17 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Button, SegmentedControl, Select, Stack, Text } from '@mantine/core';
-import { IconDownload } from '@tabler/icons-react';
+import {
+    Button,
+    Group,
+    SegmentedControl,
+    Select,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconCopy, IconDownload } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
 import React, { useCallback, useState } from 'react';
 
+import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import MantineIcon from '../MantineIcon';
 import {
     base64SvgToBase64Image,
@@ -79,6 +87,28 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         }
     }, [getChartInstance, type, isBackgroundTransparent]);
 
+    const onCopyToClipboard = useCallback(async () => {
+        const chartInstance = getChartInstance();
+        if (!chartInstance) {
+            console.error('Chart instance is not available');
+            return;
+        }
+
+        try {
+            const svgBase64 = chartInstance.getDataURL();
+            const width = chartInstance.getWidth();
+            const base64Image = await base64SvgToBase64Image(
+                svgBase64,
+                width,
+                'png',
+                isBackgroundTransparent,
+            );
+            await copyImageToClipboard(base64Image);
+        } catch (e) {
+            console.error('Unable to copy chart to clipboard:', e);
+        }
+    }, [getChartInstance, isBackgroundTransparent]);
+
     return (
         <Stack>
             <Text fw={500}>Options</Text>
@@ -111,14 +141,23 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     ]}
                 />
             )}
-            <Button
-                size="xs"
-                ml="auto"
-                leftIcon={<MantineIcon icon={IconDownload} />}
-                onClick={onDownload}
-            >
-                Download
-            </Button>
+            <Group spacing="xs" position="right">
+                <Button
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconCopy} />}
+                    onClick={onCopyToClipboard}
+                    variant="outline"
+                >
+                    Copy to clipboard
+                </Button>
+                <Button
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconDownload} />}
+                    onClick={onDownload}
+                >
+                    Download
+                </Button>
+            </Group>
         </Stack>
     );
 };
