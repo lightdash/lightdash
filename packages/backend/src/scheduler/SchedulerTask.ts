@@ -62,6 +62,7 @@ import {
     VizColumn,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
+import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import {
@@ -604,12 +605,16 @@ export default class SchedulerTask {
 
                 if (pdfFile && message.ts) {
                     // Add the pdf to the thread
+                    const pdfBuffer = await fs.readFile(pdfFile);
+
                     await this.slackClient.postFileToThread({
                         organizationUuid,
-                        file: pdfFile,
+                        file: pdfBuffer,
                         title: name,
                         channelId: channel,
                         threadTs: message.ts,
+                        filename: `${name}.pdf`,
+                        fileType: 'pdf',
                     });
                 }
             } else {
