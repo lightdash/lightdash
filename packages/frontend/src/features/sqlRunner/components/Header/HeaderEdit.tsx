@@ -4,12 +4,18 @@ import {
     Button,
     Group,
     HoverCard,
+    Menu,
     Paper,
     Stack,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowBack, IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    IconArrowBack,
+    IconDots,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -151,7 +157,15 @@ export const HeaderEdit: FC = () => {
 
     return (
         <>
-            <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
+            <Paper
+                shadow="none"
+                radius={0}
+                px="md"
+                py="xs"
+                sx={(theme) => ({
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                })}
+            >
                 <Group position="apart">
                     <Stack spacing="none">
                         <Group spacing="two">
@@ -191,7 +205,7 @@ export const HeaderEdit: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="md">
+                    <Group spacing="xs">
                         <HoverCard disabled={!hasUnrunChanges} withArrow>
                             <HoverCard.Target>
                                 <Button
@@ -223,16 +237,34 @@ export const HeaderEdit: FC = () => {
                                 <MantineIcon icon={IconArrowBack} />
                             </ActionIcon>
                         </Tooltip>
-                        <Tooltip variant="xs" label="Delete" position="bottom">
-                            <ActionIcon
-                                size="xs"
-                                onClick={() =>
-                                    dispatch(toggleModal('deleteChartModal'))
-                                }
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <Menu
+                            position="bottom"
+                            withArrow
+                            withinPortal
+                            shadow="md"
+                            width={200}
+                        >
+                            <Menu.Target>
+                                <ActionIcon variant="subtle">
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Label>Manage</Menu.Label>
+                                <Menu.Item
+                                    disabled={!config || !sql}
+                                    icon={<MantineIcon icon={IconTrash} />}
+                                    color="red"
+                                    onClick={() =>
+                                        dispatch(
+                                            toggleModal('deleteChartModal'),
+                                        )
+                                    }
+                                >
+                                    Delete
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
                     </Group>
                 </Group>
             </Paper>

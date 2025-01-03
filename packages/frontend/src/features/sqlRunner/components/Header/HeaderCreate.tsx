@@ -156,7 +156,15 @@ export const HeaderCreate: FC = () => {
 
     return (
         <>
-            <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
+            <Paper
+                shadow="none"
+                radius={0}
+                px="md"
+                py="xs"
+                sx={(theme) => ({
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                })}
+            >
                 <Group position="apart">
                     <Group spacing="two">
                         <EditableText
@@ -170,7 +178,7 @@ export const HeaderCreate: FC = () => {
                         />
                     </Group>
 
-                    <Group>
+                    <Group spacing="xs">
                         <Button.Group>
                             <Button
                                 variant="default"

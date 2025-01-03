@@ -72,7 +72,15 @@ export const HeaderView: FC = () => {
 
     return (
         <>
-            <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
+            <Paper
+                shadow="none"
+                radius={0}
+                px="md"
+                py="xs"
+                sx={(theme) => ({
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                })}
+            >
                 <Group position="apart">
                     <Stack spacing="none">
                         <Group spacing="two">
@@ -106,7 +114,7 @@ export const HeaderView: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="md">
+                    <Group spacing="xs">
                         {canManageSqlRunner && canManageChart && (
                             <Button
                                 size="xs"
@@ -130,7 +138,7 @@ export const HeaderView: FC = () => {
                                 width={200}
                             >
                                 <Menu.Target>
-                                    <ActionIcon variant="default">
+                                    <ActionIcon variant="subtle">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
