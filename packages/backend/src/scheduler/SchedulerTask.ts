@@ -513,7 +513,7 @@ export default class SchedulerTask {
                 imageUrl,
                 csvUrl,
                 csvUrls,
-                // pdfFile, // TODO: add pdf to slack
+                pdfFile,
             } = notificationPageData;
 
             const defaultSchedulerTimezone =
@@ -579,12 +579,23 @@ export default class SchedulerTask {
                     imageUrl,
                 });
 
-                await this.slackClient.postMessage({
+                const message = await this.slackClient.postMessage({
                     organizationUuid,
                     text: name,
                     channel,
                     blocks,
                 });
+
+                if (pdfFile && message.ts) {
+                    // Add the pdf to the thread
+                    await this.slackClient.postFileToThread({
+                        organizationUuid,
+                        file: pdfFile,
+                        title: name,
+                        channelId: channel,
+                        threadTs: message.ts,
+                    });
+                }
             } else {
                 let blocks;
                 if (savedChartUuid) {
