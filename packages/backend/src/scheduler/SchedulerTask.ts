@@ -521,6 +521,7 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
+            const showExpirationWarning = format !== SchedulerFormat.IMAGE;
             const schedulerFooter = includeLinks
                 ? `<${url}?scheduler_uuid=${
                       schedulerUuid || ''
@@ -537,7 +538,9 @@ export default class SchedulerTask {
                     cron,
                     timezone ?? defaultSchedulerTimezone,
                 )} from Lightdash\n${
-                    this.s3Client.getExpirationWarning()?.slack || ''
+                    showExpirationWarning
+                        ? this.s3Client.getExpirationWarning()?.slack || ''
+                        : ''
                 }`,
                 includeLinks,
             };
@@ -574,9 +577,25 @@ export default class SchedulerTask {
                     throw new Error('Missing image URL');
                 }
 
+                let fileUrl = imageUrl;
+                try {
+                    // We will try to upload the image to slack, so it can be used in blocks without expiration
+                    // If it fails, we will keep using the same URL (s3)
+                    const response = await fetch(imageUrl);
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    const slackFileUrl = await this.slackClient.uploadFile({
+                        organizationUuid,
+                        file: buffer,
+                        title: name,
+                    });
+                    fileUrl = slackFileUrl;
+                } catch (e) {
+                    Logger.error(`Failed to upload image to slack: ${e}`);
+                }
+
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
-                    imageUrl,
+                    imageUrl: fileUrl,
                 });
 
                 await this.slackClient.postMessage({
