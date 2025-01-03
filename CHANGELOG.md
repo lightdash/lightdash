@@ -1,3 +1,10 @@
+## [0.1434.1](https://github.com/lightdash/lightdash/compare/0.1434.0...0.1434.1) (2025-01-03)
+
+
+### Bug Fixes
+
+* CTAs need to have consistent styling ([#12008](https://github.com/lightdash/lightdash/issues/12008)) ([7707582](https://github.com/lightdash/lightdash/commit/7707582809272807ae905301b39f219167bf1afe))
+
 # [0.1434.0](https://github.com/lightdash/lightdash/compare/0.1433.3...0.1434.0) (2025-01-03)
 
 
