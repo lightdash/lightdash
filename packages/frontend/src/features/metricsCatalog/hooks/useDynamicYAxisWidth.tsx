@@ -16,10 +16,10 @@ export const useDynamicYAxisWidth = () => {
     const TICK_VALUE_SELECTOR = '.recharts-cartesian-axis-tick-value';
 
     const [leftYAxisWidth, setLeftYAxisWidth] = useState<number | undefined>(
-        undefined,
+        20,
     );
     const [rightYAxisWidth, setRightYAxisWidth] = useState<number | undefined>(
-        undefined,
+        20,
     );
 
     const setChartRef = useCallback(
