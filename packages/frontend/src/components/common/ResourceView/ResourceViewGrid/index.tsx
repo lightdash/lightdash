@@ -15,12 +15,14 @@ import { IconGripVertical } from '@tabler/icons-react';
 import { produce } from 'immer';
 import orderBy from 'lodash/orderBy';
 import { useMemo, type FC } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { type ResourceViewCommonProps } from '..';
-import { usePinnedItemsContext } from '../../../../providers/PinnedItemsProvider';
+import { Link, useParams } from 'react-router';
+import usePinnedItemsContext from '../../../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../../MantineIcon';
-import { type ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
+import {
+    type ResourceViewCommonProps,
+    type ResourceViewItemActionState,
+} from '../types';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
@@ -196,6 +198,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         });
         reorderItems(pinnedItemsOrder(newDraggableItems));
     };
+
+    if (!projectUuid) {
+        return null;
+    }
 
     return (
         <Stack spacing="xl" p="lg">

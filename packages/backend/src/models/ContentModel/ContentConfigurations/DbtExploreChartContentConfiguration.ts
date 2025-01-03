@@ -132,6 +132,12 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                             filters.spaceUuids,
                         );
                     }
+                    if (filters.search) {
+                        void builder.whereRaw(
+                            `LOWER(${SavedChartsTableName}.name) LIKE ?`,
+                            [`%${filters.search.toLowerCase()}%`],
+                        );
+                    }
                 }),
         shouldRowBeConverted: (value): value is SelectSavedChart => {
             const contentTypeMatch = value.content_type === ContentType.CHART;

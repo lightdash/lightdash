@@ -1,4 +1,4 @@
-import type { AdditionalMetric, currencies } from '..';
+import type { AdditionalMetric, currencies, DefaultTimeDimension } from '..';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
 import { type TimeFrames } from './timeFrames';
@@ -244,6 +244,7 @@ export interface Field {
     groups?: string[];
     urls?: FieldUrl[];
     index?: number;
+    tags?: string[];
 }
 
 export const isField = (field: any): field is Field =>
@@ -444,6 +445,7 @@ export interface Metric extends Field {
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
+    defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
 }
 
 export const isFilterableDimension = (
@@ -516,4 +518,25 @@ export const friendlyName = (text: string): string => {
     // Join the normalized parts with spaces and capitalize the first letter of the resulting string
     const result = normalizedParts.join(' ');
     return capitalize(result);
+};
+
+export const isSummable = (item: Item | undefined) => {
+    if (!item) {
+        return false;
+    }
+
+    if (isTableCalculation(item)) {
+        return false;
+    }
+    if (isCustomDimension(item)) {
+        return false;
+    }
+    const numericTypes: string[] = [MetricType.COUNT, MetricType.SUM];
+    const isNumberDimension =
+        isDimension(item) && item.type === DimensionType.NUMBER;
+    const isNumbericType =
+        numericTypes.includes(item.type) || isNumberDimension;
+    const isPercent = item.format === 'percent';
+    const isDatePart = isDimension(item) && item.timeInterval;
+    return isNumbericType && !isPercent && !isDatePart;
 };

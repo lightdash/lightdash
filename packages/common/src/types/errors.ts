@@ -35,6 +35,20 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export class DeactivatedAccountError extends LightdashError {
+    constructor(
+        message = 'Your account has been deactivated. Please contact your organization administrator.',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'DeactivatedAccountError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
 export class AuthorizationError extends LightdashError {
     constructor(
         message = "You don't have authorization to perform this action",
@@ -332,6 +346,20 @@ export class SlackInstallationNotFoundError extends LightdashError {
             name: 'SlackInstallationNotFoundError',
             statusCode: 404,
             data: {},
+        });
+    }
+}
+
+export class UnexpectedGoogleSheetsError extends LightdashError {
+    constructor(
+        message = 'Unexpected error in Google sheets client',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'UnexpectedGoogleSheetsError',
+            statusCode: 400,
+            data,
         });
     }
 }

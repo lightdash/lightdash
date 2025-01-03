@@ -53,6 +53,7 @@ export const projectMock = {
     warehouse_type: WarehouseTypes.BIGQUERY,
     organization_uuid: 'organizationUuid',
     dbt_version: DefaultSupportedDbtVersion,
+    scheduler_timezone: 'UTC',
 };
 
 export const tableSelectionMock: Pick<
@@ -97,6 +98,8 @@ export const expectedProject: Project = {
         type: WarehouseTypes.BIGQUERY,
     },
     dbtVersion: DefaultSupportedDbtVersion,
+    schedulerTimezone: 'UTC',
+    createdByUserUuid: null,
 };
 
 const metricFilter: MetricFilterRule = {

@@ -87,7 +87,10 @@ export type GetDashboardQuery = Pick<
     | 'views_count'
     | 'first_viewed_at'
 > &
-    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
+    Pick<
+        DashboardVersionTable['base'],
+        'dashboard_version_id' | 'created_at' | 'config'
+    > &
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
@@ -135,6 +138,7 @@ export class DashboardModel {
             {
                 dashboard_id: dashboardId,
                 updated_by_user_uuid: version.updatedByUser?.userUuid,
+                config: version.config,
             },
             ['dashboard_version_id', 'updated_by_user_uuid'],
         );
@@ -586,12 +590,22 @@ export class DashboardModel {
         );
     }
 
+    async getSlugsForUuids(uuids: string[]): Promise<string[]> {
+        // Uuids are globally unique, so no need to filter by project
+        const dashboards = await this.database(DashboardsTableName)
+            .select('slug')
+            .whereIn('dashboard_uuid', uuids);
+        return dashboards.map((dashboard) => dashboard.slug);
+    }
+
     async find({
         slug,
+        slugs,
         projectUuid,
     }: {
         projectUuid?: string;
         slug?: string;
+        slugs?: string[];
     }): Promise<
         Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>[]
     > {
@@ -621,6 +635,10 @@ export class DashboardModel {
 
         if (slug) {
             void query.where(`${DashboardsTableName}.slug`, slug);
+        }
+
+        if (slugs) {
+            void query.whereIn(`${DashboardsTableName}.slug`, slugs);
         }
 
         const dashboards = await query;
@@ -686,6 +704,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.slug`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardVersionsTableName}.config`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -732,6 +751,7 @@ export class DashboardModel {
                     name: string | null;
                     last_version_chart_kind: string | null;
                     tab_uuid: string;
+                    chart_slug: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -748,6 +768,13 @@ export class DashboardModel {
                         ${SavedSqlTableName}.name,
                         ${SavedSemanticViewerChartsTableName}.name
                     ) AS name`,
+                ),
+                this.database.raw(
+                    ` COALESCE(
+                        ${SavedChartsTableName}.slug,
+                        ${SavedSqlTableName}.slug,
+                        ${SavedSemanticViewerChartsTableName}.slug
+                    ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
@@ -905,6 +932,7 @@ export class DashboardModel {
                     name,
                     last_version_chart_kind,
                     tab_uuid,
+                    chart_slug,
                 }) => {
                     const base: Omit<
                         DashboardDAO['tiles'][number],
@@ -922,7 +950,6 @@ export class DashboardModel {
                         title: title ?? '',
                         hideTitle: hide_title ?? false,
                     };
-
                     switch (type) {
                         case DashboardTileTypes.SAVED_CHART:
                             return <DashboardChartTile>{
@@ -933,6 +960,7 @@ export class DashboardModel {
                                     savedChartUuid: saved_query_uuid,
                                     belongsToDashboard: belongs_to_dashboard,
                                     chartName: name,
+                                    chartSlug: chart_slug,
                                     lastVersionChartKind:
                                         last_version_chart_kind,
                                 },
@@ -963,6 +991,7 @@ export class DashboardModel {
                                     ...commonProperties,
                                     chartName: name,
                                     savedSqlUuid: saved_sql_uuid,
+                                    chartSlug: chart_slug,
                                 },
                             };
                         case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
@@ -974,6 +1003,7 @@ export class DashboardModel {
                                     chartName: name,
                                     savedSemanticViewerChartUuid:
                                         saved_semantic_viewer_chart_uuid,
+                                    chartSlug: chart_slug,
                                 },
                             };
                         default: {
@@ -1003,6 +1033,7 @@ export class DashboardModel {
                 lastName: dashboard.last_name,
             },
             slug: dashboard.slug,
+            config: dashboard?.config,
         };
     }
 
@@ -1015,7 +1046,7 @@ export class DashboardModel {
 
     async create(
         spaceUuid: string,
-        dashboard: CreateDashboard & { slug: string },
+        dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<DashboardDAO> {
@@ -1033,10 +1064,12 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
-                    slug: await DashboardModel.generateUniqueSlug(
-                        trx,
-                        dashboard.slug,
-                    ),
+                    slug: dashboard.forceSlug
+                        ? dashboard.slug
+                        : await DashboardModel.generateUniqueSlug(
+                              trx,
+                              dashboard.slug,
+                          ),
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 

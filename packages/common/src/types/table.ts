@@ -1,4 +1,5 @@
 import { type MetricFilterRule } from './filter';
+import type { DefaultTimeDimension } from './timeFrames';
 
 export enum OrderFieldsByStrategy {
     LABEL = 'LABEL',
@@ -25,4 +26,5 @@ export type TableBase = {
     hidden?: boolean;
     requiredAttributes?: Record<string, string | string[]>;
     groupDetails?: Record<string, GroupType>;
+    defaultTimeDimension?: DefaultTimeDimension;
 };

@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -13,28 +13,23 @@ import PinnedItemsPanel from '../components/PinnedItemsPanel';
 
 import { subject } from '@casl/ability';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
-import {
-    useOnboardingStatus,
-    useProjectSavedChartStatus,
-} from '../hooks/useOnboardingStatus';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
-import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
+import useApp from '../providers/App/useApp';
+import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const selectedProjectUuid = params.projectUuid;
-    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const pinnedItems = usePinnedItems(
         selectedProjectUuid,
         project.data?.pinnedListUuid,
     );
-
     const {
         data: mostPopularAndRecentlyUpdated,
         isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,
@@ -45,11 +40,10 @@ const Home: FC = () => {
     const isLoading =
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
-        savedChartStatus.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading;
 
-    const error = onboarding.error || project.error || savedChartStatus.error;
+    const error = onboarding.error || project.error;
 
     useUnmount(() => onboarding.remove());
 

@@ -45,7 +45,7 @@ type Props<T> = {
     titleLeftIcon?: ReactNode;
     chartName?: string;
     titleHref?: string;
-    description?: string;
+    description?: string | null;
     tile: T;
     isLoading?: boolean;
     extraMenuItems?: ReactNode;
@@ -64,10 +64,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     title,
     titleLeftIcon,
     chartName,
-    description,
+    description = null,
     tile,
-    isLoading,
-    extraMenuItems,
+    isLoading = false,
+    extraMenuItems = null,
     onDelete,
     onEdit,
     children,
@@ -111,13 +111,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             bg="white"
             radius="sm"
             shadow={isEditMode ? 'xs' : undefined}
-            sx={(theme) => ({
-                overflow: 'unset',
-
-                border: isEditMode
-                    ? `1px dashed ${theme.colors.blue[5]}`
-                    : `1px solid ${theme.colors.gray[1]}`,
-            })}
+            sx={(theme) => {
+                let border = `1px solid ${theme.colors.gray[1]}`;
+                if (tabs && tabs.length > 1) {
+                    border = `1px solid ${theme.colors.gray[3]}`;
+                }
+                if (isEditMode) {
+                    border = `1px dashed ${theme.colors.blue[5]}`;
+                }
+                return {
+                    overflow: 'unset',
+                    border: border,
+                };
+            }}
         >
             <LoadingOverlay
                 className="loading_chart_overlay"
@@ -368,13 +374,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             />
         </Card>
     );
-};
-
-TileBase.defaultProps = {
-    isLoading: false,
-    extraMenuItems: null,
-    description: null,
-    hasFilters: false,
 };
 
 export default TileBase;

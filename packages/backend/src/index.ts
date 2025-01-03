@@ -1,15 +1,5 @@
-import App from './App';
-import { lightdashConfig } from './config/lightdashConfig';
-import knexConfig from './knexfile';
+import app from './backendApp';
 import Logger from './logging/logger';
-
-const app = new App({
-    lightdashConfig,
-    port: process.env.PORT || 8080,
-    environment:
-        process.env.NODE_ENV === 'development' ? 'development' : 'production',
-    knexConfig,
-});
 
 process.on('unhandledRejection', (reason, p) => {
     Logger.error('Unhandled Rejection at Promise', reason, p);

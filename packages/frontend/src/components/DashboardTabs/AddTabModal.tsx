@@ -39,7 +39,7 @@ export const TabAddModal: FC<AddProps> = ({
                 </Group>
             }
             {...modalProps}
-            size="xl"
+            size="sm"
             onClose={handleClose}
         >
             <form onSubmit={handleConfirm}>
@@ -47,6 +47,7 @@ export const TabAddModal: FC<AddProps> = ({
                     <TextInput
                         label="Tab name"
                         placeholder="Name your tab"
+                        data-autofocus
                         required
                         {...form.getInputProps('tabName')}
                     ></TextInput>

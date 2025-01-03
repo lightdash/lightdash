@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getRoleDescription,
     isOrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
@@ -9,12 +10,14 @@ import {
     ActionIcon,
     Anchor,
     Badge,
+    Box,
     Button,
     Card,
     Flex,
     Group,
     HoverCard,
     List,
+    LoadingOverlay,
     Modal,
     Pagination,
     Paper,
@@ -37,19 +40,19 @@ import {
 import capitalize from 'lodash/capitalize';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
     usePaginatedOrganizationUsers,
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
-import { useApp } from '../../../providers/AppProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import { DEFAULT_PAGE_SIZE } from '../../common/Table/types';
+import { DEFAULT_PAGE_SIZE } from '../../common/Table/constants';
 import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
@@ -62,28 +65,27 @@ const UserNameDisplay: FC<{
 }> = ({ user, showInviteLink, hasEmail, onGetLink }) => {
     return (
         <Flex justify="space-between" align="center">
-            {user.isActive ? (
-                <Stack spacing="xxs">
-                    <Title order={6}>
-                        {user.firstName} {user.lastName}
+            {!user.isActive ? (
+                <Stack spacing="xxs" align="flex-start">
+                    <Title order={6} color="gray.6">
+                        {user.firstName
+                            ? `${user.firstName} ${user.lastName}`
+                            : user.email}
                     </Title>
-
-                    {user.email && (
-                        <Badge
-                            variant="filled"
-                            color="gray.2"
-                            radius="xs"
-                            sx={{ textTransform: 'none' }}
-                            px="xxs"
-                        >
-                            <Text fz="xs" fw={400} color="gray.8">
-                                {user.email}
-                            </Text>
-                        </Badge>
-                    )}
+                    <Badge
+                        variant="filled"
+                        color="red.4"
+                        radius="xs"
+                        sx={{ textTransform: 'none' }}
+                        px="xxs"
+                    >
+                        <Text fz="xs" fw={400} color="gray.8">
+                            Inactive
+                        </Text>
+                    </Badge>
                 </Stack>
-            ) : (
-                <Stack spacing="xxs">
+            ) : user.isPending ? (
+                <Stack spacing="xxs" align="flex-start">
                     {user.email && <Title order={6}>{user.email}</Title>}
                     <Group spacing="xs">
                         <Badge
@@ -110,6 +112,26 @@ const UserNameDisplay: FC<{
                             </Anchor>
                         )}
                     </Group>
+                </Stack>
+            ) : (
+                <Stack spacing="xxs" align="flex-start">
+                    <Title order={6}>
+                        {user.firstName} {user.lastName}
+                    </Title>
+
+                    {user.email && (
+                        <Badge
+                            variant="filled"
+                            color="gray.2"
+                            radius="xs"
+                            sx={{ textTransform: 'none' }}
+                            px="xxs"
+                        >
+                            <Text fz="xs" fw={400} color="gray.8">
+                                {user.email}
+                            </Text>
+                        </Badge>
+                    )}
                 </Stack>
             )}
         </Flex>
@@ -324,7 +346,10 @@ const UserListItem: FC<{
 
 const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
     const { classes } = useTableStyles();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -356,13 +381,9 @@ const UsersView: FC = () => {
         return paginatedUsers?.pagination;
     }, [paginatedUsers]);
 
-    if (!user.data || !health.data) return null;
+    if (!user.data || !UserGroupsFeatureFlag) return null;
 
-    const isGroupManagementEnabled = health.data.hasGroups;
-
-    if (isLoadingUsers) {
-        return <LoadingState title="Loading users" />;
-    }
+    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
 
     return (
         <Stack spacing="xs">
@@ -413,8 +434,10 @@ const UsersView: FC = () => {
                             )}
                         </tr>
                     </thead>
-                    <tbody>
-                        {organizationUsers && organizationUsers.length ? (
+                    <tbody style={{ position: 'relative' }}>
+                        {!isLoadingUsers &&
+                        organizationUsers &&
+                        organizationUsers.length ? (
                             organizationUsers.map((orgUser) => (
                                 <UserListItem
                                     key={orgUser.email}
@@ -429,6 +452,17 @@ const UsersView: FC = () => {
                                     }
                                 />
                             ))
+                        ) : isLoadingUsers ? (
+                            <tr>
+                                <td colSpan={3}>
+                                    <Box py="lg">
+                                        <LoadingOverlay
+                                            visible={true}
+                                            transitionDuration={200}
+                                        />
+                                    </Box>
+                                </td>
+                            </tr>
                         ) : (
                             <tr>
                                 <td colSpan={3}>

@@ -8,7 +8,7 @@ describe('Dashboard', () => {
     it('Should see dashboard', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        // wiat for the dashboard to load
+        // wait for the dashboard to load
         cy.findByText('Loading dashboards').should('not.exist');
 
         cy.contains('a', 'Jaffle dashboard').click();
@@ -212,7 +212,7 @@ describe('Dashboard', () => {
         cy.url().should('include', '/dashboards');
 
         // Open filter popover  and check that all charts have the filter applied except for the new one (which is referencing another explore)
-        cy.contains('Payment method is credit_card').click();
+        cy.contains('Payment method is credit_card').click(); // Note: disable React strict mode in local dev to avoid error in this line
         cy.findAllByRole('tab').eq(1).click();
         cy.get(
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',

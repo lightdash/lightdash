@@ -5,18 +5,28 @@ import {
     Loader,
     MultiSelect,
     ScrollArea,
+    Stack,
     Text,
+    Tooltip,
     type MultiSelectProps,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
-import { useFiltersContext } from '../FiltersProvider';
+import useFiltersContext from '../useFiltersContext';
 import MultiValuePastePopover from './MultiValuePastePopover';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
@@ -44,27 +54,45 @@ const FilterStringAutoComplete: FC<Props> = ({
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
+    const { data: healthData } = useHealth();
+
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
     const [tempPasteValues, setTempPasteValues] = useState<
         string | undefined
     >();
 
+    const [forceRefresh, setForceRefresh] = useState<boolean>(false);
+
     const autocompleteFilterGroup = useMemo(
         () => getAutocompleteFilterGroup(filterId, field),
         [field, filterId, getAutocompleteFilterGroup],
     );
 
-    const { isInitialLoading, results: resultsSet } = useFieldValues(
+    const {
+        isInitialLoading,
+        results: resultsSet,
+        refreshedAt,
+        refetch,
+    } = useFieldValues(
         search,
         initialSuggestionData,
         projectUuid,
         field,
         autocompleteFilterGroup,
         true,
-        { refetchOnMount: 'always' },
+        forceRefresh,
+        {
+            refetchOnMount: 'always',
+        },
     );
 
+    useEffect(() => {
+        if (forceRefresh) {
+            refetch().then().catch(console.error); // This will skip queryKey cache from react query and refetch from backend
+            setForceRefresh(false);
+        }
+    }, [forceRefresh, refetch]);
     const results = useMemo(() => [...resultsSet], [resultsSet]);
 
     const handleResetSearch = useCallback(() => {
@@ -129,25 +157,58 @@ const FilterStringAutoComplete: FC<Props> = ({
     // memo override component so list doesn't scroll to the top on each click
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
-            <ScrollArea {...props}>
-                {searchedMaxResults ? (
-                    <Text
-                        color="dimmed"
-                        size="xs"
-                        px="sm"
-                        pt="xs"
-                        pb="xxs"
-                        bg="white"
-                    >
-                        Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
-                        {search ? 'Continue' : 'Start'} typing...
-                    </Text>
-                ) : null}
+            <Stack w="100%" spacing={0}>
+                <ScrollArea {...props}>
+                    {searchedMaxResults ? (
+                        <Text
+                            color="dimmed"
+                            size="xs"
+                            px="sm"
+                            pt="xs"
+                            pb="xxs"
+                            bg="white"
+                        >
+                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
+                            {search ? 'Continue' : 'Start'} typing...
+                        </Text>
+                    ) : null}
 
-                {children}
-            </ScrollArea>
+                    {children}
+                </ScrollArea>
+                {healthData?.hasCacheAutocompleResults ? (
+                    <>
+                        <Tooltip
+                            withinPortal
+                            position="left"
+                            label={`Click here to refresh cache filter values`}
+                        >
+                            <Text
+                                color="dimmed"
+                                size="xs"
+                                px="sm"
+                                p="xxs"
+                                sx={(theme) => ({
+                                    cursor: 'pointer',
+                                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                    '&:hover': {
+                                        backgroundColor: theme.colors.gray[1],
+                                    },
+                                })}
+                                onClick={() => setForceRefresh(true)}
+                            >
+                                Results loaded at {refreshedAt.toLocaleString()}
+                            </Text>
+                        </Tooltip>
+                    </>
+                ) : null}
+            </Stack>
         ),
-        [searchedMaxResults, search],
+        [
+            searchedMaxResults,
+            search,
+            refreshedAt,
+            healthData?.hasCacheAutocompleResults,
+        ],
     );
 
     return (

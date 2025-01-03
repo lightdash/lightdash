@@ -13,23 +13,14 @@ import {
     type TooltipProps,
 } from '@mantine/core';
 import {
-    IconChartArea,
-    IconChartAreaLine,
-    IconChartBar,
-    IconChartDots,
-    IconChartLine,
-    IconChartPie,
-    IconCode,
-    IconFilter,
     IconFolder,
     IconLayoutDashboard,
-    IconSquareNumber1,
-    IconTable,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC, type ReactNode } from 'react';
 import { type StyledComponent } from 'styled-components';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
+import { getChartIcon } from './utils';
 
 interface ResourceIconProps {
     item: ResourceViewItem;
@@ -67,39 +58,6 @@ export const IconBox: FC<IconBoxProps> = ({
     </Paper>
 );
 
-export const getChartIcon = (chartKind: ChartKind | undefined) => {
-    switch (chartKind) {
-        case undefined:
-        case ChartKind.VERTICAL_BAR:
-            return IconChartBar;
-        case ChartKind.HORIZONTAL_BAR:
-            return IconChartBar;
-        case ChartKind.LINE:
-            return IconChartLine;
-        case ChartKind.SCATTER:
-            return IconChartDots;
-        case ChartKind.AREA:
-            return IconChartArea;
-        case ChartKind.MIXED:
-            return IconChartAreaLine;
-        case ChartKind.PIE:
-            return IconChartPie;
-        case ChartKind.FUNNEL:
-            return IconFilter;
-        case ChartKind.TABLE:
-            return IconTable;
-        case ChartKind.BIG_NUMBER:
-            return IconSquareNumber1;
-        case ChartKind.CUSTOM:
-            return IconCode;
-        default:
-            return assertUnreachable(
-                chartKind,
-                `Chart type ${chartKind} not supported`,
-            );
-    }
-};
-
 export const ChartIcon: FC<{
     chartKind: ChartKind | undefined;
     color?: string;
@@ -123,49 +81,6 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
             return <ChartIcon chartKind={item.data.chartKind} />;
         default:
             return assertUnreachable(item, 'Resource type not supported');
-    }
-};
-
-interface ResourceTypeIconProps {
-    type: ResourceViewItemType;
-}
-
-const COMMON_ICON_PROPS = {
-    size: 'xl',
-    fillOpacity: 0.1,
-};
-
-export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
-    switch (type) {
-        case ResourceViewItemType.DASHBOARD:
-            return (
-                <MantineIcon
-                    icon={IconLayoutDashboard}
-                    {...COMMON_ICON_PROPS}
-                    fill="green.8"
-                    color="green.8"
-                />
-            );
-        case ResourceViewItemType.SPACE:
-            return (
-                <MantineIcon
-                    icon={IconFolder}
-                    {...COMMON_ICON_PROPS}
-                    fill="violet.8"
-                    color="violet.8"
-                />
-            );
-        case ResourceViewItemType.CHART:
-            return (
-                <MantineIcon
-                    icon={IconChartBar}
-                    {...COMMON_ICON_PROPS}
-                    fill="blue.8"
-                    color="blue.8"
-                />
-            );
-        default:
-            return assertUnreachable(type, 'Resource type not supported');
     }
 };
 

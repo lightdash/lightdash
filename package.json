@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1309.2",
+    "version": "0.1433.3",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -11,7 +11,8 @@
     },
     "dependencies": {
         "concurrently": "^8.2.0",
-        "npm-run-all2": "^6.0.6"
+        "npm-run-all2": "^6.0.6",
+        "tslib": "^2.6.2"
     },
     "devDependencies": {
         "@types/jest": "^29.5.5",
@@ -23,7 +24,7 @@
         "danger": "^11.3.1",
         "dotenv": "^16.0.2",
         "dotenv-cli": "^6.0.0",
-        "eslint": "^8.23.0",
+        "eslint": "^8.40.0",
         "eslint-config-airbnb": "^19.0.4",
         "eslint-config-airbnb-base": "^15.0.0",
         "eslint-config-airbnb-typescript": "^17.0.0",
@@ -39,10 +40,9 @@
         "husky": "^7.0.0",
         "jest": "^29.7.0",
         "lint-staged": "^12.1.2",
-        "prettier": "2.7.1",
+        "prettier": "2.8.1",
         "prettier-plugin-organize-imports": "^3.1.1",
         "ts-jest": "^29.1.1",
-        "tslib": "^2.6.2",
         "tsx": "4.11.0",
         "typescript": "^4.9.5"
     },
@@ -88,8 +88,6 @@
         "warehouses-fix-format": "yarn workspace @lightdash/warehouses fix-format",
         "warehouses-test": "yarn workspace @lightdash/warehouses test",
         "warehouses-build": "yarn workspace @lightdash/warehouses build",
-        "docs-format": "prettier --ignore-unknown './docs/**/*.{md,mdx}' --check",
-        "docs-fix-format": "prettier --ignore-unknown './docs/**/*.{md,mdx}' --write",
         "lint": "run-s common-lint backend-lint frontend-lint e2e-lint cli-lint",
         "format": "run-s common-format backend-format frontend-format e2e-format cli-format",
         "fix-lint": "run-s common-fix-lint backend-fix-lint frontend-fix-lint e2e-fix-lint cli-fix-lint",
@@ -102,13 +100,11 @@
         "prepare": "husky install",
         "load:env": "dotenv -c -e .env.development.local",
         "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated",
+        "generate-api-dev": "yarn common-build && yarn workspace backend generate-api-dev",
         "danger-local-lint": "danger -b main -f",
         "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present"
     },
     "lint-staged": {
-        "docs/**/*.(md|mdx|yml|yaml)": [
-            "yarn docs-fix-format"
-        ],
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
             "yarn workspace frontend linter --fix",
             "yarn workspace frontend formatter --write"

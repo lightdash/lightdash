@@ -171,6 +171,13 @@ const convertDimension = (
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         groups,
         isIntervalBase,
+        ...(column.meta.dimension && column.meta.dimension.tags
+            ? {
+                  tags: Array.isArray(column.meta.dimension.tags)
+                      ? column.meta.dimension.tags
+                      : [column.meta.dimension.tags],
+              }
+            : {}),
     };
 };
 
@@ -272,6 +279,13 @@ const convertDbtMetricToLightdashMetric = (
         showUnderlyingValues: metric.meta?.show_underlying_values,
         filters: parseFilters(metric.meta?.filters),
         ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
+        ...(metric.meta && metric.meta.tags
+            ? {
+                  tags: Array.isArray(metric.meta.tags)
+                      ? metric.meta.tags
+                      : [metric.meta.tags],
+              }
+            : {}),
     };
 };
 
@@ -346,6 +360,8 @@ export const convertTable = (
                                                           label: dim.label,
                                                           groups: dim.groups,
                                                           sql: dim.sql,
+                                                          description:
+                                                              dim.description,
                                                       },
                                                   },
                                               }
@@ -505,6 +521,14 @@ export const convertTable = (
         requiredFilters: parseFilters(meta.required_filters),
         requiredAttributes: meta.required_attributes,
         groupDetails,
+        ...(meta.default_time_dimension
+            ? {
+                  defaultTimeDimension: {
+                      field: meta.default_time_dimension.field,
+                      interval: meta.default_time_dimension.interval,
+                  },
+              }
+            : {}),
     };
 };
 

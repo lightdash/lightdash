@@ -30,21 +30,25 @@ describe('SQL Runner (new)', () => {
         // Verify that the query is run and the results are displayed
         cy.contains('Run query').click();
 
-        cy.get('table thead th').should('have.length', 12);
-        cy.get('table thead th').eq(0).should('contain.text', 'order_id');
-        cy.get('table thead th').eq(1).should('contain.text', 'customer_id');
-        cy.get('table thead th').eq(2).should('contain.text', 'order_date');
-        cy.get('table thead th').eq(3).should('contain.text', 'status');
-        cy.get('table tbody tr')
-            .first()
-            .within(() => {
-                cy.get('td').eq(0).should('contain.text', '1');
-                cy.get('td').eq(1).should('contain.text', '1');
-                cy.get('td')
-                    .eq(2)
-                    .should('contain.text', '2018-01-01T00:00:00.000Z');
-                cy.get('td').eq(3).should('contain.text', 'returned');
-            });
+        cy.get('#sql-runner-panel-results').within(() => {
+            cy.get('table thead th').should('have.length', 12);
+            cy.get('table thead th').eq(0).should('contain.text', 'order_id');
+            cy.get('table thead th')
+                .eq(1)
+                .should('contain.text', 'customer_id');
+            cy.get('table thead th').eq(2).should('contain.text', 'order_date');
+            cy.get('table thead th').eq(3).should('contain.text', 'status');
+            cy.get('table tbody tr')
+                .first()
+                .within(() => {
+                    cy.get('td').eq(0).should('contain.text', '1');
+                    cy.get('td').eq(1).should('contain.text', '1');
+                    cy.get('td')
+                        .eq(2)
+                        .should('contain.text', '2018-01-01T00:00:00.000Z');
+                    cy.get('td').eq(3).should('contain.text', 'returned');
+                });
+        });
 
         // Verify that the query is saved in the draft history
         cy.get('button[data-testid="sql-query-history-button"]').click();
@@ -95,7 +99,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('label', 'Chart').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name')
+            .contains('Created')
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
@@ -103,7 +107,7 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
 
         // Add a new series
-        cy.contains('Add').click();
+        cy.get('button[data-testid="add-y-axis-field"]').click();
         cy.get('.echarts-for-react')
             .find('text')
             .contains('Customer id sum')
@@ -122,10 +126,7 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
 
         // Verify that the chart is not displayed when the configuration is incomplete
-        cy.get('input[placeholder="Select X axis"]')
-            .siblings()
-            .find('button.mantine-CloseButton-root')
-            .click();
+        cy.get('button[data-testid="remove-x-axis-field"]').click();
         cy.contains('Incomplete chart configuration').should('be.visible');
         cy.contains("You're missing an X axis").should('be.visible');
     });
@@ -148,7 +149,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('label', 'Chart').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name')
+            .contains('Created')
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
@@ -197,6 +198,9 @@ describe('SQL Runner (new)', () => {
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
+        // View chart
+        cy.contains('label', 'Chart').click();
+
         // Verify that the chart is saved
         cy.contains('Save').click();
         cy.get(
@@ -231,9 +235,9 @@ describe('SQL Runner (new)', () => {
 
         // Verify that there are errors to be fixed and fix them
         cy.contains('label', 'Chart').click();
-        cy.contains(
-            'Column "first_name" does not exist. Choose another',
-        ).should('be.visible');
+        cy.contains('Column "created" does not exist. Choose another').should(
+            'be.visible',
+        );
         cy.contains('Save').click();
         cy.get('section[role="dialog"]')
             .find('button')
@@ -277,7 +281,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('label', 'Chart').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name')
+            .contains('Created')
             .should('be.visible');
 
         // Intercept the API call we don't expect to happen
@@ -286,7 +290,7 @@ describe('SQL Runner (new)', () => {
         );
 
         // Perform the styling change
-        cy.contains('Styling').click();
+        cy.contains('Display').click();
         cy.contains('div', 'X-axis label')
             .closest('.mantine-Stack-root')
             .find('input.mantine-Input-input')

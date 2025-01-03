@@ -3,7 +3,7 @@ import { Avatar, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconFolder, IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getChartIcon } from '../../../components/common/ResourceIcon';
+import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import RouterNavLink from '../../../components/common/RouterNavLink';
 
 type Props = {

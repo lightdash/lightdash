@@ -78,7 +78,7 @@
                             },
                             "group_details": {
                                 "type": "object",
-                                "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 2 levels",
+                                "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 3 levels",
                                 "patternProperties": {
                                     "^[a-zA-Z0-9_]+$": {
                                         "type": "object",
@@ -134,6 +134,7 @@
                                                 "type": "boolean"
                                             },
                                             "round": {
+                                                "description": "Rounds the metric to the specified number of decimal places",
                                                 "type": "number",
                                                 "minimum": 0
                                             },
@@ -154,17 +155,62 @@
                                             },
                                             "groups": {
                                                 "type": "array",
-                                                "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
                                                 "items": {
                                                     "type": "string",
                                                     "minLength": 1
                                                 },
-                                                "maxItems": 2
+                                                "maxItems": 3
+                                            },
+                                            "default_time_dimension": {
+                                                "type": "object",
+                                                "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                                "properties": {
+                                                    "field": {
+                                                        "type": "string",
+                                                        "description": "The name of the field to use as the default time dimension"
+                                                    },
+                                                    "interval": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "DAY",
+                                                            "WEEK",
+                                                            "MONTH",
+                                                            "YEAR"
+                                                        ],
+                                                        "description": "The default time interval to use when analyzing this time dimension"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "field",
+                                                    "interval"
+                                                ]
                                             }
                                         },
                                         "required": ["type", "sql"]
                                     }
                                 }
+                            },
+                            "default_time_dimension": {
+                                "type": "object",
+                                "description": "Specifies the default time dimension field and interval to use for time-based analysis (on any metric in the model). If specified, both field and interval are required.",
+                                "properties": {
+                                    "field": {
+                                        "type": "string",
+                                        "description": "The name of the field to use as the default time dimension"
+                                    },
+                                    "interval": {
+                                        "type": "string",
+                                        "enum": [
+                                            "DAY",
+                                            "WEEK",
+                                            "MONTH",
+                                            "YEAR"
+                                        ],
+                                        "description": "The default time interval to use when analyzing this time dimension"
+                                    }
+                                },
+                                "required": ["field", "interval"]
                             }
                         }
                     },
@@ -276,12 +322,36 @@
                                                         },
                                                         "groups": {
                                                             "type": "array",
-                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
                                                             "items": {
                                                                 "type": "string",
                                                                 "minLength": 1
                                                             },
-                                                            "maxItems": 2
+                                                            "maxItems": 3
+                                                        },
+                                                        "default_time_dimension": {
+                                                            "type": "object",
+                                                            "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                                            "properties": {
+                                                                "field": {
+                                                                    "type": "string",
+                                                                    "description": "The name of the field to use as the default time dimension"
+                                                                },
+                                                                "interval": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "DAY",
+                                                                        "WEEK",
+                                                                        "MONTH",
+                                                                        "YEAR"
+                                                                    ],
+                                                                    "description": "The default time interval to use when analyzing this time dimension"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "field",
+                                                                "interval"
+                                                            ]
                                                         }
                                                     },
                                                     "required": ["type"]
@@ -375,12 +445,12 @@
                                                 },
                                                 "groups": {
                                                     "type": "array",
-                                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
                                                     "items": {
                                                         "type": "string",
                                                         "minLength": 1
                                                     },
-                                                    "maxItems": 2
+                                                    "maxItems": 3
                                                 }
                                             }
                                         },
@@ -531,6 +601,27 @@
                                     "percent",
                                     "id"
                                 ]
+                            },
+                            "default_time_dimension": {
+                                "type": "object",
+                                "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                "properties": {
+                                    "field": {
+                                        "type": "string",
+                                        "description": "The name of the field to use as the default time dimension"
+                                    },
+                                    "interval": {
+                                        "type": "string",
+                                        "enum": [
+                                            "DAY",
+                                            "WEEK",
+                                            "MONTH",
+                                            "YEAR"
+                                        ],
+                                        "description": "The default time interval to use when analyzing this time dimension"
+                                    }
+                                },
+                                "required": ["field", "interval"]
                             }
                         }
                     }

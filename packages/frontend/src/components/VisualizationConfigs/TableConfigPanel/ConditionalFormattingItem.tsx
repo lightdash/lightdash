@@ -6,6 +6,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     getConditionalFormattingConfigType,
     getItemId,
+    getItemLabelWithoutTableName,
     hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -29,7 +30,7 @@ import { produce } from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
-import { FiltersProvider } from '../../common/Filters/FiltersProvider';
+import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
@@ -248,7 +249,19 @@ export const ConditionalFormattingItem: FC<Props> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={controlLabel}
+                label={
+                    field ? getItemLabelWithoutTableName(field) : controlLabel
+                }
+                extraControlElements={
+                    <ColorSelector
+                        color={
+                            isConditionalFormattingConfigWithSingleColor(config)
+                                ? config.color
+                                : config.color.start
+                        }
+                        swatches={colorPalette}
+                    />
+                }
                 onControlClick={onControlClick}
                 onRemove={handleRemove}
             />

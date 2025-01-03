@@ -25,12 +25,6 @@ export enum FeatureFlags {
     /** Enable dashboard tabs */
     DashboardTabs = 'dashboard_tabs',
 
-    /**
-     * Disable https://docs.snowflake.com/en/sql-reference/parameters#label-quoted-identifiers-ignore-case
-     * for the Snowflake warehouse client
-     */
-    DisableSnowflakeQuotedIdentifiersIgnoreCase = 'disable-snowflake-quoted-identifiers-ignore-case',
-
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 
@@ -43,4 +37,14 @@ export enum FeatureFlags {
      * Enable dashboard comments
      */
     DashboardComments = 'dashboard-comments-enabled',
+
+    /**
+     * Enable metric trees
+     */
+    MetricTrees = 'metric-trees',
 }
+
+export type FeatureFlag = {
+    id: string;
+    enabled: boolean;
+};

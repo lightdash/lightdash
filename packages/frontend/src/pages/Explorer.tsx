@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { memo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import { useHotkeys } from '@mantine/hooks';
 import Page from '../components/common/Page/Page';
@@ -14,11 +14,9 @@ import {
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
-import { useApp } from '../providers/AppProvider';
-import {
-    ExplorerProvider,
-    useExplorerContext,
-} from '../providers/ExplorerProvider';
+import useApp from '../providers/App/useApp';
+import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
 const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();
@@ -48,7 +46,7 @@ const ExplorerPage = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const explorerUrlState = useExplorerUrlState();
-    const { user } = useApp();
+    const { user, health } = useApp();
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
@@ -78,6 +76,7 @@ const ExplorerPage = memo(() => {
             isEditMode={true}
             initialState={explorerUrlState}
             queryResults={queryResults}
+            defaultLimit={health.data?.query.defaultLimit}
         >
             <ExplorerWithUrlParams />
         </ExplorerProvider>

@@ -51,6 +51,7 @@ export type DashboardChartTileProperties = {
         belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
+        chartSlug?: string;
     };
 };
 
@@ -61,6 +62,7 @@ export type DashboardSqlChartTileProperties = {
         savedSqlUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
+        chartSlug?: string;
     };
 };
 
@@ -71,6 +73,7 @@ export type DashboardSemanticViewerChartTileProperties = {
         savedSemanticViewerChartUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
+        chartSlug?: string;
     };
 };
 
@@ -116,6 +119,7 @@ export type CreateDashboard = {
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
     tabs: DashboardTab[];
+    config?: DashboardConfig;
 };
 
 export type DashboardTile =
@@ -154,6 +158,10 @@ export type DashboardTab = {
 
 export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
 
+export type DashboardConfig = {
+    isDateZoomDisabled: boolean;
+};
+
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
@@ -175,6 +183,7 @@ export type Dashboard = {
     isPrivate: boolean | null;
     access: SpaceShare[] | null;
     slug: string;
+    config?: DashboardConfig;
 };
 
 export enum DashboardSummaryTone {
@@ -224,7 +233,7 @@ export type DashboardUnversionedFields = Pick<
 
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
-    'tiles' | 'filters' | 'updatedByUser' | 'tabs'
+    'tiles' | 'filters' | 'updatedByUser' | 'tabs' | 'config'
 >;
 
 export type UpdateDashboardDetails = Pick<Dashboard, 'name' | 'description'>;

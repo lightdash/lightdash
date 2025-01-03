@@ -1,6 +1,8 @@
 import {
     isLightdashMode,
+    isOrganizationMemberRole,
     LightdashMode,
+    OrganizationMemberRole,
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
@@ -171,6 +173,23 @@ const parseLoggingOutput = (raw: string): LoggingOutput => {
     }
     return raw;
 };
+export const parseOrganizationMemberRoleArray = (
+    envVarName: string,
+): OrganizationMemberRole[] | undefined => {
+    const raw = process.env[envVarName];
+    if (raw === undefined) {
+        return undefined;
+    }
+    return raw.split(',').map((role) => {
+        if (!isOrganizationMemberRole(role)) {
+            throw new ParseError(
+                `Cannot parse environment variable "${envVarName}". Value must be a comma-separated list of OrganizationMemberRole but ${envVarName}=${raw}`,
+            );
+        }
+        return role;
+    });
+};
+
 export type LoggingConfig = {
     level: LoggingLevel;
     format: LoggingFormat;
@@ -229,6 +248,7 @@ export type LightdashConfig = {
     maxPayloadSize: string;
     query: {
         maxLimit: number;
+        defaultLimit: number;
         csvCellsLimit: number;
         timezone: string | undefined;
     };
@@ -244,9 +264,10 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     s3?: S3Config;
-    headlessBrowser?: HeadlessBrowserConfig;
+    headlessBrowser: HeadlessBrowserConfig;
     resultsCache: {
-        enabled: boolean;
+        resultsEnabled: boolean;
+        autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3: {
             bucket?: string;
@@ -273,6 +294,9 @@ export type LightdashConfig = {
         appName: string;
         redirectDomain: string;
     };
+    contentAsCode: {
+        maxDownloads: number;
+    };
 };
 
 export type SlackConfig = {
@@ -288,6 +312,7 @@ export type SlackConfig = {
 export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
+    internalLightdashHost: string;
 };
 export type S3Config = {
     region?: string;
@@ -391,6 +416,9 @@ type AuthOidcConfig = {
 
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
+    /**
+     * @deprecated Group Sync is deprecated. https://github.com/lightdash/lightdash/issues/12430
+     */
     enableGroupSync: boolean;
     enableOidcLinking: boolean;
     enableOidcToEmailLinking: boolean;
@@ -399,7 +427,11 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
-    disablePat: boolean;
+    pat: {
+        enabled: boolean;
+        allowedOrgRoles: OrganizationMemberRole[];
+        maxExpirationTimeInDays: number | undefined;
+    };
 };
 
 export type SmtpConfig = {
@@ -542,7 +574,16 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
         },
         auth: {
-            disablePat: process.env.DISABLE_PAT === 'true',
+            pat: {
+                enabled: process.env.DISABLE_PAT !== 'true',
+                allowedOrgRoles:
+                    parseOrganizationMemberRoleArray('PAT_ALLOWED_ORG_ROLES') ??
+                    Object.values(OrganizationMemberRole),
+                maxExpirationTimeInDays:
+                    getIntegerFromEnvironmentVariable(
+                        'PAT_MAX_EXPIRATION_TIME_IN_DAYS',
+                    ) ?? undefined,
+            },
             disablePasswordAuthentication:
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',
@@ -667,6 +708,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',
                 ) || 5000,
+            defaultLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_DEFAULT_LIMIT',
+                ) || 500,
             csvCellsLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
@@ -705,9 +750,13 @@ export const parseConfig = (): LightdashConfig => {
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
+            internalLightdashHost:
+                process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
         },
         resultsCache: {
-            enabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            resultsEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            autocompleteEnabled:
+                process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,
@@ -789,6 +838,11 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+        },
+        contentAsCode: {
+            maxDownloads:
+                getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
+                100,
         },
     };
 };

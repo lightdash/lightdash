@@ -15,7 +15,16 @@ export interface LightdashUser {
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
     role?: OrganizationMemberRole;
+    createdAt: Date;
+    updatedAt: Date;
+    /**
+     * Whether the user can login
+     */
     isActive: boolean;
+    /**
+     * Whether the user doesn't have an authentication method (password or openId)
+     */
+    isPending?: boolean;
 }
 
 export type LightdashUserWithOrg = Required<LightdashUser>;

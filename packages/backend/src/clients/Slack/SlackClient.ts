@@ -1,4 +1,5 @@
 import {
+    MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
     SlackInstallationNotFoundError,
@@ -49,7 +50,7 @@ export class SlackClient {
 
     private async getWebClient(organizationUuid: string): Promise<WebClient> {
         if (!this.isEnabled) {
-            throw new Error('Slack is not configured');
+            throw new MissingConfigError('Slack is not configured');
         }
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(

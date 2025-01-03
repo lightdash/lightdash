@@ -4,8 +4,8 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { StyleOptions } from './common';
 

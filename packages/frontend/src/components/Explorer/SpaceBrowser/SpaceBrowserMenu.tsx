@@ -2,8 +2,8 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import { IconEdit, IconPin, IconPinned, IconTrash } from '@tabler/icons-react';
 import React from 'react';
-import { useParams } from 'react-router-dom';
-import { useApp } from '../../../providers/AppProvider';
+import { useParams } from 'react-router';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 
 interface Props {

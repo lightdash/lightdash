@@ -1,35 +1,14 @@
 import {
     isField,
-    type AndFilterGroup,
     type DashboardFilters,
     type FilterableItem,
     type FilterRule,
-    type ItemsMap,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
-
-type DefaultFieldsMap = Record<
-    string,
-    ItemsMap[string] & { suggestions?: string[] }
->;
-
-type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
-    projectUuid?: string;
-    itemsMap: T;
-    baseTable?: string;
-    startOfWeek?: WeekDay;
-    getField: (filterRule: FilterRule) => T[keyof T] | undefined;
-    getAutocompleteFilterGroup: (
-        filterId: string,
-        item: FilterableItem,
-    ) => AndFilterGroup | undefined;
-    popoverProps?: Omit<PopoverProps, 'children'>;
-};
-
-const Context = createContext<FiltersContext | undefined>(undefined);
+import { useCallback, type ReactNode } from 'react';
+import Context, { type DefaultFieldsMap } from './context';
 
 type Props<T extends DefaultFieldsMap> = {
     projectUuid?: string;
@@ -41,7 +20,7 @@ type Props<T extends DefaultFieldsMap> = {
     children?: ReactNode;
 };
 
-export const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
+const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     projectUuid,
     itemsMap = {} as T,
     baseTable,
@@ -69,9 +48,7 @@ export const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                     (dimensionFilterRule) => {
                         const isNotSelectedFilter =
                             dimensionFilterRule.id !== filterId;
-                        const hasSameTable =
-                            dimensionFilterRule.target.tableName === item.table;
-                        return isNotSelectedFilter && hasSameTable;
+                        return isNotSelectedFilter;
                     },
                 ),
             };
@@ -95,16 +72,4 @@ export const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     );
 };
 
-export function useFiltersContext<
-    T extends DefaultFieldsMap = DefaultFieldsMap,
->(): FiltersContext<T> {
-    const context = useContext(
-        Context as React.Context<FiltersContext<T> | undefined>,
-    );
-    if (context === undefined) {
-        throw new Error(
-            'useFiltersContext must be used within a FiltersProvider',
-        );
-    }
-    return context;
-}
+export default FiltersProvider;

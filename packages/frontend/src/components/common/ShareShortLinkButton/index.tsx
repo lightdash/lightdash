@@ -1,12 +1,15 @@
 import { ActionIcon } from '@mantine/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { useAsyncClipboard } from '../../../hooks/useAsyncClipboard';
 import { useCreateShareMutation } from '../../../hooks/useShare';
 import MantineIcon from '../MantineIcon';
 
-const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
+const ShareShortLinkButton: FC<{
+    disabled?: boolean;
+    url?: { pathname: string; search: string };
+}> = ({ disabled, url }) => {
     const location = useLocation();
 
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -14,8 +17,8 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
 
     const getSharedUrl = async () => {
         const response = await createShareUrl({
-            path: location.pathname,
-            params: location.search,
+            path: url?.pathname ?? location.pathname,
+            params: url?.search ?? location.search,
         });
         return response.shareUrl;
     };

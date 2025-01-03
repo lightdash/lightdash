@@ -21,7 +21,7 @@ import MantineIcon from '../../common/MantineIcon';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
-import { useProjectFormContext } from '../ProjectFormProvider';
+import { useProjectFormContext } from '../useProjectFormContext';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { useCreateSshKeyPair } from './sshHooks';
 
@@ -238,12 +238,35 @@ const PostgresForm: FC<{
                                 />
                             )}
                         />
+
                         <TextInput
                             label="Role"
                             disabled={disabled}
                             {...register('warehouse.role')}
                         />
+
                         <StartOfWeekSelect disabled={disabled} />
+
+                        <Controller
+                            name="warehouse.timeoutSeconds"
+                            defaultValue={300}
+                            render={({ field }) => (
+                                <NumberInput
+                                    {...field}
+                                    label="Timeout in seconds"
+                                    description={
+                                        <p>
+                                            If a query takes longer than this
+                                            timeout to complete, then the query
+                                            will be cancelled.
+                                        </p>
+                                    }
+                                    required
+                                    disabled={disabled}
+                                />
+                            )}
+                        />
+
                         <BooleanSwitch
                             name="warehouse.useSshTunnel"
                             label="Use SSH tunnel"

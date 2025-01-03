@@ -1485,6 +1485,8 @@
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>
+                                                                            {{#if
+                                                                            includeLinks}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <table
@@ -1564,6 +1566,7 @@
                                                                                     </table>
                                                                                 </td>
                                                                             </tr>
+                                                                            {{/if}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <div
@@ -1625,6 +1628,8 @@
                                                                                                         mso-text-raise: 3px;
                                                                                                     "
                                                                                                 >
+                                                                                                    {{#if
+                                                                                                    includeLinks}}
                                                                                                     <a
                                                                                                         class="t284"
                                                                                                         href="{{schedulerUrl}}"
@@ -1650,7 +1655,20 @@
                                                                                                             >Scheduled
                                                                                                             delivery</span
                                                                                                         ></a
-                                                                                                    ><span
+                                                                                                    >{{/if}}
+                                                                                                    {{#unless
+                                                                                                    includeLinks}}
+                                                                                                    <span
+                                                                                                        class="t285"
+                                                                                                        style="
+                                                                                                            margin-bottom: 0;
+                                                                                                            margin-bottom: 0;
+                                                                                                            mso-line-height-rule: exactly;
+                                                                                                        "
+                                                                                                        >Scheduled
+                                                                                                        delivery</span
+                                                                                                    >
+                                                                                                    {{/unless}}<span
                                                                                                         class="t286"
                                                                                                         style="
                                                                                                             margin-bottom: 0;

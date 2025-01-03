@@ -1,6 +1,8 @@
 import {
+    ChartType,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
+    getPivotConfig,
     NotFoundError,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
@@ -11,13 +13,11 @@ import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianCon
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
-import { ChartDownloadMenu } from '../../ChartDownload';
-import CollapsableCard from '../../common/CollapsableCard';
+import useApp from '../../../providers/App/useApp';
+import { ExplorerSection } from '../../../providers/Explorer/types';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
+import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';
@@ -71,7 +71,9 @@ const VisualizationCard: FC<{
     const tableCalculationsMetadata = useExplorerContext(
         (context) => context.state.metadata?.tableCalculations,
     );
-
+    const pivotConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.pivotConfig,
+    );
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
@@ -127,6 +129,10 @@ const VisualizationCard: FC<{
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
+                pivotColumns:
+                    unsavedChartVersion.chartConfig.type === ChartType.TABLE
+                        ? pivotConfig?.columns
+                        : undefined,
             });
             return csvResponse;
         }
@@ -148,6 +154,7 @@ const VisualizationCard: FC<{
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
+                pivotConfig: getPivotConfig(unsavedChartVersion),
             });
             return gsheetResponse;
         }
@@ -197,12 +204,13 @@ const VisualizationCard: FC<{
                                         onClose={closeSidebar}
                                     />
                                 ) : null}
-
-                                <ChartDownloadMenu
-                                    getCsvLink={getCsvLink}
-                                    projectUuid={projectUuid!}
-                                    getGsheetLink={getGsheetLink}
-                                />
+                                {!!projectUuid && (
+                                    <ChartDownloadMenu
+                                        getCsvLink={getCsvLink}
+                                        projectUuid={projectUuid}
+                                        getGsheetLink={getGsheetLink}
+                                    />
+                                )}
                             </>
                         )
                     }

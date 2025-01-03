@@ -1,4 +1,4 @@
-import { type GroupWithMembers } from '@lightdash/common';
+import { isGroupWithMembers, type GroupWithMembers } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -26,7 +26,7 @@ import {
     useGroupDeleteMutation,
     useOrganizationGroups,
 } from '../../../hooks/useOrganizationGroups';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -171,7 +171,7 @@ const GroupsView: FC = () => {
 
     const { data: groups, isInitialLoading: isLoadingGroups } =
         useOrganizationGroups({
-            search,
+            searchInput: search,
             includeMembers: GROUP_MEMBERS_PER_PAGE, // TODO: pagination
         });
 
@@ -226,24 +226,29 @@ const GroupsView: FC = () => {
                     </thead>
                     <tbody>
                         {groups && groups.length ? (
-                            groups?.map((group) => (
-                                <GroupListItem
-                                    key={group.uuid}
-                                    group={group}
-                                    disabled={user.data?.ability?.cannot(
-                                        'manage',
-                                        'Group',
-                                    )}
-                                    onEdit={(g) => {
-                                        setGroupToEdit(g);
-                                        setShowCreateAndEditModal(true);
-                                    }}
-                                    onDelete={(groupForDeletion) => {
-                                        setGroupToDelete(groupForDeletion);
-                                        setIsDeleteDialogOpen(true);
-                                    }}
-                                />
-                            ))
+                            groups.map((group) => {
+                                if (!isGroupWithMembers(group)) {
+                                    return null;
+                                }
+                                return (
+                                    <GroupListItem
+                                        key={group.uuid}
+                                        group={group}
+                                        disabled={user.data?.ability?.cannot(
+                                            'manage',
+                                            'Group',
+                                        )}
+                                        onEdit={(g) => {
+                                            setGroupToEdit(g);
+                                            setShowCreateAndEditModal(true);
+                                        }}
+                                        onDelete={(groupForDeletion) => {
+                                            setGroupToDelete(groupForDeletion);
+                                            setIsDeleteDialogOpen(true);
+                                        }}
+                                    />
+                                );
+                            })
                         ) : (
                             <tr>
                                 <td colSpan={3}>

@@ -1,7 +1,12 @@
 import {
     ApiCalculateTotalResponse,
+    ApiChartAsCodeListResponse,
+    ApiChartAsCodeUpsertResponse,
     ApiChartListResponse,
     ApiChartSummaryListResponse,
+    ApiCreateTagResponse,
+    ApiDashboardAsCodeListResponse,
+    ApiDashboardAsCodeUpsertResponse,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
@@ -11,24 +16,31 @@ import {
     ApiSqlQueryResults,
     ApiSuccessEmpty,
     CalculateTotalFromQuery,
+    ChartAsCode,
     CreateProjectMember,
+    DashboardAsCode,
     DbtExposure,
     isDuplicateDashboardParams,
     ParameterError,
+    RequestMethod,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
     type ApiCreateDashboardResponse,
     type ApiGetDashboardsResponse,
+    type ApiGetTagsResponse,
     type ApiUpdateDashboardsResponse,
     type CreateDashboard,
     type DuplicateDashboardParams,
     type SemanticLayerConnectionUpdate,
+    type Tag,
     type UpdateMultipleDashboards,
+    type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -44,6 +56,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import type { DbTagUpdate } from '../database/entities/tags';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -101,21 +114,28 @@ export class ProjectController extends BaseController {
      * List all charts summaries in a project
      * @param projectUuid The uuid of the project to get charts for
      * @param req express request
+     * @param excludeChartsSavedInDashboard Whether to exclude charts that are saved in dashboards
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/chart-summaries')
+    @Deprecated()
     @OperationId('ListChartSummariesInProject')
     async getChartSummariesInProject(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() excludeChartsSavedInDashboard?: boolean,
     ): Promise<ApiChartSummaryListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getChartSummaries(req.user!, projectUuid),
+                .getChartSummaries(
+                    req.user!,
+                    projectUuid,
+                    excludeChartsSavedInDashboard,
+                ),
         };
     }
 
@@ -606,7 +626,6 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateMultipleDashboards[],
         @Request() req: express.Request,
     ): Promise<ApiUpdateDashboardsResponse> {
-        console.log(body);
         this.setStatus(200);
 
         const results = await this.services
@@ -616,6 +635,287 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Created')
+    @Post('{projectUuid}/createPreview')
+    @OperationId('createPreview')
+    async createPreview(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            name: string;
+            copyContent: boolean;
+        },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .createPreview(req.user!, projectUuid, body, RequestMethod.WEB_APP);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/schedulerSettings')
+    @OperationId('updateSchedulerSettings')
+    async updateSchedulerSettings(
+        @Path() projectUuid: string,
+        @Body() body: UpdateSchedulerSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        const { schedulerTimezone: oldDefaultProjectTimezone } =
+            await this.services
+                .getProjectService()
+                .getProject(projectUuid, req.user!);
+
+        await this.services
+            .getProjectService()
+            .updateDefaultSchedulerTimezone(
+                req.user!,
+                projectUuid,
+                body.schedulerTimezone,
+            );
+
+        try {
+            await this.services
+                .getSchedulerService()
+                .updateSchedulersWithDefaultTimezone(req.user!, projectUuid, {
+                    oldDefaultProjectTimezone,
+                    newDefaultProjectTimezone: body.schedulerTimezone,
+                });
+        } catch (e) {
+            // reset the old timezone when it fails to set the hours
+            await this.services
+                .getProjectService()
+                .updateDefaultSchedulerTimezone(
+                    req.user!,
+                    projectUuid,
+                    oldDefaultProjectTimezone,
+                );
+
+            throw e;
+        }
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Success')
+    @Post('{projectUuid}/tags')
+    @OperationId('createTag')
+    async createTag(
+        @Path() projectUuid: string,
+        @Body() body: Pick<Tag, 'name' | 'color'>,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateTagResponse> {
+        const { tagUuid } = await this.services
+            .getProjectService()
+            .createTag(req.user!, {
+                ...body,
+                projectUuid,
+            });
+
+        this.setStatus(201);
+
+        return {
+            status: 'ok',
+            results: { tagUuid },
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('204', 'Deleted')
+    @Delete('{projectUuid}/tags/{tagUuid}')
+    @OperationId('deleteTag')
+    async deleteTag(
+        @Path() tagUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services.getProjectService().deleteTag(req.user!, tagUuid);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/tags/{tagUuid}')
+    @OperationId('updateTag')
+    async updateTag(
+        @Path() tagUuid: string,
+        @Body() body: DbTagUpdate,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getProjectService()
+            .updateTag(req.user!, tagUuid, body);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/tags')
+    @OperationId('getTags')
+    async getTags(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetTagsResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .getTags(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /** Charts as code */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/charts/code')
+    @OperationId('getChartsAsCode')
+    async getChartsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiChartAsCodeListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getCharts(req.user!, projectUuid, ids, offset),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dashboards/code')
+    @OperationId('getDashboardsAsCode')
+    async getDashboardsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiDashboardAsCodeListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getDashboards(req.user!, projectUuid, ids, offset),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/charts/{slug}/code')
+    @OperationId('upsertChartAsCode')
+    async upsertChartAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        chart: Omit<
+            ChartAsCode,
+            'metricQuery' | 'chartConfig' | 'description'
+        > & {
+            chartConfig: any;
+            metricQuery: any;
+            description?: string | null; // Allow both undefined and null
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiChartAsCodeUpsertResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertChart(req.user!, projectUuid, slug, {
+                    ...chart,
+                    description: chart.description ?? undefined,
+                }),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/dashboards/{slug}/code')
+    @OperationId('upsertDashboardAsCode')
+    async upsertDashboardAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        dashboard: Omit<
+            DashboardAsCode,
+            'filters' | 'tiles' | 'description'
+        > & {
+            filters: any;
+            tiles: any;
+            description?: string | null; // Allow both undefined and null
+        }, // Simplify filter type for tsoa
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardAsCodeUpsertResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertDashboard(req.user!, projectUuid, slug, {
+                    ...dashboard,
+                    description: dashboard.description ?? undefined,
+                }),
         };
     }
 }

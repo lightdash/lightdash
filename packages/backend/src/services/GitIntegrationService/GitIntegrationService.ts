@@ -13,6 +13,7 @@ import {
     lightdashDbtYamlSchema,
     ParseError,
     PullRequestCreated,
+    QueryExecutionContext,
     SavedChart,
     SessionUser,
     snakeCaseName,
@@ -22,6 +23,7 @@ import {
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
     checkFileDoesNotExist,
     createBranch,
@@ -33,6 +35,7 @@ import {
     updateFile,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -45,6 +48,7 @@ type GitIntegrationServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    analytics: LightdashAnalytics;
 };
 
 type GithubProps = {
@@ -92,6 +96,8 @@ export class GitIntegrationService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly analytics: LightdashAnalytics;
+
     constructor(args: GitIntegrationServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -99,6 +105,7 @@ export class GitIntegrationService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.analytics = args.analytics;
     }
 
     async getInstallationId(user: SessionUser) {
@@ -171,6 +178,9 @@ export class GitIntegrationService extends BaseService {
             branch: mainBranch,
             token,
         });
+        Logger.debug(
+            `Creating branch ${branchName} from ${mainBranch} (commit: ${commitSha}) in ${owner}/${repo}`,
+        );
         // create branch in git
         const newBranch = await createBranch({
             branchName,
@@ -179,6 +189,9 @@ export class GitIntegrationService extends BaseService {
             sha: commitSha,
             installationId,
         });
+        Logger.debug(
+            `Successfully created branch ${branchName} in ${owner}/${repo}`,
+        );
     }
 
     async getPullRequestDetails({
@@ -285,6 +298,9 @@ Affected charts:
                     token,
                 },
             );
+            Logger.debug(
+                `Updating file ${fileName} in ${owner}/${repo} (branch: ${branchName}, sha: ${fileSha})`,
+            );
 
             const yamlSchema = await GitIntegrationService.loadYamlSchema(
                 fileContent,
@@ -317,6 +333,9 @@ Affected charts:
                 token,
                 message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
             });
+            Logger.debug(
+                `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branchName})`,
+            );
             return acc;
         }, Promise.resolve());
     }
@@ -651,17 +670,33 @@ ${sql}
             name,
             columns,
         });
+        Logger.debug(
+            `Creating pull request from branch ${branchName} to ${branch} in ${owner}/${repo}`,
+        );
         const pullRequest = await createPullRequest({
             ...githubProps,
             title: `Creates \`${name}\` SQL and YML model`,
             body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
- 
+
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
             head: branchName,
             base: branch,
         });
+        Logger.debug(
+            `Successfully created pull request #${pullRequest.number} in ${owner}/${repo}`,
+        );
 
+        this.analytics.track({
+            event: 'write_back.created',
+            userId: user.userUuid,
+            properties: {
+                name,
+                projectId: projectUuid,
+                organizationId: user.organizationUuid!,
+                context: QueryExecutionContext.SQL_RUNNER,
+            },
+        });
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,

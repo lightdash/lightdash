@@ -1,10 +1,14 @@
-import { LightdashMode } from '@lightdash/common';
+import { LightdashMode, OrganizationMemberRole } from '@lightdash/common';
 import { LightdashConfig } from './parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
-        disablePat: false,
+        pat: {
+            enabled: false,
+            allowedOrgRoles: Object.values(OrganizationMemberRole),
+            maxExpirationTimeInDays: undefined,
+        },
         enableGroupSync: false,
         disablePasswordAuthentication: false,
         enableOidcLinking: false,
@@ -100,7 +104,12 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
     posthog: undefined,
-    resultsCache: { cacheStateTimeSeconds: 0, enabled: false, s3: {} },
+    resultsCache: {
+        cacheStateTimeSeconds: 0,
+        resultsEnabled: false,
+        autocompleteEnabled: false,
+        s3: {},
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',
@@ -137,6 +146,7 @@ export const lightdashConfigMock: LightdashConfig = {
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 5000,
+        defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
     },
@@ -149,5 +159,11 @@ export const lightdashConfigMock: LightdashConfig = {
     github: {
         appName: 'lightdash-app-dev',
         redirectDomain: 'test',
+    },
+    headlessBrowser: {
+        internalLightdashHost: 'https://test.lightdash.cloud',
+    },
+    contentAsCode: {
+        maxDownloads: 100,
     },
 };

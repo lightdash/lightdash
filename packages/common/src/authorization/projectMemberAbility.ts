@@ -56,6 +56,12 @@ export const projectMemberAbilities: Record<
         can('view', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'Tags', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'MetricsTree', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -122,8 +128,10 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
+
             access: {
                 $elemMatch: {
                     userUuid: member.userUuid,
@@ -136,6 +144,10 @@ export const projectMemberAbilities: Record<
         projectMemberAbilities.interactive_viewer(member, { can });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
@@ -151,6 +163,12 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'SemanticViewer', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Tags', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'MetricsTree', {
             projectUuid: member.projectUuid,
         });
     },
@@ -187,25 +205,40 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
         });
+
+        can('delete', 'Project', {
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
+
         can('create', 'Project', {
-            projectUuid: member.projectUuid,
+            upstreamProjectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
         });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
+
+        can('delete', 'Project', {
+            projectUuid: member.projectUuid,
+        });
+
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
         });
+
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
         });
+
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
         });
+
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
         });

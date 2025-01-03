@@ -35,13 +35,11 @@ const MonthlyInputs: FC<{
                 max={31}
             />
             <Input.Label>at</Input.Label>
-
             <TimePicker
                 disabled={disabled}
                 cronExpression={cronExpression}
                 onChange={onTimeChange}
             />
-            <Input.Label>UTC</Input.Label>
         </Group>
     );
 };

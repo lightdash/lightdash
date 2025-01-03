@@ -10,7 +10,11 @@ import { dbtExploreChartContentConfiguration } from './ContentConfigurations/Dbt
 import { semanticViewerChartContentConfiguration } from './ContentConfigurations/SemanticViewerChartContentConfiguration';
 import { sqlChartContentConfiguration } from './ContentConfigurations/SqlChartContentConfiguration';
 
-import { ContentFilters, SummaryContentRow } from './ContentModelTypes';
+import {
+    ContentArgs,
+    ContentFilters,
+    SummaryContentRow,
+} from './ContentModelTypes';
 
 /**
  Content model is responsible for fetching all content types in a single query, leveraging UNION ALL clauses.
@@ -35,6 +39,7 @@ export class ContentModel {
 
     async findSummaryContents(
         filters: ContentFilters,
+        queryArgs: ContentArgs,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<SummaryContent[]>> {
         const matchingConfigurations = this.contentConfigurations.filter(
@@ -53,7 +58,14 @@ export class ContentModel {
             void query.unionAll(config.getSummaryQuery(this.database, filters));
         });
 
-        void query.orderBy('last_updated_at', 'DESC');
+        if (queryArgs.sortBy) {
+            void query.orderBy(
+                queryArgs.sortBy,
+                queryArgs.sortDirection ?? 'DESC',
+            );
+        } else {
+            void query.orderBy('last_updated_at', 'DESC');
+        }
 
         const { pagination, data } = await KnexPaginate.paginate(
             query,

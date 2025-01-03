@@ -14,7 +14,7 @@ import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useGitHubRepositories } from '../../../components/UserSettings/GithubSettingsPanel';
+import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -33,6 +33,9 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+
+    const name = useAppSelector((state) => state.sqlRunner.name);
+
     const {
         mutateAsync: createVirtualView,
         isLoading: isLoadingVirtual,
@@ -42,17 +45,17 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     });
     const form = useForm<FormValues>({
         initialValues: {
-            name: '',
+            name: name || '',
         },
         validate: zodResolver(validationSchema),
     });
 
     const { data: project } = useProject(projectUuid);
-    const { data: githubRepositories, isError } = useGitHubRepositories();
+    const { data: gitIntegration, isError } = useGitIntegration(projectUuid);
 
     const canWriteToDbtProject = !!(
         health.data?.hasGithub &&
-        githubRepositories !== undefined &&
+        gitIntegration?.enabled === true &&
         !isError &&
         project?.dbtConnection.type === DbtProjectType.GITHUB
     );

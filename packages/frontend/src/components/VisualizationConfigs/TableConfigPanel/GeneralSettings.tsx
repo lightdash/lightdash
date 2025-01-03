@@ -2,13 +2,12 @@ import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import ColumnConfiguration from './ColumnConfiguration';
+import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
-
-export const MAX_PIVOTS = 3;
 
 enum DroppableIds {
     COLUMNS = 'COLUMNS',
@@ -69,11 +68,11 @@ const GeneralSettings: FC = () => {
         const newValue = !metricsAsRows;
 
         if (newValue) {
-            setShowColumnCalculation(showRowCalculation);
-            setShowRowCalculation(showColumnCalculation);
+            setShowColumnCalculation(showColumnCalculation);
+            setShowRowCalculation(showRowCalculation);
         } else {
-            setShowColumnCalculation(showRowCalculation);
-            setShowRowCalculation(showColumnCalculation);
+            setShowColumnCalculation(showColumnCalculation);
+            setShowRowCalculation(showRowCalculation);
         }
 
         setMetricsAsRows(newValue);

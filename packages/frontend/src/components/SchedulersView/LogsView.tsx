@@ -14,7 +14,7 @@ import { IconChevronDown } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import groupBy from 'lodash/groupBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 import {

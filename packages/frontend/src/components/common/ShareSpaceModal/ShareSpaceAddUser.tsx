@@ -1,25 +1,43 @@
-import { OrganizationMemberRole, type Space } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    type OrganizationMemberProfile,
+    type Space,
+} from '@lightdash/common';
 import {
     Avatar,
     Badge,
     Button,
+    Center,
     Group,
+    Loader,
     MultiSelect,
+    ScrollArea,
     Stack,
     Text,
     Tooltip,
+    type ScrollAreaProps,
     type SelectItem,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import { forwardRef, useMemo, useState, type FC } from 'react';
-import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { uniq, uniqBy } from 'lodash';
+import {
+    forwardRef,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -34,9 +52,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { data: organizationUsers } = useOrganizationUsers();
-    const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
+    const selectScrollRef = useRef<HTMLDivElement>(null);
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
@@ -44,15 +62,67 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
 
-    const userUuids: string[] = useMemo(() => {
-        if (organizationUsers === undefined) return [];
+    const {
+        data: infiniteOrganizationGroups,
+        fetchNextPage: fetchGroupsNextPage,
+        hasNextPage: hasGroupsNextPage,
+        isFetching: isGroupsFetching,
+    } = useInfiniteOrganizationGroups(
+        {
+            searchInput: debouncedSearchQuery,
+            includeMembers: 1,
+            pageSize: DEFAULT_PAGE_SIZE,
+        },
+        { keepPreviousData: true },
+    );
 
+    const {
+        data: infiniteOrganizationUsers,
+        fetchNextPage: fetchUsersNextPage,
+        hasNextPage: hasUsersNextPage,
+        isFetching: isUsersFetching,
+    } = useInfiniteOrganizationUsers(
+        {
+            searchInput: debouncedSearchQuery,
+            pageSize: DEFAULT_PAGE_SIZE,
+            projectUuid,
+            includeGroups: 10,
+        },
+        { keepPreviousData: true },
+    );
+
+    // Aggregates all fetched users across pages and search queries into a unified list.
+    // This ensures that previously fetched users are preserved even when the search query changes.
+    // Uses 'userUuid' to remove duplicates and maintain a consistent set of unique users.
+    const [allSearchedOrganizationUsers, setAllSearchedOrganizationUsers] =
+        useState<OrganizationMemberProfile[]>([]);
+    useEffect(() => {
+        const allPages =
+            infiniteOrganizationUsers?.pages.map((p) => p.data).flat() ?? [];
+
+        setAllSearchedOrganizationUsers((previousState) =>
+            uniqBy([...previousState, ...allPages], 'userUuid'),
+        );
+    }, [infiniteOrganizationUsers?.pages]);
+
+    const groups = useMemo(
+        () => infiniteOrganizationGroups?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationGroups?.pages],
+    );
+
+    const organizationUsers = useMemo(
+        () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationUsers?.pages],
+    );
+
+    const userUuids: string[] = useMemo(() => {
         const projectUserUuids =
             projectAccess?.map((project) => project.userUuid) || [];
 
-        const orgUserUuids = organizationUsers
-            .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
-            .map((user) => user.userUuid);
+        const orgUserUuids =
+            organizationUsers
+                ?.filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+                .map((user) => user.userUuid) ?? [];
 
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
     }, [organizationUsers, projectAccess]);
@@ -74,7 +144,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 );
             }
 
-            const user = organizationUsers?.find(
+            const user = allSearchedOrganizationUsers.find(
                 (userAccess) => userAccess.userUuid === props.value,
             );
 
@@ -131,33 +201,38 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         });
-    }, [organizationUsers, space.access]);
+    }, [allSearchedOrganizationUsers, space.access]);
 
     const data = useMemo(() => {
-        const usersSet = userUuids.map((userUuid): SelectItem | null => {
-            const user = organizationUsers?.find(
-                (a) => a.userUuid === userUuid,
-            );
+        const userUuidsAndSelected = uniq([...userUuids, ...usersSelected]);
 
-            if (!user) return null;
+        const usersSet = userUuidsAndSelected.map(
+            (userUuid): SelectItem | null => {
+                const user = allSearchedOrganizationUsers.find(
+                    (a) => a.userUuid === userUuid,
+                );
 
-            const hasDirectAccess = !!(space.access || []).find(
-                (access) => access.userUuid === userUuid,
-            )?.hasDirectAccess;
+                if (!user) return null;
 
-            if (hasDirectAccess) return null;
+                const hasDirectAccess = !!(space.access || []).find(
+                    (access) => access.userUuid === userUuid,
+                )?.hasDirectAccess;
 
-            return {
-                value: userUuid,
-                label: getUserNameOrEmail(
-                    user.userUuid,
-                    user.firstName,
-                    user.lastName,
-                    user.email,
-                ),
-                group: 'Users',
-            };
-        });
+                if (hasDirectAccess) return null;
+
+                return {
+                    value: userUuid,
+                    label: getUserNameOrEmail(
+                        user.userUuid,
+                        user.firstName,
+                        user.lastName,
+                        user.email,
+                    ),
+                    group: 'Users',
+                    email: user.email,
+                };
+            },
+        );
 
         const groupsSet = groups
             ?.filter(
@@ -178,12 +253,19 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             (item): item is SelectItem => item !== null,
         );
     }, [
-        organizationUsers,
         userUuids,
-        space.access,
+        usersSelected,
         groups,
+        allSearchedOrganizationUsers,
+        space.access,
         space.groupsAccess,
     ]);
+
+    useEffect(() => {
+        selectScrollRef.current?.scrollTo({
+            top: selectScrollRef.current?.scrollHeight,
+        });
+    }, [data]);
 
     return (
         <Group>
@@ -202,6 +284,46 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 onChange={setUsersSelected}
                 data={data}
                 itemComponent={UserItemComponent}
+                maxDropdownHeight={300}
+                dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
+                    <ScrollArea {...rest} viewportRef={selectScrollRef}>
+                        {isUsersFetching || isGroupsFetching ? (
+                            <Center h={300}>
+                                <Loader size="md" />
+                            </Center>
+                        ) : (
+                            <>
+                                {children}
+                                {(hasUsersNextPage || hasGroupsNextPage) && (
+                                    <Button
+                                        size="xs"
+                                        variant="white"
+                                        onClick={async () => {
+                                            await Promise.all([
+                                                fetchGroupsNextPage(),
+                                                fetchUsersNextPage(),
+                                            ]);
+                                        }}
+                                        disabled={
+                                            isUsersFetching || isGroupsFetching
+                                        }
+                                    >
+                                        <Text>Load more</Text>
+                                    </Button>
+                                )}
+                            </>
+                        )}
+                    </ScrollArea>
+                )}
+                filter={(searchString, selected, item) => {
+                    return Boolean(
+                        item.group === 'Users' ||
+                            selected ||
+                            item.label
+                                ?.toLowerCase()
+                                .includes(searchString.toLowerCase()),
+                    );
+                }}
             />
 
             <Button

@@ -16,6 +16,10 @@ export const getMantineThemeOverride = (overrides?: {
     // Without it things look a little darker than before.
     black: '#111418',
 
+    colors: {
+        offWhite: ['#FDFDFD'],
+    },
+
     spacing: {
         one: rem(1),
         two: rem(2),
@@ -55,6 +59,10 @@ export const getMantineThemeOverride = (overrides?: {
     lineHeight: 1.4,
 
     cursorType: 'pointer',
+
+    shadows: {
+        subtle: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+    },
 
     components: {
         Kbd: {
@@ -129,6 +137,11 @@ export const getMantineThemeOverride = (overrides?: {
             },
         },
         ...overrides?.components,
+    },
+
+    other: {
+        transitionTimingFunction: 'ease-in-out',
+        transitionDuration: 200, // in ms
     },
 
     globalStyles: (theme) => ({

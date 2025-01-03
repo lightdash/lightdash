@@ -19,7 +19,7 @@ import {
 } from '../../../hooks/useEmailVerification';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 
 const validationSchema = z.object({
@@ -61,7 +61,9 @@ const ProfilePanel: FC = () => {
     }, [userData]);
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
-    const { data, isInitialLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus(
+        !!health.data?.isAuthenticated,
+    );
     const {
         mutate: sendVerificationEmail,
         error: sendVerificationEmailError,

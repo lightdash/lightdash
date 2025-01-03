@@ -4,7 +4,8 @@ import ErrorState from '../../../components/common/ErrorState';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../../../features/scheduler/hooks/useSchedulersDeleteMutation';
-import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
+import { SyncModalAction } from '../providers/types';
+import { useSyncModal } from '../providers/useSyncModal';
 
 export const SyncModalDelete = () => {
     const { currentSchedulerUuid, setAction } = useSyncModal();

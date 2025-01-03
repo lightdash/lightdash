@@ -1,4 +1,5 @@
 import {
+    ApiCreateGroupResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiGroupResponse,
@@ -169,6 +170,7 @@ export class OrganizationController extends BaseController {
     /**
      * Gets all the members of the current user's organization
      * @param req express request
+     * @param projectUuid filter users who can view this project
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/users')
@@ -179,6 +181,7 @@ export class OrganizationController extends BaseController {
         @Query() pageSize?: number,
         @Query() page?: number,
         @Query() searchQuery?: string,
+        @Query() projectUuid?: string,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -194,7 +197,13 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getUsers(req.user!, includeGroups, paginateArgs, searchQuery),
+                .getUsers(
+                    req.user!,
+                    includeGroups,
+                    paginateArgs,
+                    searchQuery,
+                    projectUuid,
+                ),
         };
     }
 
@@ -326,7 +335,7 @@ export class OrganizationController extends BaseController {
     async createGroup(
         @Request() req: express.Request,
         @Body() body: CreateGroup,
-    ): Promise<ApiGroupResponse> {
+    ): Promise<ApiCreateGroupResponse> {
         const group = await this.services
             .getOrganizationService()
             .addGroupToOrganization(req.user!, body);
@@ -347,12 +356,31 @@ export class OrganizationController extends BaseController {
     @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
         @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
         @Query() includeMembers?: number,
+        @Query() searchQuery?: string,
     ): Promise<ApiGroupListResponse> {
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
         const groups = await this.services
             .getOrganizationService()
-            .listGroupsInOrganization(req.user!, includeMembers);
+            .listGroupsInOrganization(
+                req.user!,
+                includeMembers,
+                paginateArgs,
+                searchQuery,
+            );
+
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: groups,

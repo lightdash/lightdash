@@ -9,6 +9,7 @@ import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
@@ -34,6 +35,7 @@ import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
+import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -84,7 +86,8 @@ export type ModelManifest = {
     savedSqlModel: SavedSqlModel;
     SavedSemanticViewerChartModel: SavedSemanticViewerChartModel;
     contentModel: ContentModel;
-
+    tagsModel: TagsModel;
+    featureFlagModel: FeatureFlagModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     embedModel: unknown;
@@ -102,6 +105,7 @@ type ModelProvider<T extends ModelManifest> = (providerArgs: {
     repository: ModelRepository;
     database: Knex;
     utils: UtilRepository;
+    lightdashConfig: LightdashConfig;
 }) => T[keyof T];
 
 /**
@@ -464,7 +468,11 @@ export class ModelRepository
     public getCatalogModel(): CatalogModel {
         return this.getModel(
             'catalogModel',
-            () => new CatalogModel({ database: this.database }),
+            () =>
+                new CatalogModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
         );
     }
 
@@ -492,6 +500,17 @@ export class ModelRepository
         );
     }
 
+    public getFeatureFlagModel(): FeatureFlagModel {
+        return this.getModel(
+            'featureFlagModel',
+            () =>
+                new FeatureFlagModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
+        );
+    }
+
     public getAiModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiModel');
     }
@@ -502,6 +521,13 @@ export class ModelRepository
 
     public getDashboardSummaryModel<ModelImplT>(): ModelImplT {
         return this.getModel('dashboardSummaryModel');
+    }
+
+    public getTagsModel(): TagsModel {
+        return this.getModel(
+            'tagsModel',
+            () => new TagsModel({ database: this.database }),
+        );
     }
 
     /**
@@ -523,6 +549,7 @@ export class ModelRepository
                     repository: this,
                     database: this.database,
                     utils: this.utils,
+                    lightdashConfig: this.lightdashConfig,
                 }) as T;
             } else if (factory != null) {
                 modelInstance = factory();

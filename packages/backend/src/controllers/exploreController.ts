@@ -5,6 +5,7 @@ import {
     ApiExploresResults,
     ApiSuccessEmpty,
     MetricQuery,
+    PivotConfig,
 } from '@lightdash/common';
 import {
     Body,
@@ -141,6 +142,7 @@ export class ExploreController extends BaseController {
             columnOrder: string[];
             hiddenFields?: string[];
             chartName?: string;
+            pivotColumns?: string[];
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
         this.setStatus(200);
@@ -162,7 +164,19 @@ export class ExploreController extends BaseController {
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
+            metricOverrides: body.metricOverrides,
         };
+
+        const csvPivotConfig: PivotConfig | undefined =
+            body.pivotColumns !== undefined
+                ? {
+                      pivotDimensions: body.pivotColumns,
+                      metricsAsRows: false,
+                      hiddenMetricFieldIds: body.hiddenFields,
+                      columnOrder: body.columnOrder,
+                  }
+                : undefined;
+
         const { jobId } = await req.services
             .getCsvService()
             .scheduleDownloadCsv(req.user!, {
@@ -178,6 +192,7 @@ export class ExploreController extends BaseController {
                 hiddenFields,
                 chartName: body.chartName,
                 fromSavedChart: false,
+                pivotConfig: csvPivotConfig,
             });
 
         return {

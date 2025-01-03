@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     contentToResourceViewItems,
+    ContentType,
     LightdashMode,
     ResourceViewItemType,
     type ResourceViewItem,
@@ -10,12 +11,11 @@ import {
     IconDots,
     IconFolderCog,
     IconFolderX,
-    IconLayoutDashboard,
     IconPlus,
     IconSquarePlus,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
@@ -23,29 +23,29 @@ import MantineIcon from '../components/common/MantineIcon';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import { ResourceTypeIcon } from '../components/common/ResourceIcon';
-import ResourceView from '../components/common/ResourceView';
+import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
-import SpaceActionModal, {
-    ActionType,
-} from '../components/common/SpaceActionModal';
+import SpaceActionModal from '../components/common/SpaceActionModal';
+import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import AddResourceToSpaceModal, {
-    AddToSpaceResources,
-} from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
+import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContent } from '../hooks/useContent';
 import { useSpace } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const Space: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;
-    }>();
+    }>() as {
+        projectUuid: string;
+        spaceUuid: string;
+    };
     const {
         data: space,
         isInitialLoading,
@@ -54,7 +54,7 @@ const Space: FC = () => {
 
     const { data: allItems, isLoading: isContentLoading } = useContent(
         {
-            projectUuid,
+            projectUuids: [projectUuid],
             spaceUuids: [spaceUuid],
             pageSize: Number.MAX_SAFE_INTEGER,
         },
@@ -82,7 +82,7 @@ const Space: FC = () => {
     const { user, health } = useApp();
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const history = useHistory();
+    const navigate = useNavigate();
     const location = useLocation();
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
@@ -131,8 +131,14 @@ const Space: FC = () => {
     );
 
     return (
-        <Page title={space?.name} withFixedContent withPaddedContent>
-            <Stack spacing="xl">
+        <Page
+            title={space?.name}
+            withCenteredRoot
+            withCenteredContent
+            withXLargePaddedContent
+            withLargeContent
+        >
+            <Stack spacing="xxl" w="100%">
                 <Group position="apart">
                     <PageBreadcrumbs
                         items={[
@@ -265,10 +271,12 @@ const Space: FC = () => {
                                 </Menu>
                             )}
                         <Can I="manage" this={subject('Space', space)}>
-                            <ShareSpaceModal
-                                space={space!}
-                                projectUuid={projectUuid}
-                            />
+                            {!!space && (
+                                <ShareSpaceModal
+                                    space={space}
+                                    projectUuid={projectUuid}
+                                />
+                            )}
                             <SpaceBrowserMenu
                                 onRename={() => setUpdateSpace(true)}
                                 onDelete={() => setDeleteSpace(true)}
@@ -308,7 +316,7 @@ const Space: FC = () => {
                                             )
                                         ) {
                                             //Redirect to home if we are on the space we are deleting
-                                            history.push(
+                                            void navigate(
                                                 `/projects/${projectUuid}/home`,
                                             );
                                         }
@@ -321,42 +329,15 @@ const Space: FC = () => {
                         </Can>
                     </Group>
                 </Group>
-                <ResourceView
-                    items={allItems || []}
-                    listProps={{
-                        defaultColumnVisibility: { space: false },
+
+                <InfiniteResourceTable
+                    filters={{
+                        projectUuid,
+                        spaceUuids: [spaceUuid],
                     }}
-                    tabs={[
-                        {
-                            id: 'dashboards',
-                            icon: (
-                                <ResourceTypeIcon
-                                    type={ResourceViewItemType.DASHBOARD}
-                                />
-                            ),
-                            name: 'Dashboards',
-                            filter: (item) =>
-                                item.type === ResourceViewItemType.DASHBOARD,
-                        },
-                        {
-                            id: 'charts',
-                            icon: (
-                                <ResourceTypeIcon
-                                    type={ResourceViewItemType.CHART}
-                                />
-                            ),
-                            name: 'Charts',
-                            filter: (item) =>
-                                item.type === ResourceViewItemType.CHART,
-                        },
-                        {
-                            id: 'all-items',
-                            name: 'All items',
-                        },
-                    ]}
-                    emptyStateProps={{
-                        icon: <IconLayoutDashboard size={30} />,
-                        title: 'No items added yet',
+                    contentTypeFilter={{
+                        defaultValue: ContentType.DASHBOARD,
+                        options: [ContentType.DASHBOARD, ContentType.CHART],
                     }}
                 />
 
@@ -377,7 +358,7 @@ const Space: FC = () => {
                     opened={isCreateDashboardOpen}
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
-                        history.push(
+                        void navigate(
                             `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
                         );
 

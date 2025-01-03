@@ -87,9 +87,9 @@ export class CommentService extends BaseService {
         const isEnabled = await isFeatureFlagEnabled(
             FeatureFlags.DashboardComments,
             user,
-            { throwOnTimeout: true },
+            { throwOnTimeout: false },
+            true, // default value
         );
-
         if (!isEnabled) throw new ForbiddenError('Feature not enabled');
     }
 

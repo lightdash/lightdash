@@ -1,7 +1,18 @@
 import {
+    CustomDimension,
+    DimensionType,
+    Field,
+    ForbiddenError,
+    formatDate,
     getItemLabel,
     getItemLabelWithoutTableName,
+    isDimension,
+    isField,
     ItemsMap,
+    Metric,
+    MissingConfigError,
+    TableCalculation,
+    UnexpectedGoogleSheetsError,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -37,7 +48,7 @@ export class GoogleDriveClient {
                 authClient,
             });
         } catch (err) {
-            throw new Error(`Failed to get credentials: ${err}`);
+            throw new ForbiddenError(`Failed to get credentials: ${err}`);
         }
     }
 
@@ -71,7 +82,7 @@ export class GoogleDriveClient {
 
     async createNewTab(refreshToken: string, fileId: string, tabName: string) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
@@ -102,7 +113,7 @@ export class GoogleDriveClient {
                         `Google sheet tab already exist, we will overwrite it: ${error.errors[0]?.message}`,
                     );
                 } else {
-                    throw new Error(error);
+                    throw new UnexpectedGoogleSheetsError(error);
                 }
             });
 
@@ -111,7 +122,7 @@ export class GoogleDriveClient {
 
     async createNewSheet(refreshToken: string, title: string) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
@@ -134,7 +145,7 @@ export class GoogleDriveClient {
         reportUrl?: string,
     ) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
 
         const metadataTabName = 'metadata';
@@ -182,7 +193,7 @@ export class GoogleDriveClient {
                 const firstSheetName =
                     spreadsheet.data.sheets?.[0].properties?.title;
                 if (!firstSheetName) {
-                    throw new Error(
+                    throw new UnexpectedGoogleSheetsError(
                         'Unable to find the first sheet name in the spreadsheet',
                     );
                 }
@@ -201,10 +212,16 @@ export class GoogleDriveClient {
             }
         } catch (error) {
             Logger.error('Unable to clear the sheet', error);
+            // Silently ignore this error
         }
     }
 
-    static formatCell(value: any) {
+    static formatCell(
+        value: any,
+        item?: Field | TableCalculation | CustomDimension | Metric,
+    ) {
+        // We don't want to use formatItemValue directly because the format for some types on Gsheets
+        // is different to what we use to present the data in the UI (eg: timestamps, currencies)
         if (Array.isArray(value)) {
             return value.join(',');
         }
@@ -213,6 +230,13 @@ export class GoogleDriveClient {
         }
         if (value instanceof Set) {
             return [...value].join(',');
+        }
+
+        if (isField(item) && item.type === DimensionType.DATE) {
+            const timeInterval = isDimension(item)
+                ? item.timeInterval
+                : undefined;
+            return formatDate(value, timeInterval);
         }
         // Return the string representation of the Object Wrappers for Primitive Types
         if (
@@ -223,6 +247,7 @@ export class GoogleDriveClient {
         ) {
             return value.valueOf();
         }
+
         if (value && typeof value === 'object' && !(value instanceof Date)) {
             return JSON.stringify(value);
         }
@@ -242,14 +267,8 @@ export class GoogleDriveClient {
         hiddenFields: string[] = [],
     ) {
         if (!this.isEnabled) {
-            throw new Error('Google Drive is not enabled');
+            throw new MissingConfigError('Google Drive is not enabled');
         }
-
-        const auth = await this.getCredentials(refreshToken);
-        const sheets = google.sheets({ version: 'v4', auth });
-
-        // Clear first sheet before writting
-        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
 
         if (csvContent.length === 0) {
             Logger.info('No data to write to the sheet');
@@ -272,16 +291,46 @@ export class GoogleDriveClient {
             return id;
         });
 
-        Logger.info(
-            `Writing ${csvContent.length} rows and ${sortedFieldIds.length} columns to Google sheets`,
-        );
-
         const values = csvContent.map((row) =>
             sortedFieldIds.map((fieldId) => {
+                const item = itemMap[fieldId];
                 // Google sheet doesn't like arrays as values, so we need to convert them to strings
                 const value = row[fieldId];
-                return GoogleDriveClient.formatCell(value);
+                return GoogleDriveClient.formatCell(value, item);
             }),
+        );
+
+        await this.appendCsvToSheet(
+            refreshToken,
+            fileId,
+            [csvHeader, ...values],
+            tabName,
+        );
+    }
+
+    async appendCsvToSheet(
+        refreshToken: string,
+        fileId: string,
+
+        results: string[][],
+        tabName?: string,
+    ) {
+        if (!this.isEnabled) {
+            throw new MissingConfigError('Google Drive is not enabled');
+        }
+
+        if (results.length === 0) {
+            Logger.info('No data to write to the sheet');
+            return;
+        }
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // Clear first sheet before writting
+        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+
+        Logger.info(
+            `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,
         );
 
         await sheets.spreadsheets.values.update({
@@ -289,7 +338,7 @@ export class GoogleDriveClient {
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [csvHeader, ...values],
+                values: results,
             },
         });
     }

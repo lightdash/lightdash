@@ -9,7 +9,7 @@ import { IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { TrackPage } from '../../../providers/TrackingProvider';
+import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
 
 interface AddProjectGroupAccessModalProps {

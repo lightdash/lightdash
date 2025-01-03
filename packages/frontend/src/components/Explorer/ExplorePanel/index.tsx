@@ -11,18 +11,18 @@ import {
 import { ActionIcon, Group, Menu, Skeleton, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { memo, useMemo, useState, useTransition, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import {
     DeleteVirtualViewModal,
     EditVirtualViewModal,
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
-import { useApp } from '../../../providers/AppProvider';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import useApp from '../../../providers/App/useApp';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
-import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
+import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 
 const LoadingSkeleton = () => (
     <Stack>
@@ -164,40 +164,41 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         },
                     ]}
                 />
-                {canManageVirtualViews && explore.type === ExploreType.VIRTUAL && (
-                    <Menu withArrow offset={-2}>
-                        <Menu.Target>
-                            <ActionIcon variant="transparent">
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconPencil} />}
-                                onClick={() => {
-                                    startTransition(() => {
-                                        setIsEditVirtualViewOpen(true);
-                                    });
-                                }}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Edit virtual view
-                                </Text>
-                            </Menu.Item>
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={() => {
-                                    setIsDeleteVirtualViewOpen(true);
-                                }}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Delete
-                                </Text>
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                )}
+                {canManageVirtualViews &&
+                    explore.type === ExploreType.VIRTUAL && (
+                        <Menu withArrow offset={-2}>
+                            <Menu.Target>
+                                <ActionIcon variant="transparent">
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    icon={<MantineIcon icon={IconPencil} />}
+                                    onClick={() => {
+                                        startTransition(() => {
+                                            setIsEditVirtualViewOpen(true);
+                                        });
+                                    }}
+                                >
+                                    <Text fz="xs" fw={500}>
+                                        Edit virtual view
+                                    </Text>
+                                </Menu.Item>
+                                <Menu.Item
+                                    icon={<MantineIcon icon={IconTrash} />}
+                                    color="red"
+                                    onClick={() => {
+                                        setIsDeleteVirtualViewOpen(true);
+                                    }}
+                                >
+                                    <Text fz="xs" fw={500}>
+                                        Delete
+                                    </Text>
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
             </Group>
 
             <ItemDetailProvider>
@@ -221,7 +222,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     explore={explore}
                 />
             )}
-            {isDeleteVirtualViewOpen && (
+            {isDeleteVirtualViewOpen && projectUuid && (
                 <DeleteVirtualViewModal
                     opened={isDeleteVirtualViewOpen}
                     onClose={() => setIsDeleteVirtualViewOpen(false)}

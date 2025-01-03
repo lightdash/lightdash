@@ -5,6 +5,7 @@ import {
     isField,
     isFilterableField,
     isMetric,
+    isNumericItem,
     isTableCalculation,
     type TableCalculation,
 } from '@lightdash/common';
@@ -21,12 +22,13 @@ import {
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
 import { useFilters } from '../../../hooks/useFilters';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
+import FormatMenuOptions from './FormatMenuOptions';
 import QuickCalculationMenuOptions from './QuickCalculations';
 
 interface ContextMenuProps extends HeaderProps {
@@ -105,6 +107,13 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
                 {isMetric(item) && (
                     <>
+                        {!isItemAdditionalMetric && isNumericItem(item) && (
+                            <>
+                                <FormatMenuOptions item={item} />
+                                <Menu.Divider />
+                            </>
+                        )}
+
                         <QuickCalculationMenuOptions item={item} />
                         <Menu.Divider />
                     </>

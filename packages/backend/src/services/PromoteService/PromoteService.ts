@@ -131,7 +131,7 @@ export class PromoteService extends BaseService {
         });
     }
 
-    private async getPromoteCharts(
+    async getPromoteCharts(
         user: SessionUser,
         upstreamProjectUuid: string,
         chartUuid: string,
@@ -204,6 +204,7 @@ export class PromoteService extends BaseService {
                     subject('Space', {
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
+                        isPrivate: upstreamContent.space.isPrivate,
                         access: upstreamContent.access,
                     }),
                 )
@@ -330,7 +331,7 @@ export class PromoteService extends BaseService {
         PromoteService.checkPromoteSpacePermissions(user, upstreamChart);
     }
 
-    private static checkPromoteDashboardPermissions(
+    static checkPromoteDashboardPermissions(
         user: SessionUser,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
@@ -777,7 +778,7 @@ export class PromoteService extends BaseService {
         };
     }
 
-    private async updateDashboard(
+    async updateDashboard(
         user: SessionUser,
         promotionChanges: PromotionChanges,
     ): Promise<PromotionChanges> {

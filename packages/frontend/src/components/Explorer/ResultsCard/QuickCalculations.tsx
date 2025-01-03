@@ -11,11 +11,11 @@ import {
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
 import { useProject } from '../../../hooks/useProject';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 
 type Props = {
@@ -115,22 +115,22 @@ const getSqlForQuickCalculation = (
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
             return `(
-               CAST( \${${fieldReference}} AS ${floatType}) / 
+               CAST( \${${fieldReference}} AS ${floatType}) /
                CAST(NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
                 true,
-            )}) ,0)  AS ${floatType}) 
+            )}) ,0)  AS ${floatType})
             ) - 1`;
         case QuickCalculation.PERCENT_OF_PREVIOUS_VALUE:
             return `(
-              CAST(\${${fieldReference}} AS ${floatType}) / 
+              CAST(\${${fieldReference}} AS ${floatType}) /
               CAST(NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
                 true,
-            )}),0) AS ${floatType}) 
+            )}),0) AS ${floatType})
             )`;
         case QuickCalculation.PERCENT_OF_COLUMN_TOTAL:
             return `(
-              CAST(\${${fieldReference}} AS ${floatType}) / 
-              CAST(NULLIF(SUM(\${${fieldReference}}) OVER(),0) AS ${floatType}) 
+              CAST(\${${fieldReference}} AS ${floatType}) /
+              CAST(NULLIF(SUM(\${${fieldReference}}) OVER(),0) AS ${floatType})
             )`;
         case QuickCalculation.RANK_IN_COLUMN:
             return `RANK() OVER(ORDER BY \${${fieldReference}} ASC)`;
@@ -138,7 +138,7 @@ const getSqlForQuickCalculation = (
             return `SUM(\${${fieldReference}}) OVER(${orderSql(
                 false,
             )} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-            
+
           `;
         default:
             assertUnreachable(

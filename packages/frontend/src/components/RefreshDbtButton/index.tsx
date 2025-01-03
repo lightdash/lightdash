@@ -7,19 +7,32 @@ import {
     Popover,
     Text,
     Tooltip,
+    type ButtonProps,
 } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState, type FC } from 'react';
+import { useParams } from 'react-router';
 import { useProject } from '../../hooks/useProject';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
-import { useActiveJob } from '../../providers/ActiveJobProvider';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useActiveJob from '../../providers/ActiveJob/useActiveJob';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 
-const RefreshDbtButton = () => {
+const RefreshDbtButton: FC<{
+    onClick?: () => void;
+    buttonStyles?: ButtonProps['sx'];
+    leftIcon?: React.ReactNode;
+    defaultTextOverride?: React.ReactNode;
+    refreshingTextOverride?: React.ReactNode;
+}> = ({
+    onClick,
+    buttonStyles,
+    leftIcon,
+    defaultTextOverride,
+    refreshingTextOverride,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data } = useProject(projectUuid);
     const { activeJob } = useActiveJob();
@@ -122,9 +135,10 @@ const RefreshDbtButton = () => {
         );
     }
 
-    const onClick = () => {
+    const handleRefresh = () => {
         setIsLoading(true);
         refreshDbtServer();
+        onClick?.();
         track({
             name: EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED,
         });
@@ -154,11 +168,14 @@ const RefreshDbtButton = () => {
             <Button
                 size="xs"
                 variant="default"
-                leftIcon={<MantineIcon icon={IconRefresh} />}
+                leftIcon={leftIcon ?? <MantineIcon icon={IconRefresh} />}
                 loading={isLoading}
-                onClick={onClick}
+                onClick={handleRefresh}
+                sx={buttonStyles}
             >
-                {!isLoading ? 'Refresh dbt' : 'Refreshing dbt'}
+                {!isLoading
+                    ? defaultTextOverride ?? 'Refresh dbt'
+                    : refreshingTextOverride ?? 'Refreshing dbt'}
             </Button>
         </Tooltip>
     );

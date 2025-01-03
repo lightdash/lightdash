@@ -2,20 +2,19 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { useApp } from '../../../providers/AppProvider';
-import {
-    ExplorerSection,
-    useExplorerContext,
-} from '../../../providers/ExplorerProvider';
+import useApp from '../../../providers/App/useApp';
+import { ExplorerSection } from '../../../providers/Explorer/types';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
-import CollapsableCard, {
+import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard';
+} from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
@@ -34,6 +33,7 @@ const ResultsCard: FC = memo(() => {
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
+
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
@@ -54,29 +54,35 @@ const ResultsCard: FC = memo(() => {
     const disabled = !resultsData || resultsData.rows.length <= 0;
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
-        const csvResponse = await downloadCsv({
-            projectUuid,
-            tableId: tableName,
-            query: metricQuery,
-            csvLimit,
-            onlyRaw,
-            columnOrder,
-            showTableNames: true,
-        });
-        return csvResponse;
+        if (projectUuid) {
+            return downloadCsv({
+                projectUuid,
+                tableId: tableName,
+                query: metricQuery,
+                csvLimit,
+                onlyRaw,
+                columnOrder,
+                showTableNames: true,
+                pivotColumns: undefined, // results are always unpivoted
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
     };
 
     const getGsheetLink = async () => {
-        const gsheetResponse = await uploadGsheet({
-            projectUuid,
-            exploreId: tableName,
-            metricQuery,
-            columnOrder,
-            showTableNames: true,
-        });
-        return gsheetResponse;
+        if (projectUuid) {
+            return uploadGsheet({
+                projectUuid,
+                exploreId: tableName,
+                metricQuery,
+                columnOrder,
+                showTableNames: true,
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
     };
 
     const resultsIsOpen = useMemo(
@@ -102,6 +108,7 @@ const ResultsCard: FC = memo(() => {
                 </>
             }
             rightHeaderElement={
+                projectUuid &&
                 resultsIsOpen &&
                 tableName && (
                     <>

@@ -74,9 +74,20 @@ models:
         meta:
           dimension:
             type: string
-          metrics: 
+          metrics:
             unique_event_count:
               type: count_distinct
+              description: |
+                **Unique Event Count** provides a distinct count of tracked events in the system.
+
+                - Counts each unique event type only once
+                - Useful for analyzing event diversity
+                - *Note*: This differs from `event_count` which includes duplicates
+
+                ### Common Use Cases
+                * Measuring feature adoption
+                * Analyzing user engagement patterns
+                * Tracking product usage variety
             event_count:
               type: count
 

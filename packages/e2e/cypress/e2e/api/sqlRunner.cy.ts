@@ -12,11 +12,18 @@ const apiUrl = '/api/v1';
 
 // Object.entries({ postgres: warehouseConnections.postgresSQL }).forEach(  // For testing
 Object.entries(warehouseConnections).forEach(
+    // Object.entries({ databricks: warehouseConnections.databricks }).forEach(
+
     // Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
     // For testing
     ([warehouseName, warehouseConfig]) => {
         const getDatabaseDetails = () => {
             switch (warehouseConfig.type) {
+                case WarehouseTypes.DATABRICKS:
+                    return [
+                        warehouseConfig.catalog || '',
+                        warehouseConfig.database,
+                    ];
                 case WarehouseTypes.SNOWFLAKE:
                     return [warehouseConfig.database, warehouseConfig.schema];
                 case WarehouseTypes.BIGQUERY:
@@ -494,6 +501,7 @@ describe(`Saved SQL chart`, () => {
                 sql: 'SELECT * FROM postgres.jaffle.payments',
                 limit: 21,
                 config: {
+                    display: {},
                     metadata: {
                         version: 1,
                     },
@@ -523,6 +531,7 @@ describe(`Saved SQL chart`, () => {
                         sql: 'SELECT * FROM postgres.jaffle.payments',
                         limit: 22,
                         config: {
+                            display: {},
                             metadata: {
                                 version: 1,
                             },

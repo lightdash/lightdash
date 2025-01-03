@@ -1,40 +1,27 @@
-import { FeatureFlags, TimeZone } from '@lightdash/common';
+import { getTimezoneLabel, TimeZone } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
 import dayjs from 'dayjs';
-import React, { useMemo, type FC } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useMemo, type FC } from 'react';
 
 export interface TimeZonePickerProps extends Omit<SelectProps, 'data'> {}
 
-const TimeZonePicker: FC<TimeZonePickerProps> = ({ onChange, ...rest }) => {
-    // TODO: for now this is only on the explores page.
-    // These context interactions should go into a wrapper
-    // when we add this to the dashboard page.
-    const selectedTimeZone = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.timezone,
-    );
-    const setTimeZone = useExplorerContext(
-        (context) => context.actions.setTimeZone,
-    );
-
+const TimeZonePicker: FC<TimeZonePickerProps> = (props) => {
     const timeZoneOptions = useMemo(
         () =>
             Object.keys(TimeZone)
                 .filter((key) => isNaN(Number(key)))
                 .map((key) => {
-                    const labelText =
-                        dayjs.tz.guess() === key ? `${key} (Local)` : key;
+                    let labelText = getTimezoneLabel(key) || key;
+
+                    labelText =
+                        dayjs.tz.guess() === key
+                            ? `${labelText} - Local`
+                            : labelText;
+
                     return { label: labelText, value: key };
                 }),
         [],
     );
-
-    // FEATURE FLAG: this component doesn't appear when the feature flag is disabled
-    const userTimeZonesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.EnableUserTimezones,
-    );
-    if (!userTimeZonesEnabled) return null;
 
     return (
         <Select
@@ -42,10 +29,8 @@ const TimeZonePicker: FC<TimeZonePickerProps> = ({ onChange, ...rest }) => {
             maw={190}
             size="xs"
             placeholder="Select timezone"
-            value={selectedTimeZone}
             data={timeZoneOptions}
-            onChange={setTimeZone}
-            {...rest}
+            {...props}
         />
     );
 };

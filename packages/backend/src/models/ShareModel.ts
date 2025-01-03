@@ -1,4 +1,4 @@
-import { ShareUrl } from '@lightdash/common';
+import { NotFoundError, ShareUrl } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbOrganization } from '../database/entities/organizations';
 import { DbShareUrl, ShareTableName } from '../database/entities/share';
@@ -48,6 +48,9 @@ export class ShareModel {
             .where('nanoid', nanoid)
             .select<(DbShareUrl & DbUser & DbOrganization)[]>('*');
 
+        if (!row) {
+            throw new NotFoundError('Shared link does not exist');
+        }
         return {
             nanoid: row.nanoid,
             params: row.params,

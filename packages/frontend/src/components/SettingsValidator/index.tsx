@@ -2,6 +2,7 @@ import {
     Box,
     Button,
     Group,
+    Loader,
     Paper,
     Text,
     useMantineTheme,
@@ -12,7 +13,7 @@ import {
     useValidation,
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import { ValidatorTable } from './ValidatorTable';
@@ -26,7 +27,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const [isValidating, setIsValidating] = useState(false);
 
     const { user } = useApp();
-    const { data } = useValidation(projectUuid, user, true); // Note: Users that land on this page can always manage validations
+    const { data, isLoading } = useValidation(projectUuid, user, true); // Note: Users that land on this page can always manage validations
     const { mutate: validateProject } = useValidationMutation(
         projectUuid,
         () => setIsValidating(false),
@@ -79,7 +80,11 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 : 'auto',
                     }}
                 >
-                    {!!data?.length ? (
+                    {isLoading ? (
+                        <Group position="center" spacing="xs" p="md">
+                            <Loader color="gray" />
+                        </Group>
+                    ) : !!data?.length ? (
                         <ValidatorTable data={data} projectUuid={projectUuid} />
                     ) : (
                         <Group position="center" spacing="xs" p="md">

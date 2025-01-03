@@ -1,13 +1,17 @@
 import { subject } from '@casl/ability';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import { useSpaceSummaries } from '../useSpaces';
 
 const useCreateInAnySpaceAccess = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     subjectName: 'Dashboard' | 'SavedChart',
 ): boolean => {
     const { user } = useApp();
     const spaces = useSpaceSummaries(projectUuid, true);
+
+    if (!projectUuid) {
+        return false;
+    }
 
     // Check if user have permission to create assets in any space
     return (

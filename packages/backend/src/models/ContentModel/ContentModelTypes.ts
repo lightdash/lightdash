@@ -1,4 +1,9 @@
-import { ChartContent, ContentType, SummaryContent } from '@lightdash/common';
+import {
+    ChartContent,
+    ContentSortByColumns,
+    ContentType,
+    SummaryContent,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type ContentFilters = {
@@ -8,6 +13,12 @@ export type ContentFilters = {
     chart?: {
         sources?: ChartContent['source'][];
     };
+    search?: string;
+};
+
+export type ContentArgs = {
+    sortBy?: ContentSortByColumns;
+    sortDirection?: 'asc' | 'desc';
 };
 
 export type SummaryContentRow<

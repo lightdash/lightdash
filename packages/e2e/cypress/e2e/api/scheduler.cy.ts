@@ -19,6 +19,7 @@ const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
     format: SchedulerFormat.IMAGE,
     options: {},
+    timezone: 'UTC', // Explicitely set the timezone to be UTC since the project default might have been changed which will make the tests fail
 };
 
 const getUpdateSchedulerBody = (

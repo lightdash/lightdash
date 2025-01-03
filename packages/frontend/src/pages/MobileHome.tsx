@@ -1,25 +1,24 @@
-import { Stack, Title } from '@mantine/core';
-import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
-import ErrorState from '../components/common/ErrorState';
-import ForbiddenPanel from '../components/ForbiddenPanel';
-import PageSpinner from '../components/PageSpinner';
-
 import {
     ResourceItemCategory,
     ResourceViewItemType,
     wrapResource,
 } from '@lightdash/common';
+import { Stack, Title } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
+import { useParams } from 'react-router';
+import ErrorState from '../components/common/ErrorState';
 import ResourceView from '../components/common/ResourceView';
-import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
+import { ResourceSortDirection } from '../components/common/ResourceView/types';
+import ForbiddenPanel from '../components/ForbiddenPanel';
+import PageSpinner from '../components/PageSpinner';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useProjectSavedChartStatus } from '../hooks/useOnboardingStatus';
 import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const MobileHome: FC = () => {
     const params = useParams<{ projectUuid: string }>();
@@ -117,7 +116,7 @@ const MobileHome: FC = () => {
                         : undefined
                 }
                 listProps={{
-                    defaultSort: { updatedAt: SortDirection.DESC },
+                    defaultSort: { updatedAt: ResourceSortDirection.DESC },
                     defaultColumnVisibility: {
                         space: false,
                         updatedAt: false,

@@ -1,23 +1,33 @@
+import { ProjectType } from '@lightdash/common';
 import { Box, createStyles } from '@mantine/core';
+import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
-
-import { ProjectType } from '@lightdash/common';
-import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
-import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
-import { PAGE_HEADER_HEIGHT } from './PageHeader';
-import Sidebar, { SidebarPosition, type SidebarWidthProps } from './Sidebar';
+import AboutFooter from '../../AboutFooter';
+import {
+    BANNER_HEIGHT,
+    FOOTER_HEIGHT,
+    FOOTER_MARGIN,
+    NAVBAR_HEIGHT,
+    PAGE_CONTENT_MAX_WIDTH_LARGE,
+    PAGE_CONTENT_WIDTH,
+    PAGE_HEADER_HEIGHT,
+    PAGE_MIN_CONTENT_WIDTH,
+} from './constants';
+import Sidebar from './Sidebar';
+import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type StyleProps = {
     withCenteredContent?: boolean;
+    withCenteredRoot?: boolean;
     withFitContent?: boolean;
     withLargeContent?: boolean;
+    withXLargePaddedContent?: boolean;
     withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
@@ -33,11 +43,8 @@ type StyleProps = {
     noContentPadding?: boolean;
     noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
+    backgroundColor?: string;
 };
-
-export const PAGE_CONTENT_WIDTH = 900;
-const PAGE_CONTENT_WIDTH_LARGE = 1200;
-export const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
     let containerHeight = '100vh';
@@ -74,6 +81,19 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
             ...(params.isSidebarResizing
                 ? {
                       userSelect: 'none',
+                  }
+                : {}),
+
+            ...(params.withCenteredRoot
+                ? {
+                      display: 'flex',
+                      justifyContent: 'center',
+                  }
+                : {}),
+
+            ...(params.backgroundColor
+                ? {
+                      backgroundColor: params.backgroundColor,
                   }
                 : {}),
         },
@@ -136,7 +156,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
             ...(params.withLargeContent
                 ? {
-                      width: PAGE_CONTENT_WIDTH_LARGE,
+                      maxWidth: PAGE_CONTENT_MAX_WIDTH_LARGE,
                   }
                 : {}),
 
@@ -144,6 +164,12 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                 ? {
                       paddingLeft: theme.spacing.lg,
                       paddingRight: theme.spacing.lg,
+                  }
+                : {}),
+
+            ...(params.withXLargePaddedContent
+                ? {
+                      padding: theme.spacing.xxl,
                   }
                 : {}),
 
@@ -184,9 +210,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     rightSidebarWidthProps,
 
     withCenteredContent = false,
+    withCenteredRoot = false,
     withFitContent = false,
     withFixedContent = false,
     withLargeContent = false,
+    withXLargePaddedContent = false,
     withFooter = false,
     withFullHeight = false,
     withNavbar = true,
@@ -196,7 +224,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     noContentPadding = false,
     noSidebarPadding = false,
     flexContent = false,
-
+    backgroundColor,
     children,
 }) => {
     const { ref: mainRef, width: mainWidth } = useElementSize();
@@ -217,9 +245,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     const { classes } = usePageStyles(
         {
             withCenteredContent,
+            withCenteredRoot,
             withFitContent,
             withFixedContent,
             withLargeContent,
+            withXLargePaddedContent,
             withFooter,
             withFullHeight,
             withHeader: !!header,
@@ -233,6 +263,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             noContentPadding,
             flexContent,
             isSidebarResizing,
+            backgroundColor,
         },
         { name: 'Page' },
     );
@@ -247,7 +278,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             {header}
 
-            <Box className={classes.root}>
+            <Box id="page-root" className={classes.root}>
                 {sidebar ? (
                     <Sidebar
                         noSidebarPadding={noSidebarPadding}

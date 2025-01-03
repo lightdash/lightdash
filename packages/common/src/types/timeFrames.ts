@@ -44,3 +44,8 @@ export const dateGranularityToTimeFrameMap: Record<
     [DateGranularity.QUARTER]: TimeFrames.QUARTER,
     [DateGranularity.YEAR]: TimeFrames.YEAR,
 };
+
+export type DefaultTimeDimension = {
+    field: string;
+    interval: TimeFrames;
+};

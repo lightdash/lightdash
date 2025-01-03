@@ -110,3 +110,25 @@ export const convertProjectRoleToSpaceRole = (
             );
     }
 };
+
+export const convertProjectRoleToOrganizationRole = (
+    projectRole: ProjectMemberRole,
+): OrganizationMemberRole => {
+    switch (projectRole) {
+        case ProjectMemberRole.VIEWER:
+            return OrganizationMemberRole.VIEWER;
+        case ProjectMemberRole.INTERACTIVE_VIEWER:
+            return OrganizationMemberRole.INTERACTIVE_VIEWER;
+        case ProjectMemberRole.EDITOR:
+            return OrganizationMemberRole.EDITOR;
+        case ProjectMemberRole.DEVELOPER:
+            return OrganizationMemberRole.DEVELOPER;
+        case ProjectMemberRole.ADMIN:
+            return OrganizationMemberRole.ADMIN;
+        default:
+            return assertUnreachable(
+                projectRole,
+                `Project role ${projectRole} does not match Organization roles`,
+            );
+    }
+};

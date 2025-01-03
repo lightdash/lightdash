@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 
 const useSearchParams = <T = string>(param: string) => {
     const location = useLocation();

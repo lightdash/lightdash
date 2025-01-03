@@ -20,13 +20,10 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
-import { type z } from 'zod';
+import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    SaveDestination,
-    SaveToSpace,
-    validationSchema,
-} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -34,10 +31,17 @@ import {
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { updateName } from '../store/sqlRunnerSlice';
+import { EditorTabs, updateName } from '../store/sqlRunnerSlice';
 import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
-type FormValues = z.infer<typeof validationSchema>;
+const saveChartFormSchema = z
+    .object({
+        name: z.string().min(1),
+        description: z.string().nullable(),
+    })
+    .merge(saveToSpaceSchema);
+
+type FormValues = z.infer<typeof saveChartFormSchema>;
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -54,55 +58,65 @@ const SaveChartForm: FC<
 
     const name = useAppSelector((state) => state.sqlRunner.name);
     const description = useAppSelector((state) => state.sqlRunner.description);
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
+
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
-    const defaultChartConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, ChartKind.TABLE),
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+
+    const activeEditorTab = useAppSelector(
+        (state) => state.sqlRunner.activeEditorTab,
     );
 
     const currentVizConfig = useAppSelector((state) =>
-        selectCompleteConfigByKind(state, selectedChartType),
+        selectCompleteConfigByKind(
+            state,
+            activeEditorTab === EditorTabs.SQL
+                ? ChartKind.TABLE
+                : selectedChartType,
+        ),
     );
 
     // TODO: this sometimes runs `/api/v1/projects//spaces` request
     // because initial `projectUuid` is set to '' (empty string)
     // we should handle this by creating an impossible state
     // check first few lines inside `features/semanticViewer/store/selectors.ts`
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
+    const {
+        data: spaces = [],
+        isLoading: isLoadingSpace,
+        isSuccess: isSuccessSpace,
+    } = useSpaceSummaries(projectUuid, true);
 
-    const [isFormPopulated, setIsFormPopulated] = useState(false);
-
-    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+    const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
+        useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
-            description: '',
-            spaceUuid: '',
-            newSpaceName: '',
-            saveDestination: SaveDestination.Space,
+            description: null,
+
+            spaceUuid: null,
+            newSpaceName: null,
         },
-        validate: zodResolver(validationSchema),
+        validate: zodResolver(saveChartFormSchema),
     });
 
     useEffect(() => {
-        if (!isFormPopulated) {
-            if (name) {
-                form.setFieldValue('name', name);
-            }
-            if (description) {
-                form.setFieldValue('description', description);
-            }
-            if (spaces.length > 0) {
-                form.setFieldValue('spaceUuid', spaces[0].uuid);
-            }
-            setIsFormPopulated(true);
+        if (isSuccessSpace && spaces) {
+            const values = {
+                name,
+                description,
+                spaceUuid: spaces[0]?.uuid,
+                newSpaceName: null,
+            };
+            form.setValues(values);
+            form.resetDirty(values);
         }
-    }, [name, form, description, spaces, isFormPopulated]);
+        // form can't be a dependency because it will cause infinite loop
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [name, description, spaces, isSuccessSpace]);
 
     const {
         mutateAsync: createSavedSqlChart,
@@ -122,16 +136,14 @@ const SaveChartForm: FC<
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
-        const currentConfig = currentVizConfig ?? defaultChartConfig;
-
-        if (currentConfig && sql) {
+        if (currentVizConfig && sql) {
             try {
                 await createSavedSqlChart({
                     name: form.values.name,
                     description: form.values.description || '',
                     sql,
                     limit,
-                    config: currentConfig,
+                    config: currentVizConfig,
                     spaceUuid: spaceUuid,
                 });
 
@@ -149,7 +161,6 @@ const SaveChartForm: FC<
         form.values.description,
         createSpace,
         currentVizConfig,
-        defaultChartConfig,
         sql,
         createSavedSqlChart,
         limit,
@@ -170,12 +181,18 @@ const SaveChartForm: FC<
                     <Textarea
                         label="Description"
                         {...form.getInputProps('description')}
+                        value={form.values.description ?? ''}
                     />
                 </Stack>
-                <SaveToSpace
+                <SaveToSpaceForm
                     form={form}
                     spaces={spaces}
                     projectUuid={projectUuid}
+                    isLoading={
+                        isLoadingSpace ||
+                        isCreatingSpace ||
+                        isCreatingSavedSqlChart
+                    }
                 />
             </Stack>
 

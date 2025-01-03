@@ -46,6 +46,9 @@ type Subject =
     | 'CompileProject'
     | 'SemanticViewer'
     | 'VirtualView'
+    | 'Tags'
+    | 'PersonalAccessToken'
+    | 'MetricsTree'
     | 'all';
 
 type PossibleAbilities = [

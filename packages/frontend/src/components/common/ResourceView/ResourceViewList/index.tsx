@@ -11,8 +11,7 @@ import {
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
-import { type ResourceViewCommonProps } from '..';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
@@ -23,27 +22,26 @@ import {
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
 } from '../resourceUtils';
-import { type ResourceViewItemActionState } from './../ResourceActionHandlers';
+import {
+    ResourceSortDirection,
+    type ResourceViewCommonProps,
+    type ResourceViewItemActionState,
+} from '../types';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceLastEdited from './../ResourceLastEdited';
-
-export enum SortDirection {
-    ASC = 'asc',
-    DESC = 'desc',
-}
 
 type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions';
 
 type ColumnVisibilityMap = Map<ColumnName, boolean>;
 
-type SortingState = null | SortDirection;
+type SortingState = null | ResourceSortDirection;
 
 type SortingStateMap = Map<ColumnName, SortingState>;
 
 export interface ResourceViewListCommonProps {
     enableSorting?: boolean;
     enableMultiSort?: boolean;
-    defaultSort?: Partial<Record<ColumnName, SortDirection>>;
+    defaultSort?: Partial<Record<ColumnName, ResourceSortDirection>>;
     defaultColumnVisibility?: Partial<Record<ColumnName, boolean>>;
 }
 
@@ -52,7 +50,7 @@ type ResourceViewListProps = ResourceViewListCommonProps &
         onAction: (newAction: ResourceViewItemActionState) => void;
     };
 
-const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
+const sortOrder = [ResourceSortDirection.DESC, ResourceSortDirection.ASC, null];
 
 interface Column {
     id: ColumnName;
@@ -80,7 +78,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 }) => {
     const { classes } = useTableStyles();
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const canUserManageValidation = useValidationUserAbility(projectUuid);
@@ -98,7 +96,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
     const handleSort = (
         columnId: ColumnName,
-        direction: null | SortDirection,
+        direction: null | ResourceSortDirection,
     ) => {
         setColumnSorts(
             enableMultiSort
@@ -115,6 +113,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'name',
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
+                    if (!projectUuid) {
+                        return null;
+                    }
+
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
@@ -202,7 +204,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     item,
                                                 )) &&
                                             canBelongToSpace &&
-                                            hoveredItem === item.data.uuid && (
+                                            hoveredItem === item.data.uuid &&
+                                            projectUuid && (
                                                 <Box>
                                                     <ResourceInfoPopup
                                                         resourceUuid={
@@ -394,9 +397,9 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     const sortResult = column.sortingFn(a, b) ?? 0;
 
                     switch (sortDirection) {
-                        case SortDirection.ASC:
+                        case ResourceSortDirection.ASC:
                             return acc + sortResult;
-                        case SortDirection.DESC:
+                        case ResourceSortDirection.DESC:
                             return acc - sortResult;
                         default:
                             return acc;
@@ -463,7 +466,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     <tr
                         key={item.data.uuid}
                         onClick={() =>
-                            history.push(getResourceUrl(projectUuid, item))
+                            projectUuid &&
+                            navigate(getResourceUrl(projectUuid, item))
                         }
                         onMouseEnter={() => setHoveredItem(item.data.uuid)}
                         onMouseLeave={() => setHoveredItem(undefined)}

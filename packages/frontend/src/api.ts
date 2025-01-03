@@ -1,5 +1,6 @@
 import {
     LightdashRequestMethodHeader,
+    LightdashVersionHeader,
     RequestMethod,
     type ApiError,
     type ApiResponse,
@@ -15,10 +16,20 @@ export const BASE_API_URL =
 const defaultHeaders = {
     'Content-Type': 'application/json',
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
+    [LightdashVersionHeader]: __APP_VERSION__,
 };
 
 const handleError = (err: any): ApiError => {
-    if (err.error?.statusCode && err.error?.name) return err;
+    if (err.error?.statusCode && err.error?.name) {
+        if (
+            err.error?.name === 'DeactivatedAccountError' &&
+            window.location.pathname !== '/login'
+        ) {
+            // redirect to login page when account is deactivated
+            window.location.href = '/login';
+        }
+        return err;
+    }
     return {
         status: 'error',
         error: {

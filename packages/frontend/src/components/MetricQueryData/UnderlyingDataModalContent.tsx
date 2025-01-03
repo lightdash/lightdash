@@ -20,21 +20,21 @@ import { Box, Button, Group, Modal, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import MantineIcon from '../common/MantineIcon';
 import { type TableColumn } from '../common/Table/types';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
+import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 interface Props {}
 
@@ -311,16 +311,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
 
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        const csvResponse = await downloadCsv({
-            projectUuid,
-            tableId: tableName,
-            query: underlyingDataMetricQuery,
-            csvLimit: limit,
-            onlyRaw,
-            showTableNames: true,
-            columnOrder: [],
-        });
-        return csvResponse;
+        if (projectUuid) {
+            return downloadCsv({
+                projectUuid,
+                tableId: tableName,
+                query: underlyingDataMetricQuery,
+                csvLimit: limit,
+                onlyRaw,
+                showTableNames: true,
+                columnOrder: [],
+                pivotColumns: undefined, // underlying data is always unpivoted
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
     };
 
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
@@ -357,18 +361,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                 >
                                     Export CSV
                                 </Button>
-                                <ExportCSVModal
-                                    getCsvLink={getCsvLink}
-                                    onClose={() =>
-                                        setIsCSVExportModalOpen(false)
-                                    }
-                                    onConfirm={() =>
-                                        setIsCSVExportModalOpen(false)
-                                    }
-                                    opened={isCSVExportModalOpen}
-                                    projectUuid={projectUuid}
-                                    rows={resultsData?.rows}
-                                />
+                                {!!projectUuid && (
+                                    <ExportCSVModal
+                                        getCsvLink={getCsvLink}
+                                        onClose={() =>
+                                            setIsCSVExportModalOpen(false)
+                                        }
+                                        onConfirm={() =>
+                                            setIsCSVExportModalOpen(false)
+                                        }
+                                        opened={isCSVExportModalOpen}
+                                        projectUuid={projectUuid}
+                                        rows={resultsData?.rows}
+                                    />
+                                )}
                             </Can>
                             <Can
                                 I="manage"

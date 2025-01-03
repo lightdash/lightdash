@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 
-type DbGroupMembership = {
+export type DbGroupMembership = {
     group_uuid: string;
     user_id: number;
     organization_id: number;

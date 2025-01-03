@@ -12,8 +12,8 @@ import MantineIcon from '../../common/MantineIcon';
 import {
     isTableVisualizationConfig,
     type VisualizationConfigTable,
-} from '../../LightdashVisualization/VisualizationConfigTable';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+} from '../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 type ColumnConfigurationInputProps = Pick<
     ColumnConfigurationProps,
@@ -92,7 +92,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                 withinPortal
                 label={
                     isPivotingDimension
-                        ? "Can't hide pivot dimensions"
+                        ? 'Cannot hide dimensions when pivoting'
                         : disableHidingDimensions
                         ? 'Cannot hide dimensions when pivoting'
                         : isColumnVisible(fieldId)

@@ -51,7 +51,7 @@ models:
           dimension:
             type: number
             required_attributes:
-              is_admin: 'true'
+              is_admin: "true"
           metrics:
             average_age:
               type: average
@@ -111,6 +111,9 @@ models:
           type: number
           sql: ${total_completed_order_amount}/${total_order_amount}
           format: percent
+      default_time_dimension:
+        field: order_date
+        interval: MONTH
     columns:
       - name: order_id
         tests:
@@ -159,14 +162,14 @@ models:
         meta:
           dimension:
             type: date
-            time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR']
+            time_intervals: ["DAY", "WEEK", "MONTH", "YEAR"]
           metrics:
             date_of_first_order:
               type: min
             date_of_most_recent_order:
               type: max
       - name: status
-        description: "{{ doc(\"orders_status\") }}"
+        description: '{{ doc("orders_status") }}'
         meta:
           dimension:
             colors:
@@ -199,6 +202,9 @@ models:
               type: sum
               format: usd
               round: 2
+              default_time_dimension:
+                field: order_date
+                interval: DAY
             total_completed_order_amount:
               type: sum
               format: usd

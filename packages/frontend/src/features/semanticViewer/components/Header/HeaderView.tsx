@@ -15,13 +15,13 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
-import { useApp } from '../../../../providers/AppProvider';
+import useApp from '../../../../providers/App/useApp';
 import DeleteSemanticViewerChartModal from '../Modals/DeleteSemanticViewerChartModal';
 
 type Props = {
@@ -33,7 +33,7 @@ export const HeaderView: FC<Props> = ({
     projectUuid,
     savedSemanticViewerChart: chart,
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { user } = useApp();
 
     const [
@@ -108,7 +108,7 @@ export const HeaderView: FC<Props> = ({
                                 size="xs"
                                 variant="default"
                                 onClick={() =>
-                                    history.push(
+                                    navigate(
                                         `/projects/${projectUuid}/semantic-viewer/${chart.slug}/edit`,
                                     )
                                 }
@@ -169,7 +169,7 @@ export const HeaderView: FC<Props> = ({
                 name={chart.name}
                 opened={isDeleteModalOpen}
                 onClose={closeDeleteModal}
-                onSuccess={() => history.push(`/projects/${projectUuid}/home`)}
+                onSuccess={() => navigate(`/projects/${projectUuid}/home`)}
             />
 
             <AddTilesToDashboardModal

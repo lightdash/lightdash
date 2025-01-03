@@ -11,19 +11,19 @@ import {
 } from '@mantine/core';
 import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
-import { useApp } from '../../../../providers/AppProvider';
+import useApp from '../../../../providers/App/useApp';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 
 export const HeaderView: FC = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { user } = useApp();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -112,7 +112,7 @@ export const HeaderView: FC = () => {
                                 size="xs"
                                 variant="default"
                                 onClick={() =>
-                                    history.push(
+                                    navigate(
                                         `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
                                     )
                                 }
@@ -121,51 +121,55 @@ export const HeaderView: FC = () => {
                             </Button>
                         )}
 
-                        <Menu
-                            position="bottom"
-                            withArrow
-                            withinPortal
-                            shadow="md"
-                            width={200}
-                        >
-                            <Menu.Target>
-                                <ActionIcon variant="default">
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Label>Manage</Menu.Label>
-                                <Menu.Item
-                                    icon={
-                                        <MantineIcon icon={IconLayoutGridAdd} />
-                                    }
-                                    onClick={() =>
-                                        dispatch(toggleModal('addToDashboard'))
-                                    }
-                                >
-                                    Add to dashboard
-                                </Menu.Item>
-                                <Menu.Item
-                                    icon={
-                                        <MantineIcon
-                                            icon={IconTrash}
-                                            color="red"
-                                        />
-                                    }
-                                    color="red"
-                                    disabled={
-                                        !(canManageSqlRunner && canManageChart)
-                                    }
-                                    onClick={() =>
-                                        dispatch(
-                                            toggleModal('deleteChartModal'),
-                                        )
-                                    }
-                                >
-                                    Delete
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
+                        {canManageChart && (
+                            <Menu
+                                position="bottom"
+                                withArrow
+                                withinPortal
+                                shadow="md"
+                                width={200}
+                            >
+                                <Menu.Target>
+                                    <ActionIcon variant="default">
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Label>Manage</Menu.Label>
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconLayoutGridAdd}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            dispatch(
+                                                toggleModal('addToDashboard'),
+                                            )
+                                        }
+                                    >
+                                        Add to dashboard
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconTrash}
+                                                color="red"
+                                            />
+                                        }
+                                        color="red"
+                                        disabled={!canManageSqlRunner}
+                                        onClick={() =>
+                                            dispatch(
+                                                toggleModal('deleteChartModal'),
+                                            )
+                                        }
+                                    >
+                                        Delete
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
                     </Group>
                 </Group>
             </Paper>
@@ -176,7 +180,7 @@ export const HeaderView: FC = () => {
                 name={savedSqlChart.name}
                 opened={isDeleteModalOpen}
                 onClose={onCloseDeleteModal}
-                onSuccess={() => history.push(`/projects/${projectUuid}/home`)}
+                onSuccess={() => navigate(`/projects/${projectUuid}/home`)}
             />
             {isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal

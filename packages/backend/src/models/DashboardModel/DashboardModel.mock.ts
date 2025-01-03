@@ -171,6 +171,7 @@ export const dashboardVersionEntry: DashboardVersionTable['base'] = {
     dashboard_id: 0,
     created_at: new Date(),
     updated_by_user_uuid: 'userUuid',
+    config: undefined,
 };
 
 export const dashboardViewEntry: DashboardViewTable['base'] = {
@@ -203,6 +204,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     order: 0,
     views_count: 1,
     first_viewed_at: new Date(1),
+    config: undefined,
 };
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {
@@ -354,4 +356,6 @@ export const user: SessionUser = {
     ]),
     isActive: true,
     abilityRules: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
 };

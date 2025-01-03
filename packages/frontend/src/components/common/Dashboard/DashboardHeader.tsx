@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -45,8 +45,8 @@ import {
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useProject } from '../../../hooks/useProject';
-import { useApp } from '../../../providers/AppProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import { Can } from '../Authorization';
@@ -60,7 +60,8 @@ import {
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
-import SpaceActionModal, { ActionType } from '../SpaceActionModal';
+import SpaceActionModal from '../SpaceActionModal';
+import { ActionType } from '../SpaceActionModal/types';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import ShareLinkButton from './ShareLinkButton';
 
@@ -87,6 +88,7 @@ type DashboardHeaderProps = {
     onToggleFullscreen: () => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onTogglePin: () => void;
+    onEditClicked: () => void;
 };
 
 const DashboardHeader = ({
@@ -112,6 +114,7 @@ const DashboardHeader = ({
     onToggleFullscreen,
     setAddingTab,
     onTogglePin,
+    onEditClicked,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -120,7 +123,6 @@ const DashboardHeader = ({
         organizationUuid: string;
     }>();
 
-    const history = useHistory();
     const { data: project } = useProject(projectUuid);
 
     const { track } = useTracking();
@@ -270,7 +272,7 @@ const DashboardHeader = ({
                         </ActionIcon>
                     )}
 
-                    {isUpdating && (
+                    {isUpdating && dashboardUuid && (
                         <DashboardUpdateModal
                             uuid={dashboardUuid}
                             opened={isUpdating}
@@ -374,11 +376,7 @@ const DashboardHeader = ({
                         >
                             <ActionIcon
                                 variant="default"
-                                onClick={() => {
-                                    history.replace(
-                                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                                    );
-                                }}
+                                onClick={onEditClicked}
                             >
                                 <MantineIcon icon={IconPencil} />
                             </ActionIcon>
@@ -585,7 +583,7 @@ const DashboardHeader = ({
                                         </Menu.Item>
                                     )}
 
-                                {userCanPromoteDashboard && (
+                                {userCanPromoteDashboard && dashboardUuid && (
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={
@@ -655,7 +653,7 @@ const DashboardHeader = ({
                         </Menu>
                     )}
 
-                    {isCreatingNewSpace && (
+                    {isCreatingNewSpace && projectUuid && (
                         <SpaceActionModal
                             projectUuid={projectUuid}
                             actionType={ActionType.CREATE}
@@ -678,19 +676,20 @@ const DashboardHeader = ({
                             }
                         />
                     )}
-                    {(promoteDashboardDiff || promoteDashboardDiffLoading) && (
-                        <PromotionConfirmDialog
-                            type="dashboard"
-                            resourceName={dashboard.name}
-                            promotionChanges={promoteDashboardDiff}
-                            onClose={() => {
-                                resetPromoteDashboardDiff();
-                            }}
-                            onConfirm={() => {
-                                promoteDashboard(dashboardUuid);
-                            }}
-                        ></PromotionConfirmDialog>
-                    )}
+                    {(promoteDashboardDiff || promoteDashboardDiffLoading) &&
+                        dashboardUuid && (
+                            <PromotionConfirmDialog
+                                type="dashboard"
+                                resourceName={dashboard.name}
+                                promotionChanges={promoteDashboardDiff}
+                                onClose={() => {
+                                    resetPromoteDashboardDiff();
+                                }}
+                                onConfirm={() => {
+                                    promoteDashboard(dashboardUuid);
+                                }}
+                            ></PromotionConfirmDialog>
+                        )}
                 </PageActionsContainer>
             )}
         </PageHeader>

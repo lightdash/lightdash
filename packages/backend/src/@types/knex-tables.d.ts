@@ -122,7 +122,14 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
-import { CatalogTable, CatalogTableName } from '../database/entities/catalog';
+import {
+    CatalogTable,
+    CatalogTableName,
+    CatalogTagsTable,
+    CatalogTagsTableName,
+    MetricsTreeEdgesTableName,
+    type MetricsTreeEdgesTable,
+} from '../database/entities/catalog';
 import {
     DashboardTileCommentsTable,
     DashboardTileCommentsTableName,
@@ -184,6 +191,7 @@ import {
     SshKeyPairTable,
     SshKeyPairTableName,
 } from '../database/entities/sshKeyPairs';
+import { TagsTable, TagsTableName } from '../database/entities/tags';
 import {
     DbGroupUserAttribute,
     DbOrganizationMemberUserAttribute,
@@ -282,5 +290,8 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [CatalogTableName]: CatalogTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
+        [TagsTableName]: TagsTable;
+        [CatalogTagsTableName]: CatalogTagsTable;
+        [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
     }
 }

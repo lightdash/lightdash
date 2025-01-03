@@ -1,3 +1,5 @@
+import type { KnexPaginatedData } from './knex-paginate';
+
 export type Group = {
     /**
      * The group's UUID
@@ -11,6 +13,18 @@ export type Group = {
      * The time that the group was created
      */
     createdAt: Date;
+    /**
+     * The UUID of the user that created the group
+     */
+    createdByUserUuid: string | null;
+    /**
+     * The time that the group was last updated
+     */
+    updatedAt: Date;
+    /**
+     * The UUID of the user that last updated the group
+     */
+    updatedByUserUuid: string | null;
     /**
      * The UUID of the organization that the group belongs to
      */
@@ -62,6 +76,14 @@ export type GroupWithMembers = Group & {
     memberUuids: string[];
 };
 
+export function isGroupWithMembers(
+    g: Group | GroupWithMembers,
+): g is GroupWithMembers {
+    return Boolean(
+        'members' in g && g.members && 'memberUuids' in g && g.memberUuids,
+    );
+}
+
 export type UpdateGroupWithMembers = {
     name?: string;
     members?: Pick<GroupMember, 'userUuid'>[];
@@ -77,7 +99,12 @@ export type ApiGroupResponse = {
     results: Group | GroupWithMembers;
 };
 
+export type ApiCreateGroupResponse = {
+    status: 'ok';
+    results: GroupWithMembers;
+};
+
 export type ApiGroupListResponse = {
     status: 'ok';
-    results: Group[] | GroupWithMembers[];
+    results: KnexPaginatedData<Group[] | GroupWithMembers[]>;
 };

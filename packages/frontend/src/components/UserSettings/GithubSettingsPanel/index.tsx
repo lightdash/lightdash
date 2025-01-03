@@ -10,12 +10,19 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconClock,
+    IconRefresh,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useSearchParams from '../../../hooks/useSearchParams';
 import githubIcon from '../../../svgs/github-icon.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -27,7 +34,7 @@ const getGithubRepositories = async () =>
         body: undefined,
     });
 
-export const useGitHubRepositories = () => {
+const useGitHubRepositories = () => {
     const { showToastApiError } = useToaster();
 
     return useQuery<GitRepo[], ApiError>({
@@ -35,7 +42,7 @@ export const useGitHubRepositories = () => {
         queryFn: () => getGithubRepositories(),
         retry: false,
         onError: ({ error }) => {
-            if (error.statusCode === 404) return; // Ignore missing installation errors
+            if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 
             showToastApiError({
                 title: 'Failed to get GitHub integration',
@@ -82,7 +89,34 @@ const GithubSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGitHubRepositories();
     const deleteGithubInstallationMutation =
         useDeleteGithubInstallationMutation();
+
+    const status = useSearchParams('status');
+    const { showToastWarning } = useToaster();
+    const isWaitingForGithubRequest = status === 'github_request_sent';
+
     const isValidGithubInstallation = data !== undefined && !isError;
+
+    useEffect(() => {
+        if (
+            isWaitingForGithubRequest &&
+            !isValidGithubInstallation &&
+            !isInitialLoading
+        ) {
+            const toastKey = 'github_request_sent';
+            showToastWarning({
+                title: 'GitHub app installation pending',
+                subtitle:
+                    'The GitHub app is waiting to be authorized by a Github admin.',
+                key: toastKey,
+            });
+        }
+    }, [
+        isWaitingForGithubRequest,
+        isValidGithubInstallation,
+        isInitialLoading,
+        showToastWarning,
+    ]);
+
     if (isInitialLoading) {
         return <Loader />;
     }
@@ -165,15 +199,37 @@ const GithubSettingsPanel: FC = () => {
                     </Stack>
                 ) : (
                     <Flex justify="end">
-                        <Button
-                            size="xs"
-                            component="a"
-                            target="_blank"
-                            color="blue"
-                            href={GITHUB_INSTALL_URL}
-                        >
-                            Install
-                        </Button>
+                        {isWaitingForGithubRequest ? (
+                            <Tooltip
+                                multiline
+                                maw={400}
+                                label={`
+                                An admin from your GitHub organization needs to approve this app
+                                installation. They should have received an email for a "Request to install lightdash" from GitHub.`}
+                            >
+                                <Button
+                                    size="xs"
+                                    component="a"
+                                    target="_blank"
+                                    color="yellow"
+                                    variant="outline"
+                                    href={GITHUB_INSTALL_URL}
+                                    leftIcon={<MantineIcon icon={IconClock} />}
+                                >
+                                    Pending approval
+                                </Button>
+                            </Tooltip>
+                        ) : (
+                            <Button
+                                size="xs"
+                                component="a"
+                                target="_blank"
+                                color="blue"
+                                href={GITHUB_INSTALL_URL}
+                            >
+                                Install
+                            </Button>
+                        )}
                     </Flex>
                 )}
             </Stack>

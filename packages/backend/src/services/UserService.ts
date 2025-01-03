@@ -8,6 +8,7 @@ import {
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
+    DeactivatedAccountError,
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
@@ -281,6 +282,9 @@ export class UserService extends BaseService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
+                context: 'accept_invite',
+                createdUserId: user.userUuid,
+                organizationId: user.organizationUuid,
                 userConnectionType: 'password',
             },
         });
@@ -291,19 +295,19 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        const [orgForUser] = await this.userModel.getOrganizationsForUser(
+        const userToDelete = await this.userModel.getUserDetailsByUuid(
             userUuidToDelete,
         );
         // The user might not have an org yet
         // This is expected on the "Cancel registration" flow on single org instances.
-        if (orgForUser?.organizationUuid) {
+        if (userToDelete?.organizationUuid) {
             // We assume only one org per user
 
             if (
                 user.ability.cannot(
                     'delete',
                     subject('OrganizationMemberProfile', {
-                        organizationUuid: orgForUser.organizationUuid,
+                        organizationUuid: userToDelete.organizationUuid,
                     }),
                 )
             ) {
@@ -313,7 +317,7 @@ export class UserService extends BaseService {
             // Race condition between check and delete
             const [admin, ...remainingAdmins] =
                 await this.organizationMemberProfileModel.getOrganizationAdmins(
-                    orgForUser.organizationUuid,
+                    userToDelete.organizationUuid,
                 );
             if (
                 remainingAdmins.length === 0 &&
@@ -332,7 +336,15 @@ export class UserService extends BaseService {
             event: 'user.deleted',
             userId: user.userUuid,
             properties: {
-                deletedUserUuid: userUuidToDelete,
+                context:
+                    user.userUuid !== userUuidToDelete
+                        ? 'delete_org_member'
+                        : 'delete_self',
+                firstName: userToDelete.firstName,
+                lastName: userToDelete.lastName,
+                email: userToDelete.email,
+                organizationId: userToDelete.organizationUuid,
+                deletedUserId: userUuidToDelete,
             },
         });
     }
@@ -366,7 +378,7 @@ export class UserService extends BaseService {
                 throw new ParameterError(
                     'Email is already used by a user in another organization',
                 );
-            } else if (existingUserWithEmail.isActive) {
+            } else if (!existingUserWithEmail.isPending) {
                 throw new ParameterError(
                     'Email is already used by a user in your organization',
                 );
@@ -461,6 +473,9 @@ export class UserService extends BaseService {
         });
     }
 
+    /**
+     * @deprecated Group Sync is deprecated. https://github.com/lightdash/lightdash/issues/12430
+     */
     private async tryAddUserToGroups(
         ...data: ArgumentsOf<GroupsModel['addUserToGroupsIfExist']>
     ) {
@@ -481,9 +496,39 @@ export class UserService extends BaseService {
                             groupId: updatedGroup.uuid,
                             name: updatedGroup.name,
                             countUsersInGroup: updatedGroup.memberUuids.length,
+                            context: 'add_member_via_sso',
                         },
                     });
                 }),
+            );
+        }
+    }
+
+    /**
+     * In this method we check if the user is allowed to register in this instance before registerUser happens.
+     * If the instance is a single org, and there are already users and orgs,
+     * and the user's email domain is allowed in the org whitelisted,
+     * we throw a ForbiddenError.
+     * @param inviteCode invite code
+     * @param email email for the user registering
+     */
+    async checkNewUserRegistrationAllowed(
+        inviteCode: string | undefined,
+        email: string,
+    ) {
+        if (
+            inviteCode === undefined &&
+            !this.lightdashConfig.allowMultiOrgs &&
+            (await this.userModel.hasUsers()) &&
+            (await this.organizationModel.hasOrgs()) &&
+            (
+                await this.organizationModel.getAllowedOrgsForDomain(
+                    getEmailDomain(email),
+                )
+            ).length < 1
+        ) {
+            throw new ForbiddenError(
+                `You can't register a new user with email ${email} on this instance. Please contact your organization administrator and ask for an invite`,
             );
         }
     }
@@ -494,9 +539,22 @@ export class UserService extends BaseService {
         inviteCode: string | undefined,
         refreshToken?: string,
     ): Promise<SessionUser> {
+        this.logger.info(
+            `Starting loginWithOpenId - Email: ${
+                openIdUser.openId.email
+            }, Issuer: ${
+                openIdUser.openId.issuerType
+            }, Has invite code: ${!!inviteCode}, Is authenticated: ${!!authenticatedUser}`,
+        );
+
         const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
+        );
+        this.logger.info(
+            `Existing OpenID session found: ${!!openIdSession}, Is active: ${
+                openIdSession?.isActive
+            }`,
         );
 
         if (
@@ -505,6 +563,9 @@ export class UserService extends BaseService {
                 openIdUser.openId.issuerType,
             )) === false
         ) {
+            this.logger.info(
+                `Login method ${openIdUser.openId.issuerType} not allowed for email ${openIdUser.openId.email}`,
+            );
             throw new ForbiddenError(
                 `User with email ${openIdUser.openId.email} is not allowed to login with ${openIdUser.openId.issuerType}`,
             );
@@ -516,6 +577,13 @@ export class UserService extends BaseService {
         );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
+            if (!openIdSession.isActive) {
+                this.logger.info(
+                    `User ${openIdSession.userUuid} account is deactivated`,
+                );
+                throw new DeactivatedAccountError();
+            }
+
             const organization = this.loginToOrganization(
                 openIdSession?.userUuid,
                 openIdUser.openId.issuerType,
@@ -528,6 +596,9 @@ export class UserService extends BaseService {
             if (inviteCode) {
                 const inviteLink = await this.inviteLinkModel.getByCode(
                     inviteCode,
+                );
+                this.logger.info(
+                    `Checking invite code - Invite email: ${inviteLink.email}, User email: ${loginUser.email}`,
                 );
                 if (
                     loginUser.email &&
@@ -563,12 +634,18 @@ export class UserService extends BaseService {
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 loginUser.organizationUuid
-            )
+            ) {
+                this.logger.info(
+                    `Syncing groups for user ${
+                        loginUser.userUuid
+                    } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                );
                 await this.tryAddUserToGroups({
                     userUuid: loginUser.userUuid,
                     groups: openIdUser.openId.groups,
                     organizationUuid: loginUser.organizationUuid,
                 });
+            }
 
             return loginUser;
         }
@@ -579,29 +656,42 @@ export class UserService extends BaseService {
                 await this.openIdIdentityModel.findIdentitiesByEmail(
                     openIdUser.openId.email,
                 );
+            this.logger.info(
+                `OIDC linking enabled - Found ${identities.length} existing identities for email ${openIdUser.openId.email}`,
+            );
             const identitiesUsers = uniq(
                 identities.map((identity) => identity.userUuid),
             );
             if (identitiesUsers.length > 1) {
-                Logger.warn(
+                this.logger.warn(
                     `Multiple openid identities found with the same email ${openIdUser.openId.email}`,
                 );
             } else if (identitiesUsers.length === 1) {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
+                this.logger.info(
+                    `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
+                );
+
                 if (
                     this.lightdashConfig.groups.enabled === true &&
                     this.lightdashConfig.auth.enableGroupSync === true &&
                     Array.isArray(openIdUser.openId.groups) &&
                     openIdUser.openId.groups.length &&
                     sessionUser.organizationUuid
-                )
+                ) {
+                    this.logger.info(
+                        `Syncing groups for existing user ${
+                            sessionUser.userUuid
+                        } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                    );
                     await this.tryAddUserToGroups({
                         userUuid: sessionUser.userUuid,
                         groups: openIdUser.openId.groups,
                         organizationUuid: sessionUser.organizationUuid,
                     });
+                }
 
                 return this.linkOpenIdIdentityToUser(
                     sessionUser,
@@ -620,10 +710,16 @@ export class UserService extends BaseService {
                 await this.userModel.findSessionUserByPrimaryEmail(
                     openIdUser.openId.email,
                 );
+            this.logger.info(
+                `Email linking enabled - Found user with same email: ${!!userWithSameEmail}`,
+            );
 
             if (userWithSameEmail) {
                 const emailStatus = await this.emailModel.getPrimaryEmailStatus(
                     userWithSameEmail.userUuid,
+                );
+                this.logger.info(
+                    `Email status for user ${userWithSameEmail.userUuid} - Is verified: ${emailStatus.isVerified}`,
                 );
 
                 if (emailStatus.isVerified) {
@@ -633,13 +729,19 @@ export class UserService extends BaseService {
                         Array.isArray(openIdUser.openId.groups) &&
                         openIdUser.openId.groups.length &&
                         userWithSameEmail.organizationUuid
-                    )
+                    ) {
+                        this.logger.info(
+                            `Syncing groups for email-linked user ${
+                                userWithSameEmail.userUuid
+                            } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        );
                         await this.tryAddUserToGroups({
                             userUuid: userWithSameEmail.userUuid,
                             groups: openIdUser.openId.groups,
                             organizationUuid:
                                 userWithSameEmail.organizationUuid,
                         });
+                    }
 
                     return this.linkOpenIdIdentityToUser(
                         userWithSameEmail,
@@ -652,18 +754,27 @@ export class UserService extends BaseService {
 
         // Link openid identity to currently logged in user
         if (authenticatedUser) {
+            this.logger.info(
+                `Linking OpenID identity to authenticated user ${authenticatedUser.userUuid}`,
+            );
             if (
                 this.lightdashConfig.groups.enabled === true &&
                 this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
                 authenticatedUser.organizationUuid
-            )
+            ) {
+                this.logger.info(
+                    `Syncing groups for authenticated user ${
+                        authenticatedUser.userUuid
+                    } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                );
                 await this.tryAddUserToGroups({
                     userUuid: authenticatedUser.userUuid,
                     groups: openIdUser.openId.groups,
                     organizationUuid: authenticatedUser.organizationUuid,
                 });
+            }
 
             return this.linkOpenIdIdentityToUser(
                 authenticatedUser,
@@ -673,6 +784,13 @@ export class UserService extends BaseService {
         }
 
         // Create user
+        this.logger.info(
+            `Creating new user with OpenID - Email: ${openIdUser.openId.email}`,
+        );
+        await this.checkNewUserRegistrationAllowed(
+            inviteCode,
+            openIdUser.openId.email,
+        );
         const createdUser = await this.activateUserWithOpenId(
             openIdUser,
             inviteCode,
@@ -682,6 +800,14 @@ export class UserService extends BaseService {
             await this.organizationModel.getAllowedOrgsForDomain(
                 getEmailDomain(openIdUser.openId.email),
             );
+        this.logger.info(
+            `Found ${
+                allowedOrgs.length
+            } allowed organizations for domain ${getEmailDomain(
+                openIdUser.openId.email,
+            )}`,
+        );
+
         const hasGroups =
             this.lightdashConfig.groups.enabled === true &&
             this.lightdashConfig.auth.enableGroupSync === true &&
@@ -696,17 +822,23 @@ export class UserService extends BaseService {
         ) {
             organizationUuid = allowedOrgs[0].organizationUuid;
             this.logger.info(
-                `Automatically joining user '${createdUser.email}' whitelisted organization ${organizationUuid}`,
+                `Automatically joining user '${createdUser.email}' to whitelisted organization ${organizationUuid}`,
             );
             await this.joinOrg(createdUser, organizationUuid); // Join automatically the whitelisted org so we can apply groups
         }
 
-        if (hasGroups && organizationUuid)
+        if (hasGroups && organizationUuid) {
+            this.logger.info(
+                `Syncing groups for new user ${
+                    createdUser.userUuid
+                } - Groups: ${openIdUser.openId.groups!.join(', ')}`,
+            );
             await this.tryAddUserToGroups({
                 userUuid: createdUser.userUuid,
                 groups: openIdUser.openId.groups!,
                 organizationUuid,
             });
+        }
 
         return {
             ...createdUser,
@@ -843,7 +975,10 @@ export class UserService extends BaseService {
             userId: completeUser.userUuid,
             properties: {
                 ...completeUser,
+                updatedUserId: completeUser.userUuid,
+                organizationId: completeUser.organizationUuid,
                 jobTitle,
+                context: 'complete_setup',
             },
         });
         return completeUser;
@@ -919,6 +1054,9 @@ export class UserService extends BaseService {
                 email,
                 password,
             );
+            if (!user.isActive) {
+                throw new DeactivatedAccountError();
+            }
             const userOrganization = this.loginToOrganization(
                 user.userUuid,
                 LocalIssuerTypes.EMAIL,
@@ -981,13 +1119,24 @@ export class UserService extends BaseService {
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
-            data,
+            {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                isMarketingOptedIn: data.isMarketingOptedIn,
+                isTrackingAnonymized: data.isTrackingAnonymized,
+            },
         );
         this.identifyUser(updatedUser);
         this.analytics.track({
             userId: updatedUser.userUuid,
             event: 'user.updated',
-            properties: updatedUser,
+            properties: {
+                ...updatedUser,
+                updatedUserId: updatedUser.userUuid,
+                organizationId: updatedUser.organizationUuid,
+                context: 'update_self',
+            },
         });
         return updatedUser;
     }
@@ -1003,6 +1152,8 @@ export class UserService extends BaseService {
                 password: user.password,
             });
         } else {
+            await this.checkNewUserRegistrationAllowed(undefined, user.email);
+
             lightdashUser = await this.registerUser({
                 firstName: user.firstName,
                 lastName: user.lastName,
@@ -1046,6 +1197,9 @@ export class UserService extends BaseService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
+                context: 'accept_invite',
+                createdUserId: user.userUuid,
+                organizationId: user.organizationUuid,
                 userConnectionType: isOpenIdUser(createUser)
                     ? createUser.openId.issuerType
                     : 'password',
@@ -1121,6 +1275,14 @@ export class UserService extends BaseService {
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
+        if (!user.isActive) {
+            throw new DeactivatedAccountError();
+        }
+        if (user.ability.cannot('view', subject('PersonalAccessToken', {}))) {
+            throw new ForbiddenError(
+                'You do not have permission to login with personal access tokens',
+            );
+        }
         const organization = this.loginToOrganization(
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
@@ -1139,6 +1301,10 @@ export class UserService extends BaseService {
             }
             throw new AuthorizationError();
         }
+        // Update last used date
+        await this.personalAccessTokenModel.updateUsedDate(
+            personalAccessToken.uuid,
+        );
         return userWithOrganization;
     }
 

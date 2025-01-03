@@ -1,41 +1,7 @@
-import {
-    ChartType,
-    type ItemsMap,
-    type TableCalculationMetadata,
-} from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
-import useCartesianChartConfig, {
-    type CartesianTypeOptions,
-} from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import {
-    type VisualizationConfig,
-    type VisualizationConfigCommon,
-} from './VisualizationProvider';
-
-export type VisualizationConfigCartesian = {
-    chartType: ChartType.CARTESIAN;
-    chartConfig: ReturnType<typeof useCartesianChartConfig>;
-};
-
-export const isCartesianVisualizationConfig = (
-    visualizationConfig: VisualizationConfig | undefined,
-): visualizationConfig is VisualizationConfigCartesian => {
-    return visualizationConfig?.chartType === ChartType.CARTESIAN;
-};
-
-type VisualizationCartesianConfigProps =
-    VisualizationConfigCommon<VisualizationConfigCartesian> & {
-        itemsMap: ItemsMap | undefined;
-        stacking: boolean | undefined;
-        cartesianType: CartesianTypeOptions | undefined;
-        columnOrder: string[];
-        validPivotDimensions: string[] | undefined;
-        setPivotDimensions: React.Dispatch<
-            React.SetStateAction<string[] | undefined>
-        >;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-    };
+import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { type VisualizationCartesianConfigProps } from './types';
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     itemsMap,

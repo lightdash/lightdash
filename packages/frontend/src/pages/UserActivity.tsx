@@ -7,7 +7,7 @@ import { Box, Card, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -17,7 +17,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 
 const VisualizationCard = ({
     grid,

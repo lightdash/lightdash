@@ -1,28 +1,25 @@
 import { useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
 import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import SelectConnectMethod from '../components/ProjectConnection/ProjectConnectFlow/SelectConnectMethod';
-import SelectWarehouse, {
+import SelectWarehouse from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import {
+    ConnectMethod,
     OtherWarehouse,
     type SelectedWarehouse,
-} from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+} from '../components/ProjectConnection/ProjectConnectFlow/types';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useSearchParams from '../hooks/useSearchParams';
-import { useApp } from '../providers/AppProvider';
-
-export enum ConnectMethod {
-    CLI = 'cli',
-    MANUAL = 'manual',
-}
+import useApp from '../providers/App/useApp';
 
 const CreateProject: FC = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { isInitialLoading: isLoadingOrganization, data: organization } =
         useOrganization();
 
@@ -57,7 +54,9 @@ const CreateProject: FC = () => {
                             <UnsupportedWarehouse
                                 onBack={() => {
                                     setWarehouse(undefined);
-                                    history.replace('/createProject');
+                                    void navigate('/createProject', {
+                                        replace: true,
+                                    });
                                 }}
                             />
                         ) : (
@@ -68,8 +67,9 @@ const CreateProject: FC = () => {
                                             isCreatingFirstProject
                                         }
                                         onSelect={(newMethod) => {
-                                            history.replace(
+                                            void navigate(
                                                 `/createProject/${newMethod}`,
+                                                { replace: true },
                                             );
                                         }}
                                         onBack={() => {
@@ -83,22 +83,30 @@ const CreateProject: FC = () => {
                                         siteUrl={health.siteUrl}
                                         version={health.version}
                                         onBack={() => {
-                                            history.replace('/createProject');
+                                            void navigate('/createProject', {
+                                                replace: true,
+                                            });
                                         }}
                                     />
                                 )}
 
-                                {warehouse && method === ConnectMethod.MANUAL && (
-                                    <ConnectManually
-                                        isCreatingFirstProject={
-                                            isCreatingFirstProject
-                                        }
-                                        selectedWarehouse={warehouse}
-                                        onBack={() => {
-                                            history.replace('/createProject');
-                                        }}
-                                    />
-                                )}
+                                {warehouse &&
+                                    method === ConnectMethod.MANUAL && (
+                                        <ConnectManually
+                                            isCreatingFirstProject={
+                                                isCreatingFirstProject
+                                            }
+                                            selectedWarehouse={warehouse}
+                                            onBack={() => {
+                                                void navigate(
+                                                    '/createProject',
+                                                    {
+                                                        replace: true,
+                                                    },
+                                                );
+                                            }}
+                                        />
+                                    )}
                             </>
                         )}
                     </>

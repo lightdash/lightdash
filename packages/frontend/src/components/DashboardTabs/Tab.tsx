@@ -1,14 +1,10 @@
 import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Tabs } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tabs, Title, Tooltip } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import {
-    IconDots,
-    IconGripVertical,
-    IconPencil,
-    IconTrash,
-} from '@tabler/icons-react';
-import type { FC } from 'react';
+import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
 
 type DraggableTabProps = {
@@ -17,8 +13,9 @@ type DraggableTabProps = {
     isEditMode: boolean;
     sortedTabs: DashboardTab[];
     currentTabHasTiles: boolean;
-    setEditingTab: (value: React.SetStateAction<boolean>) => void;
-    setDeletingTab: (value: React.SetStateAction<boolean>) => void;
+    isActive: boolean;
+    setEditingTab: Dispatch<SetStateAction<boolean>>;
+    setDeletingTab: Dispatch<SetStateAction<boolean>>;
     handleDeleteTab: (tabUuid: string) => void;
 };
 
@@ -28,11 +25,13 @@ const DraggableTab: FC<DraggableTabProps> = ({
     isEditMode,
     sortedTabs,
     currentTabHasTiles,
+    isActive,
     setEditingTab,
     handleDeleteTab,
     setDeletingTab,
 }) => {
     const { hovered: isHovered, ref: hoverRef } = useHover();
+    const { ref, isTruncated } = useIsTruncated();
 
     return (
         <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
@@ -45,25 +44,10 @@ const DraggableTab: FC<DraggableTabProps> = ({
                     <Tabs.Tab
                         key={idx}
                         value={tab.uuid}
-                        mx="md"
-                        style={{
-                            marginLeft: 0,
-                            marginRight: 0,
-                        }}
-                    >
-                        <Group
-                            style={{
-                                paddingLeft: 16,
-                                paddingRight: 16,
-                            }}
-                        >
-                            {isEditMode ? (
-                                <Box
-                                    pos="absolute"
-                                    left={0}
-                                    p={4}
-                                    {...provided.dragHandleProps}
-                                >
+                        bg={isActive ? 'white' : 'gray.0'}
+                        icon={
+                            isEditMode ? (
+                                <Box {...provided.dragHandleProps} w={'sm'}>
                                     <MantineIcon
                                         display={isHovered ? 'block' : 'none'}
                                         size="sm"
@@ -71,19 +55,24 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         icon={IconGripVertical}
                                     />
                                 </Box>
-                            ) : null}
-                            {tab.name}
-                            {isEditMode ? (
+                            ) : null
+                        }
+                        rightSection={
+                            isEditMode ? (
                                 <Menu
                                     position="bottom"
                                     withArrow
                                     withinPortal
                                     shadow="md"
-                                    width={200}
                                 >
                                     <Menu.Target>
                                         <ActionIcon variant="subtle" size="xs">
-                                            <MantineIcon icon={IconDots} />
+                                            <MantineIcon
+                                                icon={IconPencil}
+                                                display={
+                                                    isHovered ? 'block' : 'none'
+                                                }
+                                            />
                                         </ActionIcon>
                                     </Menu.Target>
                                     <Menu.Dropdown>
@@ -120,8 +109,28 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         )}
                                     </Menu.Dropdown>
                                 </Menu>
-                            ) : null}
-                        </Group>
+                            ) : null
+                        }
+                    >
+                        <Tooltip
+                            disabled={!isTruncated}
+                            label={tab.name}
+                            withinPortal
+                            variant="xs"
+                        >
+                            <Title
+                                ref={ref}
+                                order={6}
+                                fw={500}
+                                color="gray.7"
+                                truncate
+                                maw={`calc(${
+                                    100 / (sortedTabs?.length || 1)
+                                }vw)`}
+                            >
+                                {tab.name}
+                            </Title>
+                        </Tooltip>
                     </Tabs.Tab>
                 </div>
             )}

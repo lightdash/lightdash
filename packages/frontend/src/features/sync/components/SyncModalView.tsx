@@ -1,4 +1,8 @@
-import { SchedulerFormat, type Scheduler } from '@lightdash/common';
+import {
+    getHumanReadableCronExpression,
+    SchedulerFormat,
+    type Scheduler,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -20,12 +24,14 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import cronstrue from 'cronstrue';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useProject } from '../../../hooks/useProject';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
-import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
+import { SyncModalAction } from '../providers/types';
+import { useSyncModal } from '../providers/useSyncModal';
 
 const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     const { mutate: mutateSchedulerEnabled } =
@@ -65,6 +71,11 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
 
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+
+    if (!project) return null;
+
     return (
         <>
             <Stack spacing="lg" mih={300}>
@@ -91,11 +102,11 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                             justify="space-between"
                                         >
                                             <Text span size="xs" color="gray.6">
-                                                {cronstrue.toString(sync.cron, {
-                                                    verbose: true,
-                                                    throwExceptionOnParseError:
-                                                        false,
-                                                })}
+                                                {getHumanReadableCronExpression(
+                                                    sync.cron,
+                                                    sync.timezone ??
+                                                        project.schedulerTimezone,
+                                                )}
                                             </Text>
                                         </Flex>
                                     </Stack>

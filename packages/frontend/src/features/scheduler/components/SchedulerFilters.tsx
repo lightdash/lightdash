@@ -27,22 +27,20 @@ import {
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
+import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import {
-    FilterInputComponent,
     getConditionalRuleLabel,
     getFilterOperatorOptions,
-} from '../../../components/common/Filters/FilterInputs';
-import {
-    FiltersProvider,
-    useFiltersContext,
-} from '../../../components/common/Filters/FiltersProvider';
+} from '../../../components/common/Filters/FilterInputs/utils';
+import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
+import useFiltersContext from '../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     hasSavedFilterValueChanged,
     isFilterEnabled,
 } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 
 const FilterSummaryLabel: FC<
     { filterSummary: ReturnType<typeof getConditionalRuleLabel> } & Record<
@@ -282,10 +280,7 @@ const updateFilters = (
             ...(schedulerFilters ?? []),
             {
                 ...schedulerFilter,
-                disabled: !(
-                    filterToCompareAgainst.disabled &&
-                    filterToCompareAgainst.disabled === true
-                ),
+                disabled: !isFilterEnabled(schedulerFilter),
             },
         ];
     }

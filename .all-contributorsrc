@@ -1457,7 +1457,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/4855214?v=4",
       "profile": "https://github.com/andrewdw",
       "contributions": [
-        "code"
+        "code",
+        "doc"
       ]
     },
     {
@@ -1483,6 +1484,42 @@
       "name": "Varun Guleria",
       "avatar_url": "https://avatars.githubusercontent.com/u/152203177?v=4",
       "profile": "https://github.com/varunguleriaCodes",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Guru6163",
+      "name": "Guruprasath Sankaran",
+      "avatar_url": "https://avatars.githubusercontent.com/u/42559222?v=4",
+      "profile": "https://github.com/Guru6163",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "VenkataRohan",
+      "name": "VenkataRohan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83659881?v=4",
+      "profile": "https://github.com/VenkataRohan",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "inverts",
+      "name": "Dave",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4111862?v=4",
+      "profile": "https://github.com/inverts",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "BhuvaneshPatil",
+      "name": "Bhuvanesh",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27822551?v=4",
+      "profile": "https://github.com/BhuvaneshPatil",
       "contributions": [
         "code"
       ]

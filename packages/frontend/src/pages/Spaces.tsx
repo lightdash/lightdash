@@ -8,21 +8,19 @@ import {
 import { Button, Group, Stack } from '@mantine/core';
 import { IconFolderPlus, IconFolders, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import ResourceView, {
-    ResourceViewType,
-} from '../components/common/ResourceView';
-import SpaceActionModal, {
-    ActionType,
-} from '../components/common/SpaceActionModal';
+import ResourceView from '../components/common/ResourceView';
+import { ResourceViewType } from '../components/common/ResourceView/types';
+import SpaceActionModal from '../components/common/SpaceActionModal';
+import { ActionType } from '../components/common/SpaceActionModal/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
-import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
+import useApp from '../providers/App/useApp';
+import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -94,7 +92,7 @@ const Spaces: FC = () => {
                 </Group>
 
                 <PinnedItemsProvider
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     organizationUuid={user.data?.organizationUuid ?? ''}
                     pinnedListUuid={project.data?.pinnedListUuid ?? ''}
                 >
@@ -151,7 +149,7 @@ const Spaces: FC = () => {
 
             {isCreateModalOpen && (
                 <SpaceActionModal
-                    projectUuid={projectUuid}
+                    projectUuid={projectUuid!}
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"

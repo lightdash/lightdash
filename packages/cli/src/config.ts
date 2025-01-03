@@ -12,6 +12,7 @@ export type Config = {
     user?: {
         userUuid?: string;
         anonymousUuid?: string;
+        organizationUuid?: string;
     };
     context?: {
         serverUrl?: string;
@@ -114,13 +115,17 @@ export const unsetPreviewProject = async () => {
     });
 };
 
-export const setDefaultUser = async (userUuid: string) => {
+export const setDefaultUser = async (
+    userUuid: string,
+    organizationUuid: string,
+) => {
     const config = await getRawConfig();
     await setConfig({
         ...config,
         user: {
             ...(config.user || {}),
             userUuid,
+            organizationUuid,
         },
     });
 };

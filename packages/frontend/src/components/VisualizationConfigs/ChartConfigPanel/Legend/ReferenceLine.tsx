@@ -39,8 +39,8 @@ import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPic
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
@@ -324,7 +324,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={controlLabel}
+                label={label || controlLabel}
                 onControlClick={onControlClick}
                 onRemove={() => removeReferenceLine(lineId)}
                 extraControlElements={

@@ -5,7 +5,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { useSavedSemanticViewerChartUpdateMutation } from '../api/hooks';
+import {
+    useSavedSemanticViewerChart,
+    useSavedSemanticViewerChartUpdateMutation,
+} from '../api/hooks';
 import {
     selectAllSelectedFieldNames,
     selectSemanticLayerInfo,
@@ -40,12 +43,18 @@ const SaveSemanticViewerChart: FC = () => {
         dispatch(updateSaveModalOpen(true));
     };
 
+    const savedChartQuery = useSavedSemanticViewerChart({
+        projectUuid,
+        findBy: { uuid: savedSemanticViewerChartUuid },
+    });
+
     const chartUpdateMutation = useSavedSemanticViewerChartUpdateMutation({
         projectUuid,
     });
 
     const handleUpdate = useCallback(async () => {
         if (
+            !savedChartQuery.isSuccess ||
             !savedSemanticViewerChartUuid ||
             !activeChartKind ||
             !selectedChartConfig
@@ -55,6 +64,11 @@ const SaveSemanticViewerChart: FC = () => {
         await chartUpdateMutation.mutateAsync({
             uuid: savedSemanticViewerChartUuid,
             payload: {
+                unversionedData: {
+                    name,
+                    description: savedChartQuery.data.description,
+                    spaceUuid: savedChartQuery.data.space.uuid,
+                },
                 versionedData: {
                     chartKind: activeChartKind,
                     config: selectedChartConfig,
@@ -71,6 +85,9 @@ const SaveSemanticViewerChart: FC = () => {
     }, [
         activeChartKind,
         chartUpdateMutation,
+        name,
+        savedChartQuery.data,
+        savedChartQuery.isSuccess,
         savedSemanticViewerChartUuid,
         selectedChartConfig,
         semanticLayerQuery,

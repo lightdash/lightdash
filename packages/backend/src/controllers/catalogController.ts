@@ -4,12 +4,27 @@ import {
     ApiCatalogResults,
     ApiCatalogSearch,
     ApiErrorPayload,
+    ApiGetMetricPeek,
+    ApiMetricsCatalog,
+    ApiSegmentDimensionsResponse,
+    getItemId,
+    type ApiGetMetricsTree,
+    type ApiMetricsTreeEdgePayload,
+    type ApiMetricsWithAssociatedTimeDimensionResponse,
+    type ApiSort,
+    type ApiSuccessEmpty,
+    type CatalogItemIcon,
+    type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
+    Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -31,7 +46,7 @@ export class CatalogController extends BaseController {
      * @param query contains filters for the catalog items
      * - search: string
      * - type: 'table' | 'field'
-     * @returns
+     * @returns ApiCatalogResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -40,20 +55,21 @@ export class CatalogController extends BaseController {
     async getCatalog(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Query() search?: ApiCatalogSearch['search'],
+        @Query() search?: ApiCatalogSearch['searchQuery'],
         @Query() type?: ApiCatalogSearch['type'],
         @Query() filter?: ApiCatalogSearch['filter'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
         this.setStatus(200);
         const query: ApiCatalogSearch = {
-            search,
+            searchQuery: search,
             type,
             filter,
         };
 
-        const results = await this.services
+        const { data: results } = await this.services
             .getCatalogService()
             .getCatalog(req.user!, projectUuid, query);
+
         return {
             status: 'ok',
             results,
@@ -64,7 +80,7 @@ export class CatalogController extends BaseController {
      * Get catalog metadata for tables
      * @param projectUuid
      * @param table Table name to get metadata for
-     * @returns
+     * @returns ApiCatalogMetadataResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -90,7 +106,7 @@ export class CatalogController extends BaseController {
      * Get catalog analytics for tables
      * @param projectUuid
      * @param table Table name to get analytics for
-     * @returns
+     * @returns ApiCatalogAnalyticsResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -117,7 +133,7 @@ export class CatalogController extends BaseController {
      * @param projectUuid
      * @param field Field name to get analytics for
      * @param table Table where this field belongs
-     * @returns
+     * @returns ApiCatalogAnalyticsResults
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -132,10 +148,298 @@ export class CatalogController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getCatalogService()
-            .getFieldAnalytics(req.user!, projectUuid, table, field);
+            .getFieldAnalytics(
+                req.user!,
+                projectUuid,
+                getItemId({
+                    name: field,
+                    table,
+                }),
+            );
         return {
             status: 'ok',
             results,
         };
     }
+
+    /**
+     * Get metrics catalog
+     * @param projectUuid
+     * @param query contains filters for the catalog items as well as pagination
+     * - search: string
+     * - page: number
+     * - pageSize: number
+     * @returns ApiMetricsCatalog
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics')
+    @OperationId('getMetricsCatalog')
+    async getMetricsCatalog(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() search?: ApiCatalogSearch['searchQuery'],
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        @Query() sort?: ApiSort['sort'],
+        @Query() order?: ApiSort['order'],
+        @Query() categories?: ApiCatalogSearch['catalogTags'],
+    ): Promise<ApiMetricsCatalog> {
+        this.setStatus(200);
+
+        const paginateArgs: KnexPaginateArgs | undefined =
+            page && pageSize
+                ? {
+                      page,
+                      pageSize,
+                  }
+                : undefined;
+
+        const sortArgs: ApiSort | undefined = sort
+            ? {
+                  sort,
+                  order,
+              }
+            : undefined;
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsCatalog(
+                req.user!,
+                projectUuid,
+                paginateArgs,
+                {
+                    searchQuery: search,
+                    catalogTags: categories,
+                },
+                sortArgs,
+            );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get metric by table and metric name
+     * @param projectUuid
+     * @param tableName
+     * @param metricName
+     * @returns ApiGetMetricPeek
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/{tableName}/{metricName}')
+    @OperationId('getMetric')
+    async getMetric(
+        @Path() projectUuid: string,
+        @Path() tableName: string,
+        @Path() metricName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetMetricPeek> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetric(req.user!, projectUuid, tableName, metricName);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get metrics with time dimensions
+     * @param projectUuid
+     * @returns ApiMetricsWithAssociatedTimeDimensionResponse
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics-with-time-dimensions')
+    @OperationId('getMetricsWithTimeDimensions')
+    async getMetricsWithTimeDimensions(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiMetricsWithAssociatedTimeDimensionResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getAllCatalogMetricsWithTimeDimensions(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get dimensions that can be used to segment metrics
+     * @param projectUuid
+     * @param metric
+     * @returns ApiSegmentDimensionsResponse
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{tableName}/segment-dimensions')
+    @OperationId('getSegmentDimensions')
+    async getSegmentDimensions(
+        @Path() projectUuid: string,
+        @Path() tableName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSegmentDimensionsResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getSegmentDimensions(req.user!, projectUuid, tableName);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{catalogSearchUuid}/categories')
+    @OperationId('addCategoryToCatalogItem')
+    async addCategoryToCatalogItem(
+        @Path() catalogSearchUuid: string,
+        @Body()
+        body: {
+            tagUuid: string;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .tagCatalogItem(req.user!, catalogSearchUuid, body.tagUuid);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('{catalogSearchUuid}/categories/{tagUuid}')
+    @OperationId('removeCategoryFromCatalogItem')
+    async removeCategoryFromCatalogItem(
+        @Path() catalogSearchUuid: string,
+        @Path() tagUuid: string,
+        @Request() req: express.Request,
+    ) {
+        await this.services
+            .getCatalogService()
+            .untagCatalogItem(req.user!, catalogSearchUuid, tagUuid);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('{catalogSearchUuid}/icon')
+    @OperationId('updateCatalogItemIcon')
+    async updateCatalogItemIcon(
+        @Path() projectUuid: string,
+        @Path() catalogSearchUuid: string,
+        @Body() body: { icon: CatalogItemIcon | null },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .updateCatalogItemIcon(
+                req.user!,
+                projectUuid,
+                catalogSearchUuid,
+                body.icon,
+            );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/tree')
+    @OperationId('getMetricsTree')
+    async getMetricsTree(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() metricUuids: string[],
+    ): Promise<ApiGetMetricsTree> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTree(req.user!, projectUuid, metricUuids);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/metrics/tree/edges')
+    @OperationId('createMetricsTreeEdge')
+    async createMetricsTreeEdge(
+        @Path() projectUuid: string,
+        @Body() body: ApiMetricsTreeEdgePayload,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .createMetricsTreeEdge(req.user!, projectUuid, body);
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete(
+        '/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}',
+    )
+    @OperationId('deleteMetricsTreeEdge')
+    async deleteMetricsTreeEdge(
+        @Path() projectUuid: string,
+        @Path() sourceCatalogSearchUuid: string,
+        @Path() targetCatalogSearchUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .deleteMetricsTreeEdge(req.user!, projectUuid, {
+                sourceCatalogSearchUuid,
+                targetCatalogSearchUuid,
+            });
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    // TODO: handle metrics tree node position
 }

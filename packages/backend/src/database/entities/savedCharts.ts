@@ -8,10 +8,9 @@ import {
     DBFieldTypes,
     DimensionType,
     MetricFilterRule,
+    MetricOverrides,
     MetricType,
-    NumberSeparator,
     TableCalculationType,
-    TimeZone,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -87,12 +86,13 @@ export type DbSavedChartVersion = {
     explore_name: string;
     filters: any;
     row_limit: number;
+    metric_overrides: MetricOverrides | null; // JSONB
     chart_type: ChartType;
     saved_query_id: number;
-    chart_config: ChartConfig['config'] | undefined;
-    pivot_dimensions: string[] | undefined;
-    updated_by_user_uuid: string | undefined;
-    timezone: string | undefined;
+    chart_config: ChartConfig['config'] | null;
+    pivot_dimensions: string[] | null;
+    updated_by_user_uuid: string | null;
+    timezone: string | null;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -106,6 +106,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'explore_name'
     | 'filters'
     | 'row_limit'
+    | 'metric_overrides'
     | 'chart_type'
     | 'pivot_dimensions'
     | 'chart_config'

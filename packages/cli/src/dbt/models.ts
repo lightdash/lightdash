@@ -177,18 +177,22 @@ export const findAndUpdateModelYaml = async ({
         );
         filenames.push(expectedYamlPath);
     }
-    const defaultYmlPath = path.join(
-        path.dirname(
-            path.join(
-                packageName === projectName
-                    ? '.'
-                    : path.join('dbt_packages', packageName),
-                model.originalFilePath,
-            ),
+    const outputDir = path.dirname(
+        path.join(
+            packageName === projectName
+                ? '.'
+                : path.join('dbt_packages', packageName),
+            model.originalFilePath,
         ),
+    );
+    const outputFilePath = path.join(
+        projectDir,
+        outputDir,
         `${model.name}.yml`,
     );
-    filenames.push(defaultYmlPath);
+
+    filenames.push(outputFilePath);
+
     const match = await searchForModel({
         modelName: model.name,
         filenames,
@@ -294,9 +298,10 @@ export const findAndUpdateModelYaml = async ({
         version: 2 as const,
         models: [generatedModel],
     };
+
     return {
         updatedYml,
-        outputFilePath: defaultYmlPath,
+        outputFilePath,
     };
 };
 

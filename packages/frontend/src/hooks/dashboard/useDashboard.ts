@@ -16,7 +16,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -220,7 +220,7 @@ export const useUpdateDashboard = (
     id?: string,
     showRedirectButton: boolean = false,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -258,11 +258,12 @@ export const useUpdateDashboard = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/dashboards/${id}`,
                                   ),
                           }
                         : undefined,
+                    autoClose: 10000,
                 });
             },
             onError: ({ error }) => {
@@ -276,7 +277,7 @@ export const useUpdateDashboard = (
 };
 
 export const useMoveDashboardMutation = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -306,7 +307,7 @@ export const useMoveDashboardMutation = () => {
                         children: 'Go to space',
                         icon: IconArrowRight,
                         onClick: () =>
-                            history.push(
+                            navigate(
                                 `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
                             ),
                     },
@@ -323,14 +324,15 @@ export const useMoveDashboardMutation = () => {
 };
 
 export const useCreateMutation = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     showRedirectButton: boolean = false,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
-        (data) => createDashboard(projectUuid, data),
+        (data) =>
+            projectUuid ? createDashboard(projectUuid, data) : Promise.reject(),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (result) => {
@@ -348,7 +350,7 @@ export const useCreateMutation = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/dashboards/${result.uuid}`,
                                   ),
                           }
@@ -372,7 +374,7 @@ type DuplicateDashboardMutationOptions = {
 export const useDuplicateDashboardMutation = (
     options?: DuplicateDashboardMutationOptions,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -382,10 +384,12 @@ export const useDuplicateDashboardMutation = (
         Pick<Dashboard, 'uuid' | 'name' | 'description'>
     >(
         ({ uuid, name, description }) =>
-            duplicateDashboard(projectUuid, uuid, {
-                dashboardName: name,
-                dashboardDesc: description ?? '',
-            }),
+            projectUuid
+                ? duplicateDashboard(projectUuid, uuid, {
+                      dashboardName: name,
+                      dashboardDesc: description ?? '',
+                  })
+                : Promise.reject(),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (data) => {
@@ -405,7 +409,7 @@ export const useDuplicateDashboardMutation = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${projectUuid}/dashboards/${data.uuid}`,
                                   ),
                           }

@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import { Can } from '../../common/Authorization';
 import MantineLinkButton from '../../common/MantineLinkButton';
 

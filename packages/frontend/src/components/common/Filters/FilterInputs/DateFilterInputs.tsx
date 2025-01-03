@@ -7,13 +7,14 @@ import {
     isFilterRule,
     parseDate,
     TimeFrames,
+    timeframeToUnitOfTime,
     type ConditionalRule,
     type DateFilterRule,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
-import { useFiltersContext } from '../FiltersProvider';
+import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';
@@ -252,6 +253,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         disabled={disabled}
                         sx={{ flexShrink: 0, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
+                        minUnitOfTime={
+                            isDimension(field) && field.timeInterval
+                                ? timeframeToUnitOfTime(field.timeInterval)
+                                : undefined
+                        }
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
                         withinPortal={popoverProps?.withinPortal}
@@ -277,6 +283,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     disabled={disabled}
                     isTimestamp={isTimestamp}
                     unitOfTime={rule.settings?.unitOfTime}
+                    minUnitOfTime={
+                        isDimension(field) && field.timeInterval
+                            ? timeframeToUnitOfTime(field.timeInterval)
+                            : undefined
+                    }
                     showOptionsInPlural={false}
                     showCompletedOptions={false}
                     completed={false}

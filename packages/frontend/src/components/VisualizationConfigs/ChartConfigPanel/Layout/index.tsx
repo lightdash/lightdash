@@ -22,11 +22,11 @@ import { useCallback, useMemo, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
-import { MAX_PIVOTS } from '../../TableConfigPanel/GeneralSettings';
+import { MAX_PIVOTS } from '../../TableConfigPanel/constants';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
@@ -346,39 +346,37 @@ export const Layout: FC<Props> = ({ items }) => {
                                 );
                             })}
                     </Stack>
-                    {pivotDimensions &&
-                        pivotDimensions.length > 0 &&
-                        canBeStacked && (
-                            <Tooltip
-                                variant="xs"
-                                label="x-axis must be non-numeric to enable stacking"
-                                withinPortal
-                                position="top-start"
-                                disabled={!isXAxisFieldNumeric}
-                            >
-                                <Group spacing="xs">
-                                    <Config.Label>Stacking</Config.Label>
-                                    <SegmentedControl
-                                        disabled={isXAxisFieldNumeric}
-                                        value={
-                                            !isXAxisFieldNumeric && isStacked
-                                                ? 'stack'
-                                                : 'noStacking'
-                                        }
-                                        onChange={(value) =>
-                                            setStacking(value === 'stack')
-                                        }
-                                        data={[
-                                            {
-                                                label: 'None',
-                                                value: 'noStacking',
-                                            },
-                                            { label: 'Stack', value: 'stack' },
-                                        ]}
-                                    />
-                                </Group>
-                            </Tooltip>
-                        )}
+                    {canBeStacked && (
+                        <Tooltip
+                            variant="xs"
+                            label="x-axis must be non-numeric to enable stacking"
+                            withinPortal
+                            position="top-start"
+                            disabled={!isXAxisFieldNumeric}
+                        >
+                            <Group spacing="xs">
+                                <Config.Label>Stacking</Config.Label>
+                                <SegmentedControl
+                                    disabled={isXAxisFieldNumeric}
+                                    value={
+                                        !isXAxisFieldNumeric && isStacked
+                                            ? 'stack'
+                                            : 'noStacking'
+                                    }
+                                    onChange={(value) =>
+                                        setStacking(value === 'stack')
+                                    }
+                                    data={[
+                                        {
+                                            label: 'None',
+                                            value: 'noStacking',
+                                        },
+                                        { label: 'Stack', value: 'stack' },
+                                    ]}
+                                />
+                            </Group>
+                        </Tooltip>
+                    )}
                 </Config.Section>
             </Config>
         </Stack>

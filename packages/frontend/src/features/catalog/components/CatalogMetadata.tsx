@@ -30,21 +30,21 @@ import {
 import { useIsMutating } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
-import { useCatalogContext } from '../context/CatalogProvider';
+import { useCatalogContext } from '../context/useCatalogContext';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 import { CatalogMetadataFieldsTable } from './CatalogMetadataFieldsTable';
 
 export const CatalogMetadata: FC = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const { colors } = useMantineTheme();
     const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
@@ -175,7 +175,7 @@ export const CatalogMetadata: FC = () => {
                         fz="lg"
                         fw={600}
                         onDoubleClick={() => {
-                            history.push(
+                            void navigate(
                                 `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );
                         }}
@@ -443,7 +443,7 @@ export const CatalogMetadata: FC = () => {
                                     name: metadata.name,
                                     table: metadata.modelName,
                                 });
-                                return history.push(
+                                return navigate(
                                     getExplorerUrlFromCreateSavedChartVersion(
                                         projectUuid,
                                         {
@@ -473,7 +473,7 @@ export const CatalogMetadata: FC = () => {
                                 );
                             }
 
-                            return history.push(
+                            return navigate(
                                 `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );
                         }}

@@ -1,24 +1,29 @@
 import { ActionIcon, Group, Stack, Tabs, Title, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 
 import MantineIcon from '../../common/MantineIcon';
 import ForbiddenPanel from '../../ForbiddenPanel';
 
+import { FeatureFlags } from '@lightdash/common';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import GroupsView from './GroupsView';
 import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
 
-    if (!user.data || !health.data) return null;
+    if (!user.data || !UserGroupsFeatureFlag) return null;
 
     if (user.data.ability.cannot('view', 'OrganizationMemberProfile')) {
         return <ForbiddenPanel />;
     }
 
-    const isGroupManagementEnabled = health.data.hasGroups;
+    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
 
     return (
         <Stack spacing="sm">

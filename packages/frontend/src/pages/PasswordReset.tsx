@@ -11,8 +11,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
-
+import { Link, useNavigate, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -20,13 +19,13 @@ import {
     usePasswordResetLink,
     usePasswordResetMutation,
 } from '../hooks/usePasswordReset';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 type ResetPasswordForm = { password: string };
 
 const PasswordReset: FC = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();
     const { isInitialLoading, error } = usePasswordResetLink(code);
@@ -67,6 +66,7 @@ const PasswordReset: FC = () => {
                                         name="password-reset"
                                         onSubmit={form.onSubmit(
                                             ({ password }) =>
+                                                code &&
                                                 passwordResetMutation.mutate({
                                                     code,
                                                     newPassword: password,
@@ -120,7 +120,7 @@ const PasswordReset: FC = () => {
 
                                     <Button
                                         fullWidth
-                                        onClick={() => history.push('/login')}
+                                        onClick={() => navigate('/login')}
                                     >
                                         Log in
                                     </Button>

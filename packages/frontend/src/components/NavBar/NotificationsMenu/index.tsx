@@ -12,7 +12,7 @@ import {
     useValidationNotificationChecker,
     useValidationUserAbility,
 } from '../../../hooks/validation/useValidation';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 

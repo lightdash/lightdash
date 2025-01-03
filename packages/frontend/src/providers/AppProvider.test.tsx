@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderHookWithProviders } from '../testing/testUtils';
-import { useApp } from './AppProvider';
+import useApp from './App/useApp';
 
 describe('AppProvider', () => {
     it('should throw if used outside of AppProvider', () => {

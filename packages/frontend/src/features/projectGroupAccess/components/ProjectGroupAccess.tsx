@@ -1,4 +1,8 @@
-import { type CreateProjectGroupAccess } from '@lightdash/common';
+import {
+    isGroupWithMembers,
+    type CreateProjectGroupAccess,
+    type GroupWithMembers,
+} from '@lightdash/common';
 import { Box, Paper, Table } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -6,7 +10,7 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { TrackPage } from '../../../providers/TrackingProvider';
+import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
 import {
     useAddProjectGroupAccessMutation,
@@ -52,11 +56,22 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     const availableGroups = useMemo(() => {
         if (!groups || !projectGroupAccessList) return [];
 
-        return groups.filter((group) => {
-            return !projectGroupAccessList?.find((access) => {
-                return access.groupUuid === group.uuid;
+        // TODO: Why does filter assume that it will always be Group???
+        return groups
+            .map((g) => {
+                if (isGroupWithMembers(g)) {
+                    return g;
+                }
+            })
+            .filter((g): g is GroupWithMembers => {
+                return Boolean(
+                    g &&
+                        isGroupWithMembers(g) &&
+                        !projectGroupAccessList?.find((access) => {
+                            return access.groupUuid === g.uuid;
+                        }),
+                );
             });
-        });
     }, [groups, projectGroupAccessList]);
 
     return (
@@ -101,7 +116,8 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
                                     );
 
                                     return (
-                                        group && (
+                                        group &&
+                                        isGroupWithMembers(group) && (
                                             <ProjectGroupAccessItem
                                                 key={
                                                     projectGroupAccess.groupUuid

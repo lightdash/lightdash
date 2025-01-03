@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type UserAttribute } from '@lightdash/common';
+import { FeatureFlags, type UserAttribute } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -23,11 +23,12 @@ import {
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import {
     useUserAttributes,
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
-import { useApp } from '../../../providers/AppProvider';
+import useApp from '../../../providers/App/useApp';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -140,7 +141,10 @@ const UserListItem: FC<{
 
 const UserAttributesPanel: FC = () => {
     const { classes } = useTableStyles();
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
     const [showAddAttributeModal, addAttributeModal] = useDisclosure(false);
 
     const [editAttribute, setEditAttribute] = useState<
@@ -163,9 +167,9 @@ const UserAttributesPanel: FC = () => {
     if (isInitialLoading)
         return <LoadingState title="Loading user attributes" />;
 
-    if (!user.data || !health.data) return null;
+    if (!user.data || !UserGroupsFeatureFlag) return null;
 
-    const isGroupManagementEnabled = health.data.hasGroups;
+    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
 
     return (
         <Stack>

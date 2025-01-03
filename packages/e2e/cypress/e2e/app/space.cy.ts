@@ -57,7 +57,7 @@ describe('Space', () => {
         cy.contains(`Private space ${timestamp}`).click();
 
         // Check all items exist in private space
-        cy.contains('All items').click();
+        cy.contains('All').click();
         cy.contains(`Private dashboard ${timestamp}`);
         cy.contains(`Private chart ${timestamp}`);
     });

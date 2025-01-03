@@ -23,9 +23,9 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig';
+import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig/utils';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
@@ -53,7 +53,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     series,
     getSingleSeries,
     updateSingleSeries,
-    isGrouped,
+    isGrouped = false,
     isSingle,
     isOpen,
     toggleIsOpen,
@@ -264,10 +264,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
             </Collapse>
         </Box>
     );
-};
-
-SingleSeriesConfiguration.defaultProps = {
-    isGrouped: false,
 };
 
 export default SingleSeriesConfiguration;

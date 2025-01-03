@@ -7,7 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useAsync } from 'react-use';
 import {
     useSavedSemanticViewerChart,
@@ -16,7 +16,7 @@ import {
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { useApp } from '../../providers/AppProvider';
+import useApp from '../../providers/App/useApp';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -99,7 +99,8 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         if (
             !fieldsQuery.isSuccess ||
             !chartQuery.isSuccess ||
-            !chartResultsQuery.isSuccess
+            !chartResultsQuery.isSuccess ||
+            !projectUuid
         ) {
             return;
         }
@@ -223,6 +224,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
             extraMenuItems={
+                projectUuid &&
                 canManageSemanticViewer &&
                 canUpdateChart && (
                     <ChartTileOptions

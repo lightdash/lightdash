@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     convertOrganizationRoleToProjectRole,
     getHighestProjectRole,
+    isGroupWithMembers,
     type OrganizationMemberRole,
     type ProjectMemberRole,
 } from '@lightdash/common';
@@ -13,8 +14,8 @@ import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { useApp } from '../../providers/AppProvider';
-import { useAbilityContext } from '../common/Authorization';
+import useApp from '../../providers/App/useApp';
+import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
@@ -79,7 +80,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                     const group = groups.find(
                         (g) => g.uuid === groupAccess.groupUuid,
                     );
-                    if (!group) return userRoles;
+                    if (!group || !isGroupWithMembers(group)) return userRoles;
                     if (!group.memberUuids.includes(orgUser.userUuid))
                         return userRoles;
 

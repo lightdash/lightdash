@@ -38,6 +38,7 @@ export default function mockHealthResponse(
         posthog: undefined,
         query: {
             maxLimit: 1000000,
+            defaultLimit: 500,
             csvCellsLimit: 100,
         },
         pivotTable: {
@@ -69,12 +70,15 @@ export default function mockHealthResponse(
                 loginPath: '/login/oidc',
                 enabled: false,
             },
+            pat: {
+                maxExpirationTimeInDays: undefined,
+            },
         },
         hasEmailClient: false,
         hasHeadlessBrowser: false,
-        hasGroups: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
+        hasCacheAutocompleResults: false,
         ...overrides,
     };
 }

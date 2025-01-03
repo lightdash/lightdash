@@ -16,7 +16,7 @@ import {
 import { useForm } from '@mantine/form';
 import React, { type FC } from 'react';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
-import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {

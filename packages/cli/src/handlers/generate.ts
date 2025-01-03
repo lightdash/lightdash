@@ -129,6 +129,15 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 const ymlString = yaml.dump(updatedYml, {
                     quotingType: '"',
                 });
+
+                const outputDirPath = path.dirname(outputFilePath);
+                // Create a directory if it doesn't exist
+                try {
+                    await fs.access(outputDirPath);
+                } catch (error) {
+                    await fs.mkdir(outputDirPath, { recursive: true });
+                }
+
                 await fs.writeFile(
                     outputFilePath,
                     existingHeadComments

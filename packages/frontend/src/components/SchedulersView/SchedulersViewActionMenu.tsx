@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { SchedulerDeleteModal } from '../../features/scheduler';
 import MantineIcon from '../common/MantineIcon';
 import {

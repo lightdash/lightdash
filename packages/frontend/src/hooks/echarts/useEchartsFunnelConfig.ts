@@ -10,8 +10,8 @@ import {
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
 import { round } from 'lodash';
 import { useMemo } from 'react';
-import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigFunnel';
-import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
+import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 
 export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']

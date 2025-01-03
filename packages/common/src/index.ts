@@ -50,6 +50,7 @@ import {
 import { type SearchResults } from './types/search';
 import { type ShareUrl } from './types/share';
 import { type SlackSettings } from './types/slackSettings';
+import { type ApiCreateTagResponse } from './types/tags';
 
 import {
     type ApiCreateComment,
@@ -113,11 +114,23 @@ import { type ValidationResponse } from './types/validation';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
+    type ApiGetMetricsTree,
+    type ApiMetricsCatalog,
 } from './types/catalog';
+import {
+    type ApiChartAsCodeListResponse,
+    type ApiChartAsCodeUpsertResponse,
+    type ApiDashboardAsCodeListResponse,
+} from './types/coder';
 import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './types/content';
+import type { ApiGroupListResponse } from './types/groups';
+import type {
+    ApiMetricsExplorerQueryResults,
+    ApiMetricsExplorerTotalResults,
+} from './types/metricsExplorer';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
@@ -148,6 +161,7 @@ export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
 export * from './dbt/validation';
+export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
 export * from './types/analytics';
@@ -156,9 +170,11 @@ export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/share';
+export * from './types/api/sort';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
+export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
@@ -181,6 +197,7 @@ export * from './types/groups';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/metricQuery';
+export * from './types/metricsExplorer';
 export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
@@ -206,6 +223,7 @@ export * from './types/space';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
+export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
@@ -216,6 +234,7 @@ export * from './types/warehouse';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
+export * from './utils/catalogMetricsTree';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
 export * from './utils/dashboard';
@@ -225,6 +244,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/metricsExplorer';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
@@ -539,6 +559,7 @@ export type UpdateUserArgs = {
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
     isSetupComplete: boolean;
+    isActive: boolean;
 };
 
 export type PasswordResetLink = {
@@ -684,7 +705,16 @@ type ApiResults =
     | ApiSemanticViewerChartGet['results']
     | ApiSemanticViewerChartUpdate['results']
     | ApiCreateVirtualView['results']
-    | ApiGithubDbtWritePreview['results'];
+    | ApiGithubDbtWritePreview['results']
+    | ApiMetricsCatalog['results']
+    | ApiMetricsExplorerQueryResults['results']
+    | ApiGroupListResponse['results']
+    | ApiCreateTagResponse['results']
+    | ApiChartAsCodeListResponse['results']
+    | ApiDashboardAsCodeListResponse['results']
+    | ApiChartAsCodeUpsertResponse['results']
+    | ApiGetMetricsTree['results']
+    | ApiMetricsExplorerTotalResults['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -794,6 +824,9 @@ export type HealthState = {
             enabled: boolean;
             loginPath: string;
         };
+        pat: {
+            maxExpirationTimeInDays: number | undefined;
+        };
     };
     posthog:
         | {
@@ -814,6 +847,7 @@ export type HealthState = {
     staticIp: string;
     query: {
         maxLimit: number;
+        defaultLimit: number;
         csvCellsLimit: number;
     };
     pivotTable: {
@@ -823,8 +857,8 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasHeadlessBrowser: boolean;
-    hasGroups: boolean;
     hasExtendedUsageAnalytics: boolean;
+    hasCacheAutocompleResults: boolean;
 };
 
 export enum DBFieldTypes {
@@ -849,14 +883,21 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
 
 export type CreateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'schedulerTimezone'
+    | 'createdByUserUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 
 export type UpdateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid' | 'type'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'type'
+    | 'schedulerTimezone'
+    | 'createdByUserUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -1071,7 +1112,7 @@ export function itemsInMetricQuery(
 }
 
 function formatRawValue(
-    field: Field | Metric | TableCalculation | CustomDimension,
+    field: Field | Metric | TableCalculation | CustomDimension | undefined,
     value: any,
 ) {
     const isTimestamp =
@@ -1079,10 +1120,11 @@ function formatRawValue(
         (field.type === DimensionType.DATE ||
             field.type === DimensionType.TIMESTAMP);
 
-    if (isTimestamp) {
+    if (isTimestamp && value !== null) {
         // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
         return dayjs(value).utc(true).format();
     }
+
     return value;
 }
 
@@ -1090,22 +1132,24 @@ export function formatRows(
     rows: { [col: string]: any }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
-    return rows.map((row) =>
-        Object.keys(row).reduce<ResultRow>((acc, columnName) => {
-            const col = row[columnName];
+    return rows.map((row) => {
+        const resultRow: ResultRow = {};
+        const columnNames = Object.keys(row || {});
 
+        for (const columnName of columnNames) {
+            const value = row[columnName];
             const item = itemsMap[columnName];
-            return {
-                ...acc,
-                [columnName]: {
-                    value: {
-                        raw: formatRawValue(item, col),
-                        formatted: formatItemValue(item, col),
-                    },
+
+            resultRow[columnName] = {
+                value: {
+                    raw: formatRawValue(item, value),
+                    formatted: formatItemValue(item, value),
                 },
             };
-        }, {}),
-    );
+        }
+
+        return resultRow;
+    });
 }
 
 const isObject = (object: any) => object != null && typeof object === 'object';

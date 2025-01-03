@@ -8,27 +8,16 @@ import {
     type MantineTransition,
 } from '@mantine/core';
 import { type FC } from 'react';
-
 import useSidebarResize from '../../../hooks/useSidebarResize';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-
-const SIDEBAR_DEFAULT_WIDTH = 400;
-const SIDEBAR_MIN_WIDTH = 300;
-const SIDEBAR_MAX_WIDTH = 600;
-
-const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;
-
-export enum SidebarPosition {
-    LEFT = 'left',
-    RIGHT = 'right',
-}
-
-export type SidebarWidthProps = {
-    defaultWidth?: number;
-    minWidth?: number;
-    maxWidth?: number;
-};
+import {
+    SIDEBAR_DEFAULT_WIDTH,
+    SIDEBAR_MAX_WIDTH,
+    SIDEBAR_MIN_WIDTH,
+    SIDEBAR_RESIZE_HANDLE_WIDTH,
+} from './constants';
+import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type Props = {
     isOpen?: boolean;

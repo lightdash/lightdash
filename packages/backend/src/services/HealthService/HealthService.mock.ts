@@ -13,7 +13,6 @@ export const BaseResponse: HealthState = {
     hasEmailClient: false,
     hasExtendedUsageAnalytics: false,
     hasGithub: false,
-    hasGroups: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
@@ -40,6 +39,9 @@ export const BaseResponse: HealthState = {
             enabled: false,
             loginPath: '',
         },
+        pat: {
+            maxExpirationTimeInDays: undefined,
+        },
     },
     intercom: {
         apiBase: '',
@@ -58,6 +60,7 @@ export const BaseResponse: HealthState = {
     query: {
         csvCellsLimit: 100000,
         maxLimit: 5000,
+        defaultLimit: 500,
     },
     rudder: {
         dataPlaneUrl: '',
@@ -72,6 +75,7 @@ export const BaseResponse: HealthState = {
         tracesSampleRate: 0,
         profilesSampleRate: 0,
     },
+    hasCacheAutocompleResults: false,
 };
 
 export const userMock = {

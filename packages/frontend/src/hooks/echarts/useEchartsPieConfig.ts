@@ -1,12 +1,14 @@
 import {
     formatItemValue,
+    PieChartLegendLabelMaxLengthDefault,
+    PieChartTooltipLabelMaxLength,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
 import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
-import { isPieVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigPie';
-import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
+import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -137,7 +139,15 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                         value,
                     );
 
-                    return `${marker} <b>${name}</b><br />${percent}% - ${formattedValue}`;
+                    const truncatedName =
+                        name.length > PieChartTooltipLabelMaxLength
+                            ? `${name.slice(
+                                  0,
+                                  PieChartTooltipLabelMaxLength,
+                              )}...`
+                            : name;
+
+                    return `${marker} <b>${truncatedName}</b><br />${percent}% - ${formattedValue}`;
                 },
             },
         };
@@ -147,7 +157,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !pieSeriesOption) return;
 
         const {
-            validConfig: { showLegend, legendPosition },
+            validConfig: { showLegend, legendPosition, legendMaxItemLength },
         } = chartConfig;
 
         return {
@@ -155,6 +165,21 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
+                formatter: (name) => {
+                    return name.length >
+                        (legendMaxItemLength ??
+                            PieChartLegendLabelMaxLengthDefault)
+                        ? `${name.slice(
+                              0,
+                              legendMaxItemLength ??
+                                  PieChartLegendLabelMaxLengthDefault,
+                          )}...`
+                        : name;
+                },
+                tooltip: {
+                    show: true, // show tooltip for truncated legend items
+                    trigger: 'item',
+                },
                 ...(legendPosition === 'vertical'
                     ? {
                           left: 'left',

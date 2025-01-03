@@ -4,8 +4,8 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
 import { JsonViewerModal } from '../../JsonViewerModal';
@@ -57,13 +57,13 @@ export const ExplorerResults = memo(() => {
     const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
     const [expandData, setExpandData] = useState<{
         name: string;
-        jsonObject: object;
+        jsonObject: Record<string, unknown>;
     }>({
         name: 'unknown',
         jsonObject: {},
     });
 
-    const handleCellExpand = (name: string, data: object) => {
+    const handleCellExpand = (name: string, data: Record<string, unknown>) => {
         setExpandData({
             name: name,
             jsonObject: data,

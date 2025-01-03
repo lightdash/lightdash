@@ -1,4 +1,10 @@
-import { LightdashMode, ParseError, SentryConfig } from '@lightdash/common';
+import {
+    LightdashMode,
+    OrganizationMemberRole,
+    ParseError,
+    SentryConfig,
+} from '@lightdash/common';
+import { ORGANIZATION_ADMIN } from '@lightdash/common/dist/authorization/organizationMemberAbility.mock';
 import { VERSION } from '../version';
 import {
     getFloatArrayFromEnvironmentVariable,
@@ -7,6 +13,7 @@ import {
     getMaybeBase64EncodedFromEnvironmentVariable,
     getObjectFromEnvironmentVariable,
     parseConfig,
+    parseOrganizationMemberRoleArray,
 } from './parseConfig';
 
 jest.mock('fs/promises', () => ({
@@ -214,6 +221,40 @@ describe('getObjectFromEnvironmentVariable', () => {
         process.env.INVALID_OBJECT = 'test="value"';
         expect(() =>
             getObjectFromEnvironmentVariable('INVALID_OBJECT'),
+        ).toThrowError(ParseError);
+    });
+});
+
+// test parseOrganizationMemberRoleArray
+describe('parseOrganizationMemberRoleArray', () => {
+    beforeEach(() => {
+        // clear env var
+        delete process.env.ORGANIZATION_MEMBER_ROLE_ARRAY;
+    });
+    test('Should parse non existent organization member role array as undefined', () => {
+        expect(
+            parseOrganizationMemberRoleArray('ORGANIZATION_MEMBER_ROLE_ARRAY'),
+        ).toEqual(undefined);
+    });
+    test('Should parse single valid organization member role', () => {
+        process.env.ORGANIZATION_MEMBER_ROLE_ARRAY = 'editor';
+        expect(
+            parseOrganizationMemberRoleArray('ORGANIZATION_MEMBER_ROLE_ARRAY'),
+        ).toStrictEqual([OrganizationMemberRole.EDITOR]);
+    });
+    test('Should parse multiple valid organization member roles', () => {
+        process.env.ORGANIZATION_MEMBER_ROLE_ARRAY = 'admin,member';
+        expect(
+            parseOrganizationMemberRoleArray('ORGANIZATION_MEMBER_ROLE_ARRAY'),
+        ).toStrictEqual([
+            OrganizationMemberRole.ADMIN,
+            OrganizationMemberRole.MEMBER,
+        ]);
+    });
+    test('Should throw ParseError if not a valid organization member role array', () => {
+        process.env.ORGANIZATION_MEMBER_ROLE_ARRAY = 'admin,member,invalid';
+        expect(() =>
+            parseOrganizationMemberRoleArray('ORGANIZATION_MEMBER_ROLE_ARRAY'),
         ).toThrowError(ParseError);
     });
 });

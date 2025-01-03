@@ -1,7 +1,8 @@
-import { SessionUser } from '@lightdash/common';
+import { LightdashMode, SessionUser } from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
+import ExecutionContext from 'node-execution-context';
 import winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
 
@@ -22,42 +23,66 @@ const colors = {
 };
 winston.addColors(colors);
 
-const addSentryTraceId = winston.format((info) => ({
-    ...info,
-    sentryTraceId: getActiveSpan()?.spanContext().traceId,
-}));
+export type SentryInfo = {
+    sentryTraceId?: string;
+};
+
+const addSentryTraceId = winston.format(
+    (info): winston.Logform.TransformableInfo & SentryInfo => ({
+        ...info,
+        sentryTraceId: getActiveSpan()?.spanContext().traceId,
+    }),
+);
+
+export type ExecutionContextInfo = {
+    worker?: {
+        id: string | null;
+    };
+    job?: {
+        id: string;
+        queue_name: string | null;
+        task_identifier: string;
+        priority: number;
+        attempts: number;
+    };
+};
+
+const addExecutionContent = winston.format(
+    (info): winston.Logform.TransformableInfo & ExecutionContextInfo =>
+        ExecutionContext.exists()
+            ? {
+                  ...info,
+                  ...ExecutionContext.get<ExecutionContextInfo>(),
+              }
+            : info,
+);
+
+const printMessage = (
+    info: winston.Logform.TransformableInfo & ExecutionContextInfo & SentryInfo,
+): string => {
+    const jobId = info.job?.id ? `[Job:${info.job.id}]` : '';
+    const serviceName = info.serviceName ? `[${info.serviceName}]` : '';
+    return `${info.timestamp} [Lightdash]${jobId}${serviceName} ${info.level}: ${info.message}`;
+};
 
 const formatters = {
     plain: winston.format.combine(
         addSentryTraceId(),
+        addExecutionContent(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.uncolorize(),
-        winston.format.printf((info) => {
-            const sentryTraceId = info.sentryTraceId
-                ? ` ${info.sentryTraceId}`
-                : '';
-
-            return `${info.timestamp}${sentryTraceId} [Lightdash] ${info.level}: ${info.message}`;
-        }),
+        winston.format.printf(printMessage),
     ),
     pretty: winston.format.combine(
         addSentryTraceId(),
+        addExecutionContent(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.colorize({ all: true }),
-        winston.format.printf((info) => {
-            const sentryTraceId = info.sentryTraceId
-                ? ` ${info.sentryTraceId}`
-                : '';
-
-            return `${info.timestamp}${sentryTraceId} [Lightdash] ${
-                info.level
-            }: ${info.serviceName ? `[${info.serviceName}] ` : ''}${
-                info.message
-            }`;
-        }),
+        winston.format.printf(printMessage),
     ),
     json: winston.format.combine(
         addSentryTraceId(),
+        addExecutionContent(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.json(),
     ),
@@ -114,6 +139,7 @@ export const expressWinstonMiddleware: express.RequestHandler =
         dynamicMeta: (req, res) => ({
             userUuid: req.user?.userUuid,
             organizationUuid: req.user?.organizationUuid,
+            includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],
         responseWhitelist: ['statusCode'],
@@ -124,3 +150,26 @@ export const expressWinstonMiddleware: express.RequestHandler =
             'accept-encoding',
         ],
     });
+
+// Logs the request before the response is sent
+export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
+    req,
+    _res,
+    next,
+) => {
+    if (lightdashConfig.mode !== LightdashMode.DEV) {
+        winstonLogger.log({
+            level: 'http',
+            message: `${req.method} ${req.url}`,
+            req: {
+                method: req.method,
+                url: req.url,
+                headers: req.headers,
+            },
+            includesResponse: false,
+            userUuid: req.user?.userUuid,
+            organizationUuid: req.user?.organizationUuid,
+        });
+    }
+    next();
+};

@@ -50,7 +50,10 @@ export class GroupsService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const groupMembership = await this.groupsModel.addGroupMember(member);
+        const [groupMembership] = await this.groupsModel.addGroupMembers(
+            member.groupUuid,
+            [member.userUuid],
+        );
         if (groupMembership) {
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
@@ -64,6 +67,7 @@ export class GroupsService extends BaseService {
                     name: updatedGroup.name,
                     countUsersInGroup: updatedGroup.memberUuids.length,
                     viaSso: false,
+                    context: 'add_member',
                 },
             });
         }
@@ -102,6 +106,7 @@ export class GroupsService extends BaseService {
                     name: updatedGroup.name,
                     countUsersInGroup: updatedGroup.memberUuids.length,
                     viaSso: false,
+                    context: 'remove_member',
                 },
             });
         }
@@ -127,6 +132,7 @@ export class GroupsService extends BaseService {
             properties: {
                 organizationId: group.organizationUuid,
                 groupId: group.uuid,
+                context: 'delete_group',
             },
         });
     }
@@ -175,10 +181,11 @@ export class GroupsService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const updatedGroup = await this.groupsModel.updateGroup(
+        const updatedGroup = await this.groupsModel.updateGroup({
+            updatedByUserUuid: actor.userUuid,
             groupUuid,
             update,
-        );
+        });
         this.analytics.track({
             userId: actor.userUuid,
             event: 'group.updated',
@@ -188,6 +195,7 @@ export class GroupsService extends BaseService {
                 name: updatedGroup.name,
                 countUsersInGroup: updatedGroup.memberUuids.length,
                 viaSso: false,
+                context: 'update_group',
             },
         });
         return updatedGroup;

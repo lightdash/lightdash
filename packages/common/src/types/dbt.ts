@@ -20,7 +20,7 @@ import {
 } from './field';
 import { parseFilters } from './filterGrammar';
 import { type OrderFieldsByStrategy } from './table';
-import { type TimeFrames } from './timeFrames';
+import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -58,6 +58,10 @@ export type DbtModelColumn = ColumnInfo & {
     data_type?: DimensionType;
 };
 
+type DbtLightdashFieldTags = {
+    tags?: string | string[];
+};
+
 type DbtModelMetadata = DbtModelLightdashConfig & {};
 
 type DbtModelLightdashConfig = {
@@ -71,6 +75,10 @@ type DbtModelLightdashConfig = {
     required_filters?: { [key: string]: any }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
+    default_time_dimension?: {
+        field: string;
+        interval: TimeFrames;
+    };
 };
 
 export type DbtModelGroup = {
@@ -115,7 +123,7 @@ export type DbtColumnLightdashDimension = {
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
-};
+} & DbtLightdashFieldTags;
 
 type DbtColumnLightdashAdditionalDimension = Omit<
     DbtColumnLightdashDimension,
@@ -137,7 +145,8 @@ export type DbtColumnLightdashMetric = {
     show_underlying_values?: string[];
     filters?: { [key: string]: any }[];
     percentile?: number;
-};
+    default_time_dimension?: DefaultTimeDimension;
+} & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
     Required<Pick<DbtColumnLightdashMetric, 'sql'>>;
@@ -443,7 +452,22 @@ export const convertModelMetric = ({
         percentile: metric.percentile,
         dimensionReference,
         requiredAttributes,
-        ...(metric.urls ? { urls: metric.urls } : {}),
+        ...(metric.urls ? { urls: metric.urls } : null),
+        ...(metric.tags
+            ? {
+                  tags: Array.isArray(metric.tags)
+                      ? metric.tags
+                      : [metric.tags],
+              }
+            : null),
+        ...(metric.default_time_dimension
+            ? {
+                  defaultTimeDimension: {
+                      field: metric.default_time_dimension.field,
+                      interval: metric.default_time_dimension.interval,
+                  },
+              }
+            : null),
     };
 };
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
@@ -482,6 +506,14 @@ export const convertColumnMetric = ({
             ? getItemId({ table: modelName, name: dimensionName })
             : undefined,
         requiredAttributes,
+        ...(metric.default_time_dimension
+            ? {
+                  defaultTimeDimension: {
+                      field: metric.default_time_dimension.field,
+                      interval: metric.default_time_dimension.interval,
+                  },
+              }
+            : null),
     });
 
 export enum DbtManifestVersion {

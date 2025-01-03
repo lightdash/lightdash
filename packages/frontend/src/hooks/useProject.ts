@@ -6,10 +6,11 @@ import {
     type Project,
     type SemanticLayerConnectionUpdate,
     type UpdateProject,
+    type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
-import { useActiveJob } from '../providers/ActiveJobProvider';
+import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
@@ -44,6 +45,16 @@ const updateProjectSemanticLayerConnection = async (
         body: JSON.stringify(data),
     });
 
+const updateProjectSchedulerSettings = async (
+    uuid: string,
+    data: UpdateSchedulerSettings,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/schedulerSettings`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
 const deleteProjectSemanticLayerConnection = async (uuid: string) =>
     lightdashApi<undefined>({
         url: `/projects/${uuid}/semantic-layer-connection`,
@@ -56,7 +67,7 @@ export const useProject = (id: string | undefined) => {
     return useQuery<Project, ApiError>({
         queryKey: ['project', id],
         queryFn: () => getProject(id || ''),
-        enabled: id !== undefined,
+        enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
     });
@@ -117,10 +128,13 @@ const getMostPopularAndRecentlyUpdated = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useMostPopularAndRecentlyUpdated = (projectUuid: string) =>
+export const useMostPopularAndRecentlyUpdated = (
+    projectUuid: string | undefined,
+) =>
     useQuery<MostPopularAndRecentlyUpdated, ApiError>({
         queryKey: ['most-popular-and-recently-updated', projectUuid],
-        queryFn: () => getMostPopularAndRecentlyUpdated(projectUuid || ''),
+        queryFn: () => getMostPopularAndRecentlyUpdated(projectUuid!),
+        enabled: !!projectUuid,
     });
 
 export const useProjectSemanticLayerUpdateMutation = (uuid: string) => {
@@ -144,6 +158,20 @@ export const useProjectSemanticLayerDeleteMutation = (uuid: string) => {
             mutationKey: ['project_semantic_layer_delete', uuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
+            },
+        },
+    );
+};
+
+export const useProjectUpdateSchedulerSettings = (uuid: string) => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, UpdateSchedulerSettings>(
+        (data) => updateProjectSchedulerSettings(uuid, data),
+        {
+            mutationKey: ['project_scheduler_settings_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+                await queryClient.invalidateQueries(['schedulerLogs']);
             },
         },
     );

@@ -1,6 +1,6 @@
 import { createStyles, keyframes, Loader, Text } from '@mantine/core';
 import { type FC } from 'react';
-import { TrackSection } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';

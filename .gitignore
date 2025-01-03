@@ -51,9 +51,6 @@ package-lock.json
 /dbt
 /profile*
 
-# docs
-/docs/build
-/docs/.docusaurus
 
 # credentials
 credentials.json
@@ -68,3 +65,6 @@ logs/
 
 # dangerfile
 dangerfile.development.ts
+
+# Charts as code
+lightdash

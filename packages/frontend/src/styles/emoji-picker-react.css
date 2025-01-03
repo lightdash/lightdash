@@ -1,0 +1,28 @@
+.EmojiPickerReact {
+    --epr-emoji-size: 20px !important;
+    --epr-header-padding: 4px !important;
+    --epr-category-navigation-button-size: 20px !important;
+    --epr-emoji-gap: 8px;
+
+    --epr-search-input-bg-color-active: white !important;
+    --epr-picker-border-radius: 0 !important;
+    --epr-search-input-height: 30px !important;
+    --epr-search-input-padding: 0 30px !important;
+    --epr-search-bar-inner-padding: 8px !important;
+
+    border: none !important;
+}
+
+.epr-search-container {
+    height: 30px !important;
+}
+
+.epr-icn-search {
+    background-size: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+}
+
+.epr-btn-clear-search:hover {
+    background: transparent !important;
+}

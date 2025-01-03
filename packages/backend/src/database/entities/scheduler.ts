@@ -22,6 +22,7 @@ export type SchedulerDb = {
     updated_at: Date;
     created_by: string;
     cron: string;
+    timezone: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
     options: Record<string, any>;
@@ -31,6 +32,7 @@ export type SchedulerDb = {
     enabled: boolean;
     notification_frequency: string | null;
     selected_tabs: string[] | null;
+    include_links: boolean;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -70,6 +72,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'message'
           | 'updated_at'
           | 'cron'
+          | 'timezone'
           | 'format'
           | 'options'
           | 'filters'
@@ -77,8 +80,10 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'thresholds'
           | 'notification_frequency'
           | 'selected_tabs'
+          | 'include_links'
       >
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
+    | Pick<SchedulerDb, 'cron'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<

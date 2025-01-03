@@ -8,6 +8,7 @@ import {
     isField,
     isMetric,
     isNumericItem,
+    isSummable,
     MetricType,
     type ConditionalFormattingConfig,
     type ItemsMap,
@@ -31,19 +32,15 @@ import last from 'lodash/last';
 import { readableColor } from 'polished';
 import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { getDecimalPrecision } from '../../../hooks/tableVisualization/getDataAndColumns';
-import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
-import { getConditionalRuleLabel } from '../Filters/FilterInputs';
+import { getConditionalRuleLabel } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
-import { CELL_HEIGHT } from '../LightTable/styles';
+import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
+import { ROW_NUMBER_COLUMN_ID } from '../Table/constants';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
-import { countSubRows } from '../Table/ScrollableTable/TableBody';
-import {
-    columnHelper,
-    ROW_NUMBER_COLUMN_ID,
-    type TableColumn,
-} from '../Table/types';
+import { columnHelper, type TableColumn } from '../Table/types';
+import { countSubRows } from '../Table/utils';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 

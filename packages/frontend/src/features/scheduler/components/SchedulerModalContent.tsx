@@ -12,14 +12,17 @@ import {
     type UseQueryResult,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import useUser from '../../../hooks/user/useUser';
-import { useTracking } from '../../../providers/TrackingProvider';
+import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
-import { getSchedulerUuidFromUrlParams } from '../utils';
+import {
+    getSchedulerUuidFromUrlParams,
+    getThresholdUuidFromUrlParams,
+} from '../utils';
 import SchedulerForm from './SchedulerForm';
 import SchedulersModalFooter from './SchedulerModalFooter';
 import SchedulersList from './SchedulersList';
@@ -274,7 +277,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
 }) => {
     const [state, setState] = useState<States>(States.LIST);
     const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>();
-    const history = useHistory();
+    const navigate = useNavigate();
     const { search, pathname } = useLocation();
 
     useEffect(() => {
@@ -287,12 +290,33 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
             // remove from url param after modal is open
             const newParams = new URLSearchParams(search);
             newParams.delete('scheduler_uuid');
-            history.replace({
-                pathname,
-                search: newParams.toString(),
-            });
+            void navigate(
+                {
+                    pathname,
+                    search: newParams.toString(),
+                },
+                { replace: true },
+            );
+        } else {
+            const thresholdUuidFromUrlParams =
+                getThresholdUuidFromUrlParams(search);
+            if (thresholdUuidFromUrlParams) {
+                setState(States.EDIT);
+                setSchedulerUuid(thresholdUuidFromUrlParams);
+
+                // remove from url param after modal is open
+                const newParams = new URLSearchParams(search);
+                newParams.delete('threshold_uuid');
+                void navigate(
+                    {
+                        pathname,
+                        search: newParams.toString(),
+                    },
+                    { replace: true },
+                );
+            }
         }
-    }, [history, pathname, search]);
+    }, [navigate, pathname, search]);
 
     return (
         <>

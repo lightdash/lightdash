@@ -1,4 +1,8 @@
-import { ApiCsvUrlResponse, ApiErrorPayload } from '@lightdash/common';
+import {
+    ApiCsvUrlResponse,
+    ApiErrorPayload,
+    UnexpectedServerError,
+} from '@lightdash/common';
 import {
     Get,
     Middlewares,

@@ -101,6 +101,7 @@ export type CreatePostgresCredentials = SshTunnelConfiguration & {
     role?: string;
     sslmode?: string;
     startOfWeek?: WeekDay | null;
+    timeoutSeconds?: number;
 };
 export type PostgresCredentials = Omit<
     CreatePostgresCredentials,
@@ -136,6 +137,7 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sslmode?: string;
     ra3Node?: boolean;
     startOfWeek?: WeekDay | null;
+    timeoutSeconds?: number;
 };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,
@@ -199,6 +201,7 @@ export enum SupportedDbtVersions {
     V1_6 = 'v1.6',
     V1_7 = 'v1.7',
     V1_8 = 'v1.8',
+    V1_9 = 'v1.9',
 }
 
 export const GetDbtManifestVersion = (
@@ -214,6 +217,7 @@ export const GetDbtManifestVersion = (
         case SupportedDbtVersions.V1_7:
             return DbtManifestVersion.V11;
         case SupportedDbtVersions.V1_8:
+        case SupportedDbtVersions.V1_9:
             return DbtManifestVersion.V12;
         default:
             assertUnreachable(
@@ -328,6 +332,8 @@ export type Project = {
     upstreamProjectUuid?: string;
     dbtVersion: SupportedDbtVersions;
     semanticLayerConnection?: SemanticLayerConnection;
+    schedulerTimezone: string;
+    createdByUserUuid: string | null;
 };
 
 export type ProjectSummary = Pick<
@@ -349,6 +355,7 @@ export type IdContentMapping = {
     id: number | string;
     newId: number | string;
 };
+
 export type PreviewContentMapping = {
     charts: IdContentMapping[];
     chartVersions: IdContentMapping[];
@@ -357,4 +364,8 @@ export type PreviewContentMapping = {
     dashboardVersions: IdContentMapping[];
     savedSql: IdContentMapping[];
     savedSqlVersions: IdContentMapping[];
+};
+
+export type UpdateSchedulerSettings = {
+    schedulerTimezone: string;
 };

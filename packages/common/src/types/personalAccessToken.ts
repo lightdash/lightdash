@@ -1,15 +1,14 @@
 export type PersonalAccessToken = {
-    uuid?: string;
+    uuid: string;
     createdAt: Date;
-    expiresAt?: Date;
+    lastUsedAt: Date | null;
+    rotatedAt: Date | null;
+    expiresAt: Date | null;
     description: string;
 };
 
-export type ApiPersonalAccessTokenResponse = {
-    uuid?: string;
-    createdAt: string;
-    expiresAt?: string;
-    description: string;
+export type PersonalAccessTokenWithToken = PersonalAccessToken & {
+    token: string;
 };
 
 export type CreatePersonalAccessToken = Pick<

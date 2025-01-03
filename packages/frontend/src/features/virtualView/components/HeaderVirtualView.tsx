@@ -35,12 +35,13 @@ import {
 } from '@tabler/icons-react';
 import { groupBy } from 'lodash';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { compareSqlQueries } from '../../sqlRunner/store/sqlRunnerSlice';
 import { useUpdateVirtualView } from '../hooks/useVirtualView';
 import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
 
@@ -334,11 +335,20 @@ export const HeaderVirtualView: FC<{
     >(undefined);
 
     const [showWarningModal, setShowWarningModal] = useState(false);
-    const history = useHistory();
+    const navigate = useNavigate();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
+    const hasUnrunChanges = useMemo(
+        () =>
+            compareSqlQueries(
+                virtualViewState.sql,
+                sql,
+                warehouseConnectionType,
+            ),
+        [sql, virtualViewState.sql, warehouseConnectionType],
     );
 
     const { mutateAsync: getValidation, isPolling: isRunningValidation } =
@@ -407,7 +417,7 @@ export const HeaderVirtualView: FC<{
                 sql,
                 columns: columnsFromQuery,
             });
-            return history.go(0);
+            return navigate(0);
         }
 
         // Create a temporary virtual view so that we can create a preview validation
@@ -431,7 +441,7 @@ export const HeaderVirtualView: FC<{
                         sql,
                         columns: columnsFromQuery,
                     });
-                    history.go(0);
+                    void navigate(0);
                 } else {
                     if (handleDiff && initialColumns) {
                         setChartValidationErrors(response);
@@ -449,7 +459,7 @@ export const HeaderVirtualView: FC<{
                                 sql,
                                 columns: columnsFromQuery,
                             });
-                            history.go(0);
+                            void navigate(0);
                         } else {
                             // If there are diffs, we show the warning modal
                             setColumnDiffs(diffs);

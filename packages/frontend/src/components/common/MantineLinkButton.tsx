@@ -1,7 +1,8 @@
 import { Anchor, Button, type ButtonProps } from '@mantine/core';
 import React, { type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useTracking, type EventData } from '../../providers/TrackingProvider';
+import { useNavigate } from 'react-router';
+import { type EventData } from '../../providers/Tracking/types';
+import useTracking from '../../providers/Tracking/useTracking';
 
 export interface MantineLinkButtonProps extends ButtonProps {
     href: string;
@@ -19,7 +20,7 @@ const MantineLinkButton: FC<MantineLinkButtonProps> = ({
     onClick,
     ...rest
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { track } = useTracking();
 
     return (
@@ -35,7 +36,7 @@ const MantineLinkButton: FC<MantineLinkButtonProps> = ({
                         target !== '_blank'
                     ) {
                         e.preventDefault();
-                        history.push(href);
+                        void navigate(href);
                     }
 
                     onClick?.(e);

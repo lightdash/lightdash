@@ -24,24 +24,24 @@ import { IconExclamationCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useForm, useFormContext, type FieldErrors } from 'react-hook-form';
 import { type SubmitErrorHandler } from 'react-hook-form/dist/types/form';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
-import { useActiveJob } from '../../providers/ActiveJobProvider';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
+import useActiveJob from '../../providers/ActiveJob/useActiveJob';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useAbilityContext } from '../common/Authorization';
+import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { getWarehouseIcon } from './ProjectConnectFlow/SelectWarehouse';
+import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { FormContainer } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -290,7 +290,7 @@ export const UpdateProjectConnection: FC<{
                 <Button type="submit" loading={isSaving} disabled={isDisabled}>
                     {data?.dbtConnection?.type === DbtProjectType.NONE
                         ? 'Save and test'
-                        : 'Test & compile project'}
+                        : 'Test & deploy project'}
                 </Button>
             </Card>
         </FormContainer>
@@ -306,7 +306,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
     selectedWarehouse,
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
@@ -354,11 +354,11 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             createProjectJobId === activeJob?.jobUuid &&
             activeJob?.jobResults?.projectUuid
         ) {
-            history.push({
+            void navigate({
                 pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
             });
         }
-    }, [activeJob, createProjectJobId, history]);
+    }, [activeJob, createProjectJobId, navigate]);
 
     const isSavingProject = useMemo<boolean>(
         () =>
@@ -387,7 +387,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type="submit"
                     loading={isSavingProject}
                 >
-                    Test & compile project
+                    Test & deploy project
                 </Button>
             </ProjectFormProvider>
         </FormContainer>

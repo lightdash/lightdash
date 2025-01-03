@@ -8,6 +8,8 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     LightdashPage,
+    LightdashRequestMethodHeader,
+    RequestMethod,
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
@@ -43,6 +45,12 @@ const bigNumberViewport = {
     width: 768,
     height: 500,
 };
+
+export enum ScreenshotContext {
+    SCHEDULED_DELIVERY = 'scheduled_delivery',
+    SLACK = 'slack',
+    EXPORT_DASHBOARD = 'export_dashboard',
+}
 
 const SCREENSHOT_RETRIES = 3;
 
@@ -246,6 +254,8 @@ export class UnfurlService extends BaseService {
         gridWidth,
         withPdf = false,
         selector = undefined,
+        context,
+        contextId,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -254,6 +264,8 @@ export class UnfurlService extends BaseService {
         gridWidth?: number | undefined;
         withPdf?: boolean;
         selector?: string;
+        context: ScreenshotContext;
+        contextId?: unknown;
     }): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
@@ -271,6 +283,8 @@ export class UnfurlService extends BaseService {
             selector,
             chartTileUuids: details?.chartTileUuids,
             sqlChartTileUuids: details?.sqlChartTileUuids,
+            context,
+            contextId,
         });
 
         let imageUrl;
@@ -319,7 +333,7 @@ export class UnfurlService extends BaseService {
             name: dashboard.name,
             minimalUrl: new URL(
                 `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
-                this.lightdashConfig.siteUrl,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
             ).href,
             pageType: LightdashPage.DASHBOARD,
         };
@@ -344,6 +358,7 @@ export class UnfurlService extends BaseService {
             imageId: `slack-image_${snakeCaseName(name)}_${useNanoid()}`,
             authUserUuid: user.userUuid,
             gridWidth,
+            context: ScreenshotContext.EXPORT_DASHBOARD,
         });
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
@@ -365,6 +380,8 @@ export class UnfurlService extends BaseService {
         chartTileUuids = undefined,
         sqlChartTileUuids = undefined,
         retries = SCREENSHOT_RETRIES,
+        context,
+        contextId,
     }: {
         imageId: string;
         cookie: string;
@@ -379,6 +396,8 @@ export class UnfurlService extends BaseService {
         chartTileUuids?: (string | null)[] | undefined;
         sqlChartTileUuids?: (string | null)[] | undefined;
         retries?: number;
+        context: ScreenshotContext;
+        contextId?: unknown;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
@@ -410,7 +429,16 @@ export class UnfurlService extends BaseService {
                         browserWSEndpoint,
                     );
 
-                    page = await browser.newPage();
+                    page = await browser.newPage({
+                        extraHTTPHeaders: {
+                            [LightdashRequestMethodHeader]:
+                                RequestMethod.HEADLESS_BROWSER,
+                            'Lightdash-Headless-Browser-Context': context,
+                            'Lightdash-Headless-Browser-Context-Id': contextId
+                                ? contextId.toString()
+                                : 'undefined',
+                        },
+                    });
                     const parsedUrl = new URL(url);
 
                     const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
@@ -692,6 +720,8 @@ export class UnfurlService extends BaseService {
                             chartTileUuids,
                             sqlChartTileUuids,
                             retries,
+                            context,
+                            contextId,
                         });
                     }
 
@@ -765,7 +795,7 @@ export class UnfurlService extends BaseService {
                 lightdashPage: LightdashPage.DASHBOARD,
                 url,
                 minimalUrl: `${
-                    this.lightdashConfig.siteUrl
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost
                 }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
                 projectUuid,
                 dashboardUuid,
@@ -779,7 +809,7 @@ export class UnfurlService extends BaseService {
                 url,
                 minimalUrl: new URL(
                     `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
-                    this.lightdashConfig.siteUrl,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
                 ).href,
                 projectUuid,
                 chartUuid,
@@ -790,12 +820,15 @@ export class UnfurlService extends BaseService {
 
             const urlWithoutParams = url.split('?')[0];
             const exploreModel = urlWithoutParams.split('/tables/')[1];
-
+            const internalUrl = url.replace(
+                this.lightdashConfig.siteUrl,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.EXPLORE,
                 url,
-                minimalUrl: url,
+                minimalUrl: internalUrl,
                 projectUuid,
                 exploreModel,
             };
@@ -815,7 +848,7 @@ export class UnfurlService extends BaseService {
         const response = await fetch(
             new URL(
                 `/api/v1/headless-browser/login/${userUuid}`,
-                this.lightdashConfig.siteUrl,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
             ).href,
             {
                 method: 'POST',

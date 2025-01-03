@@ -5,7 +5,7 @@ import { type Editor, type JSONContent } from '@tiptap/react';
 import { useMemo, useState, type FC } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useSpace } from '../../../hooks/useSpaces';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import { CommentWithMentions } from './CommentWithMentions';
@@ -48,7 +48,7 @@ export const CommentForm: FC<Props> = ({
     const userNames: SuggestionsItem[] | undefined = useMemo(() => {
         if (!listUsers || !space?.access) return undefined;
         return listUsers.reduce<SuggestionsItem[]>((acc, user) => {
-            if (!user.isActive) return acc;
+            if (user.isPending) return acc;
 
             return [
                 ...acc,

@@ -10,10 +10,9 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useEffect, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
-
 import { IconAlertCircle } from '@tabler/icons-react';
+import { useEffect, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../components/PageSpinner';
@@ -21,12 +20,12 @@ import { useOrganizationCreateMutation } from '../hooks/organization/useOrganiza
 import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
-import { useApp } from '../providers/AppProvider';
+import useApp from '../providers/App/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
-    const history = useHistory();
+    const navigate = useNavigate();
     const { isInitialLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
         useAllowedOrganizations();
     const {
@@ -67,9 +66,9 @@ const JoinOrganizationPage: FC = () => {
 
     useEffect(() => {
         if ((hasCreatedOrg || hasJoinedOrg) && !createOrgError) {
-            history.push('/');
+            void navigate('/');
         }
-    }, [createOrgError, hasCreatedOrg, hasJoinedOrg, history]);
+    }, [createOrgError, hasCreatedOrg, hasJoinedOrg, navigate]);
 
     if (health.isInitialLoading || isLoadingAllowedOrgs || isCreatingOrg) {
         return <PageSpinner />;

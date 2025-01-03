@@ -1,8 +1,10 @@
 import {
     FeatureFlags,
+    formatMinutesOffset,
     getItemId,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
+    getTzMinutesOffset,
     isDashboardScheduler,
     isNumericItem,
     isSchedulerCsvOptions,
@@ -35,6 +37,7 @@ import {
     Select,
     Space,
     Stack,
+    Switch,
     Tabs,
     Text,
     TextInput,
@@ -45,6 +48,7 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconHelpCircle,
+    IconInfoCircle,
     IconMail,
     IconPercentage,
     IconSettings,
@@ -56,28 +60,21 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
+import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
-import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
+import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel/utils';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../hooks/useProject';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 import { SchedulerPreview } from './SchedulerPreview';
-
-export enum Limit {
-    TABLE = 'table',
-    ALL = 'all',
-    CUSTOM = 'custom',
-}
-
-export enum Values {
-    FORMATTED = 'formatted',
-    RAW = 'raw',
-}
+import { Limit, Values } from './types';
 
 enum SlackStates {
     LOADING,
@@ -91,6 +88,7 @@ const DEFAULT_VALUES = {
     message: '',
     format: SchedulerFormat.CSV,
     cron: '0 9 * * 1',
+    timezone: undefined,
     options: {
         formatted: Values.FORMATTED,
         limit: Limit.TABLE,
@@ -103,6 +101,7 @@ const DEFAULT_VALUES = {
     customViewportWidth: undefined,
     selectedTabs: undefined,
     thresholds: [],
+    includeLinks: true,
 };
 
 const DEFAULT_VALUES_ALERT = {
@@ -183,6 +182,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         message: schedulerData.message,
         format: schedulerData.format,
         cron: schedulerData.cron,
+        timezone: schedulerData.timezone,
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
@@ -193,6 +193,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         }),
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
+        includeLinks: schedulerData.includeLinks !== false,
     };
 };
 
@@ -271,6 +272,9 @@ const SchedulerForm: FC<Props> = ({
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
 
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
@@ -341,12 +345,12 @@ const SchedulerForm: FC<Props> = ({
                 ...emailTargets,
                 ...slackTargets,
             ];
-
             return {
                 name: values.name,
                 message: values.message,
                 format: values.format,
                 cron: values.cron,
+                timezone: values.timezone,
                 options,
                 targets,
                 ...(resource?.type === 'dashboard' && {
@@ -360,6 +364,7 @@ const SchedulerForm: FC<Props> = ({
                     'notificationFrequency' in values
                         ? (values.notificationFrequency as NotificationFrequency)
                         : undefined,
+                includeLinks: values.includeLinks !== false,
             };
         },
     });
@@ -447,6 +452,14 @@ const SchedulerForm: FC<Props> = ({
 
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
+
+    const projectDefaultOffsetString = useMemo(() => {
+        if (!project) {
+            return;
+        }
+        const minsOffset = getTzMinutesOffset('UTC', project.schedulerTimezone);
+        return formatMinutesOffset(minsOffset);
+    }, [project]);
 
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
@@ -650,13 +663,28 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                 </Tooltip>
                             )}
-                            <Box>
+                            <Box w="100%">
                                 <CronInternalInputs
                                     disabled={disabled}
                                     {...form.getInputProps('cron')}
                                     value={form.values.cron}
                                     name="cron"
-                                />
+                                >
+                                    <TimeZonePicker
+                                        size="sm"
+                                        style={{ flexGrow: 1 }}
+                                        placeholder={`Project Default ${
+                                            projectDefaultOffsetString
+                                                ? `(UTC ${projectDefaultOffsetString})`
+                                                : ''
+                                        }`}
+                                        maw={350}
+                                        searchable
+                                        clearable
+                                        variant="default"
+                                        {...form.getInputProps('timezone')}
+                                    />
+                                </CronInternalInputs>
                             </Box>
                         </Input.Wrapper>
                         {!isThresholdAlert && (
@@ -1081,6 +1109,31 @@ const SchedulerForm: FC<Props> = ({
 
                 <Tabs.Panel value="customization">
                     <Stack p="md">
+                        <Group>
+                            <Switch
+                                label="Include links to Lightdash"
+                                checked={form.values.includeLinks}
+                                onChange={() =>
+                                    form.setFieldValue(
+                                        'includeLinks',
+                                        !form.values?.includeLinks,
+                                    )
+                                }
+                            ></Switch>
+                            <Tooltip
+                                label={`Include links to the shared content in your Lightdash project. \n
+                                                                 We recommend turning this off if you're sharing with users who do not have access to your Lightdash project`}
+                                multiline
+                                withinPortal
+                                position="right"
+                                maw={400}
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    color="gray.6"
+                                />
+                            </Tooltip>
+                        </Group>
                         <Text fw={600}>Customize delivery message body</Text>
 
                         <MDEditor

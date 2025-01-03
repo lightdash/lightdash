@@ -5,7 +5,11 @@ import {
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
+import {
+    getReactGridLayoutConfig,
+    getResponsiveGridLayoutProps,
+} from '../components/DashboardTabs/gridUtils';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -15,19 +19,15 @@ import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
-import { DashboardProvider } from '../providers/DashboardProvider';
+import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import '../styles/react-grid.css';
-import {
-    getReactGridLayoutConfig,
-    getResponsiveGridLayoutProps,
-} from './Dashboard';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const schedulerUuid = useSearchParams('schedulerUuid');
-    const sendNowchedulerFilters = useSearchParams('sendNowchedulerFilters');
+    const sendNowSchedulerFilters = useSearchParams('sendNowSchedulerFilters');
     const schedulerTabs = useSearchParams('selectedTabs');
     const dateZoom = useDateZoomGranularitySearch();
 
@@ -41,19 +41,19 @@ const MinimalDashboard: FC = () => {
         data: scheduler,
         isError: isSchedulerError,
         error: schedulerError,
-    } = useScheduler(schedulerUuid!, {
-        enabled: !!schedulerUuid && !sendNowchedulerFilters,
+    } = useScheduler(schedulerUuid, {
+        enabled: !!schedulerUuid && !sendNowSchedulerFilters,
     });
 
     const schedulerFilters = useMemo(() => {
         if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
             return scheduler.filters;
         }
-        if (sendNowchedulerFilters) {
-            return JSON.parse(sendNowchedulerFilters);
+        if (sendNowSchedulerFilters) {
+            return JSON.parse(sendNowSchedulerFilters);
         }
         return undefined;
-    }, [scheduler, schedulerUuid, sendNowchedulerFilters]);
+    }, [scheduler, schedulerUuid, sendNowSchedulerFilters]);
 
     const selectedTabs = useMemo(() => {
         if (schedulerTabs) {

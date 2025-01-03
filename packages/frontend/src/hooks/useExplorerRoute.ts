@@ -9,12 +9,12 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import {
     ExplorerSection,
-    useExplorerContext,
     type ExplorerReduceState,
-} from '../providers/ExplorerProvider';
+} from '../providers/Explorer/types';
+import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
@@ -41,15 +41,24 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
 };
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     createSavedChart: CreateSavedChartVersion,
+    // Pass true to preserve long url. This is sometimes desireable when we want
+    // all of the information in the URL, but don't use it for navigation.
+    // For example, the explore from here button uses the entire URL to create
+    // shareable, shortened links.
+    preserveLongUrl?: boolean,
 ): { pathname: string; search: string } => {
+    if (!projectUuid) {
+        return { pathname: '', search: '' };
+    }
     const newParams = new URLSearchParams();
 
     let stringifiedChart = JSON.stringify(createSavedChart);
     const stringifiedChartSize = stringifiedChart.length;
     if (
         stringifiedChartSize > 3000 &&
+        !preserveLongUrl &&
         isCartesianChartConfig(createSavedChart.chartConfig.config)
     ) {
         console.warn(
@@ -134,7 +143,7 @@ export const parseExplorerSearchParams = (
 };
 
 export const useExplorerRoute = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const pathParams = useParams<{
         projectUuid: string;
         tableId: string | undefined;
@@ -157,7 +166,7 @@ export const useExplorerRoute = () => {
     // Update url params based on pristine state
     useEffect(() => {
         if (metricQuery && unsavedChartVersion.tableName) {
-            history.replace(
+            void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     {
@@ -165,11 +174,12 @@ export const useExplorerRoute = () => {
                         metricQuery,
                     },
                 ),
+                { replace: true },
             );
         }
     }, [
         metricQuery,
-        history,
+        navigate,
         pathParams.projectUuid,
         unsavedChartVersion,
         dateZoom,
@@ -229,6 +239,9 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
                     modals: {
+                        format: {
+                            isOpen: false,
+                        },
                         additionalMetric: {
                             isOpen: false,
                         },
