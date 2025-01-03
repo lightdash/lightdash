@@ -2,8 +2,10 @@ import {
     assertUnreachable,
     DbtProjectType,
     DbtProjectTypeLabels,
+    DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
     FeatureFlags,
+    getLatestSupportDbtVersion,
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -180,12 +182,18 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                     render={({ field }) => (
                         <Select
                             label="dbt version"
-                            data={Object.values(SupportedDbtVersions).map(
-                                (version) => ({
-                                    value: version,
-                                    label: version,
-                                }),
-                            )}
+                            data={[
+                                {
+                                    value: DbtVersionOptionLatest.LATEST,
+                                    label: `latest (${getLatestSupportDbtVersion()})`,
+                                },
+                                ...Object.values(SupportedDbtVersions)
+                                    .reverse()
+                                    .map((version) => ({
+                                        value: version,
+                                        label: version,
+                                    })),
+                            ]}
                             value={field.value}
                             onChange={field.onChange}
                             disabled={disabled}

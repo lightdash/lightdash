@@ -202,7 +202,19 @@ export enum SupportedDbtVersions {
     V1_9 = 'v1.9',
 }
 
-export const DefaultSupportedDbtVersion = SupportedDbtVersions.V1_4;
+// Make it an enum to avoid TSOA errors
+export enum DbtVersionOptionLatest {
+    LATEST = 'latest',
+}
+
+export type DbtVersionOption = SupportedDbtVersions | DbtVersionOptionLatest;
+
+export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {
+    const versions = Object.values(SupportedDbtVersions);
+    return versions[versions.length - 1];
+};
+
+export const DefaultSupportedDbtVersion = DbtVersionOptionLatest.LATEST;
 
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
@@ -304,7 +316,7 @@ export type Project = {
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
-    dbtVersion: SupportedDbtVersions;
+    dbtVersion: DbtVersionOption;
     semanticLayerConnection?: SemanticLayerConnection;
     schedulerTimezone: string;
     createdByUserUuid: string | null;

@@ -5,7 +5,7 @@ import {
     ProjectType,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
-    type SupportedDbtVersions,
+    type DbtVersionOption,
     type WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -53,7 +53,7 @@ type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
 
     warehouse?: CreateWarehouseCredentials;
-    dbtVersion: SupportedDbtVersions;
+    dbtVersion: DbtVersionOption;
 };
 
 interface Props {
