@@ -585,7 +585,7 @@ export default class SchedulerTask {
                         file: buffer,
                         title: name,
                     });
-                    fileUrl = slackFileUrl || imageUrl;
+                    fileUrl = slackFileUrl;
                 } catch (e) {
                     Logger.error(`Failed to upload image to slack: ${e}`);
                 }
