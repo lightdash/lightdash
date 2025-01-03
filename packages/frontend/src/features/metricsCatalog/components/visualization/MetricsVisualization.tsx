@@ -126,8 +126,7 @@ const MetricsVisualization: FC<Props> = ({
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
 
-    const theme = useMantineTheme();
-    const colors = theme.colors;
+    const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
