@@ -4,6 +4,7 @@ import {
     friendlyName,
     getCustomFormat,
     MetricExplorerComparison,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
@@ -483,21 +484,35 @@ const MetricsVisualization: FC<Props> = ({
     const splitSegments = useMemo(() => {
         return segmentedData.map((segment) => {
             const { data: segmentData, ...rest } = segment;
+            const completedPeriodData: MetricExploreDataPointWithDateValue[] =
+                [];
+            const incompletePeriodData: MetricExploreDataPointWithDateValue[] =
+                [];
 
-            return {
-                ...rest,
-                completedPeriodData: segmentData.filter((row) => {
-                    return !isInCurrentTimeFrame(
-                        row.date,
-                        results?.metric.timeDimension?.interval,
-                    );
-                }),
-                incompletePeriodData: segmentData.filter((row) =>
+            segmentData.forEach((row) => {
+                if (
                     isInCurrentTimeFrame(
                         row.date,
                         results?.metric.timeDimension?.interval,
-                    ),
-                ),
+                    )
+                ) {
+                    incompletePeriodData.push(row);
+                } else {
+                    completedPeriodData.push(row);
+                }
+            });
+
+            const lastCompletedPeriodData = completedPeriodData.sort(
+                (a, b) => b.date.getTime() - a.date.getTime(),
+            )[0];
+
+            // Add the last completed period data to the incomplete period data, this will fill in the gap between the last completed period and the first incomplete period
+            incompletePeriodData.push(lastCompletedPeriodData);
+
+            return {
+                ...rest,
+                completedPeriodData,
+                incompletePeriodData,
             };
         });
     }, [results?.metric.timeDimension?.interval, segmentedData]);
@@ -681,10 +696,20 @@ const MetricsVisualization: FC<Props> = ({
                                 return (
                                     <>
                                         <Line
+                                            key={completedPeriodKey}
+                                            {...getLineProps(key)}
+                                            type="linear"
+                                            yAxisId="metric"
+                                            data={segment.completedPeriodData}
+                                            dataKey="metric.value"
+                                            stroke={segment.color}
+                                            dot={false}
+                                            legendType="plainline"
+                                            isAnimationActive={false}
+                                        />
+                                        <Line
                                             key={incompletePeriodKey}
-                                            {...getLineProps(
-                                                incompletePeriodKey,
-                                            )}
+                                            {...getLineProps(key)}
                                             type="linear"
                                             yAxisId="metric"
                                             data={segment.incompletePeriodData}
@@ -693,23 +718,7 @@ const MetricsVisualization: FC<Props> = ({
                                             dot={false}
                                             legendType="plainline"
                                             isAnimationActive={false}
-                                        />
-                                        <Line
-                                            key={completedPeriodKey}
-                                            {...getLineProps(
-                                                completedPeriodKey,
-                                            )}
-                                            type="linear"
-                                            yAxisId="metric"
-                                            data={segment.completedPeriodData}
-                                            dataKey="metric.value"
-                                            stroke={theme.fn.lighten(
-                                                segment.color,
-                                                0.4,
-                                            )}
-                                            dot={false}
-                                            legendType="plainline"
-                                            isAnimationActive={false}
+                                            strokeDasharray={'5 5'}
                                         />
                                     </>
                                 );

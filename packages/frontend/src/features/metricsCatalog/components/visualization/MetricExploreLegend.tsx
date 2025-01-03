@@ -6,7 +6,8 @@ import {
     IconChevronRight,
     IconLineDashed,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { uniqBy } from 'lodash';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type LegendProps } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { SquareBadge } from './MetricExploreTooltip';
@@ -124,16 +125,24 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
         [containerWidth, getItemWidth, getLegendItemText],
     );
 
-    const itemsPerRow = calculateItemsPerRow(props.payload || []);
+    const uniqPayload = useMemo(() => {
+        return uniqBy(props.payload, function (payload) {
+            return `${payload.value}-${payload.dataKey}`;
+        });
+    }, [props.payload]);
+
+    const itemsPerRow = calculateItemsPerRow(uniqPayload || []);
     const itemsPerPage = itemsPerRow * ROWS;
 
-    const totalPages = Math.ceil((props.payload?.length ?? 0) / itemsPerPage);
+    const totalPages = Math.ceil((uniqPayload?.length ?? 0) / itemsPerPage);
     const requiresPagination = totalPages > 1;
 
-    const visibleItems = props.payload?.slice(
-        (activePage - 1) * itemsPerPage,
-        activePage * itemsPerPage,
-    );
+    const visibleItems = useMemo(() => {
+        return uniqPayload?.slice(
+            (activePage - 1) * itemsPerPage,
+            activePage * itemsPerPage,
+        );
+    }, [activePage, itemsPerPage, uniqPayload]);
 
     useEffect(
         function resetPagination() {
