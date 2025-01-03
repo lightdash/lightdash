@@ -40,8 +40,9 @@ export type PostSlackFile = {
     threadTs: string;
     file: Buffer;
     title: string;
-    comment: string;
+    comment?: string;
     filename: string;
+    fileType?: string;
 };
 
 export class SlackClient {
@@ -369,6 +370,7 @@ export class SlackClient {
             title: args.title,
             initial_comment: args.comment,
             filename: args.filename,
+            filetype: args.fileType || 'png',
         });
 
         if (!result.ok) {

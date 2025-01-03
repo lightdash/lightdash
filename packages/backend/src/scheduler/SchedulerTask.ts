@@ -62,6 +62,7 @@ import {
     VizColumn,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
+import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import {
@@ -513,7 +514,7 @@ export default class SchedulerTask {
                 imageUrl,
                 csvUrl,
                 csvUrls,
-                // pdfFile, // TODO: add pdf to slack
+                pdfFile,
             } = notificationPageData;
 
             const defaultSchedulerTimezone =
@@ -598,12 +599,27 @@ export default class SchedulerTask {
                     imageUrl: fileUrl,
                 });
 
-                await this.slackClient.postMessage({
+                const message = await this.slackClient.postMessage({
                     organizationUuid,
                     text: name,
                     channel,
                     blocks,
                 });
+
+                if (pdfFile && message.ts) {
+                    // Add the pdf to the thread
+                    const pdfBuffer = await fs.readFile(pdfFile);
+
+                    await this.slackClient.postFileToThread({
+                        organizationUuid,
+                        file: pdfBuffer,
+                        title: name,
+                        channelId: channel,
+                        threadTs: message.ts,
+                        filename: `${name}.pdf`,
+                        fileType: 'pdf',
+                    });
+                }
             } else {
                 let blocks;
                 if (savedChartUuid) {
