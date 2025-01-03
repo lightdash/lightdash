@@ -389,6 +389,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/inverts"><img src="https://avatars.githubusercontent.com/u/4111862?v=4?s=100" width="100px;" alt="Dave"/><br /><sub><b>Dave</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=inverts" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/BhuvaneshPatil"><img src="https://avatars.githubusercontent.com/u/27822551?v=4?s=100" width="100px;" alt="Bhuvanesh"/><br /><sub><b>Bhuvanesh</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=BhuvaneshPatil" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://parthiblol.netlify.app"><img src="https://avatars.githubusercontent.com/u/94271200?v=4?s=100" width="100px;" alt="Parthib Datta"/><br /><sub><b>Parthib Datta</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ptdatta" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
