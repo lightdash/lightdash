@@ -15,7 +15,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -163,7 +163,7 @@ export const MetricsCatalogPanel = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const history = useHistory();
+    const navigate = useNavigate();
     const categoriesParam = useSearchParams('categories');
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
@@ -195,7 +195,10 @@ export const MetricsCatalogPanel = () => {
     }>();
 
     useEffect(() => {
-        if (!projectUuid || projectUuid !== params.projectUuid) {
+        if (
+            params.projectUuid &&
+            (!projectUuid || projectUuid !== params.projectUuid)
+        ) {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [params.projectUuid, dispatch, projectUuid]);
@@ -225,8 +228,8 @@ export const MetricsCatalogPanel = () => {
         } else {
             queryParams.delete('categories');
         }
-        history.replace({ search: queryParams.toString() });
-    }, [categories, history]);
+        void navigate({ search: queryParams.toString() }, { replace: true });
+    }, [categories, navigate]);
 
     useEffect(
         function handleAbilities() {

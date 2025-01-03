@@ -7,7 +7,7 @@ import {
 import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory, useRouteMatch } from 'react-router-dom';
+import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,
@@ -103,7 +103,7 @@ const swappableProjectRoutes = (activeProjectUuid: string) => [
 
 const ProjectSwitcher = () => {
     const { showToastSuccess } = useToaster();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const { user } = useApp();
 
@@ -112,17 +112,19 @@ const ProjectSwitcher = () => {
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
+    const location = useLocation();
+    const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
 
-    const isHomePage = !!useRouteMatch({
-        path: '/projects/:projectUuid/home',
-        exact: true,
-    });
-
-    const swappableRouteMatch = useRouteMatch(
-        activeProjectUuid
-            ? { path: swappableProjectRoutes(activeProjectUuid), exact: true }
-            : [],
-    );
+    const routeMatches =
+        matchRoutes(
+            activeProjectUuid
+                ? swappableProjectRoutes(activeProjectUuid).map((path) => ({
+                      path,
+                  }))
+                : [],
+            location,
+        ) || [];
+    const swappableRouteMatch = routeMatches ? routeMatches[0]?.route : null;
 
     const shouldSwapProjectRoute = !!swappableRouteMatch && activeProjectUuid;
 
@@ -143,7 +145,7 @@ const ProjectSwitcher = () => {
                               children: 'Go to project home',
                               icon: IconArrowRight,
                               onClick: () => {
-                                  history.push(
+                                  void navigate(
                                       `/projects/${project.projectUuid}/home`,
                                   );
                               },
@@ -152,19 +154,19 @@ const ProjectSwitcher = () => {
             });
 
             if (shouldSwapProjectRoute) {
-                history.push(
+                void navigate(
                     swappableRouteMatch.path.replace(
                         activeProjectUuid,
                         project.projectUuid,
                     ),
                 );
             } else {
-                history.push(`/projects/${project.projectUuid}/home`);
+                void navigate(`/projects/${project.projectUuid}/home`);
             }
         },
         [
             activeProjectUuid,
-            history,
+            navigate,
             isHomePage,
             projects,
             setLastProjectMutation,

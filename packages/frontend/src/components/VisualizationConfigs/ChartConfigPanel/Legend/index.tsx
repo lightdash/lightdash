@@ -13,7 +13,7 @@ import {
     Switch,
 } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -170,7 +170,9 @@ export const Legend: FC<Props> = ({ items }) => {
                     </Collapse>
                 </Config.Section>
             </Config>
-            <ReferenceLines items={items} projectUuid={projectUuid} />
+            {projectUuid && (
+                <ReferenceLines items={items} projectUuid={projectUuid} />
+            )}
         </Stack>
     );
 };

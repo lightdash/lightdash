@@ -349,24 +349,12 @@ export const ContentPanel: FC = () => {
                                                 >
                                                     <Group spacing={4} noWrap>
                                                         <MantineIcon
-                                                            color={
-                                                                hasUnrunChanges
-                                                                    ? 'yellow.7'
-                                                                    : 'gray.6'
-                                                            }
+                                                            color="gray.6"
                                                             icon={
                                                                 IconCodeCircle
                                                             }
                                                         />
-                                                        <Text
-                                                            color={
-                                                                hasUnrunChanges
-                                                                    ? 'yellow.7'
-                                                                    : 'gray.6'
-                                                            }
-                                                        >
-                                                            SQL
-                                                        </Text>
+                                                        <Text>SQL</Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
@@ -580,7 +568,7 @@ export const ContentPanel: FC = () => {
                                                                             }
                                                                             style={{
                                                                                 height: inputSectionHeight,
-                                                                                flex: 1,
+                                                                                flex: inputSectionWidth,
                                                                             }}
                                                                             onChartReady={(
                                                                                 instance,

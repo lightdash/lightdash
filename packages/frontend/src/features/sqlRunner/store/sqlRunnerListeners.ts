@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import { isAnyOf } from '@reduxjs/toolkit';
 import { isEqual } from 'lodash';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
@@ -40,7 +41,19 @@ export const addSqlRunnerQueryListener = (
                 completeConfigByKind,
             );
 
+            const tableConfig = selectCompleteConfigByKind(
+                state,
+                ChartKind.TABLE,
+            );
+
+            const tableResultOptions = getChartConfigAndOptions(
+                resultsRunner,
+                ChartKind.TABLE,
+                tableConfig,
+            );
+
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
+            listenerApi.dispatch(setChartOptionsAndConfig(tableResultOptions));
 
             await listenerApi.dispatch(prepareAndFetchChartData());
         },

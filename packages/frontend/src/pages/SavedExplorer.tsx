@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import { ResourceViewItemType } from '@lightdash/common';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -46,6 +46,7 @@ const SavedExplorer = () => {
     );
 
     const handleChartPinning = useCallback(() => {
+        if (!savedQueryUuid) return;
         togglePinChart({ uuid: savedQueryUuid });
     }, [savedQueryUuid, togglePinChart]);
 
@@ -98,6 +99,9 @@ const SavedExplorer = () => {
                               pivotConfig: data.pivotConfig,
                           },
                           modals: {
+                              format: {
+                                  isOpen: false,
+                              },
                               additionalMetric: {
                                   isOpen: false,
                               },

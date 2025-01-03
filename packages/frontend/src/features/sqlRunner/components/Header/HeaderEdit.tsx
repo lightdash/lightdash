@@ -13,7 +13,7 @@ import { IconArrowBack, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
@@ -37,7 +37,7 @@ import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
 
 export const HeaderEdit: FC = () => {
     const queryClient = useQueryClient();
-    const history = useHistory();
+    const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlChart = useAppSelector(
@@ -140,10 +140,10 @@ export const HeaderEdit: FC = () => {
                 savedSqlChart?.slug,
             ],
         });
-        history.push(
+        void navigate(
             `/projects/${projectUuid}/sql-runner/${savedSqlChart?.slug}`,
         );
-    }, [queryClient, history, savedSqlChart, projectUuid]);
+    }, [queryClient, navigate, savedSqlChart, projectUuid]);
 
     if (!savedSqlChart) {
         return null;
@@ -258,7 +258,7 @@ export const HeaderEdit: FC = () => {
                 opened={isDeleteModalOpen}
                 onClose={onCloseDeleteModal}
                 onSuccess={() =>
-                    history.push(
+                    navigate(
                         `/projects/${savedSqlChart.project.projectUuid}/home`,
                     )
                 }

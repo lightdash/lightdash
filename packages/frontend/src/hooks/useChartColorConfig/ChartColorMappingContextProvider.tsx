@@ -1,5 +1,5 @@
 import { useEffect, useRef, type FC } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { ChartColorMappingContext } from './context';
 
 /**

@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -272,7 +272,7 @@ const DashboardHeader = ({
                         </ActionIcon>
                     )}
 
-                    {isUpdating && (
+                    {isUpdating && dashboardUuid && (
                         <DashboardUpdateModal
                             uuid={dashboardUuid}
                             opened={isUpdating}
@@ -583,7 +583,7 @@ const DashboardHeader = ({
                                         </Menu.Item>
                                     )}
 
-                                {userCanPromoteDashboard && (
+                                {userCanPromoteDashboard && dashboardUuid && (
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={
@@ -653,7 +653,7 @@ const DashboardHeader = ({
                         </Menu>
                     )}
 
-                    {isCreatingNewSpace && (
+                    {isCreatingNewSpace && projectUuid && (
                         <SpaceActionModal
                             projectUuid={projectUuid}
                             actionType={ActionType.CREATE}
@@ -676,19 +676,20 @@ const DashboardHeader = ({
                             }
                         />
                     )}
-                    {(promoteDashboardDiff || promoteDashboardDiffLoading) && (
-                        <PromotionConfirmDialog
-                            type="dashboard"
-                            resourceName={dashboard.name}
-                            promotionChanges={promoteDashboardDiff}
-                            onClose={() => {
-                                resetPromoteDashboardDiff();
-                            }}
-                            onConfirm={() => {
-                                promoteDashboard(dashboardUuid);
-                            }}
-                        ></PromotionConfirmDialog>
-                    )}
+                    {(promoteDashboardDiff || promoteDashboardDiffLoading) &&
+                        dashboardUuid && (
+                            <PromotionConfirmDialog
+                                type="dashboard"
+                                resourceName={dashboard.name}
+                                promotionChanges={promoteDashboardDiff}
+                                onClose={() => {
+                                    resetPromoteDashboardDiff();
+                                }}
+                                onConfirm={() => {
+                                    promoteDashboard(dashboardUuid);
+                                }}
+                            ></PromotionConfirmDialog>
+                        )}
                 </PageActionsContainer>
             )}
         </PageHeader>

@@ -23,7 +23,15 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
                 },
                 item: {
                     '&[data-selected="true"]': {
+                        color: theme.colors.gray[7],
                         fontWeight: 500,
+                        backgroundColor: theme.colors.gray[2],
+                    },
+                    '&[data-selected="true"]:hover': {
+                        backgroundColor: theme.colors.gray[3],
+                    },
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[1],
                     },
                 },
             })}

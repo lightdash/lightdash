@@ -30,7 +30,7 @@ import {
     type FC,
     type MouseEventHandler,
 } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PAGE_CONTENT_WIDTH } from '../../../components/common/Page/constants';
 import { useProject } from '../../../hooks/useProject';
@@ -55,7 +55,7 @@ interface Props {
 }
 
 const Omnibar: FC<Props> = ({ projectUuid }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
     const { track } = useTracking();
@@ -140,14 +140,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             },
         });
 
-        history.push(item.location);
+        void navigate(item.location);
         if (
             (item.location.pathname.includes('/tables/') &&
                 location.pathname.includes('/tables/')) ||
             (item.location.pathname.includes('/saved/') &&
                 location.pathname.includes('/saved/'))
         ) {
-            history.go(0); // force page refresh so explore page can pick up the new url params
+            void navigate(0); // force page refresh so explore page can pick up the new url params
         }
         setQuery(undefined);
     };

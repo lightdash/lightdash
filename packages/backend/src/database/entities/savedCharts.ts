@@ -8,6 +8,7 @@ import {
     DBFieldTypes,
     DimensionType,
     MetricFilterRule,
+    MetricOverrides,
     MetricType,
     TableCalculationType,
 } from '@lightdash/common';
@@ -85,6 +86,7 @@ export type DbSavedChartVersion = {
     explore_name: string;
     filters: any;
     row_limit: number;
+    metric_overrides: MetricOverrides | null; // JSONB
     chart_type: ChartType;
     saved_query_id: number;
     chart_config: ChartConfig['config'] | null;
@@ -104,6 +106,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'explore_name'
     | 'filters'
     | 'row_limit'
+    | 'metric_overrides'
     | 'chart_type'
     | 'pivot_dimensions'
     | 'chart_config'

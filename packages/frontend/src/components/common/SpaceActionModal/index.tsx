@@ -14,7 +14,7 @@ import {
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -109,6 +109,10 @@ const SpaceModal: FC<ActionModalProps> = ({
             });
         }
     };
+
+    if (!projectUuid) {
+        return null;
+    }
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'light' }}>
@@ -218,17 +222,17 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     shouldRedirect = true,
     ...props
 }) => {
-    const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid!, {
+    const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid, {
         enabled: !!spaceUuid,
     });
-    const history = useHistory();
+    const navigate = useNavigate();
 
     // Redirect to space on creation
     const { mutateAsync: createMutation, isLoading: isCreating } =
         useCreateMutation(projectUuid, {
             onSuccess: (space) => {
                 if (shouldRedirect) {
-                    history.push(
+                    void navigate(
                         `/projects/${projectUuid}/spaces/${space.uuid}`,
                     );
                 }
@@ -236,17 +240,21 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         });
 
     const { mutateAsync: updateMutation, isLoading: isUpdating } =
-        useUpdateMutation(projectUuid, spaceUuid!);
+        useUpdateMutation(projectUuid, spaceUuid);
 
     const { mutateAsync: deleteMutation, isLoading: isDeleting } =
         useSpaceDeleteMutation(projectUuid);
 
     const handleSubmitForm = async (state: Space | null) => {
+        if (!state) {
+            return;
+        }
+
         if (actionType === ActionType.CREATE) {
             const result = await createMutation({
-                name: state!.name,
-                isPrivate: state!.isPrivate,
-                access: state!.access?.map((access) => ({
+                name: state.name,
+                isPrivate: state.isPrivate,
+                access: state.access?.map((access) => ({
                     userUuid: access.userUuid,
                     role: access.role,
                 })),
@@ -254,12 +262,15 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             onSubmitForm?.(result);
         } else if (actionType === ActionType.UPDATE) {
             const result = await updateMutation({
-                name: state!.name,
-                isPrivate: state!.isPrivate,
+                name: state.name,
+                isPrivate: state.isPrivate,
             });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.DELETE) {
-            const result = await deleteMutation(spaceUuid!);
+            if (!spaceUuid) {
+                return;
+            }
+            const result = await deleteMutation(spaceUuid);
             onSubmitForm?.(result);
         } else {
             return assertUnreachable(actionType, 'Unexpected action in space');

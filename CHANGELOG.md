@@ -1,3 +1,100 @@
+## [0.1433.3](https://github.com/lightdash/lightdash/compare/0.1433.2...0.1433.3) (2025-01-02)
+
+
+### Bug Fixes
+
+* remove duplicate loading overlay ([#13065](https://github.com/lightdash/lightdash/issues/13065)) ([31313d1](https://github.com/lightdash/lightdash/commit/31313d1b4712c4ec1e79cc2ebb943d7d94b642a9))
+* render markdown on clamped description ([#13066](https://github.com/lightdash/lightdash/issues/13066)) ([2eac878](https://github.com/lightdash/lightdash/commit/2eac878666a80acc1f3b16ea11ee175d756f922c))
+
+## [0.1433.2](https://github.com/lightdash/lightdash/compare/0.1433.1...0.1433.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* fix hover style pivot table ([#13069](https://github.com/lightdash/lightdash/issues/13069)) ([638b1c6](https://github.com/lightdash/lightdash/commit/638b1c68620d95fd5a72fcb47bac4cd1844c72a6))
+
+## [0.1433.1](https://github.com/lightdash/lightdash/compare/0.1433.0...0.1433.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* use correct placeholder for virtual views ([#13074](https://github.com/lightdash/lightdash/issues/13074)) ([7c2752a](https://github.com/lightdash/lightdash/commit/7c2752a3c3ec5c03bd1a64d2292f763c8c3e80b1))
+
+# [0.1433.0](https://github.com/lightdash/lightdash/compare/0.1432.3...0.1433.0) (2025-01-02)
+
+
+### Bug Fixes
+
+* [SQL runner] make field select style match other dropdowns ([#13075](https://github.com/lightdash/lightdash/issues/13075)) ([de98685](https://github.com/lightdash/lightdash/commit/de9868506751da0e8e6bbf4e5f6b831842d0a628))
+
+
+### Features
+
+* `--skip-dbt-compile` and `--skip-warehouse-catalog` to `compile` ([#13023](https://github.com/lightdash/lightdash/issues/13023)) ([01ceccb](https://github.com/lightdash/lightdash/commit/01ceccb9fde7099f17466dd735ac8e01c755d77c))
+
+## [0.1432.3](https://github.com/lightdash/lightdash/compare/0.1432.2...0.1432.3) (2025-01-02)
+
+
+### Bug Fixes
+
+* skip cache for explore queries ([#13067](https://github.com/lightdash/lightdash/issues/13067)) ([e218778](https://github.com/lightdash/lightdash/commit/e2187782bcf36a5ddc5b8fb7fb50a0c527afa622))
+
+## [0.1432.2](https://github.com/lightdash/lightdash/compare/0.1432.1...0.1432.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* add loader on validator page ([#13073](https://github.com/lightdash/lightdash/issues/13073)) ([bdc7844](https://github.com/lightdash/lightdash/commit/bdc7844d0739522e7410aea3d7bea61e7e79ae11))
+
+## [0.1432.1](https://github.com/lightdash/lightdash/compare/0.1432.0...0.1432.1) (2024-12-30)
+
+
+### Bug Fixes
+
+* remove fields bottom padding, change sql viewer tab style ([#13044](https://github.com/lightdash/lightdash/issues/13044)) ([405186b](https://github.com/lightdash/lightdash/commit/405186bd6d480620d71bccae9ff3e30c820f5c96))
+
+# [0.1432.0](https://github.com/lightdash/lightdash/compare/0.1431.0...0.1432.0) (2024-12-30)
+
+
+### Features
+
+* override metric format ([#12978](https://github.com/lightdash/lightdash/issues/12978)) ([42ee946](https://github.com/lightdash/lightdash/commit/42ee946512201853afe44c4b93f3b523555a599d))
+
+# [0.1431.0](https://github.com/lightdash/lightdash/compare/0.1430.1...0.1431.0) (2024-12-30)
+
+
+### Features
+
+* restrict dashboard tabs to one line ([#12998](https://github.com/lightdash/lightdash/issues/12998)) ([86dc3d9](https://github.com/lightdash/lightdash/commit/86dc3d9819ddcb715280b3a40f9d0314983e1244))
+
+## [0.1430.1](https://github.com/lightdash/lightdash/compare/0.1430.0...0.1430.1) (2024-12-30)
+
+
+### Bug Fixes
+
+* alter available tables column types ([#13025](https://github.com/lightdash/lightdash/issues/13025)) ([3e1c4e1](https://github.com/lightdash/lightdash/commit/3e1c4e139d4c01cdb02d24cfbf5600ff287636ec))
+
+# [0.1430.0](https://github.com/lightdash/lightdash/compare/0.1429.0...0.1430.0) (2024-12-30)
+
+
+### Features
+
+* dashboard tab ux and style tweaks ([#12999](https://github.com/lightdash/lightdash/issues/12999)) ([5b153ba](https://github.com/lightdash/lightdash/commit/5b153ba77fc629114eb2406e23de1ff834f60579))
+
+# [0.1429.0](https://github.com/lightdash/lightdash/compare/0.1428.8...0.1429.0) (2024-12-30)
+
+
+### Features
+
+* enable SQL runner to save to a table when no viz is selected ([#13035](https://github.com/lightdash/lightdash/issues/13035)) ([cd27ca3](https://github.com/lightdash/lightdash/commit/cd27ca3e919272d06d0da32bbaff91c87a16637e))
+
+## [0.1428.8](https://github.com/lightdash/lightdash/compare/0.1428.7...0.1428.8) (2024-12-27)
+
+
+### Bug Fixes
+
+* remove orange state from SQL runner ([#13036](https://github.com/lightdash/lightdash/issues/13036)) ([d15dc6f](https://github.com/lightdash/lightdash/commit/d15dc6f382d5d1564e726934fe91305f5daa772d))
+
 ## [0.1428.7](https://github.com/lightdash/lightdash/compare/0.1428.6...0.1428.7) (2024-12-27)
 
 

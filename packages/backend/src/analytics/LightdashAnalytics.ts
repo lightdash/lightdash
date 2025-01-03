@@ -223,6 +223,7 @@ type MetricQueryExecutionProperties = {
     dateZoomGranularity: string | null;
     timezone?: string;
     virtualViewId?: string;
+    metricOverridesCount: number;
 };
 
 type SqlExecutionProperties = {

@@ -1,6 +1,6 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
@@ -108,6 +108,9 @@ const MinimalSavedExplorer: FC = () => {
                               pivotConfig: data.pivotConfig,
                           },
                           modals: {
+                              format: {
+                                  isOpen: false,
+                              },
                               additionalMetric: {
                                   isOpen: false,
                               },

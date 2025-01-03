@@ -36,6 +36,7 @@ const useDashboardFilterStyles = createStyles((theme) => ({
     inactiveFilter: {
         borderStyle: 'dashed',
         borderWidth: '1px',
+        borderColor: theme.fn.rgba(theme.colors.gray[5], 0.7),
         backgroundColor: theme.fn.rgba(theme.white, 0.7),
     },
 }));
@@ -145,7 +146,9 @@ const Filter: FC<Props> = ({
                 })
                 .join(', ');
             return appliedTabList
-                ? `This filter only applies to tabs: ${appliedTabList}`
+                ? `This filter only applies to tab${
+                      appliesToTabs.length === 1 ? '' : 's'
+                  }: ${appliedTabList}`
                 : 'This filter is not currently applied to any tabs';
         }
     }, [activeTabUuid, appliesToTabs, dashboardTabs]);
@@ -254,6 +257,7 @@ const Filter: FC<Props> = ({
                             fz="xs"
                             label={inactiveFilterInfo}
                             disabled={!inactiveFilterInfo}
+                            withinPortal
                         >
                             <Button
                                 pos="relative"

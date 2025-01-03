@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -57,7 +57,7 @@ const VerifyEmailPage: FC = () => {
         !!health.data?.isAuthenticated,
     );
     const { show: showIntercom } = useIntercom();
-    const history = useHistory();
+    const navigate = useNavigate();
 
     if (health.isInitialLoading || statusLoading) {
         return <PageSpinner />;
@@ -87,10 +87,10 @@ const VerifyEmailPage: FC = () => {
                     <VerificationSuccess
                         isOpen={data.isVerified}
                         onClose={() => {
-                            history.push('/');
+                            void navigate('/');
                         }}
                         onContinue={() => {
-                            history.push('/');
+                            void navigate('/');
                         }}
                     />
                 )}

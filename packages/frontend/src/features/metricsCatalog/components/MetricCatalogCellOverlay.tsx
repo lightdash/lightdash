@@ -6,7 +6,9 @@ import {
     px,
     useMantineTheme,
 } from '@mantine/core';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import MarkdownPreview, {
+    type MarkdownPreviewProps,
+} from '@uiw/react-markdown-preview';
 import { type MRT_TableInstance } from 'mantine-react-table';
 import { useEffect, useRef, type FC } from 'react';
 import { useLockScroll } from '../../../hooks/useLockScroll';
@@ -17,6 +19,7 @@ type Props = {
     content: string;
     cellRef: React.RefObject<HTMLDivElement>;
     table: MRT_TableInstance<CatalogField>;
+    markdownPreviewProps?: Omit<MarkdownPreviewProps, 'source'>;
 };
 
 export const MetricCatalogCellOverlay: FC<Props> = ({
@@ -25,6 +28,7 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
     content,
     cellRef,
     table,
+    markdownPreviewProps,
 }) => {
     const theme = useMantineTheme();
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -88,31 +92,13 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
                 }}
             >
                 <MarkdownPreview
+                    {...markdownPreviewProps}
                     source={content}
                     style={{
-                        fontSize: theme.fontSizes.sm,
-                        color: theme.colors.dark[4],
-                        fontFamily: 'Inter',
+                        ...markdownPreviewProps?.style,
                         backgroundColor: theme.fn.lighten(
                             theme.colors.violet[1],
                             0.8,
-                        ),
-                    }}
-                    components={{
-                        h1: ({ children }) => (
-                            <h1 style={{ fontWeight: 600 }}>{children}</h1>
-                        ),
-                        h2: ({ children }) => (
-                            <h2 style={{ fontWeight: 600 }}>{children}</h2>
-                        ),
-                        h3: ({ children }) => (
-                            <h3 style={{ fontWeight: 600 }}>{children}</h3>
-                        ),
-                        p: ({ children }) => (
-                            <p style={{ fontWeight: 400 }}>{children}</p>
-                        ),
-                        li: ({ children }) => (
-                            <li style={{ fontWeight: 400 }}>{children}</li>
                         ),
                     }}
                 />

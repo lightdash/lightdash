@@ -13,7 +13,9 @@ import {
     type AdditionalMetric,
     type ChartConfig,
     type CustomDimension,
+    type CustomFormat,
     type FieldId,
+    type Metric,
     type MetricQuery,
     type SavedChart,
     type SortField,
@@ -30,7 +32,7 @@ import {
     useRef,
     type FC,
 } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
@@ -75,6 +77,9 @@ const defaultState: ExplorerReduceState = {
         },
     },
     modals: {
+        format: {
+            isOpen: false,
+        },
         additionalMetric: {
             isOpen: false,
         },
@@ -287,6 +292,12 @@ function reducer(
                         metrics,
                         sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (s) => s.fieldId !== action.payload,
+                        ),
+                        metricOverrides: Object.fromEntries(
+                            Object.entries(
+                                state.unsavedChartVersion.metricQuery
+                                    .metricOverrides || {},
+                            ).filter(([key]) => key !== action.payload),
                         ),
                     },
                     tableConfig: {
@@ -580,6 +591,38 @@ function reducer(
                     customDimension: {
                         isOpen: !state.modals.customDimension.isOpen,
                         ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
+        case ActionType.TOGGLE_FORMAT_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    format: {
+                        isOpen: !state.modals.format.isOpen,
+                        ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
+
+        case ActionType.UPDATE_METRIC_FORMAT: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        metricOverrides: {
+                            ...state.unsavedChartVersion.metricQuery
+                                .metricOverrides,
+                            [getItemId(action.payload.metric)]: {
+                                formatOptions: action.payload.formatOptions,
+                            },
+                        },
                     },
                 },
             };
@@ -1334,6 +1377,26 @@ const ExplorerProvider: FC<
         [],
     );
 
+    const toggleFormatModal = useCallback((args?: { metric: Metric }) => {
+        dispatch({
+            type: ActionType.TOGGLE_FORMAT_MODAL,
+            payload: args,
+        });
+    }, []);
+
+    const updateMetricFormat = useCallback(
+        (args: { metric: Metric; formatOptions: CustomFormat | undefined }) => {
+            dispatch({
+                type: ActionType.UPDATE_METRIC_FORMAT,
+                payload: args,
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1416,7 +1479,7 @@ const ExplorerProvider: FC<
         resetQueryResults();
     }, [resetQueryResults, defaultStateWithConfig]);
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const clearQuery = useCallback(async () => {
         dispatch({
             type: ActionType.RESET,
@@ -1430,12 +1493,15 @@ const ExplorerProvider: FC<
         });
         resetQueryResults();
         // clear state in url params
-        history.replace({
-            search: '',
-        });
+        void navigate(
+            {
+                search: '',
+            },
+            { replace: true },
+        );
     }, [
         defaultStateWithConfig,
-        history,
+        navigate,
         resetQueryResults,
         unsavedChartVersion.tableName,
     ]);
@@ -1483,6 +1549,8 @@ const ExplorerProvider: FC<
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            toggleFormatModal,
+            updateMetricFormat,
         }),
         [
             clearExplore,
@@ -1516,6 +1584,8 @@ const ExplorerProvider: FC<
             editCustomDimension,
             removeCustomDimension,
             toggleCustomDimensionModal,
+            toggleFormatModal,
+            updateMetricFormat,
         ],
     );
 
