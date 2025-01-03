@@ -17,8 +17,8 @@
         "unused-exports": "yarn run ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles=__mocks__"
     },
     "peerDependencies": {
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0"
+        "react": "19.0.0",
+        "react-dom": "19.0.0"
     },
     "dependencies": {
         "@casl/ability": "^5.4.4",
