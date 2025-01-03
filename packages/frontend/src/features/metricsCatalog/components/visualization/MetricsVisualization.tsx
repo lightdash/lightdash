@@ -263,21 +263,57 @@ const MetricsVisualization: FC<Props> = ({
                 if (!dateRange || !results?.metric.timeDimension?.interval)
                     return null;
 
-                const currentPeriodYear = dateRange
-                    ? dayjs(dateRange[1]).year()
-                    : null;
-                const startYear = dateRange ? dayjs(dateRange[0]).year() : null;
-
-                // If the date range is 5 years, we want to show the year range
-                if (is5YearDateRangePreset && startYear && currentPeriodYear) {
+                if (!dateRange) {
                     return {
                         metric: {
                             name: 'metric',
-                            label: `${startYear}-${currentPeriodYear}`,
+                            label: results?.metric.label,
                         },
                         compareMetric: {
                             name: 'compareMetric',
-                            label: `${startYear - 1}-${currentPeriodYear - 1}`,
+                            label: results?.compareMetric?.label,
+                        },
+                    };
+                }
+
+                const currentPeriodStartDate = dayjs(dateRange[0]);
+                const currentPeriodEndDate = dayjs(dateRange[1]);
+                const currentPeriodStartYear = currentPeriodStartDate.year();
+                const currentPeriodEndYear = currentPeriodEndDate.year();
+
+                if (currentPeriodStartYear !== currentPeriodEndYear) {
+                    if (is5YearDateRangePreset) {
+                        return {
+                            metric: {
+                                name: 'metric',
+                                label: `${currentPeriodStartYear}-${currentPeriodEndYear}`,
+                            },
+                            compareMetric: {
+                                name: 'compareMetric',
+                                label: `${currentPeriodStartYear - 1}-${
+                                    currentPeriodEndYear - 1
+                                }`,
+                            },
+                        };
+                    }
+
+                    const currentPeriodStartMonth =
+                        currentPeriodStartDate.format('MMM');
+                    const currentPeriodEndMonth =
+                        currentPeriodEndDate.format('MMM');
+
+                    return {
+                        metric: {
+                            name: 'metric',
+                            label: `${currentPeriodStartMonth} ${currentPeriodStartYear} - ${currentPeriodEndMonth} ${currentPeriodEndYear}`,
+                        },
+                        compareMetric: {
+                            name: 'compareMetric',
+                            label: `${currentPeriodStartMonth} ${
+                                currentPeriodStartYear - 1
+                            } - ${currentPeriodEndMonth} ${
+                                currentPeriodEndYear - 1
+                            }`,
                         },
                     };
                 }
@@ -285,15 +321,11 @@ const MetricsVisualization: FC<Props> = ({
                 return {
                     metric: {
                         name: 'metric',
-                        label: currentPeriodYear
-                            ? `${currentPeriodYear}`
-                            : results?.metric.label,
+                        label: currentPeriodStartYear,
                     },
                     compareMetric: {
                         name: 'compareMetric',
-                        label: currentPeriodYear
-                            ? `${currentPeriodYear - 1}`
-                            : results?.compareMetric?.label,
+                        label: `${currentPeriodStartYear - 1}`,
                     },
                 };
             }
