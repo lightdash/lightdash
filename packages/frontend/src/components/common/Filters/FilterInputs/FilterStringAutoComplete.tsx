@@ -135,9 +135,16 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const handleKeyDown = useCallback(
         (event: React.KeyboardEvent<HTMLInputElement>) => {
-            if (event.key === 'Enter' && search !== '') {
-                handleAdd(search);
-                handleResetSearch();
+            if (event.key === 'Enter') {
+                if (event.metaKey || event.ctrlKey) {
+                    // Prevent the global run query when filter dropdown is open
+                    event.stopPropagation();
+                    return;
+                }
+                if (search !== '') {
+                    handleAdd(search);
+                    handleResetSearch();
+                }
             }
         },
         [handleAdd, handleResetSearch, search],
