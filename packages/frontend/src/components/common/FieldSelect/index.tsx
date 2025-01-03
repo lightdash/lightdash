@@ -18,7 +18,14 @@ import {
     Tooltip,
     type SelectProps,
 } from '@mantine/core';
-import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+    forwardRef,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+} from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 
 interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
@@ -96,7 +103,7 @@ const FieldSelect = <T extends Item = Item>({
     baseTable,
     focusOnRender = false,
     ...rest
-}: FieldSelectProps<T>): JSX.Element => {
+}: FieldSelectProps<T>) => {
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
     useEffect(() => {
         if (focusOnRender) {

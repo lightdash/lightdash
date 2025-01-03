@@ -7,7 +7,7 @@ import { EventName } from '../types/Events';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard/constants';
 import MantineIcon from './common/MantineIcon';
 
-const AddColumnButton: FC = memo(() => {
+const AddColumnButton = memo(() => {
     const [opened, setOpened] = useState<boolean>(false);
     const { track } = useTracking();
     return (
@@ -16,7 +16,7 @@ const AddColumnButton: FC = memo(() => {
                 {...COLLAPSABLE_CARD_BUTTON_PROPS}
                 leftIcon={<MantineIcon icon={IconPlus} />}
                 component="button"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     setOpened(true);
                     track({

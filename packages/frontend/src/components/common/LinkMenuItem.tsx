@@ -35,7 +35,7 @@ const LinkMenuItem: FC<React.PropsWithChildren<LinkMenuItemProps>> = ({
             <Menu.Item
                 {...rest}
                 disabled={disabled}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                     if (
                         !forceRefresh &&
                         !e.ctrlKey &&

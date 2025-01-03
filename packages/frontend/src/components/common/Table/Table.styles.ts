@@ -1,5 +1,6 @@
 import { DEFAULT_THEME } from '@mantine/core';
 import { transparentize } from 'polished';
+import { ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 
 // FIXME: these colors are coming from the mantine's default theme.
@@ -23,7 +24,9 @@ interface TableContainerProps {
     $padding?: number;
 }
 
-export const TableContainer = styled.div<TableContainerProps>`
+export const TableContainer = styled.div<
+    TableContainerProps & { children: ReactNode }
+>`
     display: flex;
     flex-direction: column;
     min-width: 100%;

@@ -3,6 +3,7 @@ import {
     type ResourceViewDashboardItem,
     type ResourceViewItem,
 } from '@lightdash/common';
+import { ReactNode } from 'react';
 
 export enum ResourceViewItemAction {
     CLOSE,
@@ -60,7 +61,7 @@ export type ResourceViewItemActionState =
 type TabType = {
     id: string;
     name?: string;
-    icon?: JSX.Element;
+    icon?: ReactNode;
     infoTooltipText?: string;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     filter?: (item: ResourceViewItem, index: number) => boolean;
@@ -83,8 +84,8 @@ export interface ResourceViewCommonProps {
 }
 
 export interface ResourceEmptyStateProps {
-    icon?: JSX.Element;
+    icon?: ReactNode;
     title?: string;
     description?: string;
-    action?: JSX.Element;
+    action?: ReactNode;
 }

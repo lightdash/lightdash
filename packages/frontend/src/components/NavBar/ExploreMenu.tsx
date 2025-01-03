@@ -119,7 +119,9 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUuid}/sql-runner`}
-                                onClick={(event) => {
+                                onClick={(
+                                    event: React.MouseEvent<HTMLAnchorElement>,
+                                ) => {
                                     if (
                                         location.pathname.startsWith(
                                             `/projects/${projectUuid}/sql-runner`,

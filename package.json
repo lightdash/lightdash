@@ -15,7 +15,9 @@
         "tslib": "^2.6.2"
     },
     "resolutions": {
-        "react-is": "19.0.0"
+        "react-is": "19.0.0",
+        "@types/react": "19.0.2",
+        "@types/react-dom": "19.0.2"
     },
     "devDependencies": {
         "@types/jest": "^29.5.5",

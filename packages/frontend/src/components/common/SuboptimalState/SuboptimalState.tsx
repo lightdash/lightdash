@@ -1,12 +1,12 @@
 import { Loader, Stack, Text, type StackProps } from '@mantine/core';
-import React, { type FC } from 'react';
+import { ReactNode, type FC } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
 interface Props extends StackProps {
     icon?: MantineIconProps['icon'];
     title?: string;
-    description?: string | JSX.Element;
-    action?: JSX.Element;
+    description?: string | ReactNode;
+    action?: ReactNode;
     loading?: boolean;
 }
 

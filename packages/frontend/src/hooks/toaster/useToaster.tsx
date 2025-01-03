@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useRef, type ReactNode } from 'react';
+import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
@@ -52,7 +53,12 @@ const useToaster = () => {
                             {typeof subtitle == 'string' ? (
                                 <MarkdownPreview
                                     source={subtitle}
-                                    linkTarget="_blank"
+                                    rehypePlugins={[
+                                        [
+                                            rehypeExternalLinks,
+                                            { target: '_blank' },
+                                        ],
+                                    ]}
                                     style={{
                                         backgroundColor: 'transparent',
                                         color: toastColor ? 'white' : undefined,
@@ -82,7 +88,9 @@ const useToaster = () => {
                                             <MantineIcon icon={action.icon} />
                                         ) : undefined
                                     }
-                                    onClick={(e) => {
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
                                         notifications.hide(key);
                                         action.onClick?.(e);
                                     }}
