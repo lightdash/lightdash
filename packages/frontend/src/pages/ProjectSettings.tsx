@@ -1,6 +1,5 @@
 import { Stack } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { Helmet } from 'react-helmet';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -88,9 +87,7 @@ const ProjectSettings: FC = () => {
 
     return (
         <>
-            <Helmet>
-                <title>Project Settings - Lightdash</title>
-            </Helmet>
+            <title>Project Settings - Lightdash</title>
 
             <Stack spacing="xl">
                 <PageBreadcrumbs
