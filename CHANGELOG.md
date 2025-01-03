@@ -1,3 +1,10 @@
+# [0.1434.0](https://github.com/lightdash/lightdash/compare/0.1433.3...0.1434.0) (2025-01-03)
+
+
+### Features
+
+* empty state links to docs when there are no metrics ([#13080](https://github.com/lightdash/lightdash/issues/13080)) ([9aa1adf](https://github.com/lightdash/lightdash/commit/9aa1adf82b19590991bf12b25c791be8a84b3ae3))
+
 ## [0.1433.3](https://github.com/lightdash/lightdash/compare/0.1433.2...0.1433.3) (2025-01-02)
 
 
