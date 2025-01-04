@@ -156,6 +156,12 @@ export type DashboardTab = {
     order: number;
 };
 
+export type DashboardTabWithUrls = DashboardTab & {
+    nextUrl: string | null;
+    prevUrl: string | null;
+    selfUrl: string;
+};
+
 export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
 
 export type DashboardConfig = {
