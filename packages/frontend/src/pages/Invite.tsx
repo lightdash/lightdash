@@ -17,8 +17,7 @@ import {
 } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
-import { Redirect, useLocation, useParams } from 'react-router-dom';
-
+import { Navigate, useLocation, useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
@@ -152,7 +151,7 @@ const Invite: FC = () => {
     }
 
     if (health.status === 'success' && health.data?.isAuthenticated) {
-        return <Redirect to={{ pathname: redirectUrl }} />;
+        return <Navigate to={{ pathname: redirectUrl }} />;
     }
 
     const ssoAvailable =
@@ -174,7 +173,7 @@ const Invite: FC = () => {
             ))}
         </Stack>
     );
-    const passwordLogin = allowPasswordAuthentication && (
+    const passwordLogin = allowPasswordAuthentication && inviteCode && (
         <CreateUserForm
             isLoading={isLoading || isSuccess}
             readOnlyEmail={inviteLinkQuery.data?.email}

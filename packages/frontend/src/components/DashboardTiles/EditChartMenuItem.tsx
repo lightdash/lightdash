@@ -1,7 +1,7 @@
 import { type DashboardChartTile } from '@lightdash/common';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';

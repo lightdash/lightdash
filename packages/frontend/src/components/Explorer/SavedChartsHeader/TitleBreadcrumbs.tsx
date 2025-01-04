@@ -1,7 +1,7 @@
 import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
 import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {

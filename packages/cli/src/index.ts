@@ -282,7 +282,16 @@ program
     .option('--state <state>')
     .option('--full-refresh')
     .option('--verbose', undefined, false)
-
+    .option(
+        '--skip-warehouse-catalog',
+        'Skip fetch warehouse catalog and use types in yml',
+        false,
+    )
+    .option(
+        '--skip-dbt-compile',
+        'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
+        false,
+    )
     .action(compileHandler);
 
 program

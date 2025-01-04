@@ -19,7 +19,13 @@ import {
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
 import React, { useCallback, useState, type FC } from 'react';
-import { Link, Redirect, Route, Switch } from 'react-router-dom';
+import {
+    Link,
+    Navigate,
+    Outlet,
+    useParams,
+    type RouteObject,
+} from 'react-router';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';
@@ -44,6 +50,27 @@ import ShareRedirect from './pages/ShareRedirect';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
+
+const RedirectToResource: FC = () => {
+    const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
+    if (dashboardUuid) {
+        return (
+            <Navigate
+                to={`/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}`}
+                replace
+            />
+        );
+    }
+    if (savedQueryUuid) {
+        return (
+            <Navigate
+                to={`/minimal/projects/${projectUuid}/saved/${savedQueryUuid}`}
+                replace
+            />
+        );
+    }
+    return <Navigate to="/no-mobile-page" />;
+};
 
 const MobileNavBar: FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -151,119 +178,181 @@ const routesNotSupportedInMobile = [
     '/projects/:projectUuid/user-activity',
 ];
 
-const MobileRoutes: FC = () => {
-    return (
-        <Switch>
-            <Route path="/auth/popup/:status">
-                <AuthPopupResult />
-            </Route>
-            <Route path="/login">
-                <TrackPage name={PageName.LOGIN}>
-                    <Login minimal={true} />
-                </TrackPage>
-            </Route>
-            <Route path="/no-mobile-page">
-                <MobileView />
-            </Route>
-            {routesNotSupportedInMobile.map((route) => (
-                <Redirect key={route} from={route} to="/no-mobile-page" />
-            ))}
-            <PrivateRoute path="/">
-                <MobileNavBar />
-                <Switch>
-                    <Route path="/no-access">
-                        <TrackPage name={PageName.NO_ACCESS}>
-                            <ForbiddenPanel />
-                        </TrackPage>
-                    </Route>
-                    <Route path="/no-project-access">
-                        <TrackPage name={PageName.NO_PROJECT_ACCESS}>
-                            <ForbiddenPanel subject="project" />
-                        </TrackPage>
-                    </Route>
-                    <Route path="/share/:shareNanoid">
-                        <TrackPage name={PageName.SHARE}>
-                            <ShareRedirect />
-                        </TrackPage>
-                    </Route>
-                    <AppRoute path="/">
-                        <Switch>
-                            <PrivateRoute path="/minimal">
-                                <Switch>
-                                    <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                                        <Stack p="lg" h="90vh">
-                                            <MinimalSavedExplorer />
-                                        </Stack>
-                                    </Route>
-
-                                    <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
-                                        <MinimalDashboard />
-                                    </Route>
-                                </Switch>
-                            </PrivateRoute>
-                            <ProjectRoute path="/projects/:projectUuid">
-                                <Switch>
-                                    <Redirect
-                                        from="/projects/:projectUuid/saved/:savedQueryUuid/:mode?"
-                                        to="/minimal/projects/:projectUuid/saved/:savedQueryUuid"
-                                    />
-                                    <Redirect
-                                        from="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?"
-                                        to="/minimal/projects/:projectUuid/dashboards/:dashboardUuid"
-                                    />
-
-                                    <Route path="/projects/:projectUuid/saved">
-                                        <TrackPage
-                                            name={PageName.SAVED_QUERIES}
-                                        >
-                                            <MobileCharts />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/dashboards">
-                                        <TrackPage
-                                            name={PageName.SAVED_DASHBOARDS}
-                                        >
-                                            <MobileDashboards />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/spaces/:spaceUuid">
-                                        <TrackPage name={PageName.SPACE}>
-                                            <MobileSpace />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route path="/projects/:projectUuid/spaces">
-                                        <TrackPage name={PageName.SPACES}>
-                                            <MobileSpaces />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        path="/projects/:projectUuid/home"
-                                        exact
-                                    >
-                                        <TrackPage name={PageName.HOME}>
-                                            <MobileHome />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Redirect to="/projects" />
-                                </Switch>
-                            </ProjectRoute>
-
-                            <Route path="/projects/:projectUuid?" exact>
-                                <Projects />
-                            </Route>
-
-                            <Redirect to="/projects" />
-                        </Switch>
-                    </AppRoute>
-                </Switch>
-            </PrivateRoute>
-        </Switch>
-    );
+const FALLBACK_ROUTE: RouteObject = {
+    path: '*',
+    element: <Navigate to="/projects" />,
 };
+
+const PUBLIC_ROUTES: RouteObject[] = [
+    {
+        path: '/auth/popup/:status',
+        element: <AuthPopupResult />,
+    },
+    {
+        path: '/login',
+        element: (
+            <TrackPage name={PageName.LOGIN}>
+                <Login minimal={true} />
+            </TrackPage>
+        ),
+    },
+    {
+        path: '/no-mobile-page',
+        element: <MobileView />,
+    },
+    ...routesNotSupportedInMobile.map((route) => ({
+        path: route,
+        element: <Navigate to="/no-mobile-page" />,
+    })),
+];
+
+const MINIMAL_ROUTES: RouteObject[] = [
+    {
+        path: '/minimal',
+        children: [
+            {
+                path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
+                element: (
+                    <Stack p="lg" h="90vh">
+                        <MinimalSavedExplorer />
+                    </Stack>
+                ),
+            },
+            {
+                path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid',
+                element: <MinimalDashboard />,
+            },
+        ],
+    },
+];
+
+const APP_ROUTES: RouteObject[] = [
+    {
+        path: '/projects',
+        element: (
+            <AppRoute>
+                <Outlet />
+            </AppRoute>
+        ),
+        children: [
+            {
+                path: '/projects',
+                element: <Projects />,
+            },
+            {
+                path: '/projects/:projectUuid',
+                element: (
+                    <ProjectRoute>
+                        <Outlet />
+                    </ProjectRoute>
+                ),
+                children: [
+                    {
+                        path: '/projects/:projectUuid/home',
+                        element: (
+                            <TrackPage name={PageName.HOME}>
+                                <MobileHome />
+                            </TrackPage>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
+                        element: <RedirectToResource />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
+                        element: <RedirectToResource />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/saved',
+                        element: (
+                            <TrackPage name={PageName.SAVED_QUERIES}>
+                                <MobileCharts />
+                            </TrackPage>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/dashboards',
+                        element: (
+                            <TrackPage name={PageName.SAVED_DASHBOARDS}>
+                                <MobileDashboards />
+                            </TrackPage>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/spaces/:spaceUuid',
+                        element: (
+                            <TrackPage name={PageName.SPACE}>
+                                <MobileSpace />
+                            </TrackPage>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/spaces',
+                        element: (
+                            <TrackPage name={PageName.SPACES}>
+                                <MobileSpaces />
+                            </TrackPage>
+                        ),
+                    },
+                ],
+            },
+        ],
+    },
+];
+
+const PRIVATE_ROUTES: RouteObject[] = [
+    {
+        path: '/',
+        element: (
+            <PrivateRoute>
+                <MobileNavBar />
+                <Outlet />
+            </PrivateRoute>
+        ),
+        children: [
+            ...MINIMAL_ROUTES,
+            ...APP_ROUTES,
+            {
+                path: '/',
+                element: <Navigate to="/projects" replace />,
+            },
+            {
+                path: '/no-access',
+                element: (
+                    <TrackPage name={PageName.NO_ACCESS}>
+                        <ForbiddenPanel />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/no-access',
+                element: (
+                    <TrackPage name={PageName.NO_ACCESS}>
+                        <ForbiddenPanel />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/no-project-access',
+                element: (
+                    <TrackPage name={PageName.NO_PROJECT_ACCESS}>
+                        <ForbiddenPanel subject="project" />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/share/:shareNanoid',
+                element: (
+                    <TrackPage name={PageName.SHARE}>
+                        <ShareRedirect />
+                    </TrackPage>
+                ),
+            },
+        ],
+    },
+];
+
+const MobileRoutes = [...PUBLIC_ROUTES, ...PRIVATE_ROUTES, FALLBACK_ROUTE];
 
 export default MobileRoutes;

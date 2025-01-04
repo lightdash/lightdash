@@ -1,6 +1,6 @@
 import { type ApiError, type ProjectCatalog } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 
@@ -16,7 +16,10 @@ export const useProjectCatalog = () => {
     const setErrorResponse = useQueryError();
     return useQuery<ProjectCatalog, ApiError>({
         queryKey: ['projectCatalog', projectUuid],
-        queryFn: () => getProjectCatalogQuery(projectUuid),
+        queryFn: () =>
+            projectUuid
+                ? getProjectCatalogQuery(projectUuid)
+                : Promise.reject(),
         onError: (result) => setErrorResponse(result),
     });
 };

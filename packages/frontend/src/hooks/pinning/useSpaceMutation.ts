@@ -10,11 +10,14 @@ const updateSpacePinning = async (projectUuid: string, spaceUuid: string) =>
         body: undefined,
     });
 
-export const useSpacePinningMutation = (projectUuid: string) => {
+export const useSpacePinningMutation = (projectUuid: string | undefined) => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<Space, ApiError, string>(
-        (spaceUuid) => updateSpacePinning(projectUuid, spaceUuid),
+        (spaceUuid) =>
+            projectUuid
+                ? updateSpacePinning(projectUuid, spaceUuid)
+                : Promise.reject(),
         {
             mutationKey: ['space_pinning_update'],
             onSuccess: async (space) => {

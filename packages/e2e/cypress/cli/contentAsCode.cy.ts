@@ -47,7 +47,7 @@ describe('Content as Code CLI', () => {
         });
         cy.exec(`ls ${lightdashDir}/charts | wc -l`).then((result) => {
             const fileCount = parseInt(result.stdout, 10);
-            cy.wrap(fileCount).should('eq', 1);
+            cy.wrap(fileCount).should('eq', 5);
         });
 
         cy.exec(`ls ${lightdashDir}/dashboards | wc -l`).then((result) => {

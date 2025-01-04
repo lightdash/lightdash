@@ -16,7 +16,7 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
@@ -123,10 +123,11 @@ const getChartHistoryQuery = async (chartUuid: string): Promise<ChartHistory> =>
         body: undefined,
     });
 
-export const useChartHistory = (chartUuid: string) =>
+export const useChartHistory = (chartUuid: string | undefined) =>
     useQuery<ChartHistory, ApiError>({
         queryKey: ['chart_history', chartUuid],
-        queryFn: () => getChartHistoryQuery(chartUuid),
+        queryFn: () => getChartHistoryQuery(chartUuid!),
+        enabled: chartUuid !== undefined,
         retry: false,
     });
 const getChartVersionQuery = async (
@@ -139,11 +140,14 @@ const getChartVersionQuery = async (
         body: undefined,
     });
 
-export const useChartVersion = (chartUuid: string, versionUuid?: string) =>
+export const useChartVersion = (
+    chartUuid: string | undefined,
+    versionUuid?: string,
+) =>
     useQuery<ChartVersion, ApiError>({
         queryKey: ['chart_version', chartUuid, versionUuid],
-        queryFn: () => getChartVersionQuery(chartUuid, versionUuid!),
-        enabled: versionUuid !== undefined,
+        queryFn: () => getChartVersionQuery(chartUuid!, versionUuid!),
+        enabled: versionUuid !== undefined && chartUuid !== undefined,
         retry: false,
     });
 
@@ -157,7 +161,7 @@ const rollbackChartQuery = async (
         body: undefined,
     });
 export const useChartVersionRollbackMutation = (
-    chartUuid: string,
+    chartUuid: string | undefined,
     useMutationOptions?: Omit<
         UseMutationOptions<null, ApiError, string, unknown>,
         'mutationFn'
@@ -165,7 +169,10 @@ export const useChartVersionRollbackMutation = (
 ) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
-        (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
+        (versionUuid: string) =>
+            chartUuid && versionUuid
+                ? rollbackChartQuery(chartUuid, versionUuid)
+                : Promise.reject(),
         {
             mutationKey: ['saved_query_rollback'],
             ...useMutationOptions,
@@ -269,7 +276,7 @@ export const useUpdateMutation = (
     dashboardUuid?: string,
     savedQueryUuid?: string,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -306,7 +313,7 @@ export const useUpdateMutation = (
                               children: 'Open dashboard',
                               icon: IconArrowRight,
                               onClick: () =>
-                                  history.push(
+                                  navigate(
                                       `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
                                   ),
                           }
@@ -330,7 +337,7 @@ export const useMoveChartMutation = (
         Pick<SavedChart, 'uuid' | 'spaceUuid'>
     >,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -357,7 +364,7 @@ export const useMoveChartMutation = (
                     children: 'Go to space',
                     icon: IconArrowRight,
                     onClick: () =>
-                        history.push(
+                        navigate(
                             `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
                         ),
                 },
@@ -374,12 +381,15 @@ export const useMoveChartMutation = (
 };
 
 export const useCreateMutation = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
-        (data) => createSavedQuery(projectUuid, data),
+        (data) =>
+            projectUuid
+                ? createSavedQuery(projectUuid, data)
+                : Promise.reject(),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
@@ -387,9 +397,12 @@ export const useCreateMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
                 });
-                history.push({
-                    pathname: `/projects/${projectUuid}/saved/${data.uuid}/view`,
-                });
+                void navigate(
+                    `/projects/${projectUuid}/saved/${data.uuid}/view`,
+                    {
+                        replace: true,
+                    },
+                );
             },
             onError: ({ error }) => {
                 showToastApiError({
@@ -410,7 +423,7 @@ type DuplicateChartMutationOptions = {
 export const useDuplicateChartMutation = (
     options?: DuplicateChartMutationOptions,
 ) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -420,10 +433,12 @@ export const useDuplicateChartMutation = (
         Pick<SavedChart, 'uuid' | 'name' | 'description'>
     >(
         ({ uuid, name, description }) =>
-            duplicateSavedQuery(projectUuid, uuid, {
-                chartName: name,
-                chartDesc: description ?? '',
-            }),
+            projectUuid
+                ? duplicateSavedQuery(projectUuid, uuid, {
+                      chartName: name,
+                      chartDesc: description ?? '',
+                  })
+                : Promise.reject(),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async (data) => {
@@ -438,9 +453,9 @@ export const useDuplicateChartMutation = (
                     !options?.showRedirectButton &&
                     options?.autoRedirect !== false
                 ) {
-                    history.push({
-                        pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
-                    });
+                    void navigate(
+                        `/projects/${projectUuid}/saved/${data.uuid}`,
+                    );
                 }
 
                 showToastSuccess({
@@ -451,10 +466,11 @@ export const useDuplicateChartMutation = (
                         ? {
                               children: 'Open chart',
                               icon: IconArrowRight,
-                              onClick: () =>
-                                  history.push(
+                              onClick: () => {
+                                  void navigate(
                                       `/projects/${projectUuid}/saved/${data.uuid}`,
-                                  ),
+                                  );
+                              },
                           }
                         : undefined,
                 });
@@ -470,7 +486,7 @@ export const useDuplicateChartMutation = (
 };
 
 export const useAddVersionMutation = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const dashboardUuid = useSearchParams('fromDashboard');
 
@@ -497,7 +513,7 @@ export const useAddVersionMutation = () => {
                         children: 'Open dashboard',
                         icon: IconArrowRight,
                         onClick: () =>
-                            history.push(
+                            navigate(
                                 `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
                             ),
                     },
@@ -506,9 +522,9 @@ export const useAddVersionMutation = () => {
                 showToastSuccess({
                     title: `Success! Chart was updated.`,
                 });
-                history.push({
-                    pathname: `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
-                });
+                void navigate(
+                    `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
+                );
             }
         },
         onError: ({ error }) => {

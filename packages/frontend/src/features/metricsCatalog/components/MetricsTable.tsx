@@ -4,7 +4,9 @@ import {
     type CatalogItem,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
+    Center,
     Divider,
     Group,
     Paper,
@@ -271,6 +273,17 @@ export const MetricsTable = () => {
         return flatData.some((item) => item.categories?.length);
     }, [flatData]);
 
+    const noMeticsAvailable = useMemo(() => {
+        return (
+            flatData.length === 0 &&
+            !isLoading &&
+            !isFetching &&
+            !hasNextPage &&
+            !search &&
+            categoryFilters.length === 0
+        );
+    }, [flatData, isLoading, isFetching, search, categoryFilters, hasNextPage]);
+
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
         data: flatData,
@@ -491,6 +504,30 @@ export const MetricsTable = () => {
                 )}
             </Box>
         ),
+        renderEmptyRowsFallback: () => {
+            return noMeticsAvailable ? (
+                <SuboptimalState
+                    title="No metrics defined in this project"
+                    action={
+                        <Text>
+                            To learn how to define metrics, check out our{' '}
+                            <Anchor
+                                target="_blank"
+                                href="https://docs.lightdash.com/references/metrics/"
+                            >
+                                documentation
+                            </Anchor>
+                        </Text>
+                    }
+                />
+            ) : (
+                <Center>
+                    <Text fs="italic" color="gray">
+                        No results found
+                    </Text>
+                </Center>
+            );
+        },
         icons: {
             IconArrowsSort: () => (
                 <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />

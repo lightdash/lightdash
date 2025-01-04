@@ -6742,6 +6742,23 @@ const models: TsoaRoute.Models = {
         enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7', 'v1.8', 'v1.9'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtVersionOptionLatest: {
+        dataType: 'refEnum',
+        enums: ['latest'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtVersionOption: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SupportedDbtVersions' },
+                { ref: 'DbtVersionOptionLatest' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'SemanticLayerType.DBT': {
         dataType: 'refEnum',
         enums: ['DBT'],
@@ -6806,7 +6823,7 @@ const models: TsoaRoute.Models = {
                 },
                 schedulerTimezone: { dataType: 'string', required: true },
                 semanticLayerConnection: { ref: 'SemanticLayerConnection' },
-                dbtVersion: { ref: 'SupportedDbtVersions', required: true },
+                dbtVersion: { ref: 'DbtVersionOption', required: true },
                 upstreamProjectUuid: { dataType: 'string' },
                 pinnedListUuid: { dataType: 'string' },
                 warehouseConnection: { ref: 'WarehouseCredentials' },

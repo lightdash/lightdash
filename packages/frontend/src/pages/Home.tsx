@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -30,7 +30,6 @@ const Home: FC = () => {
         selectedProjectUuid,
         project.data?.pinnedListUuid,
     );
-
     const {
         data: mostPopularAndRecentlyUpdated,
         isInitialLoading: isMostPopularAndRecentlyUpdatedLoading,

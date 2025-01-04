@@ -3,7 +3,7 @@ import { Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -41,7 +41,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
 }) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
-    const history = useHistory();
+    const navigate = useNavigate();
     const { mutateAsync: updateNotification } = useUpdateNotification();
 
     const handleOnNotificationClick = useCallback(
@@ -63,7 +63,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                 },
             });
 
-            history.push(
+            void navigate(
                 `/projects/${projectUuid}${notification.url}${
                     notification.metadata?.dashboardTileUuid
                         ? `?tileUuid=${notification.metadata?.dashboardTileUuid}`
@@ -71,7 +71,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                 }`,
             );
         },
-        [history, projectUuid, track, updateNotification],
+        [navigate, projectUuid, track, updateNotification],
     );
 
     return (

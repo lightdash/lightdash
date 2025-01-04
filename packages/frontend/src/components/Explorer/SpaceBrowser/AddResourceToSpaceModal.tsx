@@ -30,7 +30,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useUpdateMultipleDashboard } from '../../../hooks/dashboard/useDashboards';
 import { useInfiniteContent } from '../../../hooks/useContent';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
@@ -112,7 +112,7 @@ const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
         fetchNextPage,
     } = useInfiniteContent(
         {
-            projectUuids: [projectUuid],
+            projectUuids: [projectUuid!],
             contentTypes:
                 resourceType === AddToSpaceResources.CHART
                     ? [ContentType.CHART]
@@ -159,9 +159,10 @@ const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
         );
     }, [contentPages?.pages, user.data, spaces, resourceType]);
 
-    const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid);
-    const { mutate: dashboardMutation } =
-        useUpdateMultipleDashboard(projectUuid);
+    const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid!);
+    const { mutate: dashboardMutation } = useUpdateMultipleDashboard(
+        projectUuid!,
+    );
 
     const form = useForm<AddItemForm>();
     const { reset } = form;
@@ -195,6 +196,7 @@ const AddResourceToSpaceModal: FC<Props> = ({ resourceType, onClose }) => {
     }, [spaceUuid, allItems, resourceType]);
 
     const handleSubmit = form.onSubmit(({ items }) => {
+        if (!spaceUuid) return;
         switch (resourceType) {
             case AddToSpaceResources.CHART:
                 if (items) {

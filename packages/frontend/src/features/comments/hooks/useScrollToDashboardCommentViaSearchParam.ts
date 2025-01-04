@@ -1,6 +1,6 @@
 import { useMantineTheme } from '@mantine/core';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 
 /**
  * Scroll to dashboard comment via search param `tileUuid`
@@ -23,7 +23,7 @@ export const useScrollToDashboardCommentViaSearchParam = ({
     const theme = useMantineTheme();
     const [isSuccess, setIsSuccess] = useState(false);
     // get search with uselocation param tile uuid
-    const history = useHistory();
+    const navigate = useNavigate();
     const { search, pathname } = useLocation();
     const searchParams = useMemo(() => new URLSearchParams(search), [search]);
     const tileUuid = searchParams.get('tileUuid');
@@ -66,10 +66,13 @@ export const useScrollToDashboardCommentViaSearchParam = ({
 
                     // Clear the search param after scrolling to the comment
                     searchParams.delete('tileUuid');
-                    history.replace({
-                        pathname,
-                        search: searchParams.toString(),
-                    });
+                    void navigate(
+                        {
+                            pathname,
+                            search: searchParams.toString(),
+                        },
+                        { replace: true },
+                    );
                 }
             }, 200);
         }
@@ -83,7 +86,7 @@ export const useScrollToDashboardCommentViaSearchParam = ({
         theme.radius.sm,
         theme.colors.yellow,
         searchParams,
-        history,
+        navigate,
         pathname,
     ]);
 };

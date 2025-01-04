@@ -9,7 +9,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import {
     ExplorerSection,
     type ExplorerReduceState,
@@ -41,7 +41,7 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
 };
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
-    projectUuid: string,
+    projectUuid: string | undefined,
     createSavedChart: CreateSavedChartVersion,
     // Pass true to preserve long url. This is sometimes desireable when we want
     // all of the information in the URL, but don't use it for navigation.
@@ -49,6 +49,9 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     // shareable, shortened links.
     preserveLongUrl?: boolean,
 ): { pathname: string; search: string } => {
+    if (!projectUuid) {
+        return { pathname: '', search: '' };
+    }
     const newParams = new URLSearchParams();
 
     let stringifiedChart = JSON.stringify(createSavedChart);
@@ -140,7 +143,7 @@ export const parseExplorerSearchParams = (
 };
 
 export const useExplorerRoute = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const pathParams = useParams<{
         projectUuid: string;
         tableId: string | undefined;
@@ -163,7 +166,7 @@ export const useExplorerRoute = () => {
     // Update url params based on pristine state
     useEffect(() => {
         if (metricQuery && unsavedChartVersion.tableName) {
-            history.replace(
+            void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     {
@@ -171,11 +174,12 @@ export const useExplorerRoute = () => {
                         metricQuery,
                     },
                 ),
+                { replace: true },
             );
         }
     }, [
         metricQuery,
-        history,
+        navigate,
         pathParams.projectUuid,
         unsavedChartVersion,
         dateZoom,

@@ -17,7 +17,6 @@ import {
     Title,
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
-
 import {
     IconReportSearch,
     IconSearch,
@@ -25,7 +24,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -290,7 +289,7 @@ export const CatalogPanel: FC = () => {
         ],
     );
 
-    const history = useHistory();
+    const navigate = useNavigate();
     // Keyboard navigation
     useHotkeys(
         [
@@ -359,7 +358,7 @@ export const CatalogPanel: FC = () => {
                             selectedItem &&
                             selectedItem.type === CatalogType.Table
                         )
-                            history.push(
+                            void navigate(
                                 `/projects/${projectUuid}/tables/${selectedItem.name}`,
                             );
                         else console.warn('Explore not available for fields');

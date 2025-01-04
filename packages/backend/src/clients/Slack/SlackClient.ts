@@ -1,9 +1,11 @@
 import {
+    friendlyName,
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
     SlackInstallationNotFoundError,
     SlackSettings,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Block } from '@slack/bolt';
@@ -11,7 +13,9 @@ import {
     ChatPostMessageArguments,
     ChatUpdateArguments,
     ConversationsListResponse,
+    FilesCompleteUploadExternalResponse,
     UsersListResponse,
+    WebAPICallResult,
     WebClient,
 } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -29,6 +33,16 @@ const cachedChannels: Record<
     string,
     { lastCached: Date; channels: SlackChannel[] }
 > = {};
+
+export type PostSlackFile = {
+    organizationUuid: string;
+    channelId: string;
+    threadTs: string;
+    file: Buffer;
+    title: string;
+    comment: string;
+    filename: string;
+};
 
 export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -345,21 +359,10 @@ export class SlackClient {
         });
     }
 
-    /**
-     *
-     * @param args.filename - you must provide an extension for slack to recognize the file type
-     */
-    async postFileToThread(args: {
-        organizationUuid: string;
-        channelId: string;
-        threadTs: string;
-        file: Buffer;
-        title: string;
-        comment: string;
-        filename: string;
-    }): Promise<void> {
+    async postFileToThread(args: PostSlackFile) {
         const webClient = await this.getWebClient(args.organizationUuid);
-        await webClient.files.uploadV2({
+
+        const result = await webClient.files.uploadV2({
             channel_id: args.channelId,
             thread_ts: args.threadTs,
             file: args.file,
@@ -367,5 +370,75 @@ export class SlackClient {
             initial_comment: args.comment,
             filename: args.filename,
         });
+
+        if (!result.ok) {
+            Logger.error(`Failed to upload file to slack`, result.error);
+            throw new Error(`Failed to upload file to slack: ${result.error}`);
+        } else {
+            Logger.debug(`Uploaded file to slack`, result.file);
+        }
+    }
+
+    /* 
+    This method will try to upload an image to slack, so it can be used in blocks, 
+    instead of sharing the file directly on a channel or a thread
+    It returns a promise that resolves to the file url, but it takes a while for the file to be uploaded
+    Note: method sharedPublicURL will not work here because it requires a user token, and we only use bot tokens
+    */
+    async uploadFile(args: {
+        organizationUuid: string;
+        file: Buffer;
+        title: string;
+    }) {
+        const webClient = await this.getWebClient(args.organizationUuid);
+        const filename = friendlyName(args.title);
+        const result = (await webClient.files.uploadV2({
+            file: args.file,
+            title: args.title,
+            filename,
+        })) as WebAPICallResult & {
+            files: FilesCompleteUploadExternalResponse[];
+        };
+
+        const uploadedFile = result.files?.[0].files?.[0];
+
+        if (!uploadedFile?.id) {
+            throw new UnexpectedServerError('Slack file was not uploaded');
+        }
+
+        // We need to wait for the file to be ready, otherwise slack will fail with invalid_blocks error
+        async function waitForFileReady(fileId: string): Promise<string> {
+            const maxRetries = 10;
+            const delay = 1000;
+
+            const checkFile = async (attempt: number): Promise<string> => {
+                if (attempt >= maxRetries) {
+                    throw new UnexpectedServerError(
+                        'File URL not available after maximum retries.',
+                    );
+                }
+
+                const fileInfo = await webClient.files.info({ file: fileId });
+                const urlPrivate = fileInfo.file?.url_private;
+                const mimeType = fileInfo.file?.mimetype;
+
+                if (mimeType && urlPrivate) {
+                    Logger.debug(`Slack image ready after ${attempt} retries`);
+                    return urlPrivate;
+                }
+
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(checkFile(attempt + 1));
+                    }, delay);
+                });
+            };
+
+            return checkFile(0);
+        }
+
+        const fileUrl = await waitForFileReady(uploadedFile?.id);
+
+        return fileUrl;
     }
 }

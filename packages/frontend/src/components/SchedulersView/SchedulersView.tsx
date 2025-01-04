@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProject } from '../../hooks/useProject';

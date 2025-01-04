@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink, useParams } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router';
 import { useMount } from 'react-use';
 
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -177,7 +177,7 @@ const SqlRunnerPage = () => {
     }
 
     const getCsvLink = async () => {
-        if (sql) {
+        if (sql && projectUuid) {
             const customLabels = getCustomLabelsFromTableConfig(
                 createSavedChart?.chartConfig.config,
             );
@@ -338,9 +338,11 @@ const SqlRunnerPage = () => {
                                             disabled={!sql}
                                         />
                                     )}
-                                    <ChartDownloadMenu
-                                        projectUuid={projectUuid}
-                                    />
+                                    {projectUuid && (
+                                        <ChartDownloadMenu
+                                            projectUuid={projectUuid}
+                                        />
+                                    )}
                                 </>
                             )
                         }

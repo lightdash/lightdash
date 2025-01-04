@@ -11,7 +11,7 @@ import {
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
@@ -78,7 +78,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 }) => {
     const { classes } = useTableStyles();
 
-    const history = useHistory();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const canUserManageValidation = useValidationUserAbility(projectUuid);
@@ -113,6 +113,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'name',
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
+                    if (!projectUuid) {
+                        return null;
+                    }
+
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
@@ -200,7 +204,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     item,
                                                 )) &&
                                             canBelongToSpace &&
-                                            hoveredItem === item.data.uuid && (
+                                            hoveredItem === item.data.uuid &&
+                                            projectUuid && (
                                                 <Box>
                                                     <ResourceInfoPopup
                                                         resourceUuid={
@@ -461,7 +466,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     <tr
                         key={item.data.uuid}
                         onClick={() =>
-                            history.push(getResourceUrl(projectUuid, item))
+                            projectUuid &&
+                            navigate(getResourceUrl(projectUuid, item))
                         }
                         onMouseEnter={() => setHoveredItem(item.data.uuid)}
                         onMouseLeave={() => setHoveredItem(undefined)}

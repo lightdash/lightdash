@@ -1,3 +1,86 @@
+# [0.1436.0](https://github.com/lightdash/lightdash/compare/0.1435.0...0.1436.0) (2025-01-03)
+
+
+### Features
+
+* option to use latest dbt version ([#13091](https://github.com/lightdash/lightdash/issues/13091)) ([8fae180](https://github.com/lightdash/lightdash/commit/8fae180b8f3f0ed4e31bf25be86a6ab6a923ff92))
+
+# [0.1435.0](https://github.com/lightdash/lightdash/compare/0.1434.2...0.1435.0) (2025-01-03)
+
+
+### Features
+
+* upload images to slack on scheduled deliveries ([#13086](https://github.com/lightdash/lightdash/issues/13086)) ([1b45063](https://github.com/lightdash/lightdash/commit/1b45063667152792df4a1e812dfd168408f006c7))
+
+## [0.1434.2](https://github.com/lightdash/lightdash/compare/0.1434.1...0.1434.2) (2025-01-03)
+
+
+### Bug Fixes
+
+* adds month to prev period comparison legend when years in date range are different ([#13085](https://github.com/lightdash/lightdash/issues/13085)) ([ff0825d](https://github.com/lightdash/lightdash/commit/ff0825de54b90bee1dba6ca08e6f66d001fba292))
+
+## [0.1434.1](https://github.com/lightdash/lightdash/compare/0.1434.0...0.1434.1) (2025-01-03)
+
+
+### Bug Fixes
+
+* CTAs need to have consistent styling ([#12008](https://github.com/lightdash/lightdash/issues/12008)) ([7707582](https://github.com/lightdash/lightdash/commit/7707582809272807ae905301b39f219167bf1afe))
+
+# [0.1434.0](https://github.com/lightdash/lightdash/compare/0.1433.3...0.1434.0) (2025-01-03)
+
+
+### Features
+
+* empty state links to docs when there are no metrics ([#13080](https://github.com/lightdash/lightdash/issues/13080)) ([9aa1adf](https://github.com/lightdash/lightdash/commit/9aa1adf82b19590991bf12b25c791be8a84b3ae3))
+
+## [0.1433.3](https://github.com/lightdash/lightdash/compare/0.1433.2...0.1433.3) (2025-01-02)
+
+
+### Bug Fixes
+
+* remove duplicate loading overlay ([#13065](https://github.com/lightdash/lightdash/issues/13065)) ([31313d1](https://github.com/lightdash/lightdash/commit/31313d1b4712c4ec1e79cc2ebb943d7d94b642a9))
+* render markdown on clamped description ([#13066](https://github.com/lightdash/lightdash/issues/13066)) ([2eac878](https://github.com/lightdash/lightdash/commit/2eac878666a80acc1f3b16ea11ee175d756f922c))
+
+## [0.1433.2](https://github.com/lightdash/lightdash/compare/0.1433.1...0.1433.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* fix hover style pivot table ([#13069](https://github.com/lightdash/lightdash/issues/13069)) ([638b1c6](https://github.com/lightdash/lightdash/commit/638b1c68620d95fd5a72fcb47bac4cd1844c72a6))
+
+## [0.1433.1](https://github.com/lightdash/lightdash/compare/0.1433.0...0.1433.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* use correct placeholder for virtual views ([#13074](https://github.com/lightdash/lightdash/issues/13074)) ([7c2752a](https://github.com/lightdash/lightdash/commit/7c2752a3c3ec5c03bd1a64d2292f763c8c3e80b1))
+
+# [0.1433.0](https://github.com/lightdash/lightdash/compare/0.1432.3...0.1433.0) (2025-01-02)
+
+
+### Bug Fixes
+
+* [SQL runner] make field select style match other dropdowns ([#13075](https://github.com/lightdash/lightdash/issues/13075)) ([de98685](https://github.com/lightdash/lightdash/commit/de9868506751da0e8e6bbf4e5f6b831842d0a628))
+
+
+### Features
+
+* `--skip-dbt-compile` and `--skip-warehouse-catalog` to `compile` ([#13023](https://github.com/lightdash/lightdash/issues/13023)) ([01ceccb](https://github.com/lightdash/lightdash/commit/01ceccb9fde7099f17466dd735ac8e01c755d77c))
+
+## [0.1432.3](https://github.com/lightdash/lightdash/compare/0.1432.2...0.1432.3) (2025-01-02)
+
+
+### Bug Fixes
+
+* skip cache for explore queries ([#13067](https://github.com/lightdash/lightdash/issues/13067)) ([e218778](https://github.com/lightdash/lightdash/commit/e2187782bcf36a5ddc5b8fb7fb50a0c527afa622))
+
+## [0.1432.2](https://github.com/lightdash/lightdash/compare/0.1432.1...0.1432.2) (2025-01-02)
+
+
+### Bug Fixes
+
+* add loader on validator page ([#13073](https://github.com/lightdash/lightdash/issues/13073)) ([bdc7844](https://github.com/lightdash/lightdash/commit/bdc7844d0739522e7410aea3d7bea61e7e79ae11))
+
 ## [0.1432.1](https://github.com/lightdash/lightdash/compare/0.1432.0...0.1432.1) (2024-12-30)
 
 

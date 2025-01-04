@@ -2,7 +2,7 @@ import { Image, Stack } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useMount } from 'react-use';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import LightdashLogo from '../svgs/lightdash-black.svg';

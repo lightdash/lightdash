@@ -22,7 +22,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
@@ -43,7 +43,7 @@ import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
 const ChartHistory = () => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const { savedQueryUuid, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
@@ -74,7 +74,7 @@ const ChartHistory = () => {
 
     const rollbackMutation = useChartVersionRollbackMutation(savedQueryUuid, {
         onSuccess: () => {
-            history.push(
+            void navigate(
                 `/projects/${projectUuid}/saved/${savedQueryUuid}/view`,
             );
         },

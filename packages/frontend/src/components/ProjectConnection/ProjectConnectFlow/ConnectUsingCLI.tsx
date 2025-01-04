@@ -9,7 +9,7 @@ import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useRef, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import { useProjects } from '../../../hooks/useProjects';
@@ -31,7 +31,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     version,
     onBack,
 }) => {
-    const history = useHistory();
+    const navigate = useNavigate();
     const initialProjectFetch = useRef(false);
     const existingProjects = useRef<OrganizationProject[]>();
     const { showToastSuccess } = useToaster();
@@ -63,8 +63,11 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
                 await queryClient.invalidateQueries(['organization']);
 
-                history.replace(
+                void navigate(
                     `/createProject/cli?projectUuid=${newProjectUuid}`,
+                    {
+                        replace: true,
+                    },
                 );
             }
         },

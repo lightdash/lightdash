@@ -10,7 +10,7 @@ import {
 import { lightdashApi } from '../api';
 
 type UseChartSummariesV2Args = {
-    projectUuid: string;
+    projectUuid: string | undefined;
     pageSize: number;
     page: number;
     search?: string;

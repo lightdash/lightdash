@@ -13,7 +13,7 @@ import {
     IconFolderX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useUpdateSqlChartMutation } from '../../../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useMoveDashboardMutation } from '../../../hooks/dashboard/useDashboard';
@@ -145,6 +145,10 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             handleReset();
         }
     }, [action, handlePinToHomepage, handleReset]);
+
+    if (!projectUuid) {
+        return null;
+    }
 
     switch (action.type) {
         case ResourceViewItemAction.UPDATE:
