@@ -555,7 +555,7 @@ const MetricsVisualization: FC<Props> = ({
         }
     }, [query.comparison, segmentedData, splitSegments]);
 
-    const compareMetricOpacity = useMemo(() => {
+    const compareMetricIncompletePeriodOpacity = useMemo(() => {
         return query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
             ? 0.4
             : 1;
@@ -820,7 +820,9 @@ const MetricsVisualization: FC<Props> = ({
                                         dot={false}
                                         legendType="none"
                                         isAnimationActive={false}
-                                        opacity={compareMetricOpacity}
+                                        opacity={
+                                            compareMetricIncompletePeriodOpacity
+                                        }
                                         strokeDasharray={'3 4'}
                                     />
                                 </>
