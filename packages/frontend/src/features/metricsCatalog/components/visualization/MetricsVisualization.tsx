@@ -818,7 +818,7 @@ const MetricsVisualization: FC<Props> = ({
                                         }
                                         stroke={colors.indigo[9]}
                                         dot={false}
-                                        legendType="none"
+                                        legendType="none" // Don't render legend for the incomplete period line
                                         isAnimationActive={false}
                                         opacity={
                                             compareMetricIncompletePeriodOpacity
