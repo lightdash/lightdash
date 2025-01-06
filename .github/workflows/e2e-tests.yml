@@ -148,7 +148,7 @@ jobs:
               with:
                   install: false
                   browser: firefox
-                  project: ./packages/e2e
+                  working-directory: packages/e2e
                   # Set the PR deployment url and disable video recording
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false'
               env:
