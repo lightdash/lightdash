@@ -1,3 +1,10 @@
+## [0.1437.1](https://github.com/lightdash/lightdash/compare/0.1437.0...0.1437.1) (2025-01-06)
+
+
+### Bug Fixes
+
+* redirect to view mode when dashboard is saved ([#13100](https://github.com/lightdash/lightdash/issues/13100)) ([a5c68ed](https://github.com/lightdash/lightdash/commit/a5c68edbc755ebba6b373cb4a8056f352b90ca18))
+
 # [0.1437.0](https://github.com/lightdash/lightdash/compare/0.1436.0...0.1437.0) (2025-01-06)
 
 
