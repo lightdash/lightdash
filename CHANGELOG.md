@@ -1,3 +1,10 @@
+## [0.1437.2](https://github.com/lightdash/lightdash/compare/0.1437.1...0.1437.2) (2025-01-06)
+
+
+### Bug Fixes
+
+* always set y axis width to default in metrics explorer ([#13105](https://github.com/lightdash/lightdash/issues/13105)) ([fa6a324](https://github.com/lightdash/lightdash/commit/fa6a324c8d23153daa00ebba2d3a57be044d518d))
+
 ## [0.1437.1](https://github.com/lightdash/lightdash/compare/0.1437.0...0.1437.1) (2025-01-06)
 
 
