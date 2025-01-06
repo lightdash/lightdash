@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import execa from 'execa';
 import inquirer from 'inquirer';
+import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 import { cliMocks } from './getDbtVersion.mocks';
 
@@ -24,6 +25,7 @@ describe('Get dbt version', () => {
         process.env = { ...env };
         execaMock.mockImplementation(async () => cliMocks.dbt1_4);
         promptMock.mockImplementation(async () => ({ isConfirm: true }));
+        GlobalState.clearPromptAnswer();
     });
 
     afterEach(() => {

@@ -1,7 +1,7 @@
 import ora from 'ora';
 import * as styles from './styles';
 
-type RememberPromptAnswer = {
+type PromptAnswer = {
     useFallbackDbtVersion?: boolean;
 };
 
@@ -10,7 +10,7 @@ class GlobalState {
 
     private activeSpinner: ora.Ora | undefined;
 
-    private savedPromptAnswers: RememberPromptAnswer;
+    private savedPromptAnswers: PromptAnswer;
 
     constructor() {
         this.savedPromptAnswers = {};
@@ -40,17 +40,21 @@ class GlobalState {
         this.verbose = verbose;
     }
 
-    getSavedPromptAnswer<T extends keyof RememberPromptAnswer>(
+    getSavedPromptAnswer<T extends keyof PromptAnswer>(
         prompt: T,
-    ): RememberPromptAnswer[T] | undefined {
+    ): PromptAnswer[T] | undefined {
         return this.savedPromptAnswers[prompt];
     }
 
-    savePromptAnswer<T extends keyof RememberPromptAnswer>(
+    savePromptAnswer<T extends keyof PromptAnswer>(
         prompt: T,
-        value: RememberPromptAnswer[T],
+        value: PromptAnswer[T],
     ) {
         this.savedPromptAnswers[prompt] = value;
+    }
+
+    clearPromptAnswer() {
+        this.savedPromptAnswers = {};
     }
 
     debug(message: string) {
