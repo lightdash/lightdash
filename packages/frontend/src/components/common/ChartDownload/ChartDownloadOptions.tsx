@@ -1,13 +1,15 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Group,
     SegmentedControl,
     Select,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import { IconCopy, IconDownload } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
 import React, { useCallback, useState } from 'react';
 
@@ -30,6 +32,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     getChartInstance,
     unavailableOptions,
 }) => {
+    const [isCopied, setIsCopied] = useState(false);
     const [type, setType] = useState<DownloadType>(DownloadType.PNG);
     const [isBackgroundTransparent, setIsBackgroundTransparent] =
         useState(false);
@@ -88,6 +91,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     }, [getChartInstance, type, isBackgroundTransparent]);
 
     const onCopyToClipboard = useCallback(async () => {
+        setIsCopied(true);
         const chartInstance = getChartInstance();
         if (!chartInstance) {
             console.error('Chart instance is not available');
@@ -104,6 +108,10 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 isBackgroundTransparent,
             );
             await copyImageToClipboard(base64Image);
+
+            setTimeout(() => {
+                setIsCopied(false);
+            }, 1000);
         } catch (e) {
             console.error('Unable to copy chart to clipboard:', e);
         }
@@ -142,14 +150,16 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 />
             )}
             <Group spacing="xs" position="right">
-                <Button
-                    size="xs"
-                    leftIcon={<MantineIcon icon={IconCopy} />}
-                    onClick={onCopyToClipboard}
-                    variant="outline"
-                >
-                    Copy to clipboard
-                </Button>
+                <Tooltip variant="xs" withinPortal label="Copy to clipboard">
+                    <ActionIcon
+                        size="md"
+                        onClick={onCopyToClipboard}
+                        variant="outline"
+                        color={isCopied ? 'teal' : 'gray'}
+                    >
+                        <MantineIcon icon={isCopied ? IconCheck : IconCopy} />
+                    </ActionIcon>
+                </Tooltip>
                 <Button
                     size="xs"
                     leftIcon={<MantineIcon icon={IconDownload} />}
