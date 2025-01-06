@@ -1,5 +1,6 @@
 import {
     applyCustomFormat,
+    assertUnreachable,
     capitalize,
     friendlyName,
     getCustomFormat,
@@ -522,6 +523,44 @@ const MetricsVisualization: FC<Props> = ({
         });
     }, [results?.metric.timeDimension?.interval, segmentedData]);
 
+    const compareMetricSplitSegment = useMemo(() => {
+        const comparison = query.comparison;
+
+        const emptySplitSegment = {
+            segment: null,
+            completedPeriodData: [],
+            incompletePeriodData: [],
+        };
+
+        switch (comparison) {
+            case MetricExplorerComparison.NONE:
+                return emptySplitSegment;
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+                return splitSegments[0] ?? emptySplitSegment; // Different metric data is always split as it has the same period of time
+            case MetricExplorerComparison.PREVIOUS_PERIOD:
+                const segment = segmentedData[0];
+
+                return segment
+                    ? {
+                          ...segment,
+                          completedPeriodData: segment.data, // Previous period data is always completed
+                          incompletePeriodData: [],
+                      }
+                    : emptySplitSegment;
+            default:
+                return assertUnreachable(
+                    comparison,
+                    `Unsupported comparison: ${comparison}`,
+                );
+        }
+    }, [query.comparison, segmentedData, splitSegments]);
+
+    const compareMetricOpacity = useMemo(() => {
+        return query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
+            ? 0.4
+            : 1;
+    }, [query.comparison]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -757,8 +796,7 @@ const MetricsVisualization: FC<Props> = ({
                                         type="linear"
                                         dataKey="compareMetric.value"
                                         data={
-                                            splitSegments[0]
-                                                ?.completedPeriodData ?? []
+                                            compareMetricSplitSegment.completedPeriodData
                                         }
                                         stroke={colors.indigo[9]}
                                         strokeDasharray={'3 4'}
@@ -776,14 +814,13 @@ const MetricsVisualization: FC<Props> = ({
                                         type="linear"
                                         dataKey="compareMetric.value"
                                         data={
-                                            splitSegments[0]
-                                                ?.incompletePeriodData ?? []
+                                            compareMetricSplitSegment.incompletePeriodData
                                         }
                                         stroke={colors.indigo[9]}
                                         dot={false}
                                         legendType="none"
                                         isAnimationActive={false}
-                                        opacity={0.4}
+                                        opacity={compareMetricOpacity}
                                         strokeDasharray={'3 4'}
                                     />
                                 </>
