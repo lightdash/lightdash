@@ -257,6 +257,8 @@ export class ProjectService extends BaseService {
 
     contentModel: ContentModel;
 
+    aliasMapping: any;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -2574,24 +2576,32 @@ export class ProjectService extends BaseService {
             projectUuid,
             table,
         );
-        let fieldId = initialFieldId;
+        const fieldId = initialFieldId;
+        // If explore not found, avoid ambiguous fallback
         if (!explore) {
-            // fallback: find explore by join alias and replace fieldId
-            explore = await this.projectModel.findJoinAliasExplore(
-                projectUuid,
-                table,
-            );
-            if (explore && !isExploreError(explore)) {
-                fieldId = initialFieldId.replace(table, explore.baseTable);
+            // Optionally, map alias to original table name if configured
+            const mappedTable = this.aliasMapping?.[table];
+            if (mappedTable) {
+                const resolvedTable = mappedTable;
+                explore = await this.projectModel.findExploreByTableName(
+                    projectUuid,
+                    table,
+                );
+            }
+
+            if (!explore) {
+                throw new NotExistsError(
+                    `Explore for table "${table}" does not exist.`,
+                );
             }
         }
 
-        if (!explore) {
-            throw new NotExistsError(`Explore ${table} does not exist`);
-        } else if (isExploreError(explore)) {
-            throw new NotExistsError(`Explore ${table} has errors`);
+        // Ensure explore is valid
+        if (isExploreError(explore)) {
+            throw new NotExistsError(
+                `Explore for table "${table}" has errors.`,
+            );
         }
-
         const field = findFieldByIdInExplore(explore, fieldId);
 
         if (!field) {

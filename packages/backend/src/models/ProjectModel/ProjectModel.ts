@@ -107,10 +107,13 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    aliasMapping: Record<string, string> | null;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+        this.aliasMapping = null;
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -924,7 +927,7 @@ export class ProjectModel {
             'ProjectModel.findExploreByTableName',
             {},
             async (span) => {
-                const exploreCache = await this.database(CachedExploreTableName)
+                let exploreCache = await this.database(CachedExploreTableName)
                     .select('explore')
                     .where('name', tableName)
                     .andWhere('project_uuid', projectUuid)
@@ -933,6 +936,20 @@ export class ProjectModel {
                     'foundIndividualExploreCache',
                     !!exploreCache,
                 );
+
+                if (!exploreCache && this.aliasMapping?.[tableName]) {
+                    const originalTable = this.aliasMapping[tableName];
+                    exploreCache = await this.database(CachedExploreTableName)
+                        .select('explore')
+                        .where('name', originalTable)
+                        .andWhere('project_uuid', projectUuid)
+                        .first();
+
+                    span.setAttribute(
+                        'foundAliasMappedExplore',
+                        !!exploreCache,
+                    );
+                }
                 return exploreCache
                     ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
                           exploreCache.explore,
