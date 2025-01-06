@@ -51,7 +51,7 @@ const FieldFilterItems: FC<Props> = ({ field }) => {
             <Menu.Label>Filters</Menu.Label>
             <Menu.Item
                 icon={<IconFilter size={14} />}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     e.preventDefault();
                     handleAddFilter();

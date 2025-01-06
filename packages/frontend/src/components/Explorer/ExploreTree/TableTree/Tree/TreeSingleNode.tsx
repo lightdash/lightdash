@@ -220,7 +220,9 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             }
                         >
                             <ActionIcon
-                                onClick={(e) => {
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
                                     track({
                                         name: EventName.ADD_FILTER_CLICKED,
                                     });

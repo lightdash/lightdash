@@ -160,7 +160,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     <Menu.Item
                         component="button"
                         icon={<MantineIcon icon={IconFilter} />}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
 
                             track({
@@ -178,7 +178,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                         <Menu.Item
                             component="button"
                             icon={<MantineIcon icon={IconEdit} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
                                 toggleAdditionalMetricModal({
                                     type: item.type,
@@ -192,7 +194,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                         <Menu.Item
                             component="button"
                             icon={<MantineIcon icon={IconCopy} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
                                 duplicateCustomMetric(item);
                                 track({
@@ -210,7 +214,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                             key="custommetric"
                             component="button"
                             icon={<MantineIcon icon={IconTrash} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
 
                                 track({
@@ -228,7 +234,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                     <Menu.Item
                         component="button"
                         icon={<MantineIcon icon={IconDots} />}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
                             onViewDescription();
                         }}
@@ -242,7 +248,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                         <Menu.Item
                             component="button"
                             icon={<MantineIcon icon={IconEdit} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
                                 toggleCustomDimensionModal({
                                     item,
@@ -255,7 +263,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                         <Menu.Item
                             component="button"
                             icon={<MantineIcon icon={IconCopy} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
                                 duplicateCustomDimension(item);
                                 track({
@@ -272,7 +282,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                             color="red"
                             component="button"
                             icon={<MantineIcon icon={IconTrash} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
                                 removeCustomDimension(getItemId(item));
                             }}
@@ -293,7 +305,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 key={metric}
                                 role="menuitem"
                                 component="button"
-                                onClick={(e) => {
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
                                     e.stopPropagation();
                                     console.debug(
                                         'opening custom metric modal: ' +
@@ -323,7 +337,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                         <Menu.Item
                             component="button"
                             icon={<MantineIcon icon={IconSparkles} />}
-                            onClick={(e) => {
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
                                 e.stopPropagation();
 
                                 track({
@@ -344,7 +360,7 @@ const TreeSingleNodeActions: FC<Props> = ({
             {/* prevents bubbling of click event to NavLink */}
             <Box
                 component="div"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                     e.stopPropagation();
                     e.preventDefault();
                 }}

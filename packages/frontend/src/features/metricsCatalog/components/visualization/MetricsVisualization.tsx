@@ -527,7 +527,6 @@ const MetricsVisualization: FC<Props> = ({
                     </Box>
                 </Tooltip> */}
             </Group>
-
             <Flex mih={0} sx={{ flex: 1, position: 'relative' }}>
                 <LoadingOverlay
                     visible={isFetching}
@@ -542,7 +541,9 @@ const MetricsVisualization: FC<Props> = ({
                 {!showEmptyState && results && (
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                            ref={(instance) => setChartRef(instance)}
+                            ref={(instance) => {
+                                setChartRef(instance);
+                            }}
                             margin={{
                                 right: 40,
                                 left: 10,

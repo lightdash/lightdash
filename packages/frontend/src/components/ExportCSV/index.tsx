@@ -7,7 +7,7 @@ import { Alert, Box, Button, NumberInput, Radio, Stack } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { memo, useState, type FC } from 'react';
+import { memo, useState, type FC, type ReactNode } from 'react';
 import { pollCsvFileUrl } from '../../api/csv';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -39,7 +39,7 @@ export type ExportCSVProps = {
         onlyRaw: boolean,
     ) => Promise<ApiScheduledDownloadCsv>;
     isDialogBody?: boolean;
-    renderDialogActions?: (renderProps: ExportCsvRenderProps) => JSX.Element;
+    renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
 const ExportCSV: FC<ExportCSVProps> = memo(

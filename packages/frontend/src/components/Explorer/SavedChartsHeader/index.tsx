@@ -653,7 +653,9 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                                     icon={IconFolders}
                                                 />
                                             }
-                                            onClick={(e) => {
+                                            onClick={(
+                                                e: React.MouseEvent<HTMLDivElement>,
+                                            ) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 setIsMovingChart(true);
@@ -751,7 +753,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                                                                     : ''
                                                                             }
                                                                             onClick={(
-                                                                                e,
+                                                                                e: React.MouseEvent<HTMLDivElement>,
                                                                             ) => {
                                                                                 e.preventDefault();
                                                                                 e.stopPropagation();
