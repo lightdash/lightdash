@@ -110,7 +110,6 @@ jobs:
               with:
                   install: false
                   working-directory: packages/e2e
-                  command: pnpm cypress run
                   spec: cypress/cli/**/*
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
               env:
