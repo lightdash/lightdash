@@ -13,7 +13,7 @@ type Props = {
     dashboardUuid: string;
     dashboardTileUuid: string;
     comment: Comment;
-    targetRef: React.RefObject<HTMLDivElement> | null;
+    targetRef: React.RefObject<HTMLDivElement | null> | null;
 };
 
 export const DashboardCommentAndReplies: FC<Props> = ({

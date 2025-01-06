@@ -545,6 +545,11 @@ export const getDbtManifestVersion = (
     throw new Error(`Unsupported dbt manifest version: ${version}`);
 };
 
+export const getLatestSupportedDbtManifestVersion = (): DbtManifestVersion => {
+    const versions = Object.values(DbtManifestVersion);
+    return versions[versions.length - 1];
+};
+
 export enum DbtExposureType {
     DASHBOARD = 'dashboard',
     NOTEBOOK = 'notebook',

@@ -12,7 +12,7 @@ import {
 import MantineIcon from '../common/MantineIcon';
 
 const downloadChartImage = (
-    echartRef: RefObject<EChartsReact> | undefined,
+    echartRef: RefObject<EChartsReact | null> | undefined,
     chartName?: string,
 ) => {
     const chartInstance = echartRef?.current?.getEchartsInstance();
@@ -38,7 +38,7 @@ const downloadChartImage = (
 };
 
 export const DashboardExportImage: FC<{
-    echartRef: RefObject<EChartsReact> | undefined;
+    echartRef: RefObject<EChartsReact | null> | undefined;
     chartName: string;
     isMinimal: boolean;
 }> = ({ echartRef, chartName, isMinimal }) => {

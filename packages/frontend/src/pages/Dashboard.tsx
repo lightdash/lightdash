@@ -273,7 +273,7 @@ const Dashboard: FC = () => {
                 );
             } else {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
                     { replace: true },
                 );
             }
@@ -435,7 +435,7 @@ const Dashboard: FC = () => {
             );
         } else {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
                 { replace: true },
             );
         }

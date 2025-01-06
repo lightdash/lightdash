@@ -10,6 +10,7 @@ import {
 import { IconTable } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC, type PropsWithChildren } from 'react';
+import rehypeExternalLinks from 'rehype-external-links';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { useItemDetail } from './useItemDetails';
@@ -24,12 +25,12 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
     return (
         <ReactMarkdownPreview
             skipHtml
-            linkTarget="_blank"
             components={{
                 h1: ({ children }) => <Title order={2}>{children}</Title>,
                 h2: ({ children }) => <Title order={3}>{children}</Title>,
                 h3: ({ children }) => <Title order={4}>{children}</Title>,
             }}
+            rehypePlugins={[[rehypeExternalLinks, { target: '_blank' }]]}
             rehypeRewrite={rehypeRemoveHeaderLinks}
             source={source}
             disallowedElements={['img']}
@@ -80,7 +81,7 @@ export const ItemDetailPreview: FC<{
                 <Box ta={'center'}>
                     <Anchor
                         size={'xs'}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                             e.preventDefault();
                             onViewDescription();
                         }}

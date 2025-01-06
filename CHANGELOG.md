@@ -1,3 +1,45 @@
+# [0.1439.0](https://github.com/lightdash/lightdash/compare/0.1438.0...0.1439.0) (2025-01-06)
+
+
+### Features
+
+* copy image to clipboard ([#13079](https://github.com/lightdash/lightdash/issues/13079)) ([04978b2](https://github.com/lightdash/lightdash/commit/04978b2f3020f668239098aa9c6773ddb8c44bae))
+
+# [0.1438.0](https://github.com/lightdash/lightdash/compare/0.1437.3...0.1438.0) (2025-01-06)
+
+
+### Features
+
+* show different color for incomplete period ([#13077](https://github.com/lightdash/lightdash/issues/13077)) ([82b0e1d](https://github.com/lightdash/lightdash/commit/82b0e1de4b9976cebb6643128fe40e9396d720ce))
+
+## [0.1437.3](https://github.com/lightdash/lightdash/compare/0.1437.2...0.1437.3) (2025-01-06)
+
+
+### Bug Fixes
+
+* dbt cloud manifest version ([#13106](https://github.com/lightdash/lightdash/issues/13106)) ([91a016f](https://github.com/lightdash/lightdash/commit/91a016f36eba02268ad0db5e1b25dc216ddccebb))
+
+## [0.1437.2](https://github.com/lightdash/lightdash/compare/0.1437.1...0.1437.2) (2025-01-06)
+
+
+### Bug Fixes
+
+* always set y axis width to default in metrics explorer ([#13105](https://github.com/lightdash/lightdash/issues/13105)) ([fa6a324](https://github.com/lightdash/lightdash/commit/fa6a324c8d23153daa00ebba2d3a57be044d518d))
+
+## [0.1437.1](https://github.com/lightdash/lightdash/compare/0.1437.0...0.1437.1) (2025-01-06)
+
+
+### Bug Fixes
+
+* redirect to view mode when dashboard is saved ([#13100](https://github.com/lightdash/lightdash/issues/13100)) ([a5c68ed](https://github.com/lightdash/lightdash/commit/a5c68edbc755ebba6b373cb4a8056f352b90ca18))
+
+# [0.1437.0](https://github.com/lightdash/lightdash/compare/0.1436.0...0.1437.0) (2025-01-06)
+
+
+### Features
+
+* slack add pdf ([#13088](https://github.com/lightdash/lightdash/issues/13088)) ([ee1754d](https://github.com/lightdash/lightdash/commit/ee1754d2b12714f15767d20685fae427e390c907))
+
 # [0.1436.0](https://github.com/lightdash/lightdash/compare/0.1435.0...0.1436.0) (2025-01-03)
 
 
