@@ -17,7 +17,7 @@ import {
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { useMount } from 'react-use';
+import { useDeepCompareEffect, useMount } from 'react-use';
 import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
 import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
 import {
@@ -210,8 +210,8 @@ const DashboardProvider: React.FC<
         }
     }, [dashboard, dashboardFilters, overridesForSavedDashboardFilters]);
 
-    // Updates url with temp and overridden filters
-    useEffect(() => {
+    // Updates url with temp and overridden filters and deep compare to avoid unnecessary re-renders for dashboardTemporaryFilters
+    useDeepCompareEffect(() => {
         const newParams = new URLSearchParams(search);
         if (
             dashboardTemporaryFilters?.dimensions?.length === 0 &&
