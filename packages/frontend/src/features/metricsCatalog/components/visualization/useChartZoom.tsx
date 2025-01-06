@@ -58,6 +58,15 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
             const value = e.activeLabel?.valueOf();
 
             if (typeof value === 'number') {
+                const start = Math.min(zoomState.refAreaLeft, value);
+                const end = Math.max(zoomState.refAreaLeft, value);
+
+                const startEndDelta = end - start;
+
+                console.log({
+                    startEndDelta,
+                });
+
                 setZoomState((prev) => ({
                     ...prev,
                     refAreaRight: value,
@@ -72,12 +81,22 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
 
         const start = Math.min(zoomState.refAreaLeft, zoomState.refAreaRight);
         const end = Math.max(zoomState.refAreaLeft, zoomState.refAreaRight);
+        const startEndDelta = end - start;
 
-        const filteredData = data.filter(
-            (item) =>
-                dayjs(item.date).isAfter(dayjs(start)) &&
-                dayjs(item.date).isBefore(dayjs(end)),
-        );
+        if (startEndDelta === 0) {
+            return;
+        }
+
+        const filteredData = data.filter((item) => {
+            const itemDate = dayjs(item.date);
+
+            return (
+                (itemDate.isAfter(dayjs(start)) &&
+                    itemDate.isBefore(dayjs(end))) ||
+                itemDate.isSame(dayjs(start)) ||
+                itemDate.isSame(dayjs(end))
+            );
+        });
 
         setZoomState({
             refAreaLeft: null,
