@@ -1,6 +1,7 @@
 import {
     DbtModelNode,
     DbtNode,
+    getLatestSupportedDbtManifestVersion,
     isSupportedDbtAdapterType,
     ParseError,
     SupportedDbtAdapter,
@@ -161,7 +162,7 @@ export class DbtMetadataApiClient implements DbtClient {
                 metadata: {
                     adapter_type: results.environment.adapterType,
                     generated_at: results.environment.applied.lastUpdatedAt,
-                    dbt_schema_version: 'graphql-v2',
+                    dbt_schema_version: `/${getLatestSupportedDbtManifestVersion()}.json`,
                 },
                 metrics: {},
                 docs: {},
