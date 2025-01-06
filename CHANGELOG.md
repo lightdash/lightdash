@@ -1,3 +1,10 @@
+# [0.1438.0](https://github.com/lightdash/lightdash/compare/0.1437.3...0.1438.0) (2025-01-06)
+
+
+### Features
+
+* show different color for incomplete period ([#13077](https://github.com/lightdash/lightdash/issues/13077)) ([82b0e1d](https://github.com/lightdash/lightdash/commit/82b0e1de4b9976cebb6643128fe40e9396d720ce))
+
 ## [0.1437.3](https://github.com/lightdash/lightdash/compare/0.1437.2...0.1437.3) (2025-01-06)
 
 
