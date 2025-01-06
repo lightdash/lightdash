@@ -126,7 +126,7 @@ const MetricsVisualization: FC<Props> = ({
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
 
-    const { colors, fn: themeFn } = useMantineTheme();
+    const { colors } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -699,21 +699,6 @@ const MetricsVisualization: FC<Props> = ({
                                 const incompletePeriodKey = `${key}-incomplete-period`;
 
                                 return [
-                                    <defs key={`${key}-gradient`}>
-                                        <linearGradient id={`${key}-gradient`}>
-                                            <stop
-                                                offset="0%"
-                                                stopColor={segment.color}
-                                            />
-                                            <stop
-                                                offset={`${100}%`}
-                                                stopColor={themeFn.lighten(
-                                                    segment.color,
-                                                    0.8,
-                                                )}
-                                            />
-                                        </linearGradient>
-                                    </defs>,
                                     <Line
                                         key={completedPeriodKey}
                                         {...getLineProps(key)}
@@ -733,11 +718,11 @@ const MetricsVisualization: FC<Props> = ({
                                         yAxisId="metric"
                                         data={segment.incompletePeriodData}
                                         dataKey="metric.value"
-                                        stroke={`url(#${key}-gradient)`}
+                                        stroke={segment.color}
                                         dot={false}
                                         legendType="none" // Don't render legend for the incomplete period line
                                         isAnimationActive={false}
-                                        strokeDasharray={'5 5'}
+                                        opacity={0.4}
                                     />,
                                 ];
                             })}
@@ -771,12 +756,35 @@ const MetricsVisualization: FC<Props> = ({
                                         }
                                         type="linear"
                                         dataKey="compareMetric.value"
-                                        data={segmentedData[0].data}
+                                        data={
+                                            splitSegments[0]
+                                                ?.completedPeriodData ?? []
+                                        }
                                         stroke={colors.indigo[9]}
                                         strokeDasharray={'3 4'}
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
+                                    />
+                                    <Line
+                                        {...getLineProps('compareMetric')}
+                                        yAxisId={
+                                            shouldSplitYAxis
+                                                ? 'compareMetric'
+                                                : 'metric'
+                                        }
+                                        type="linear"
+                                        dataKey="compareMetric.value"
+                                        data={
+                                            splitSegments[0]
+                                                ?.incompletePeriodData ?? []
+                                        }
+                                        stroke={colors.indigo[9]}
+                                        dot={false}
+                                        legendType="none"
+                                        isAnimationActive={false}
+                                        opacity={0.4}
+                                        strokeDasharray={'3 4'}
                                     />
                                 </>
                             )}
