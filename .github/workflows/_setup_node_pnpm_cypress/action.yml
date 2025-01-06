@@ -8,11 +8,13 @@ runs:
         - name: Checkout
           uses: actions/checkout@v4
 
-        - uses: pnpm/action-setup@v4
+        - name: Setup PNPM
+          uses: pnpm/action-setup@v4
           with:
               version: 9
 
-        - uses: actions/setup-node@v4
+        - name: Setup Node
+          uses: actions/setup-node@v4
           with:
               node-version: '20'
               cache: 'pnpm'
@@ -22,11 +24,15 @@ runs:
           run: pnpm install --frozen-lockfile --prefer-offline
           shell: bash
 
-        - uses: actions/cache@v4
+        - name: Cache Cypress
+          uses: actions/cache@v4
           with:
               path: ~/.cache/Cypress
-              key: cypress-${{ runner.os }}-cypress-${{ hashFiles('pnpm-lock.yaml') }}
+              key: ${{ runner.os }}-cypress-binary-${{ hashFiles('**/pnpm-lock.yaml') }}
+              restore-keys: |
+                  ${{ runner.os }}-cypress-binary-
 
-        - run: pnpm -F e2e exec cypress verify || pnpm -F e2e exec cypress install
+        - name: Verify and install Cypress if needed
+          run: pnpm exec cypress verify || pnpm exec cypress install
           working-directory: packages/e2e
           shell: bash
