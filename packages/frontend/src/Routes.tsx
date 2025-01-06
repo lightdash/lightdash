@@ -206,7 +206,7 @@ const DASHBOARD_ROUTES: RouteObject[] = [
                 element: <DashboardPageWrapper keyParam={'dashboardUuid'} />,
             },
             {
-                path: '/projects/:projectUuid/dashboards/:dashboardUuid:mode/tabs/:tabUuid?',
+                path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode/tabs/:tabUuid?',
                 element: <DashboardPageWrapper keyParam={'tabUuid'} />,
             },
         ],
