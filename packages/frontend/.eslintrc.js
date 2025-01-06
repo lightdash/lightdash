@@ -37,6 +37,7 @@ module.exports = {
         'jest-dom',
         'testing-library',
         'react-refresh',
+        'eslint-plugin-react-compiler',
     ],
 
     settings: {
@@ -45,6 +46,7 @@ module.exports = {
         },
     },
     rules: {
+        'react-compiler/react-compiler': 'error',
         'no-restricted-globals': ['error'].concat(restrictedGlobals),
         'react/prop-types': 'off',
         'no-unused-vars': ['error', unusedVarExceptions],

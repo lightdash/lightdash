@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-svgr/client" />
 
-declare const __APP_VERSION__: string
+// eslint-disable-next-line @typescript-eslint/naming-convention
+declare const __APP_VERSION__: string;

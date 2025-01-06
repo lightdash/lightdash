@@ -1,9 +1,13 @@
 import reactPlugin from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { defineConfig } from 'vitest/config';
+
+const ReactCompilerConfig = {
+    target: '19',
+};
 
 export default defineConfig({
     define: {
@@ -12,7 +16,11 @@ export default defineConfig({
     plugins: [
         tsconfigPaths(),
         svgrPlugin(),
-        reactPlugin(),
+        reactPlugin({
+            babel: {
+                plugins: [['babel-plugin-react-compiler', ReactCompilerConfig]],
+            },
+        }),
         compression({
             include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
             filename: '[path][base].gzip',
@@ -79,6 +87,7 @@ export default defineConfig({
             },
         },
     },
+    // @ts-expect-error this is correct
     test: {
         globals: true,
         environment: 'jsdom',
