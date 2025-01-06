@@ -1,6 +1,6 @@
 import type { MetricExploreDataPoint } from '@lightdash/common';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type CategoricalChartFunc } from 'recharts/types/chart/generateCategoricalChart';
 
 type UseChartZoomArgs<T extends MetricExploreDataPoint> = {
@@ -48,6 +48,14 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         });
     }, []);
 
+    const resetZoomRefs = useCallback(() => {
+        setZoomState((prev) => ({
+            ...prev,
+            refAreaLeft: null,
+            refAreaRight: null,
+        }));
+    }, []);
+
     const handleMouseDown: CategoricalChartFunc = useCallback((e) => {
         if (!e) return;
         const value = e.activeLabel?.valueOf();
@@ -77,7 +85,8 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
 
     const handleMouseUp: CategoricalChartFunc = useCallback(() => {
         if (!zoomState.refAreaLeft || !zoomState.refAreaRight) {
-            resetZoom();
+            // Reset refs but keep zoomed in data, this is so that the chart is not reset
+            resetZoomRefs();
             return;
         }
 
@@ -86,7 +95,8 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         const startEndDelta = end - start;
 
         if (startEndDelta === 0) {
-            resetZoom();
+            // Reset refs but keep zoomed in data, this is so that the chart is not reset
+            resetZoomRefs();
             return;
         }
 
@@ -106,11 +116,7 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
             refAreaRight: null,
             zoomedData: filteredData,
         });
-    }, [data, zoomState, resetZoom]);
-
-    useEffect(() => {
-        console.log(zoomState);
-    }, [zoomState]);
+    }, [data, zoomState, resetZoomRefs]);
 
     const handlers = useMemo(
         () => ({
