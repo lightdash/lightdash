@@ -1,3 +1,10 @@
+# [0.1439.0](https://github.com/lightdash/lightdash/compare/0.1438.0...0.1439.0) (2025-01-06)
+
+
+### Features
+
+* copy image to clipboard ([#13079](https://github.com/lightdash/lightdash/issues/13079)) ([04978b2](https://github.com/lightdash/lightdash/commit/04978b2f3020f668239098aa9c6773ddb8c44bae))
+
 # [0.1438.0](https://github.com/lightdash/lightdash/compare/0.1437.3...0.1438.0) (2025-01-06)
 
 
