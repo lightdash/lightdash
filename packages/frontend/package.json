@@ -57,7 +57,7 @@
         "@tiptap/starter-kit": "^2.2.4",
         "@tiptap/suggestion": "^2.2.4",
         "@uiw/react-md-editor": "^4.0.5",
-        "@uiw/react-markdown-preview": "4.1.15",
+        "@uiw/react-markdown-preview": "^5.0.6",
         "@xyflow/react": "^12.3.5",
         "ace-builds": "^1.4.14",
         "canvas-confetti": "^1.6.0",
