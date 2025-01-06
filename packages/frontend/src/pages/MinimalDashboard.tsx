@@ -98,9 +98,13 @@ const MinimalDashboard: FC = () => {
     }
 
     const layouts = {
-        lg: dashboard.tiles.map<Layout>((tile) =>
-            getReactGridLayoutConfig(tile),
-        ),
+        lg: dashboard.tiles
+            .filter(
+                (tile) =>
+                    (!selectedTabs || selectedTabs.includes(tile.tabUuid)) &&
+                    (!activeTab || activeTab.uuid === tile.tabUuid),
+            )
+            .map<Layout>((tile) => getReactGridLayoutConfig(tile)),
     };
 
     const generateTabUrl = (tabId: string) =>
@@ -143,15 +147,20 @@ const MinimalDashboard: FC = () => {
                     sx={{ marginTop: '40px' }}
                 />
             ) : (
-                dashboard.tiles.map((tile) =>
-                    (selectedTabs && !selectedTabs.includes(tile.tabUuid)) ||
-                    (activeTab && activeTab.uuid !== tile.tabUuid) ? null : (
-                        <ResponsiveGridLayout
-                            {...getResponsiveGridLayoutProps({
-                                stackVerticallyOnSmallestBreakpoint: true,
-                            })}
-                            layouts={layouts}
-                        >
+                <ResponsiveGridLayout
+                    {...getResponsiveGridLayoutProps({
+                        stackVerticallyOnSmallestBreakpoint: true,
+                    })}
+                    layouts={layouts}
+                >
+                    {dashboard.tiles
+                        .filter(
+                            (tile) =>
+                                (!selectedTabs ||
+                                    selectedTabs.includes(tile.tabUuid)) &&
+                                (!activeTab || activeTab.uuid === tile.tabUuid),
+                        )
+                        .map((tile) => (
                             <div key={tile.uuid}>
                                 {tile.type ===
                                 DashboardTileTypes.SAVED_CHART ? (
@@ -205,9 +214,8 @@ const MinimalDashboard: FC = () => {
                                     )
                                 )}
                             </div>
-                        </ResponsiveGridLayout>
-                    ),
-                )
+                        ))}
+                </ResponsiveGridLayout>
             )}
         </DashboardProvider>
     );
