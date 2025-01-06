@@ -40,13 +40,13 @@ class GlobalState {
         this.verbose = verbose;
     }
 
-    getPromptAnswer<T extends keyof RememberPromptAnswer>(
+    getSavedPromptAnswer<T extends keyof RememberPromptAnswer>(
         prompt: T,
     ): RememberPromptAnswer[T] | undefined {
         return this.savedPromptAnswers[prompt];
     }
 
-    rememberPromptAnswer<T extends keyof RememberPromptAnswer>(
+    savePromptAnswer<T extends keyof RememberPromptAnswer>(
         prompt: T,
         value: RememberPromptAnswer[T],
     ) {

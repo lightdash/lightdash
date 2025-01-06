@@ -57,7 +57,10 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
     const supportedVersionOption = getSupportedDbtVersionOption(verboseVersion);
     const fallbackVersionOption = getFallbackDbtVersionOption(verboseVersion);
     const isSupported = !!supportedVersionOption;
-    if (!isSupported && !GlobalState.getPromptAnswer('useFallbackDbtVersion')) {
+    if (
+        !isSupported &&
+        !GlobalState.getSavedPromptAnswer('useFallbackDbtVersion')
+    ) {
         const versions = Object.values(SupportedDbtVersions);
         const supportedVersionsRangeMessage = `${versions[0]}.* - ${
             versions[versions.length - 1]
@@ -83,7 +86,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
                     `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
                 );
             }
-            GlobalState.rememberPromptAnswer('useFallbackDbtVersion', true);
+            GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
         }
     }
 
