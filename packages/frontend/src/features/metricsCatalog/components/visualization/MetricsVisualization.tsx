@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Button,
     Flex,
     Group,
     LoadingOverlay,
@@ -22,6 +23,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
+import { IconZoomReset } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -39,13 +41,13 @@ import {
     Legend,
     Line,
     LineChart,
-    // REMOVE COMMENTS TO ENABLE CHART ZOOM
-    // ReferenceArea,
+    ReferenceArea,
     ResponsiveContainer,
     Tooltip as RechartsTooltip,
     XAxis,
     YAxis,
 } from 'recharts';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
 import {
@@ -58,8 +60,7 @@ import { MetricExploreTooltip } from './MetricExploreTooltip';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { DATE_FORMATS, type MetricVisualizationFormatConfig } from './types';
-// REMOVE COMMENTS TO ENABLE CHART ZOOM
-// import { useChartZoom } from './useChartZoom';
+import { useChartZoom } from './useChartZoom';
 
 const tickFormatter = (date: Date) => {
     return (
@@ -134,24 +135,20 @@ const MetricsVisualization: FC<Props> = ({
         return results.results;
     }, [results]);
 
-    // REMOVE THIS LINE TO ENABLE CHART ZOOM
-    const activeData = data;
+    const {
+        activeData,
+        zoomState,
+        handlers: {
+            handleMouseDown,
+            handleMouseMove,
+            handleMouseUp,
+            resetZoom,
+        },
+    } = useChartZoom({ data });
 
-    // REMOVE COMMENTS TO ENABLE CHART ZOOM
-    // const {
-    //     activeData,
-    //     zoomState,
-    //     handlers: {
-    //         handleMouseDown,
-    //         handleMouseMove,
-    //         handleMouseUp,
-    //         resetZoom,
-    //     },
-    // } = useChartZoom({ data });
-
-    // useEffect(() => {
-    //     resetZoom();
-    // }, [data, resetZoom]);
+    useEffect(() => {
+        resetZoom();
+    }, [data, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
         const timeValues = activeData.map((row) => row.dateValue);
@@ -579,8 +576,6 @@ const MetricsVisualization: FC<Props> = ({
                     />
                 )}
 
-                {/*
-                REMOVE COMMENTS TO ENABLE CHART ZOOM
                 <Tooltip
                     label="No zoom has been applied yet. Drag on the chart to zoom into a section"
                     variant="xs"
@@ -610,7 +605,7 @@ const MetricsVisualization: FC<Props> = ({
                             Reset zoom
                         </Button>
                     </Box>
-                </Tooltip> */}
+                </Tooltip>
             </Group>
             <Flex mih={0} sx={{ flex: 1, position: 'relative' }}>
                 <LoadingOverlay
@@ -634,10 +629,9 @@ const MetricsVisualization: FC<Props> = ({
                                 left: 10,
                                 top: 10,
                             }}
-                            // REMOVE COMMENTS TO ENABLE CHART ZOOM
-                            // onMouseDown={handleMouseDown}
-                            // onMouseMove={handleMouseMove}
-                            // onMouseUp={handleMouseUp}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
                         >
                             {showLegend && (
                                 <Legend
@@ -828,8 +822,6 @@ const MetricsVisualization: FC<Props> = ({
                                 </>
                             )}
 
-                            {/*
-                            REMOVE COMMENTS TO ENABLE CHART ZOOM
                             {zoomState.refAreaLeft &&
                                 zoomState.refAreaRight && (
                                     <ReferenceArea
@@ -839,7 +831,6 @@ const MetricsVisualization: FC<Props> = ({
                                         fill={colors.gray[3]}
                                     />
                                 )}
-                            */}
                         </LineChart>
                     </ResponsiveContainer>
                 )}
