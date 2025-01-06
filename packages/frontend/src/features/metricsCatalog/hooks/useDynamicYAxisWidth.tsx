@@ -48,7 +48,7 @@ export const useDynamicYAxisWidth = () => {
                     const leftHighestWidth = leftTickArray.reduce(
                         (maxWidth, el) => {
                             const width = el.getBoundingClientRect().width;
-                            return Math.max(maxWidth, width);
+                            return Math.round(Math.max(maxWidth, width));
                         },
                         0,
                     );
@@ -63,7 +63,7 @@ export const useDynamicYAxisWidth = () => {
                     const rightHighestWidth = rightTickArray.reduce(
                         (maxWidth, el) => {
                             const width = el.getBoundingClientRect().width;
-                            return Math.max(maxWidth, width);
+                            return Math.round(Math.max(maxWidth, width));
                         },
                         0,
                     );
