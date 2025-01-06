@@ -204,12 +204,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 },
             })}
         >
-            <UnstyledButton
-                onClick={onClick}
-                w="100%"
-                h="100%"
-                pos="absolute"
-            />
+            <UnstyledButton onClick={onClick} h="100%" w="90%" pos="absolute" />
             <CatalogCategory category={category} onClick={onClick} />
             <EditPopover
                 hovered={hovered}
