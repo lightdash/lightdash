@@ -1,3 +1,10 @@
+## [0.1439.1](https://github.com/lightdash/lightdash/compare/0.1439.0...0.1439.1) (2025-01-06)
+
+
+### Bug Fixes
+
+* removes width from transparent category button so there's no horizontal scroll bar ([#13101](https://github.com/lightdash/lightdash/issues/13101)) ([30c826c](https://github.com/lightdash/lightdash/commit/30c826cd45832bb67405c44dbf46c952bc36bcda))
+
 # [0.1439.0](https://github.com/lightdash/lightdash/compare/0.1438.0...0.1439.0) (2025-01-06)
 
 
