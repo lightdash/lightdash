@@ -1,6 +1,6 @@
 import type { MetricExploreDataPoint } from '@lightdash/common';
 import dayjs from 'dayjs';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type CategoricalChartFunc } from 'recharts/types/chart/generateCategoricalChart';
 
 type UseChartZoomArgs<T extends MetricExploreDataPoint> = {
@@ -40,6 +40,14 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         zoomedData: null,
     });
 
+    const resetZoom = useCallback(() => {
+        setZoomState({
+            refAreaLeft: null,
+            refAreaRight: null,
+            zoomedData: null,
+        });
+    }, []);
+
     const handleMouseDown: CategoricalChartFunc = useCallback((e) => {
         if (!e) return;
         const value = e.activeLabel?.valueOf();
@@ -58,15 +66,6 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
             const value = e.activeLabel?.valueOf();
 
             if (typeof value === 'number') {
-                const start = Math.min(zoomState.refAreaLeft, value);
-                const end = Math.max(zoomState.refAreaLeft, value);
-
-                const startEndDelta = end - start;
-
-                console.log({
-                    startEndDelta,
-                });
-
                 setZoomState((prev) => ({
                     ...prev,
                     refAreaRight: value,
@@ -77,13 +76,17 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
     );
 
     const handleMouseUp: CategoricalChartFunc = useCallback(() => {
-        if (!zoomState.refAreaLeft || !zoomState.refAreaRight) return;
+        if (!zoomState.refAreaLeft || !zoomState.refAreaRight) {
+            resetZoom();
+            return;
+        }
 
         const start = Math.min(zoomState.refAreaLeft, zoomState.refAreaRight);
         const end = Math.max(zoomState.refAreaLeft, zoomState.refAreaRight);
         const startEndDelta = end - start;
 
         if (startEndDelta === 0) {
+            resetZoom();
             return;
         }
 
@@ -103,15 +106,11 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
             refAreaRight: null,
             zoomedData: filteredData,
         });
-    }, [data, zoomState.refAreaLeft, zoomState.refAreaRight]);
+    }, [data, zoomState, resetZoom]);
 
-    const resetZoom = useCallback(() => {
-        setZoomState({
-            refAreaLeft: null,
-            refAreaRight: null,
-            zoomedData: null,
-        });
-    }, []);
+    useEffect(() => {
+        console.log(zoomState);
+    }, [zoomState]);
 
     const handlers = useMemo(
         () => ({

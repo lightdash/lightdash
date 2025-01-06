@@ -825,6 +825,7 @@ const MetricsVisualization: FC<Props> = ({
                             {zoomState.refAreaLeft &&
                                 zoomState.refAreaRight && (
                                     <ReferenceArea
+                                        yAxisId={'metric'}
                                         x1={zoomState.refAreaLeft}
                                         x2={zoomState.refAreaRight}
                                         strokeOpacity={0.3}
