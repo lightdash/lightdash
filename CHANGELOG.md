@@ -1,3 +1,10 @@
+# [0.1437.0](https://github.com/lightdash/lightdash/compare/0.1436.0...0.1437.0) (2025-01-06)
+
+
+### Features
+
+* slack add pdf ([#13088](https://github.com/lightdash/lightdash/issues/13088)) ([ee1754d](https://github.com/lightdash/lightdash/commit/ee1754d2b12714f15767d20685fae427e390c907))
+
 # [0.1436.0](https://github.com/lightdash/lightdash/compare/0.1435.0...0.1436.0) (2025-01-03)
 
 
