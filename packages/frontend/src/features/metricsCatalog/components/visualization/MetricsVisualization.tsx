@@ -1,9 +1,11 @@
 import {
     applyCustomFormat,
+    assertUnreachable,
     capitalize,
     friendlyName,
     getCustomFormat,
     MetricExplorerComparison,
+    type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricsExplorerQueryResults,
@@ -46,7 +48,10 @@ import {
 } from 'recharts';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
-import { is5YearDateRange } from '../../utils/metricPeekDate';
+import {
+    is5YearDateRange,
+    isInCurrentTimeFrame,
+} from '../../utils/metricPeekDate';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
@@ -476,6 +481,86 @@ const MetricsVisualization: FC<Props> = ({
         results?.metric.timeDimension?.field,
     ]);
 
+    const splitSegments = useMemo(() => {
+        return segmentedData.map((segment) => {
+            const { data: segmentData, ...rest } = segment;
+            const completedPeriodData: MetricExploreDataPointWithDateValue[] =
+                [];
+            const incompletePeriodData: MetricExploreDataPointWithDateValue[] =
+                [];
+
+            segmentData.forEach((row) => {
+                if (
+                    isInCurrentTimeFrame(
+                        row.date,
+                        results?.metric.timeDimension?.interval,
+                    )
+                ) {
+                    incompletePeriodData.push(row);
+                } else {
+                    completedPeriodData.push(row);
+                }
+            });
+
+            const lastCompletedPeriodDataPoint = completedPeriodData.sort(
+                (a, b) => b.date.getTime() - a.date.getTime(),
+            )[0];
+
+            // Add the last completed period data to the incomplete period data, this will fill in the gap between the last completed period and the first incomplete period
+            // Only do this if there is an incomplete period
+            if (
+                incompletePeriodData.length > 0 &&
+                lastCompletedPeriodDataPoint
+            ) {
+                incompletePeriodData.push(lastCompletedPeriodDataPoint);
+            }
+
+            return {
+                ...rest,
+                completedPeriodData,
+                incompletePeriodData,
+            };
+        });
+    }, [results?.metric.timeDimension?.interval, segmentedData]);
+
+    const compareMetricSplitSegment = useMemo(() => {
+        const comparison = query.comparison;
+
+        const emptySplitSegment = {
+            segment: null,
+            completedPeriodData: [],
+            incompletePeriodData: [],
+        };
+
+        switch (comparison) {
+            case MetricExplorerComparison.NONE:
+                return emptySplitSegment;
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+                return splitSegments[0] ?? emptySplitSegment; // Different metric data is always split as it has the same period of time
+            case MetricExplorerComparison.PREVIOUS_PERIOD:
+                const segment = segmentedData[0];
+
+                return segment
+                    ? {
+                          ...segment,
+                          completedPeriodData: segment.data, // Previous period data is always completed
+                          incompletePeriodData: [],
+                      }
+                    : emptySplitSegment;
+            default:
+                return assertUnreachable(
+                    comparison,
+                    `Unsupported comparison: ${comparison}`,
+                );
+        }
+    }, [query.comparison, segmentedData, splitSegments]);
+
+    const compareMetricIncompletePeriodOpacity = useMemo(() => {
+        return query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
+            ? 0.4
+            : 1;
+    }, [query.comparison]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -647,22 +732,39 @@ const MetricsVisualization: FC<Props> = ({
                                 isAnimationActive={false}
                             />
 
-                            {segmentedData.map((segment) => (
-                                <Line
-                                    key={segment.segment ?? 'metric'}
-                                    {...getLineProps(
-                                        segment.segment ?? 'metric',
-                                    )}
-                                    type="linear"
-                                    yAxisId="metric"
-                                    data={segment.data}
-                                    dataKey="metric.value"
-                                    stroke={segment.color}
-                                    dot={false}
-                                    legendType="plainline"
-                                    isAnimationActive={false}
-                                />
-                            ))}
+                            {splitSegments.flatMap((segment) => {
+                                const key = segment.segment ?? 'metric';
+                                const completedPeriodKey = `${key}-completed-period`;
+                                const incompletePeriodKey = `${key}-incomplete-period`;
+
+                                return [
+                                    <Line
+                                        key={completedPeriodKey}
+                                        {...getLineProps(key)}
+                                        type="linear"
+                                        yAxisId="metric"
+                                        data={segment.completedPeriodData}
+                                        dataKey="metric.value"
+                                        stroke={segment.color}
+                                        dot={false}
+                                        legendType="plainline"
+                                        isAnimationActive={false}
+                                    />,
+                                    <Line
+                                        key={incompletePeriodKey}
+                                        {...getLineProps(key)}
+                                        type="linear"
+                                        yAxisId="metric"
+                                        data={segment.incompletePeriodData}
+                                        dataKey="metric.value"
+                                        stroke={segment.color}
+                                        dot={false}
+                                        legendType="none" // Don't render legend for the incomplete period line
+                                        isAnimationActive={false}
+                                        opacity={0.4}
+                                    />,
+                                ];
+                            })}
 
                             {results.compareMetric && (
                                 <>
@@ -693,12 +795,35 @@ const MetricsVisualization: FC<Props> = ({
                                         }
                                         type="linear"
                                         dataKey="compareMetric.value"
-                                        data={segmentedData[0].data}
+                                        data={
+                                            compareMetricSplitSegment.completedPeriodData
+                                        }
                                         stroke={colors.indigo[9]}
                                         strokeDasharray={'3 4'}
                                         dot={false}
                                         legendType="plainline"
                                         isAnimationActive={false}
+                                    />
+                                    <Line
+                                        {...getLineProps('compareMetric')}
+                                        yAxisId={
+                                            shouldSplitYAxis
+                                                ? 'compareMetric'
+                                                : 'metric'
+                                        }
+                                        type="linear"
+                                        dataKey="compareMetric.value"
+                                        data={
+                                            compareMetricSplitSegment.incompletePeriodData
+                                        }
+                                        stroke={colors.indigo[9]}
+                                        dot={false}
+                                        legendType="none" // Don't render legend for the incomplete period line
+                                        isAnimationActive={false}
+                                        opacity={
+                                            compareMetricIncompletePeriodOpacity
+                                        }
+                                        strokeDasharray={'3 4'}
                                     />
                                 </>
                             )}
