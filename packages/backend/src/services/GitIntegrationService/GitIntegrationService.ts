@@ -276,10 +276,11 @@ Affected charts:
                 (metric) => metric.table === table,
             );
 
-            const explore = await this.projectModel.getExploreFromCache(
+            const explores = await this.projectModel.findExploresFromCache(
                 projectUuid,
-                table,
+                [table],
             );
+            const explore = explores[table];
 
             if (!explore.ymlPath)
                 throw new Error(

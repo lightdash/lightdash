@@ -879,43 +879,6 @@ export class ProjectModel {
         );
     }
 
-    async getExploreFromCache(
-        projectUuid: string,
-        exploreName: string,
-    ): Promise<Explore | ExploreError> {
-        return wrapSentryTransaction(
-            'ProjectModel.getExploreFromCache',
-            {},
-            async (span) => {
-                // check individually cached explore
-                let exploreCache = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('name', exploreName)
-                    .andWhere('project_uuid', projectUuid)
-                    .first();
-
-                span.setAttribute(
-                    'foundIndividualExploreCache',
-                    !!exploreCache,
-                );
-                if (!exploreCache) {
-                    // fallback: check all cached explores
-                    exploreCache = await this.getExploreQueryBuilder(
-                        projectUuid,
-                    ).andWhereRaw("explore->>'name' = ?", [exploreName]);
-                    if (exploreCache === undefined) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" does not exist.`,
-                        );
-                    }
-                }
-                return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                    exploreCache.explore,
-                );
-            },
-        );
-    }
-
     async findExploreByTableName(
         projectUuid: string,
         tableName: string,

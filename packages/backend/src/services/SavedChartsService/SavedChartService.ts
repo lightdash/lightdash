@@ -405,10 +405,11 @@ export class SavedChartService extends BaseService {
         });
 
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                savedChart.tableName,
-            );
+            const cachedExplores =
+                await this.projectModel.findExploresFromCache(projectUuid, [
+                    savedChart.tableName,
+                ]);
+            const cachedExplore = cachedExplores[savedChart.tableName];
 
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
@@ -474,10 +475,12 @@ export class SavedChartService extends BaseService {
             data,
         );
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
-            savedChart.tableName,
+            [savedChart.tableName],
         );
+        const cachedExplore = cachedExplores[savedChart.tableName];
+
         this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -657,10 +660,11 @@ export class SavedChartService extends BaseService {
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
 
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                tableName,
-            );
+            const cachedExplores =
+                await this.projectModel.findExploresFromCache(projectUuid, [
+                    tableName,
+                ]);
+            const cachedExplore = cachedExplores[tableName];
 
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
@@ -824,10 +828,11 @@ export class SavedChartService extends BaseService {
             },
         );
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
-            savedChart.tableName,
+            [savedChart.tableName],
         );
+        const cachedExplore = cachedExplores[savedChart.tableName];
 
         this.analytics.track({
             event: 'saved_chart.created',
@@ -932,10 +937,11 @@ export class SavedChartService extends BaseService {
         const newSavedChartProperties =
             SavedChartService.getCreateEventProperties(newSavedChart);
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
-            newSavedChart.tableName,
+            [newSavedChart.tableName],
         );
+        const cachedExplore = cachedExplores[newSavedChart.tableName];
 
         this.analytics.track({
             event: 'saved_chart.created',
@@ -1179,10 +1185,12 @@ export class SavedChartService extends BaseService {
         });
 
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
-                newChartVersion.projectUuid,
-                newChartVersion.tableName,
-            );
+            const cachedExplores =
+                await this.projectModel.findExploresFromCache(
+                    newChartVersion.projectUuid,
+                    [newChartVersion.tableName],
+                );
+            const cachedExplore = cachedExplores[newChartVersion.tableName];
 
             await this.updateChartFieldUsage(
                 newChartVersion.projectUuid,

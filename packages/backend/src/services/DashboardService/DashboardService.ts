@@ -451,11 +451,14 @@ export class DashboardService extends BaseService {
                                     ),
                                 },
                             );
-                        const cachedExplore =
-                            await this.projectModel.getExploreFromCache(
+
+                        const cachedExplores =
+                            await this.projectModel.findExploresFromCache(
                                 projectUuid,
-                                duplicatedChart.tableName,
+                                [duplicatedChart.tableName],
                             );
+                        const cachedExplore =
+                            cachedExplores[duplicatedChart.tableName];
 
                         try {
                             await this.updateChartFieldUsage(
@@ -898,11 +901,13 @@ export class DashboardService extends BaseService {
                                     tile.properties.savedChartUuid,
                                 );
 
-                            const cachedExplore =
-                                await this.projectModel.getExploreFromCache(
+                            const cachedExplores =
+                                await this.projectModel.findExploresFromCache(
                                     projectUuid,
-                                    chartInDashboard.tableName,
+                                    [chartInDashboard.tableName],
                                 );
+                            const cachedExplore =
+                                cachedExplores[chartInDashboard.tableName];
 
                             await this.updateChartFieldUsage(
                                 projectUuid,

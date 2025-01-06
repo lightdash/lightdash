@@ -1227,10 +1227,11 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const explore = await this.projectModel.getExploreFromCache(
+        const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
-            tableName,
+            [tableName],
         );
+        const explore = explores[tableName];
 
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
