@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import execa from 'execa';
 import inquirer from 'inquirer';
+import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 
 const DBT_CORE_VERSION_REGEX = /installed:.*/;
@@ -56,12 +57,17 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
     const supportedVersionOption = getSupportedDbtVersionOption(verboseVersion);
     const fallbackVersionOption = getFallbackDbtVersionOption(verboseVersion);
     const isSupported = !!supportedVersionOption;
-    if (!isSupported) {
-        const supportedVersionsRangeMessage = `1.4.* - 1.9.*`;
+    if (!isSupported && !GlobalState.getPromptAnswer('useFallbackDbtVersion')) {
+        const versions = Object.values(SupportedDbtVersions);
+        const supportedVersionsRangeMessage = `${versions[0]}.* - ${
+            versions[versions.length - 1]
+        }.*`;
         const message = `We don't currently support version ${verboseVersion} on Lightdash. We'll interpret it as version ${fallbackVersionOption} instead, which might cause unexpected errors or behavior. For the best experience, please use a supported version (${supportedVersionsRangeMessage}).`;
         if (process.env.CI === 'true') {
             console.error(styles.warning(message));
         } else {
+            const spinner = GlobalState.getActiveSpinner();
+            spinner?.stop();
             const answers = await inquirer.prompt([
                 {
                     type: 'confirm',
@@ -71,11 +77,13 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
                     )}\nDo you still want to continue?`,
                 },
             ]);
+            spinner?.start();
             if (!answers.isConfirm) {
                 throw new Error(
                     `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
                 );
             }
+            GlobalState.rememberPromptAnswer('useFallbackDbtVersion', true);
         }
     }
 

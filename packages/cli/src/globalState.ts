@@ -1,10 +1,20 @@
 import ora from 'ora';
 import * as styles from './styles';
 
+type RememberPromptAnswer = {
+    useFallbackDbtVersion?: boolean;
+};
+
 class GlobalState {
     private verbose: boolean = false;
 
     private activeSpinner: ora.Ora | undefined;
+
+    private savedPromptAnswers: RememberPromptAnswer;
+
+    constructor() {
+        this.savedPromptAnswers = {};
+    }
 
     getActiveSpinner() {
         return this.activeSpinner;
@@ -28,6 +38,19 @@ class GlobalState {
 
     setVerbose(verbose: boolean) {
         this.verbose = verbose;
+    }
+
+    getPromptAnswer<T extends keyof RememberPromptAnswer>(
+        prompt: T,
+    ): RememberPromptAnswer[T] | undefined {
+        return this.savedPromptAnswers[prompt];
+    }
+
+    rememberPromptAnswer<T extends keyof RememberPromptAnswer>(
+        prompt: T,
+        value: RememberPromptAnswer[T],
+    ) {
+        this.savedPromptAnswers[prompt] = value;
     }
 
     debug(message: string) {
