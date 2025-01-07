@@ -104,7 +104,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                             <Text span size="xs" color="gray.6">
                                                 {getHumanReadableCronExpression(
                                                     sync.cron,
-                                                    sync.timezone ??
+                                                    sync.timezone ||
                                                         project.schedulerTimezone,
                                                 )}
                                             </Text>

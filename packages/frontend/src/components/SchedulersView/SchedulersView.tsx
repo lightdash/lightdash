@@ -285,7 +285,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                   <Text fz="xs" color="gray.6">
                                       {getHumanReadableCronExpression(
                                           item.cron,
-                                          item.timezone ??
+                                          item.timezone ||
                                               project.schedulerTimezone,
                                       )}
                                   </Text>
