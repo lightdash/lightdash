@@ -632,6 +632,13 @@ const MetricsVisualization: FC<Props> = ({
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
+                            style={{
+                                cursor:
+                                    zoomState.refAreaLeft ||
+                                    zoomState.refAreaRight
+                                        ? 'grabbing'
+                                        : 'default',
+                            }}
                         >
                             {showLegend && (
                                 <Legend
