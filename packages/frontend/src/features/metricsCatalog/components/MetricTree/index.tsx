@@ -223,7 +223,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const nodesInitialized = useNodesInitialized();
     const [layoutState, setLayoutState] = useState({
         isReady: false,
-        shouldFitView: false,
+        shouldFitView: true,
     });
 
     const initialEdges = useMemo<Edge[]>(() => {
