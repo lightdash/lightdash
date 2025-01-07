@@ -692,13 +692,14 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const chartUsageByFieldId =
-            await this.savedChartModel.getChartUsageByFieldId(projectUuid, [
+        const chartSummaries =
+            await this.savedChartModel.getChartSummariesForFieldId(
+                projectUuid,
                 fieldId,
-            ]);
+            );
 
         const chartAnalytics =
-            chartUsageByFieldId[fieldId]?.map((chart) => ({
+            chartSummaries.map((chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
                 spaceUuid: chart.spaceUuid,
@@ -765,27 +766,31 @@ export class CatalogService<
         projectUuid: string,
         catalogFieldMap: CatalogFieldMap,
     ) {
-        const chartUsagesByFieldId =
-            await this.savedChartModel.getChartUsageByFieldId(
+        const chartUsagesForFields =
+            await this.savedChartModel.getChartCountForFieldIds(
                 projectUuid,
                 Object.keys(catalogFieldMap),
             );
 
-        const chartUsageUpdates = Object.entries(chartUsagesByFieldId).reduce<
-            ChartUsageIn[]
-        >((acc, [fieldId, chartSummaries]) => {
-            const { fieldName, cachedExploreUuid, fieldType } =
-                catalogFieldMap[fieldId];
+        const chartUsageUpdates = chartUsagesForFields
+            .map<ChartUsageIn | undefined>(({ fieldId, count }) => {
+                const catalogField = catalogFieldMap[fieldId];
 
-            acc.push({
-                fieldName,
-                fieldType,
-                chartUsage: chartSummaries.length,
-                cachedExploreUuid,
-            });
+                if (!catalogField) {
+                    return undefined;
+                }
 
-            return acc;
-        }, []);
+                const { fieldName, cachedExploreUuid, fieldType } =
+                    catalogField;
+
+                return {
+                    fieldName,
+                    fieldType,
+                    chartUsage: count,
+                    cachedExploreUuid,
+                } satisfies ChartUsageIn;
+            })
+            .filter((c): c is ChartUsageIn => Boolean(c));
 
         await this.catalogModel.setChartUsages(projectUuid, chartUsageUpdates);
 
