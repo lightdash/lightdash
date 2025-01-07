@@ -24,15 +24,7 @@ runs:
           run: pnpm install --frozen-lockfile --prefer-offline
           shell: bash
 
-        - name: Cache Cypress
-          uses: actions/cache@v4
-          with:
-              path: ~/.cache/Cypress
-              key: ${{ runner.os }}-cypress-binary-${{ hashFiles('**/pnpm-lock.yaml') }}
-              restore-keys: |
-                  ${{ runner.os }}-cypress-binary-
-
-        - name: Verify and install Cypress if needed
-          run: pnpm exec cypress verify || pnpm exec cypress install
+        - name: Install Cypress
+          run: pnpm exec cypress install
           working-directory: packages/e2e
           shell: bash
