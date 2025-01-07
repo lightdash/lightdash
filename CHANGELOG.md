@@ -1,3 +1,10 @@
+## [0.1440.1](https://github.com/lightdash/lightdash/compare/0.1440.0...0.1440.1) (2025-01-07)
+
+
+### Bug Fixes
+
+* load pylon script through hook ([#13120](https://github.com/lightdash/lightdash/issues/13120)) ([9ce19dd](https://github.com/lightdash/lightdash/commit/9ce19dd7abde17a18d645938baa039cd236ec0d3))
+
 # [0.1440.0](https://github.com/lightdash/lightdash/compare/0.1439.1...0.1440.0) (2025-01-07)
 
 
