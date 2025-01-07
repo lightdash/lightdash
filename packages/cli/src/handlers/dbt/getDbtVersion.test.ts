@@ -78,6 +78,7 @@ describe('Get dbt version', () => {
             );
         });
         test('when CI=false, should return fallback version if user confirms', async () => {
+            process.env.CI = 'false';
             execaMock.mockImplementation(async () => cliMocks.dbt1_3);
             const version = await getDbtVersion();
             expect(version.verboseVersion).toEqual('1.3.0');
@@ -86,6 +87,7 @@ describe('Get dbt version', () => {
             expect(consoleError).toHaveBeenCalledTimes(0);
         });
         test('when CI=false, should return error if user declines fallback', async () => {
+            process.env.CI = 'false';
             execaMock.mockImplementation(async () => cliMocks.dbt1_3);
             promptMock.mockImplementation(async () => ({ isConfirm: false }));
             await expect(getDbtVersion()).rejects.toThrowError();
