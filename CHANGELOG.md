@@ -1,3 +1,10 @@
+## [0.1440.2](https://github.com/lightdash/lightdash/compare/0.1440.1...0.1440.2) (2025-01-07)
+
+
+### Bug Fixes
+
+* scheduler empty string timezones ([#13121](https://github.com/lightdash/lightdash/issues/13121)) ([c51d895](https://github.com/lightdash/lightdash/commit/c51d895e1a6c758c75257850f9700f6b9ed118fe))
+
 ## [0.1440.1](https://github.com/lightdash/lightdash/compare/0.1440.0...0.1440.1) (2025-01-07)
 
 
