@@ -162,19 +162,31 @@ const getNodeLayout = (
         };
     });
 
+    const unconnectedGroupX = isNaN(left) ? 0 : left - mainPadding;
+    const unconnectedGroupY = isNaN(top) ? 0 : top - mainPadding;
+    const unconnectedGroupWidth = isNaN(right)
+        ? 0
+        : right - left + mainPadding * 2;
+    const unconnectedGroupHeight = isNaN(bottom)
+        ? 0
+        : bottom - top + mainPadding * 2;
+
     const groups = [
         {
             id: STATIC_NODE_TYPES.UNCONNECTED,
             data: {
                 label: 'Unconnected nodes',
             },
-            position: { x: left - mainPadding, y: top - mainPadding },
+            position: {
+                x: unconnectedGroupX,
+                y: unconnectedGroupY,
+            },
             style: {
                 backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
                 border: `1px solid ${theme.colors.gray[3]}`,
                 boxShadow: theme.shadows.subtle,
-                height: bottom - top + mainPadding * 2,
-                width: right - left + mainPadding * 2,
+                height: unconnectedGroupHeight,
+                width: unconnectedGroupWidth,
                 pointerEvents: 'none' as const,
                 borderRadius: theme.radius.md,
                 padding: theme.spacing.md,
