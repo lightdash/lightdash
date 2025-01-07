@@ -174,17 +174,19 @@ const getNodeLayout = (
                 label: 'Unconnected nodes',
             },
             position: {
-                x: isNaN(unconnectedGroupX) ? 0 : unconnectedGroupX,
-                y: isNaN(unconnectedGroupY) ? 0 : unconnectedGroupY,
+                x: isFinite(unconnectedGroupX) ? unconnectedGroupX : 0,
+                y: isFinite(unconnectedGroupY) ? unconnectedGroupY : 0,
             },
             style: {
                 backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
                 border: `1px solid ${theme.colors.gray[3]}`,
                 boxShadow: theme.shadows.subtle,
-                height: isNaN(unconnectedGroupHeight)
-                    ? 0
-                    : unconnectedGroupHeight,
-                width: isNaN(unconnectedGroupWidth) ? 0 : unconnectedGroupWidth,
+                height: isFinite(unconnectedGroupHeight)
+                    ? unconnectedGroupHeight
+                    : 0,
+                width: isFinite(unconnectedGroupWidth)
+                    ? unconnectedGroupWidth
+                    : 0,
                 pointerEvents: 'none' as const,
                 borderRadius: theme.radius.md,
                 padding: theme.spacing.md,
