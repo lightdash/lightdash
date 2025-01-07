@@ -1,3 +1,10 @@
+## [0.1440.4](https://github.com/lightdash/lightdash/compare/0.1440.3...0.1440.4) (2025-01-07)
+
+
+### Bug Fixes
+
+* handle empty string timezone in FE ([#13127](https://github.com/lightdash/lightdash/issues/13127)) ([e36b437](https://github.com/lightdash/lightdash/commit/e36b437bd1b333c284156994e7c68e9229b66927))
+
 ## [0.1440.3](https://github.com/lightdash/lightdash/compare/0.1440.2...0.1440.3) (2025-01-07)
 
 
