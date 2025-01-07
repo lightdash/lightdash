@@ -20,6 +20,8 @@ import {
     type EdgeChange,
     type Node,
     type NodeChange,
+    type NodePositionChange,
+    type NodeReplaceChange,
     type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -30,6 +32,7 @@ import {
     useCreateMetricsTreeEdge,
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
+import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
 import MetricTreeConnectedNode, {
     type MetricTreeConnectedNodeData,
 } from './MetricTreeConnectedNode';
@@ -219,12 +222,15 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
-    const { fitView } = useReactFlow();
+    const { fitView, getNode } = useReactFlow<MetricTreeNode, Edge>();
     const nodesInitialized = useNodesInitialized();
     const [layoutState, setLayoutState] = useState({
         isReady: false,
         shouldFitView: true,
     });
+    const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
+        STATIC_NODE_TYPES.UNCONNECTED,
+    );
 
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
@@ -284,20 +290,41 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
 
-    const findNodeById = useCallback(
-        (id: string) => {
-            return currentNodes.find((n) => n.id === id);
-        },
-        [currentNodes],
-    );
+    const handleNodePositionChange = useCallback(
+        (changes: NodePositionChange[]) => {
+            const changesToApply = changes.map((c) => {
+                const node = getNode(c.id);
 
-    const getNodeEdges = useCallback(
-        (id: string) => {
-            return currentEdges.filter(
-                (e) => e.source === id || e.target === id,
-            );
+                if (!node) {
+                    return c;
+                }
+
+                if (!unconnectGroupContainsNode(c.id)) {
+                    return {
+                        id: c.id,
+                        type: 'replace',
+                        item: {
+                            ...node,
+                            type: MetricTreeNodeType.CONNECTED,
+                            position: c.position ?? node.position,
+                        },
+                    } satisfies NodeReplaceChange<MetricTreeNode>;
+                }
+
+                return {
+                    id: c.id,
+                    type: 'replace',
+                    item: {
+                        ...node,
+                        type: MetricTreeNodeType.FREE,
+                        position: c.position ?? node.position,
+                    },
+                } satisfies NodeReplaceChange<MetricTreeNode>;
+            });
+
+            return changesToApply;
         },
-        [currentEdges],
+        [getNode, unconnectGroupContainsNode],
     );
 
     const handleNodeChange = useCallback(
@@ -306,13 +333,25 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 'replace',
                 'remove',
             ];
-            const changesToApply = changes.filter(
+
+            const changesWithoutPreventedTypes = changes.filter(
                 (c) => !preventedChangeTypes.includes(c.type),
             );
 
-            onNodesChange(changesToApply);
+            const positionChanges = changesWithoutPreventedTypes.filter(
+                (c) => c.type === 'position',
+            );
+
+            const otherChanges = changesWithoutPreventedTypes.filter(
+                (c) => c.type !== 'position',
+            );
+
+            const positionChangesToApply =
+                handleNodePositionChange(positionChanges);
+
+            onNodesChange([...positionChangesToApply, ...otherChanges]);
         },
-        [onNodesChange],
+        [handleNodePositionChange, onNodesChange],
     );
 
     const handleConnect = useCallback(
@@ -324,43 +363,10 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     targetCatalogSearchUuid: params.target,
                 });
 
-                const edgeNodesTypeChanges: NodeChange<MetricTreeNode>[] = [];
-                const sourceNode = findNodeById(params.source);
-                const targetNode = findNodeById(params.target);
-
-                if (sourceNode) {
-                    edgeNodesTypeChanges.push({
-                        id: params.source,
-                        type: 'replace',
-                        item: {
-                            ...sourceNode,
-                            type: MetricTreeNodeType.CONNECTED,
-                        },
-                    });
-                }
-
-                if (targetNode) {
-                    edgeNodesTypeChanges.push({
-                        id: params.target,
-                        type: 'replace',
-                        item: {
-                            ...targetNode,
-                            type: MetricTreeNodeType.CONNECTED,
-                        },
-                    });
-                }
-
-                onNodesChange(edgeNodesTypeChanges);
                 setCurrentEdges((els) => addEdge(params, els));
             }
         },
-        [
-            projectUuid,
-            createMetricsTreeEdge,
-            findNodeById,
-            onNodesChange,
-            setCurrentEdges,
-        ],
+        [projectUuid, createMetricsTreeEdge, setCurrentEdges],
     );
 
     const handleEdgesDelete = useCallback(
@@ -375,53 +381,9 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 });
 
                 await Promise.all(promises);
-
-                const removedEdgeNodesTypeChanges: NodeChange<MetricTreeNode>[] =
-                    edgesToDelete.flatMap((edge) => {
-                        const changes: NodeChange<
-                            | MetricTreeConnectedNodeData
-                            | MetricTreeUnconnectedNodeData
-                        >[] = [];
-                        const sourceNode = findNodeById(edge.source);
-                        const targetNode = findNodeById(edge.target);
-                        const sourceNodeEdges = getNodeEdges(edge.source);
-                        const targetNodeEdges = getNodeEdges(edge.target);
-
-                        if (sourceNode && sourceNodeEdges.length <= 1) {
-                            changes.push({
-                                id: sourceNode.id,
-                                type: 'replace',
-                                item: {
-                                    ...sourceNode,
-                                    type: MetricTreeNodeType.FREE,
-                                },
-                            });
-                        }
-
-                        if (targetNode && targetNodeEdges.length <= 1) {
-                            changes.push({
-                                id: targetNode.id,
-                                type: 'replace',
-                                item: {
-                                    ...targetNode,
-                                    type: MetricTreeNodeType.FREE,
-                                },
-                            });
-                        }
-
-                        return changes;
-                    });
-
-                onNodesChange(removedEdgeNodesTypeChanges);
             }
         },
-        [
-            projectUuid,
-            onNodesChange,
-            deleteMetricsTreeEdge,
-            findNodeById,
-            getNodeEdges,
-        ],
+        [projectUuid, deleteMetricsTreeEdge],
     );
 
     const onLayout = useCallback(() => {
