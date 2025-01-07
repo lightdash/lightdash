@@ -289,6 +289,15 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
 
+    const getNodeEdges = useCallback(
+        (id: string) => {
+            return currentEdges.filter(
+                (e) => e.source === id || e.target === id,
+            );
+        },
+        [currentEdges],
+    );
+
     const handleNodePositionChange = useCallback(
         (changes: NodePositionChange[]) => {
             const changesToApply = changes.map((c) => {
@@ -298,13 +307,15 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     return c;
                 }
 
-                if (!unconnectGroupContainsNode(c.id)) {
+                const nodeEdges = getNodeEdges(c.id);
+
+                if (unconnectGroupContainsNode(c.id) && !nodeEdges.length) {
                     return {
                         id: c.id,
                         type: 'replace',
                         item: {
                             ...node,
-                            type: MetricTreeNodeType.CONNECTED,
+                            type: MetricTreeNodeType.FREE,
                             position: c.position ?? node.position,
                         },
                     } satisfies NodeReplaceChange<MetricTreeNode>;
@@ -315,7 +326,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     type: 'replace',
                     item: {
                         ...node,
-                        type: MetricTreeNodeType.FREE,
+                        type: MetricTreeNodeType.CONNECTED,
                         position: c.position ?? node.position,
                     },
                 } satisfies NodeReplaceChange<MetricTreeNode>;
@@ -323,7 +334,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
             return changesToApply;
         },
-        [getNode, unconnectGroupContainsNode],
+        [getNode, getNodeEdges, unconnectGroupContainsNode],
     );
 
     const handleNodeChange = useCallback(
