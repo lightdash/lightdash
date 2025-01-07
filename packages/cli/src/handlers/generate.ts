@@ -30,6 +30,7 @@ type GenerateHandlerOptions = CompileHandlerOptions & {
     models: string[] | undefined;
     assumeYes: boolean;
     excludeMeta: boolean;
+    skipExisting?: boolean;
 };
 
 export const generateHandler = async (options: GenerateHandlerOptions) => {
@@ -122,6 +123,26 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     assumeYes: options.assumeYes,
                 },
             );
+
+            if (options.skipExisting) {
+                try {
+                    await fs.access(outputFilePath);
+                    console.info(
+                        styles.info(
+                            `  Skipped ${styles.bold(
+                                compiledModel.name,
+                            )} (already exists)`,
+                        ),
+                    );
+                    // eslint-disable-next-line no-continue
+                    continue;
+                } catch {
+                    GlobalState.debug(
+                        `  No existing file found for model ${compiledModel.name}. Generating new .yml.`,
+                    );
+                }
+            }
+
             try {
                 const existingHeadComments = await getFileHeadComments(
                     outputFilePath,

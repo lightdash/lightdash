@@ -677,6 +677,11 @@ ${styles.bold('Examples:')}
         false,
     )
     .option('--verbose', undefined, false)
+    .option(
+        '--skip-existing',
+        'Skip generation for models with an existing .yml file',
+        false,
+    )
 
     .action(generateHandler);
 
