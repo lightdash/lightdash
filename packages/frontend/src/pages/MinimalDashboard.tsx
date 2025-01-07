@@ -5,7 +5,7 @@ import {
     isDashboardScheduler,
 } from '@lightdash/common';
 import { IconLayoutDashboard } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -80,6 +80,31 @@ const MinimalDashboard: FC = () => {
         return undefined;
     }, [schedulerTabs]);
 
+    const generateTabUrl = useCallback(
+        (tabId: string) =>
+            `/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tabId}`,
+        [projectUuid, dashboardUuid],
+    );
+
+    const sortedTabs = useMemo(
+        () => dashboard?.tabs.sort((a, b) => a.order - b.order) ?? [],
+        [dashboard?.tabs],
+    );
+
+    const tabsWithUrls = useMemo(() => {
+        return sortedTabs.map((tab, index) => {
+            const prevTab = sortedTabs[index - 1];
+            const nextTab = sortedTabs[index + 1];
+
+            return {
+                ...tab,
+                prevUrl: prevTab ? generateTabUrl(prevTab.uuid) : null,
+                nextUrl: nextTab ? generateTabUrl(nextTab.uuid) : null,
+                selfUrl: generateTabUrl(tab.uuid),
+            };
+        });
+    }, [sortedTabs, generateTabUrl]);
+
     if (isDashboardError || isSchedulerError) {
         if (dashboardError) return <>{dashboardError.error.message}</>;
         if (schedulerError) return <>{schedulerError.error.message}</>;
@@ -106,23 +131,6 @@ const MinimalDashboard: FC = () => {
             )
             .map<Layout>((tile) => getReactGridLayoutConfig(tile)),
     };
-
-    const generateTabUrl = (tabId: string) =>
-        `/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tabId}`;
-
-    const sortedTabs = dashboard.tabs.sort((a, b) => a.order - b.order);
-
-    const tabsWithUrls = sortedTabs.map((tab, index) => {
-        const prevTab = sortedTabs[index - 1];
-        const nextTab = sortedTabs[index + 1];
-
-        return {
-            ...tab,
-            prevUrl: prevTab ? generateTabUrl(prevTab.uuid) : null,
-            nextUrl: nextTab ? generateTabUrl(nextTab.uuid) : null,
-            selfUrl: generateTabUrl(tab.uuid),
-        };
-    });
 
     const isTabEmpty =
         activeTab &&
