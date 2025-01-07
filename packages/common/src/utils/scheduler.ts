@@ -84,3 +84,14 @@ export function isValidFrequency(cronExpression: string): boolean {
 
     return true;
 }
+
+export function isValidTimezone(timezone: string | undefined): boolean {
+    if (timezone === undefined) return true;
+
+    try {
+        Intl.DateTimeFormat('en-US', { timeZone: timezone });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}

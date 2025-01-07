@@ -12,6 +12,7 @@ import {
     isDashboardScheduler,
     isUserWithOrg,
     isValidFrequency,
+    isValidTimezone,
     NotExistsError,
     ParameterError,
     ScheduledJobs,
@@ -235,6 +236,10 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        if (!isValidTimezone(updatedScheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
+        }
+
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
@@ -449,6 +454,9 @@ export class SchedulerService extends BaseService {
             throw new ParameterError(
                 'You must specify at least 1 destination before sending a scheduled delivery',
             );
+        }
+        if (!isValidTimezone(scheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
         }
 
         await this.checkViewResource(user, scheduler);
