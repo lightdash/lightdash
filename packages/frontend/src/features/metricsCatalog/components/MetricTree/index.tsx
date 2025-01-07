@@ -162,14 +162,10 @@ const getNodeLayout = (
         };
     });
 
-    const unconnectedGroupX = isNaN(left) ? 0 : left - mainPadding;
-    const unconnectedGroupY = isNaN(top) ? 0 : top - mainPadding;
-    const unconnectedGroupWidth = isNaN(right)
-        ? 0
-        : right - left + mainPadding * 2;
-    const unconnectedGroupHeight = isNaN(bottom)
-        ? 0
-        : bottom - top + mainPadding * 2;
+    const unconnectedGroupX = left - mainPadding;
+    const unconnectedGroupY = top - mainPadding;
+    const unconnectedGroupWidth = right - left + mainPadding * 2;
+    const unconnectedGroupHeight = bottom - top + mainPadding * 2;
 
     const groups = [
         {
@@ -178,15 +174,17 @@ const getNodeLayout = (
                 label: 'Unconnected nodes',
             },
             position: {
-                x: unconnectedGroupX,
-                y: unconnectedGroupY,
+                x: isNaN(unconnectedGroupX) ? 0 : unconnectedGroupX,
+                y: isNaN(unconnectedGroupY) ? 0 : unconnectedGroupY,
             },
             style: {
                 backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
                 border: `1px solid ${theme.colors.gray[3]}`,
                 boxShadow: theme.shadows.subtle,
-                height: unconnectedGroupHeight,
-                width: unconnectedGroupWidth,
+                height: isNaN(unconnectedGroupHeight)
+                    ? 0
+                    : unconnectedGroupHeight,
+                width: isNaN(unconnectedGroupWidth) ? 0 : unconnectedGroupWidth,
                 pointerEvents: 'none' as const,
                 borderRadius: theme.radius.md,
                 padding: theme.spacing.md,
@@ -202,6 +200,14 @@ const getNodeLayout = (
 };
 
 const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
+    useEffect(() => {
+        console.log({
+            metrics,
+            edges,
+            viewOnly,
+        });
+    }, [metrics, edges, viewOnly]);
+
     const theme = useMantineTheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
