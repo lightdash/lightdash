@@ -1,3 +1,38 @@
+## [0.1440.4](https://github.com/lightdash/lightdash/compare/0.1440.3...0.1440.4) (2025-01-07)
+
+
+### Bug Fixes
+
+* handle empty string timezone in FE ([#13127](https://github.com/lightdash/lightdash/issues/13127)) ([e36b437](https://github.com/lightdash/lightdash/commit/e36b437bd1b333c284156994e7c68e9229b66927))
+
+## [0.1440.3](https://github.com/lightdash/lightdash/compare/0.1440.2...0.1440.3) (2025-01-07)
+
+
+### Bug Fixes
+
+* use 2-space tabs instead of 4 in sql runner ([#13123](https://github.com/lightdash/lightdash/issues/13123)) ([5f189cd](https://github.com/lightdash/lightdash/commit/5f189cd8a49465d5ee437917d43781e6b0c2d1d0))
+
+## [0.1440.2](https://github.com/lightdash/lightdash/compare/0.1440.1...0.1440.2) (2025-01-07)
+
+
+### Bug Fixes
+
+* scheduler empty string timezones ([#13121](https://github.com/lightdash/lightdash/issues/13121)) ([c51d895](https://github.com/lightdash/lightdash/commit/c51d895e1a6c758c75257850f9700f6b9ed118fe))
+
+## [0.1440.1](https://github.com/lightdash/lightdash/compare/0.1440.0...0.1440.1) (2025-01-07)
+
+
+### Bug Fixes
+
+* load pylon script through hook ([#13120](https://github.com/lightdash/lightdash/issues/13120)) ([9ce19dd](https://github.com/lightdash/lightdash/commit/9ce19dd7abde17a18d645938baa039cd236ec0d3))
+
+# [0.1440.0](https://github.com/lightdash/lightdash/compare/0.1439.1...0.1440.0) (2025-01-07)
+
+
+### Features
+
+* add dashboard tabs on mobile ([#13094](https://github.com/lightdash/lightdash/issues/13094)) ([8ffde3d](https://github.com/lightdash/lightdash/commit/8ffde3d6361c8d7a057d942f6723f963d8b8b1de))
+
 ## [0.1439.1](https://github.com/lightdash/lightdash/compare/0.1439.0...0.1439.1) (2025-01-06)
 
 
