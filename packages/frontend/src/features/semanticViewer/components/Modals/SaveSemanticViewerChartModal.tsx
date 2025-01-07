@@ -69,6 +69,7 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
     const form = useForm<FormValues>({
         validate: zodResolver(saveToSpaceSchema),
     });
+    const { initialized, initialize } = form;
 
     const handleClose = useCallback(() => {
         close();
@@ -79,16 +80,15 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
     }, [close, dispatch]);
 
     useEffect(() => {
-        if (spacesQuery.isSuccess && !form.initialized) {
-            form.initialize({
+        if (spacesQuery.isSuccess && !initialized) {
+            initialize({
                 name,
                 description: null,
                 newSpaceName: null,
                 spaceUuid: spacesQuery.data[0].uuid ?? null,
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [spacesQuery]);
+    }, [spacesQuery, initialized, initialize, name]);
 
     const {
         mutateAsync: saveChart,

@@ -43,6 +43,7 @@ const PasswordPanel: FC = () => {
                     title: 'Your password has been updated',
                 });
 
+                // eslint-disable-next-line react-compiler/react-compiler
                 window.location.href = '/login';
             },
             onError: ({ error }) => {

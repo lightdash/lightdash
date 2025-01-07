@@ -32,8 +32,8 @@ module.exports = {
         'json',
         'jsx-a11y',
         'prettier',
-        'react-hooks',
         'react',
+        'react-hooks',
         'jest-dom',
         'testing-library',
         'react-refresh',
@@ -46,7 +46,13 @@ module.exports = {
         },
     },
     rules: {
-        'react-compiler/react-compiler': 'error',
+        'react-compiler/react-compiler': ['error', {
+            environment: {
+                enableTreatRefLikeIdentifiersAsRefs: true,
+                validateRefAccessDuringRender: false,
+                },
+            },
+        ],
         'no-restricted-globals': ['error'].concat(restrictedGlobals),
         'react/prop-types': 'off',
         'no-unused-vars': ['error', unusedVarExceptions],

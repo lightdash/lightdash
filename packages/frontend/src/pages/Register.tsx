@@ -62,6 +62,7 @@ const Register: FC = () => {
         mutationKey: ['login'],
         onSuccess: (data) => {
             identify({ id: data.userUuid });
+            // eslint-disable-next-line react-compiler/react-compiler
             window.location.href = redirectUrl;
         },
         onError: ({ error }) => {

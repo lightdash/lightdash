@@ -14,6 +14,7 @@ const UserMenu: FC = () => {
     const { mutate: logout } = useLogoutMutation({
         onSuccess: () => {
             posthog.reset();
+            // eslint-disable-next-line react-compiler/react-compiler
             window.location.href = '/login';
         },
     });

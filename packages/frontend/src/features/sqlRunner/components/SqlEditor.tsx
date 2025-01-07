@@ -284,6 +284,7 @@ export const SqlEditor: FC<{
         if (!highlightText) return;
         // if no end, highlight only the start + 1 character
         if (!highlightText.end) {
+            // eslint-disable-next-line react-compiler/react-compiler
             highlightText.end = {
                 line: highlightText.start.line,
                 char: highlightText.start.char + 1,

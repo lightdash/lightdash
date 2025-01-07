@@ -28,6 +28,8 @@ const OrganizationPanel: FC = () => {
         },
     });
 
+    const { setInitialValues, setValues } = form;
+
     useEffect(() => {
         if (isOrganizationLoading || !organizationData) return;
 
@@ -35,11 +37,9 @@ const OrganizationPanel: FC = () => {
             organizationName: organizationData.name,
         };
 
-        form.setInitialValues(initialData);
-        form.setValues(initialData);
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOrganizationLoading, organizationData]);
+        setInitialValues(initialData);
+        setValues(initialData);
+    }, [isOrganizationLoading, organizationData, setInitialValues, setValues]);
 
     const handleOnSubmit = form.onSubmit(({ organizationName }) => {
         if (!form.isValid()) return;

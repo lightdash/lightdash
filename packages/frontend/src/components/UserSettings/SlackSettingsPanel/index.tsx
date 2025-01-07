@@ -65,7 +65,14 @@ const SlackSettingsPanel: FC = () => {
         },
     });
 
-    const { setFieldValue, onSubmit } = form;
+    const {
+        setFieldValue,
+        onSubmit,
+        setInitialValues,
+        setValues,
+        initialized,
+        initialize,
+    } = form;
 
     useEffect(() => {
         if (!slackInstallation) return;
@@ -75,14 +82,19 @@ const SlackSettingsPanel: FC = () => {
             appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
         };
 
-        if (form.initialized) {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
+        if (initialized) {
+            setInitialValues(initialValues);
+            setValues(initialValues);
         } else {
-            form.initialize(initialValues);
+            initialize(initialValues);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [slackInstallation]);
+    }, [
+        slackInstallation,
+        initialized,
+        setInitialValues,
+        setValues,
+        initialize,
+    ]);
 
     const slackChannelOptions = useMemo(() => {
         return (

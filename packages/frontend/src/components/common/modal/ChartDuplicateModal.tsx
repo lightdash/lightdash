@@ -35,6 +35,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     const { data: savedQuery, isInitialLoading } = useSavedQuery({ id: uuid });
 
     const form = useForm<FormState>();
+    const { setInitialValues, setValues, initialized, initialize } = form;
 
     useEffect(() => {
         if (!savedQuery) return;
@@ -44,18 +45,16 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
             description: savedQuery.description,
         };
 
-        if (!form.initialized) {
-            form.initialize(initialValues);
+        if (!initialized) {
+            initialize(initialValues);
         } else {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
+            setInitialValues(initialValues);
+            setValues(initialValues);
         }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [savedQuery]);
+    }, [savedQuery, initialized, setInitialValues, setValues, initialize]);
 
     const isLoading =
-        isInitialLoading || !savedQuery || !form.initialized || isUpdating;
+        isInitialLoading || !savedQuery || !initialized || isUpdating;
 
     const handleConfirm = form.onSubmit(async (data) => {
         const updatedChart = await duplicateChart({

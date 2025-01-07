@@ -134,8 +134,11 @@ const SemanticViewerViewPage = () => {
             ),
             tableData: vizDataModel?.getPivotedTableData(),
         }),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [vizDataModel, chartQuery.data?.config.display, chartLoading],
+        [
+            vizDataModel,
+            chartQuery.data?.config.display,
+            organization?.chartColors,
+        ],
     );
 
     const hasError =

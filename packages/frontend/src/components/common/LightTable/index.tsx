@@ -127,7 +127,6 @@ const TableProvider: FC<
         [setSelectedCell],
     );
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedToggleCell = useMemo(() => {
         return debounce(handleToggleCell, 300, {
             leading: true,

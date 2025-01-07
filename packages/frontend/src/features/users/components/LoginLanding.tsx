@@ -95,6 +95,7 @@ const Login: FC<{}> = () => {
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
             identify({ id: data.userUuid });
+            // eslint-disable-next-line react-compiler/react-compiler
             window.location.href = redirectUrl;
         },
         onError: ({ error }) => {

@@ -122,6 +122,8 @@ const AllowedDomainsPanel: FC = () => {
         isAllowedEmailDomainsDataLoading ||
         isLoadingProjects;
 
+    const { setInitialValues, setValues } = form;
+
     useEffect(() => {
         if (isAllowedEmailDomainsDataLoading || !allowedEmailDomainsData)
             return;
@@ -132,11 +134,14 @@ const AllowedDomainsPanel: FC = () => {
             projects: allowedEmailDomainsData.projects,
         };
 
-        form.setInitialValues(initialValues);
-        form.setValues(initialValues);
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allowedEmailDomainsData, isAllowedEmailDomainsDataLoading]);
+        setInitialValues(initialValues);
+        setValues(initialValues);
+    }, [
+        setInitialValues,
+        setValues,
+        allowedEmailDomainsData,
+        isAllowedEmailDomainsDataLoading,
+    ]);
 
     const projectOptions = useMemo(() => {
         if (!projects) return [];

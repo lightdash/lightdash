@@ -128,6 +128,8 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
         setTimeout(() => setSearch(() => ''), 0);
     }, [setSearch]);
 
+    const { setInitialValues, setValues } = form;
+
     useEffect(() => {
         if (!tablesConfig) return;
 
@@ -142,11 +144,9 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
             names: getValueBasedOnType(TableSelectionType.WITH_NAMES),
         };
 
-        form.setInitialValues(initialValues);
-        form.setValues(initialValues);
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tablesConfig]);
+        setInitialValues(initialValues);
+        setValues(initialValues);
+    }, [setInitialValues, setValues, tablesConfig]);
 
     useEffect(() => {
         if (isSuccess && onSuccess) {

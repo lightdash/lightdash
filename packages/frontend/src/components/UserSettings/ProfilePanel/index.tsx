@@ -41,6 +41,8 @@ const ProfilePanel: FC = () => {
         validate: zodResolver(validationSchema),
     });
 
+    const { initialize, setInitialValues, setValues, initialized } = form;
+
     useEffect(() => {
         if (!userData) return;
 
@@ -50,15 +52,13 @@ const ProfilePanel: FC = () => {
             email: userData.email,
         };
 
-        if (form.initialized) {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
+        if (initialized) {
+            setInitialValues(initialValues);
+            setValues(initialValues);
         } else {
-            form.initialize(initialValues);
+            initialize(initialValues);
         }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userData]);
+    }, [userData, initialized, setInitialValues, setValues, initialize]);
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
     const { data, isInitialLoading: statusLoading } = useEmailStatus(

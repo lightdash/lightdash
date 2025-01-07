@@ -79,6 +79,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                         pollCsvFileUrl(scheduledCsvResponse)
                             .then((csvFile) => {
                                 if (csvFile.url)
+                                    // eslint-disable-next-line react-compiler/react-compiler
                                     window.location.href = csvFile.url;
                                 notifications.hide('exporting-csv');
 

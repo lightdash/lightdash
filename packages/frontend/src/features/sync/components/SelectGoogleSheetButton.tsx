@@ -69,6 +69,7 @@ export const SelectGoogleSheetButton: FC = () => {
             });
         }
         // Adding openPicker and onGooglePickerSelect to the dependency array causes an infinite loop
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token, health.data]);
 

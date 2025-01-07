@@ -35,6 +35,7 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
     const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
 
     const form = useForm<FormState>();
+    const { setInitialValues, setValues, initialized, initialize } = form;
 
     useEffect(() => {
         if (!dashboard) return;
@@ -44,15 +45,13 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
             description: dashboard.description ?? '',
         };
 
-        if (!form.initialized) {
-            form.initialize(initialValues);
+        if (!initialized) {
+            initialize(initialValues);
         } else {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
+            setInitialValues(initialValues);
+            setValues(initialValues);
         }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dashboard]);
+    }, [dashboard, initialized, setInitialValues, setValues, initialize]);
 
     const handleConfirm = form.onSubmit(async (data) => {
         const updatedDashboard = await duplicateDashboard({

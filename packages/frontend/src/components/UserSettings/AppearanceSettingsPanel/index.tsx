@@ -306,13 +306,14 @@ const AppearanceColorSettings: FC = () => {
         [form],
     );
 
+    const { setValues, resetDirty } = form;
+
     const setFormValuesFromData = useCallback(() => {
         if (data?.chartColors) {
-            form.setValues(getColorFormFields(data.chartColors));
-            form.resetDirty(getColorFormFields(data.chartColors));
+            setValues(getColorFormFields(data.chartColors));
+            resetDirty(getColorFormFields(data.chartColors));
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data?.chartColors]);
+    }, [data?.chartColors, setValues, resetDirty]);
 
     useEffect(() => {
         setFormValuesFromData();

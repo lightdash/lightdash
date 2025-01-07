@@ -78,6 +78,8 @@ export const UpdateSqlChartModal = ({
         validate: zodResolver(updateSqlChartSchema),
     });
 
+    const { setValues, resetDirty } = form;
+
     useEffect(() => {
         if (isChartSuccess && data) {
             const values = {
@@ -87,12 +89,10 @@ export const UpdateSqlChartModal = ({
                 newSpaceName: null,
             };
 
-            form.setValues(values);
-            form.resetDirty(values);
+            setValues(values);
+            resetDirty(values);
         }
-        // form can't be a dependency because it will cause infinite loop
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data, isChartSuccess]);
+    }, [data, isChartSuccess, setValues, resetDirty]);
 
     const handleOnSubmit = form.onSubmit(
         async ({ name, description, spaceUuid, newSpaceName }) => {

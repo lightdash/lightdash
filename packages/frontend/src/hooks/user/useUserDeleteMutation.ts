@@ -13,6 +13,7 @@ export const useDeleteUserMutation = () =>
     useMutation<null, ApiError>(deleteUserQuery, {
         mutationKey: ['user_delete'],
         onSuccess: () => {
+            // eslint-disable-next-line react-compiler/react-compiler
             window.location.href = '/login';
         },
     });

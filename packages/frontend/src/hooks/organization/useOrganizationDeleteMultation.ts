@@ -14,6 +14,7 @@ export const useDeleteOrganizationMutation = () => {
     const { showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
+            // eslint-disable-next-line react-compiler/react-compiler
             window.location.href = '/register';
         },
         onError: ({ error }) => {

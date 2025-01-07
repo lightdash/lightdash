@@ -103,6 +103,8 @@ const SaveChartForm: FC<
         validate: zodResolver(saveChartFormSchema),
     });
 
+    const { setValues, resetDirty } = form;
+
     useEffect(() => {
         if (isSuccessSpace && spaces) {
             const values = {
@@ -111,12 +113,10 @@ const SaveChartForm: FC<
                 spaceUuid: spaces[0]?.uuid,
                 newSpaceName: null,
             };
-            form.setValues(values);
-            form.resetDirty(values);
+            setValues(values);
+            resetDirty(values);
         }
-        // form can't be a dependency because it will cause infinite loop
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [name, description, spaces, isSuccessSpace]);
+    }, [name, description, spaces, isSuccessSpace, setValues, resetDirty]);
 
     const {
         mutateAsync: createSavedSqlChart,
