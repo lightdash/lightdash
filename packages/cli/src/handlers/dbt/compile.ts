@@ -11,8 +11,8 @@ import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
 export type DbtCompileOptions = {
-    profilesDir: string;
-    projectDir: string;
+    profilesDir: string | undefined;
+    projectDir: string | undefined;
     target: string | undefined;
     profile: string | undefined;
     select: string[] | undefined;

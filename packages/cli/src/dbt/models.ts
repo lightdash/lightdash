@@ -349,8 +349,8 @@ export const getCompiledModels = async (
         try {
             const { stdout } = await execa('dbt', [
                 'ls',
-                '--profiles-dir',
-                args.profilesDir,
+                // '--profiles-dir',
+                // args.profilesDir,
                 '--project-dir',
                 args.projectDir,
                 ...(args.target ? ['--target', args.target] : []),
