@@ -13,7 +13,6 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import {
     SIDEBAR_DEFAULT_WIDTH,
-    SIDEBAR_MAX_WIDTH,
     SIDEBAR_MIN_WIDTH,
     SIDEBAR_RESIZE_HANDLE_WIDTH,
 } from './constants';
@@ -44,13 +43,11 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     const {
         defaultWidth = SIDEBAR_DEFAULT_WIDTH,
         minWidth = SIDEBAR_MIN_WIDTH,
-        maxWidth = SIDEBAR_MAX_WIDTH,
     } = widthProps;
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
             defaultWidth,
             minWidth,
-            maxWidth,
             position,
             mainWidth,
             onResizeStart,
