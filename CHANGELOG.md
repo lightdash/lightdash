@@ -1,3 +1,10 @@
+## [0.1440.3](https://github.com/lightdash/lightdash/compare/0.1440.2...0.1440.3) (2025-01-07)
+
+
+### Bug Fixes
+
+* use 2-space tabs instead of 4 in sql runner ([#13123](https://github.com/lightdash/lightdash/issues/13123)) ([5f189cd](https://github.com/lightdash/lightdash/commit/5f189cd8a49465d5ee437917d43781e6b0c2d1d0))
+
 ## [0.1440.2](https://github.com/lightdash/lightdash/compare/0.1440.1...0.1440.2) (2025-01-07)
 
 
