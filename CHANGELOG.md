@@ -1,3 +1,10 @@
+## [0.1440.5](https://github.com/lightdash/lightdash/compare/0.1440.4...0.1440.5) (2025-01-07)
+
+
+### Bug Fixes
+
+* dbt version fallback prompt ([#13112](https://github.com/lightdash/lightdash/issues/13112)) ([ae174f5](https://github.com/lightdash/lightdash/commit/ae174f510c7357208133621e5c391f63f00d76b9))
+
 ## [0.1440.4](https://github.com/lightdash/lightdash/compare/0.1440.3...0.1440.4) (2025-01-07)
 
 
