@@ -583,7 +583,7 @@ const MetricsVisualization: FC<Props> = ({
                 )}
 
                 <Tooltip
-                    label="No zoom has been applied yet. Drag on the chart to zoom into a section"
+                    label="Drag between two points on the chart to zoom in. Use this button to reset the view."
                     variant="xs"
                     position="top"
                     disabled={!!zoomState.zoomedData}
