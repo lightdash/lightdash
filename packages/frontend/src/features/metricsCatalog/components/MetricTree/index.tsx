@@ -18,7 +18,6 @@ import {
     type Connection,
     type Edge,
     type EdgeChange,
-    type Node,
     type NodeChange,
     type NodePositionChange,
     type NodeReplaceChange,
@@ -329,7 +328,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const handleNodeChange = useCallback(
         (changes: NodeChange<MetricTreeNode>[]) => {
-            const preventedChangeTypes: NodeChange<Node>['type'][] = [
+            const preventedChangeTypes: NodeChange<MetricTreeNode>['type'][] = [
                 'replace',
                 'remove',
             ];
@@ -339,7 +338,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
             );
 
             const positionChanges = changesWithoutPreventedTypes.filter(
-                (c) => c.type === 'position',
+                // Position change infer in vscode was correct but not in build, fixed by type assertion
+                (c): c is NodePositionChange => c.type === 'position',
             );
 
             const otherChanges = changesWithoutPreventedTypes.filter(
