@@ -558,6 +558,12 @@ const MetricsVisualization: FC<Props> = ({
             : 1;
     }, [query.comparison]);
 
+    const chartCursor = useMemo<React.CSSProperties['cursor']>(() => {
+        return zoomState.refAreaLeft || zoomState.refAreaRight
+            ? 'grabbing'
+            : 'default';
+    }, [zoomState.refAreaLeft, zoomState.refAreaRight]);
+
     return (
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -633,11 +639,7 @@ const MetricsVisualization: FC<Props> = ({
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                             style={{
-                                cursor:
-                                    zoomState.refAreaLeft ||
-                                    zoomState.refAreaRight
-                                        ? 'grabbing'
-                                        : 'default',
+                                cursor: chartCursor,
                             }}
                         >
                             {showLegend && (
