@@ -165,8 +165,18 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
 
 export async function maybeCompileModelsAndJoins(
     loadManifestOpts: LoadManifestArgs,
-    options: DbtCompileOptions,
+    initialOptions: DbtCompileOptions,
 ): Promise<string[] | undefined> {
+    const dbtVersion = await getDbtVersion();
+    let options = initialOptions;
+    if (dbtVersion.isDbtCloudCLI) {
+        options = {
+            ...initialOptions,
+            projectDir: undefined,
+            profilesDir: undefined,
+        };
+    }
+
     // Skipping assumes manifest.json already exists.
     if (options.skipDbtCompile) {
         GlobalState.debug('> Skipping dbt compile');
