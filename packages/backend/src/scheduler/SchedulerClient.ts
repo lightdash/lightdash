@@ -440,7 +440,7 @@ export class SchedulerClient {
         const dates = getDailyDatesFromCron(
             {
                 cron: scheduler.cron,
-                timezone: scheduler.timezone ?? defaultTimezone,
+                timezone: scheduler.timezone || defaultTimezone,
             },
             startingDateTime,
         );

@@ -537,7 +537,7 @@ export default class SchedulerTask {
                 ctaUrl: url,
                 footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
                     cron,
-                    timezone ?? defaultSchedulerTimezone,
+                    timezone || defaultSchedulerTimezone,
                 )} from Lightdash\n${
                     showExpirationWarning
                         ? this.s3Client.getExpirationWarning()?.slack || ''
@@ -1381,7 +1381,7 @@ export default class SchedulerTask {
                     new Date().toLocaleDateString('en-GB'),
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     imageUrl,
                     url,
@@ -1403,7 +1403,7 @@ export default class SchedulerTask {
                     new Date().toLocaleDateString('en-GB'),
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     csvUrl,
                     url,
@@ -1425,7 +1425,7 @@ export default class SchedulerTask {
                     new Date().toLocaleDateString('en-GB'),
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     csvUrls,
                     url,
@@ -1676,7 +1676,7 @@ export default class SchedulerTask {
                     gdriveId,
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     undefined,
                     reportUrl,

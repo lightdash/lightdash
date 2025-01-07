@@ -350,7 +350,7 @@ const SchedulerForm: FC<Props> = ({
                 message: values.message,
                 format: values.format,
                 cron: values.cron,
-                timezone: values.timezone,
+                timezone: values.timezone || undefined,
                 options,
                 targets,
                 ...(resource?.type === 'dashboard' && {
