@@ -57,24 +57,20 @@ const usePylon = () => {
                 if (!window.Pylon) {
                     initPylonWidget(health.data.pylon.appId);
                 }
+
+                // @ts-ignore
+                if (window.Pylon) {
+                    // @ts-ignore
+                    window.Pylon('setNewIssueCustomFields', {
+                        user_uuid: user.data.userUuid,
+                        org_uuid: user.data.organizationUuid,
+                        org_name: user.data.organizationName,
+                        user_role: user.data.role,
+                    });
+                }
             }
         },
         [user, health, initPylonWidget],
-    );
-
-    useEffect(
-        function setNewIssueCustomFields() {
-            if (health.data?.pylon?.appId && user.data) {
-                // @ts-ignore
-                window.Pylon('setNewIssueCustomFields', {
-                    user_uuid: user.data.userUuid,
-                    org_uuid: user.data.organizationUuid,
-                    org_name: user.data.organizationName,
-                    user_role: user.data.role,
-                });
-            }
-        },
-        [user, health],
     );
 };
 
