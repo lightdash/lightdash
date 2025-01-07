@@ -18,19 +18,19 @@ const usePylon = () => {
             n.e(arguments); // eslint-disable-line
         };
         n.q = [] as unknown[];
-        n.e = function (e: unknown) {
-            n.q.push(e);
+        n.e = function (u: unknown) {
+            n.q.push(u);
         };
         // @ts-ignore
         e.Pylon = n;
         const r = function () {
-            const e = t.createElement('script');
-            e.setAttribute('type', 'text/javascript');
-            e.setAttribute('async', 'true');
-            e.setAttribute('src', `${PYLON_WIDGET_URL}${appId}`);
-            const n = t.getElementsByTagName('script')[0];
-            if (n.parentNode) {
-                n.parentNode.insertBefore(e, n);
+            const s = t.createElement('script');
+            s.setAttribute('type', 'text/javascript');
+            s.setAttribute('async', 'true');
+            s.setAttribute('src', `${PYLON_WIDGET_URL}${appId}`);
+            const ns = t.getElementsByTagName('script')[0];
+            if (ns.parentNode) {
+                ns.parentNode.insertBefore(s, ns);
             }
         };
         if (t.readyState === 'complete') {
@@ -59,7 +59,7 @@ const usePylon = () => {
                 }
             }
         },
-        [user, health],
+        [user, health, initPylonWidget],
     );
 
     useEffect(
