@@ -167,33 +167,43 @@ const getNodeLayout = (
     const unconnectedGroupWidth = right - left + mainPadding * 2;
     const unconnectedGroupHeight = bottom - top + mainPadding * 2;
 
-    const groups = [
-        {
-            id: STATIC_NODE_TYPES.UNCONNECTED,
-            data: {
-                label: 'Unconnected nodes',
-            },
-            position: {
-                x: isFinite(unconnectedGroupX) ? unconnectedGroupX : 0,
-                y: isFinite(unconnectedGroupY) ? unconnectedGroupY : 0,
-            },
-            style: {
-                backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
-                border: `1px solid ${theme.colors.gray[3]}`,
-                boxShadow: theme.shadows.subtle,
-                height: isFinite(unconnectedGroupHeight)
-                    ? unconnectedGroupHeight
-                    : 0,
-                width: isFinite(unconnectedGroupWidth)
-                    ? unconnectedGroupWidth
-                    : 0,
-                pointerEvents: 'none' as const,
-                borderRadius: theme.radius.md,
-                padding: theme.spacing.md,
-            },
-            type: 'group',
-        },
-    ] satisfies MetricTreeNode[];
+    const groups =
+        free.length > 0
+            ? ([
+                  {
+                      id: STATIC_NODE_TYPES.UNCONNECTED,
+                      data: {
+                          label: 'Unconnected nodes',
+                      },
+                      position: {
+                          x: isFinite(unconnectedGroupX)
+                              ? unconnectedGroupX
+                              : 0,
+                          y: isFinite(unconnectedGroupY)
+                              ? unconnectedGroupY
+                              : 0,
+                      },
+                      style: {
+                          backgroundColor: theme.fn.lighten(
+                              theme.colors.gray[0],
+                              0.7,
+                          ),
+                          border: `1px solid ${theme.colors.gray[3]}`,
+                          boxShadow: theme.shadows.subtle,
+                          height: isFinite(unconnectedGroupHeight)
+                              ? unconnectedGroupHeight
+                              : 0,
+                          width: isFinite(unconnectedGroupWidth)
+                              ? unconnectedGroupWidth
+                              : 0,
+                          pointerEvents: 'none' as const,
+                          borderRadius: theme.radius.md,
+                          padding: theme.spacing.md,
+                      },
+                      type: 'group',
+                  },
+              ] satisfies MetricTreeNode[])
+            : [];
 
     return {
         nodes: [...groups, ...tree, ...free],
