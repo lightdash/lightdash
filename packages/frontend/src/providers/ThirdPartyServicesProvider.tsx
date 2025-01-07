@@ -1,45 +1,76 @@
 import { LightdashMode } from '@lightdash/common';
 import { PostHogProvider, usePostHog } from 'posthog-js/react';
-import { useEffect, type FC } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
 import useApp from './App/useApp';
 
-const Pylon = () => {
+const usePylon = () => {
     const { user, health } = useApp();
-    useEffect(() => {
-        if (health.data?.pylon?.appId && user.data) {
-            // @ts-ignore
-            window.pylon = {
-                chat_settings: {
-                    app_id: health.data.pylon.appId,
-                    email: user.data.email,
-                    name: `${user.data.firstName} ${user.data.lastName}`,
-                    email_hash: health.data.pylon.verificationHash,
-                },
-            };
-            // @ts-ignore
-            if (window.Pylon) {
-                // @ts-ignore
-                window.Pylon('setNewIssueCustomFields', {
-                    user_uuid: user.data.userUuid,
-                    org_uuid: user.data.organizationUuid,
-                    org_name: user.data.organizationName,
-                    user_role: user.data.role,
-                });
+
+    // REFERENCE: https://docs.usepylon.com/pylon-docs/in-app-chat/chat-setup
+    const initPylonWidget = useCallback((appId: string) => {
+        const PYLON_WIDGET_URL = 'https://widget.usepylon.com/widget/';
+        const e = window;
+        const t = document;
+        const n = function () {
+            n.e(arguments); // eslint-disable-line
+        };
+        n.q = [] as unknown[];
+        n.e = function (u: unknown) {
+            n.q.push(u);
+        };
+        // @ts-ignore
+        e.Pylon = n;
+        const r = function () {
+            const s = t.createElement('script');
+            s.setAttribute('type', 'text/javascript');
+            s.setAttribute('async', 'true');
+            s.setAttribute('src', `${PYLON_WIDGET_URL}${appId}`);
+            const ns = t.getElementsByTagName('script')[0];
+            if (ns.parentNode) {
+                ns.parentNode.insertBefore(s, ns);
             }
+        };
+        if (t.readyState === 'complete') {
+            r();
+        } else if (e.addEventListener) {
+            e.addEventListener('load', r, false);
         }
-    }, [user, health]);
+    }, []);
 
-    if (!health.data?.pylon?.appId) {
-        return null;
-    }
+    useEffect(
+        function initPylon() {
+            if (health.data?.pylon?.appId && user.data) {
+                // @ts-ignore
+                window.pylon = {
+                    chat_settings: {
+                        app_id: health.data.pylon.appId,
+                        email: user.data.email,
+                        name: `${user.data.firstName} ${user.data.lastName}`,
+                        email_hash: health.data.pylon.verificationHash,
+                    },
+                };
 
-    return (
-        <script type="text/javascript">
-            {`(function(){var e=window;var t=document;var n=function(){n.e(arguments)};n.q=[];n.e=function(e){n.q.push(e)};e.Pylon=n;var r=function(){var e=t.createElement("script");e.setAttribute("type","text/javascript");e.setAttribute("async","true");e.setAttribute("src","https://widget.usepylon.com/widget/${health.data.pylon.appId}");var n=t.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};if(t.readyState==="complete"){r()}else if(e.addEventListener){e.addEventListener("load",r,false)}})();`}
-        </script>
+                // @ts-ignore
+                if (!window.Pylon) {
+                    initPylonWidget(health.data.pylon.appId);
+                }
+
+                // @ts-ignore
+                if (window.Pylon) {
+                    // @ts-ignore
+                    window.Pylon('setNewIssueCustomFields', {
+                        user_uuid: user.data.userUuid,
+                        org_uuid: user.data.organizationUuid,
+                        org_name: user.data.organizationName,
+                        user_role: user.data.role,
+                    });
+                }
+            }
+        },
+        [user, health, initPylonWidget],
     );
 };
 
@@ -91,6 +122,7 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
     const { health, user } = useApp();
 
     useSentry(health?.data?.sentry, user.data);
+    usePylon();
 
     return (
         <IntercomProvider
@@ -109,7 +141,6 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
             >
                 <PosthogIdentified>
                     <Intercom />
-                    <Pylon />
                     <Clarity />
                     {children}
                 </PosthogIdentified>
