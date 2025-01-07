@@ -62,6 +62,8 @@ describe('Get dbt version', () => {
                     "We don't currently support version 1.3.0",
                 ),
             );
+            // Clear saved prompt answer
+            GlobalState.clearPromptAnswer();
             // Test for future version
             execaMock.mockImplementation(async () => cliMocks.dbt20_1);
             const version2 = await getDbtVersion();

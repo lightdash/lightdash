@@ -66,11 +66,11 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
             versions[versions.length - 1]
         }.*`;
         const message = `We don't currently support version ${verboseVersion} on Lightdash. We'll interpret it as version ${fallbackVersionOption} instead, which might cause unexpected errors or behavior. For the best experience, please use a supported version (${supportedVersionsRangeMessage}).`;
+        const spinner = GlobalState.getActiveSpinner();
+        spinner?.stop();
         if (process.env.CI === 'true') {
             console.error(styles.warning(message));
         } else {
-            const spinner = GlobalState.getActiveSpinner();
-            spinner?.stop();
             const answers = await inquirer.prompt([
                 {
                     type: 'confirm',
@@ -80,14 +80,14 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
                     )}\nDo you still want to continue?`,
                 },
             ]);
-            spinner?.start();
             if (!answers.isConfirm) {
                 throw new Error(
                     `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
                 );
             }
-            GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
         }
+        spinner?.start();
+        GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
     }
 
     return {
