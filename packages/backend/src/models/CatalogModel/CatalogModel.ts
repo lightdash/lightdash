@@ -184,39 +184,12 @@ export class CatalogModel {
                 // Add tags as an aggregated JSON array
                 {
                     search_rank: searchRankRawSql,
-                    catalog_tags: this.database.raw(`
-                        COALESCE(
-                            (
-                                SELECT JSON_AGG(
-                                    DISTINCT JSONB_BUILD_OBJECT(
-                                        'tagUuid', t.tag_uuid,
-                                        'name', t.name,
-                                        'color', t.color
-                                    )
-                                )
-                                FROM ${CatalogTagsTableName} ct
-                                LEFT JOIN ${TagsTableName} t ON ct.tag_uuid = t.tag_uuid
-                                WHERE ct.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid
-                            ),
-                            '[]'
-                        )
-                    `),
                 },
             )
             .leftJoin(
                 CachedExploreTableName,
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
-            )
-            .leftJoin(
-                CatalogTagsTableName,
-                `${CatalogTableName}.catalog_search_uuid`,
-                `${CatalogTagsTableName}.catalog_search_uuid`,
-            )
-            .leftJoin(
-                TagsTableName,
-                `${CatalogTagsTableName}.tag_uuid`,
-                `${TagsTableName}.tag_uuid`,
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
@@ -348,6 +321,10 @@ export class CatalogModel {
             );
         }
 
+        catalogItemsQuery = catalogItemsQuery
+            .orderBy('search_rank', 'desc')
+            .limit(limit ?? 50);
+
         if (sortArgs) {
             const { sort, order } = sortArgs;
             catalogItemsQuery = catalogItemsQuery.orderBy(
@@ -358,26 +335,65 @@ export class CatalogModel {
             );
         }
 
-        catalogItemsQuery = catalogItemsQuery
-            .orderBy('search_rank', 'desc')
-            .limit(limit ?? 50);
-
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<
                 (DbCatalog & {
                     explore: Explore;
-                    catalog_tags: Pick<Tag, 'tagUuid' | 'name' | 'color'>[];
                 })[]
             >(),
             paginateArgs,
         );
+
+        const itemTags = await this.database(CatalogTagsTableName)
+            .select<
+                {
+                    catalog_search_uuid: string;
+                    tag_uuid: string;
+                    name: string;
+                    color: string;
+                }[]
+            >()
+            .leftJoin(
+                TagsTableName,
+                `${CatalogTagsTableName}.tag_uuid`,
+                `${TagsTableName}.tag_uuid`,
+            )
+            .whereIn(
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+                paginatedCatalogItems.data.map(
+                    (item) => item.catalog_search_uuid,
+                ),
+            );
+
+        const tagsPerItem = itemTags.reduce<
+            Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>
+        >((acc, tag) => {
+            acc[tag.catalog_search_uuid] = [
+                ...(acc[tag.catalog_search_uuid] || []),
+                {
+                    tagUuid: tag.tag_uuid,
+                    name: tag.name,
+                    color: tag.color,
+                },
+            ];
+            return acc;
+        }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
+
+        console.log(tagsPerItem);
 
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
             {
                 catalogSize: paginatedCatalogItems.data.length,
             },
-            async () => paginatedCatalogItems.data.map(parseCatalog),
+            async () =>
+                paginatedCatalogItems.data.map((item) =>
+                    parseCatalog({
+                        ...item,
+                        catalog_tags:
+                            tagsPerItem[item.catalog_search_uuid] ?? [],
+                    }),
+                ),
         );
 
         return {
