@@ -97,7 +97,7 @@ jobs:
             - name: Build packages/warehouses module
               run: pnpm warehouses-build
             - name: Build and install packages/cli module
-              run: cd packages/cli && pnpm build && pnpm install -g .
+              run: cd packages/cli && pnpm build && npm install -g
             - name: Test lightdash version
               run: |
                   lightdash_version=$(lightdash --version)
