@@ -776,7 +776,7 @@ export class CatalogService<
             .map<ChartUsageIn | undefined>(({ fieldId, count }) => {
                 const catalogField = catalogFieldMap[fieldId];
 
-                if (!catalogField) {
+                if (!catalogField || Number.isNaN(count)) {
                     return undefined;
                 }
 

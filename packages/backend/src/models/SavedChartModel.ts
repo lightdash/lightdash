@@ -668,11 +668,12 @@ export class SavedChartModel {
 
     async getChartCountForFieldIds(projectUuid: string, fieldIds: string[]) {
         const chartSummaryQuery = this.getChartSummaryQuery().clearSelect();
-        return chartSummaryQuery
+        const results = await chartSummaryQuery
             .select({
                 fieldId: `${SavedChartVersionFieldsTableName}.name`,
             })
-            .count<{ fieldId: string; count: number }[]>(
+            // Count returns by default as BigInt, so we need to cast to number
+            .count<{ fieldId: string; count: BigInt }[]>(
                 `${SavedChartsTableName}.saved_query_uuid`,
             )
             .leftJoin(
@@ -697,6 +698,11 @@ export class SavedChartModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .groupBy(`${SavedChartVersionFieldsTableName}.name`);
+
+        return results.map(({ fieldId, count }) => ({
+            fieldId,
+            count: Number(count),
+        }));
     }
 
     async get(
