@@ -641,12 +641,8 @@ export class SavedChartModel {
         return savedChart;
     }
 
-    async getChartUsageByFieldId(
-        projectUuid: string,
-        fieldIds: string[],
-    ): Promise<Record<string, ChartSummary[]>> {
-        const results = await this.getChartSummaryQuery()
-            .select(`${SavedChartVersionFieldsTableName}.name as fieldId`)
+    async getChartSummariesForFieldId(projectUuid: string, fieldId: string) {
+        return this.getChartSummaryQuery()
             .leftJoin(
                 SavedChartVersionsTableName,
                 `${SavedChartsTableName}.saved_query_id`,
@@ -657,7 +653,7 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.saved_queries_version_id`,
                 `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
             )
-            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
+            .where(`${SavedChartVersionFieldsTableName}.name`, fieldId)
             .where(
                 // filter by last version
                 `${SavedChartVersionsTableName}.saved_queries_version_id`,
@@ -668,16 +664,44 @@ export class SavedChartModel {
                                            limit 1)`),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
+    }
 
-        // Group results by fieldId
-        return results.reduce<Record<string, ChartSummary[]>>((acc, chart) => {
-            const { fieldId, ...chartSummary } = chart;
-            if (!acc[fieldId]) {
-                acc[fieldId] = [];
-            }
-            acc[fieldId].push(chartSummary);
-            return acc;
-        }, {});
+    async getChartCountPerField(projectUuid: string) {
+        const chartSummaryQuery = this.getChartSummaryQuery().clearSelect();
+        const results = await chartSummaryQuery
+            .select({
+                fieldId: `${SavedChartVersionFieldsTableName}.name`,
+            })
+            // Count returns by default as BigInt, so we need to cast to number
+            .count<{ fieldId: string; count: BigInt }[]>(
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .leftJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartsTableName}.saved_query_id`,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+            )
+            .leftJoin(
+                SavedChartVersionFieldsTableName,
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+            )
+            .where(
+                // filter by last version
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                this.database.raw(`(select saved_queries_version_id
+                               from ${SavedChartVersionsTableName}
+                               where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                               order by ${SavedChartVersionsTableName}.created_at desc
+                               limit 1)`),
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .groupBy(`${SavedChartVersionFieldsTableName}.name`);
+
+        return results.map(({ fieldId, count }) => ({
+            fieldId,
+            count: Number(count),
+        }));
     }
 
     async get(
