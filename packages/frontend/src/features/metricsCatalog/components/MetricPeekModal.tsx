@@ -39,6 +39,7 @@ import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsW
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
+import { MetricExploreFilter } from './visualization/MetricExploreFilter';
 import { MetricPeekComparison } from './visualization/MetricPeekComparison';
 import { MetricPeekSegmentationPicker } from './visualization/MetricPeekSegmentationPicker';
 import MetricsVisualization from './visualization/MetricsVisualization';
@@ -497,6 +498,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                             px="lg"
                             py="md"
                         >
+                            <MetricExploreFilter
+                                // TODO: Get filters from the query instead of segmentByData
+                                filters={segmentByData}
+                            />
                             <MetricPeekSegmentationPicker
                                 query={query}
                                 onSegmentDimensionChange={
