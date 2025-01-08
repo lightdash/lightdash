@@ -186,13 +186,18 @@ export class CatalogModel {
                     search_rank: searchRankRawSql,
                     catalog_tags: this.database.raw(`
                         COALESCE(
-                            JSON_AGG(
-                                DISTINCT JSONB_BUILD_OBJECT(
-                                    'tagUuid', ${TagsTableName}.tag_uuid,
-                                    'name', ${TagsTableName}.name,
-                                    'color', ${TagsTableName}.color
+                            (
+                                SELECT JSON_AGG(
+                                    DISTINCT JSONB_BUILD_OBJECT(
+                                        'tagUuid', t.tag_uuid,
+                                        'name', t.name,
+                                        'color', t.color
+                                    )
                                 )
-                            ) FILTER (WHERE ${TagsTableName}.tag_uuid IS NOT NULL),
+                                FROM ${CatalogTagsTableName} ct
+                                LEFT JOIN ${TagsTableName} t ON ct.tag_uuid = t.tag_uuid
+                                WHERE ct.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid
+                            ),
                             '[]'
                         )
                     `),
@@ -343,22 +348,6 @@ export class CatalogModel {
             );
         }
 
-        catalogItemsQuery = catalogItemsQuery.groupBy(
-            `${CatalogTableName}.catalog_search_uuid`,
-            `${CatalogTableName}.name`,
-            `${CatalogTableName}.description`,
-            `${CatalogTableName}.type`,
-            `${CachedExploreTableName}.explore`,
-            `${CatalogTableName}.required_attributes`,
-            `${CatalogTableName}.chart_usage`,
-            `${CatalogTableName}.search_vector`,
-            'search_rank',
-        );
-
-        catalogItemsQuery = catalogItemsQuery
-            .orderBy('search_rank', 'desc')
-            .limit(limit ?? 50);
-
         if (sortArgs) {
             const { sort, order } = sortArgs;
             catalogItemsQuery = catalogItemsQuery.orderBy(
@@ -368,6 +357,10 @@ export class CatalogModel {
                 order,
             );
         }
+
+        catalogItemsQuery = catalogItemsQuery
+            .orderBy('search_rank', 'desc')
+            .limit(limit ?? 50);
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<
