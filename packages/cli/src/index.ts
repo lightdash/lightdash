@@ -671,6 +671,7 @@ ${styles.bold('Examples:')}
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .option('--vars <vars>')
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('--skip-existing', 'skip files that already exist', false)
     .option(
         '--exclude-meta',
         'exclude Lightdash metadata from the generated .yml',

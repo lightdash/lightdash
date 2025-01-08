@@ -30,6 +30,7 @@ type GenerateHandlerOptions = CompileHandlerOptions & {
     models: string[] | undefined;
     assumeYes: boolean;
     excludeMeta: boolean;
+    skipExisting?: boolean;
 };
 
 export const generateHandler = async (options: GenerateHandlerOptions) => {
@@ -123,6 +124,27 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 },
             );
             try {
+                if (options.skipExisting) {
+                    try {
+                        await fs.access(outputFilePath);
+
+                        spinner.warn(
+                            `  already exists ${styles.bold(
+                                compiledModel.name,
+                            )}${styles.info(
+                                ` ➡️  ${path.relative(
+                                    process.cwd(),
+                                    outputFilePath,
+                                )} `,
+                            )}`,
+                        );
+                        // eslint-disable-next-line no-continue
+                        continue; // Skip this file if it already exists
+                    } catch {
+                        // File does not exist, we continue
+                    }
+                }
+
                 const existingHeadComments = await getFileHeadComments(
                     outputFilePath,
                 );
