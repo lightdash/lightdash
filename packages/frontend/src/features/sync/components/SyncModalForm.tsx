@@ -95,21 +95,20 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
             targets: [],
         };
 
-        if (isEditing) {
-            updateChartSync({
-                ...data,
-                ...defaultNewSchedulerValues,
-            });
-            return;
-        }
+        const payload = {
+            ...data,
+            ...defaultNewSchedulerValues,
+            timezone: data.timezone || undefined,
+        };
 
-        createChartSync({
-            resourceUuid: chartUuid,
-            data: {
-                ...data,
-                ...defaultNewSchedulerValues,
-            },
-        });
+        if (isEditing) {
+            updateChartSync(payload);
+        } else {
+            createChartSync({
+                resourceUuid: chartUuid,
+                data: payload,
+            });
+        }
     };
 
     useEffect(() => {
