@@ -137,6 +137,41 @@ export class CatalogModel {
         }
     }
 
+    private async getTagsPerItem(catalogSearchUuids: string[]) {
+        const itemTags = await this.database(CatalogTagsTableName)
+            .select<
+                {
+                    catalog_search_uuid: string;
+                    tag_uuid: string;
+                    name: string;
+                    color: string;
+                }[]
+            >()
+            .leftJoin(
+                TagsTableName,
+                `${CatalogTagsTableName}.tag_uuid`,
+                `${TagsTableName}.tag_uuid`,
+            )
+            .whereIn(
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+                catalogSearchUuids,
+            );
+
+        return itemTags.reduce<
+            Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>
+        >((acc, tag) => {
+            acc[tag.catalog_search_uuid] = [
+                ...(acc[tag.catalog_search_uuid] || []),
+                {
+                    tagUuid: tag.tag_uuid,
+                    name: tag.name,
+                    color: tag.color,
+                },
+            ];
+            return acc;
+        }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
+    }
+
     async search({
         projectUuid,
         exploreName,
@@ -344,40 +379,9 @@ export class CatalogModel {
             paginateArgs,
         );
 
-        const itemTags = await this.database(CatalogTagsTableName)
-            .select<
-                {
-                    catalog_search_uuid: string;
-                    tag_uuid: string;
-                    name: string;
-                    color: string;
-                }[]
-            >()
-            .leftJoin(
-                TagsTableName,
-                `${CatalogTagsTableName}.tag_uuid`,
-                `${TagsTableName}.tag_uuid`,
-            )
-            .whereIn(
-                `${CatalogTagsTableName}.catalog_search_uuid`,
-                paginatedCatalogItems.data.map(
-                    (item) => item.catalog_search_uuid,
-                ),
-            );
-
-        const tagsPerItem = itemTags.reduce<
-            Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>
-        >((acc, tag) => {
-            acc[tag.catalog_search_uuid] = [
-                ...(acc[tag.catalog_search_uuid] || []),
-                {
-                    tagUuid: tag.tag_uuid,
-                    name: tag.name,
-                    color: tag.color,
-                },
-            ];
-            return acc;
-        }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
+        const tagsPerItem = await this.getTagsPerItem(
+            paginatedCatalogItems.data.map((item) => item.catalog_search_uuid),
+        );
 
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
