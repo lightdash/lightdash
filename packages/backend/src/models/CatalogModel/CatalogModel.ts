@@ -379,8 +379,6 @@ export class CatalogModel {
             return acc;
         }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
 
-        console.log(tagsPerItem);
-
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
             {
