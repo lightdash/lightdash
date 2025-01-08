@@ -1,3 +1,10 @@
+# [0.1444.0](https://github.com/lightdash/lightdash/compare/0.1443.1...0.1444.0) (2025-01-08)
+
+
+### Features
+
+* support all dbt cloud regions when connecting project ([#13150](https://github.com/lightdash/lightdash/issues/13150)) ([c4f8d3c](https://github.com/lightdash/lightdash/commit/c4f8d3c0cdf0278b4315ba9fc55411f389bdfb2c))
+
 ## [0.1443.1](https://github.com/lightdash/lightdash/compare/0.1443.0...0.1443.1) (2025-01-08)
 
 
