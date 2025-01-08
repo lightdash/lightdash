@@ -397,9 +397,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const availableFilters = useMemo(
         () =>
-            // TODO: Get filters from the query instead of segmentByData, this should include more types than just string
+            // TODO: Get filters from the query instead of segmentByData, this should include numeric dimensions as well
             segmentDimensionsQuery.data?.filter(
-                (dimension) => dimension.type === DimensionType.STRING,
+                (dimension) =>
+                    dimension.type === DimensionType.STRING ||
+                    dimension.type === DimensionType.BOOLEAN,
             ) ?? [],
         [segmentDimensionsQuery.data],
     );
