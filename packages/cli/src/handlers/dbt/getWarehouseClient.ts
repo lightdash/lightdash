@@ -1,20 +1,43 @@
 import {
     assertUnreachable,
+    AuthorizationError,
     CreateWarehouseCredentials,
     isSupportedDbtAdapterType,
     isWeekDay,
     ParseError,
     SupportedDbtAdapter,
+    WarehouseCatalog,
+    WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import execa from 'execa';
 import path from 'path';
+import { getConfig } from '../../config';
 import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../../dbt/profile';
 import GlobalState from '../../globalState';
+import { lightdashApi } from './apiClient';
+
+// /api/v1/projects/b5c8914d-ff8b-41b0-ba1b-4e7403451f53/sqlRunner/fields?tableName=events_partitioned&schemaName=e2e_jaffle_shop
+type GetTableCatalogProps = {
+    projectUuid: string;
+    tableName: string;
+    schemaName: string;
+};
+
+export const getTableSchema = async ({
+    projectUuid,
+    tableName,
+    schemaName,
+}: GetTableCatalogProps) =>
+    lightdashApi<WarehouseTableSchema>({
+        method: 'GET',
+        url: `/api/v1/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${schemaName}`,
+        body: undefined,
+    });
 
 const DBT_CLOUD_CONNECTION_TYPE_REGEX = /Connection type\s+(\w+)/;
 
@@ -155,13 +178,37 @@ export default async function getWarehouseClient(
                 ? options.startOfWeek
                 : undefined,
         });
+        const config = await getConfig();
         // Overwrite methods that need to connect to the warehouse
-        warehouseClient.getCatalog = async () => {
-            GlobalState.debug(
-                `> WarehouseClient.getCatalog() is not supported with dbt Cloud CLI. An empty catalog will be used.`,
-            );
-            return {};
-        };
+        warehouseClient.getCatalog = async (refs) =>
+            refs.reduce<Promise<WarehouseCatalog>>(async (accPromise, ref) => {
+                const acc = await accPromise; // Wait for the previous step's result
+                if (!config.context?.project) {
+                    throw new AuthorizationError(
+                        `No active Lightdash project.`,
+                    );
+                }
+                try {
+                    GlobalState.debug(
+                        `> Warehouse schema information is not available in dbt Cloud CLI. The schema ${ref.database}.${ref.schema}.${ref.table} will be fetched from the active project.`,
+                    );
+                    const fields = await getTableSchema({
+                        projectUuid: config.context.project,
+                        tableName: ref.table,
+                        schemaName: 'e2e_jaffle_shop', // ref.schema,
+                    });
+                    acc[ref.database] = {
+                        [ref.schema]: {
+                            [ref.table]: fields,
+                        },
+                    };
+                } catch (e) {
+                    GlobalState.debug(
+                        `Failed to get schema for ${ref.database}.${ref.schema}.${ref.table}.`,
+                    );
+                }
+                return acc;
+            }, Promise.resolve({}));
         warehouseClient.streamQuery = async (_query, streamCallback) => {
             GlobalState.debug(
                 `> WarehouseClient.streamQuery() is not supported with dbt Cloud CLI. An empty result will be used.`,

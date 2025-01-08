@@ -308,12 +308,13 @@ export const findAndUpdateModelYaml = async ({
 export const getModelsFromManifest = (
     manifest: DbtManifest,
 ): DbtModelNode[] => {
+    console.error('models', Object.values(manifest.nodes).length);
     const models = Object.values(manifest.nodes).filter(
         (node) =>
             node.resource_type === 'model' &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
-
+    console.error('models 2', models.length);
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         throw new ParseError(
             `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
@@ -335,8 +336,7 @@ export const getCompiledModels = async (
     args: {
         select: string[] | undefined;
         exclude: string[] | undefined;
-        projectDir: string;
-        profilesDir: string;
+        projectDir: string | undefined;
         target: string | undefined;
         profile: string | undefined;
         vars: string | undefined;
@@ -347,12 +347,9 @@ export const getCompiledModels = async (
     if (args.select || args.exclude) {
         const spinner = GlobalState.startSpinner(`Filtering models`);
         try {
-            const { stdout } = await execa('dbt', [
+            const { stdout, command } = await execa('dbt', [
                 'ls',
-                // '--profiles-dir',
-                // args.profilesDir,
-                '--project-dir',
-                args.projectDir,
+                ...(args.projectDir ? ['--project-dir', args.projectDir] : []),
                 ...(args.target ? ['--target', args.target] : []),
                 ...(args.profile ? ['--profile', args.profile] : []),
                 ...(args.select ? ['--select', args.select.join(' ')] : []),
@@ -361,25 +358,41 @@ export const getCompiledModels = async (
                 '--resource-type=model',
                 '--output=json',
             ]);
-
+            GlobalState.debug(`> Compiled models: ${command}`);
+            console.error('stdout', stdout.length, stdout.split('\n').length);
+            console.error('stdout', stdout);
             const filteredModelIds = stdout
                 .split('\n')
                 .map((l) => l.trim())
                 .filter((l) => l.length > 0)
                 .map((l) => {
                     try {
-                        return JSON.parse(l);
+                        console.error('l', l);
+                        // remove prefixed time in dbt cloud cli output
+                        const lineWithoutPrefixedTime = l.replace(
+                            /^\d{2}:\d{2}:\d{2}\s*/,
+                            '',
+                        );
+                        return JSON.parse(lineWithoutPrefixedTime);
                     } catch (e) {
+                        console.error('Failed to parse line', e);
                         return null;
                     }
                 })
                 .filter(
-                    (l): l is { resource_type: string; unique_id: string } =>
-                        l !== null,
+                    (l): l is { resource_type: string; unique_id: string } => {
+                        console.error('l1', l);
+                        return l !== null;
+                    },
                 )
-                .filter((model) => model.resource_type === 'model')
+                .filter((model) => {
+                    console.error('l2', model);
+                    return model.resource_type === 'model';
+                })
                 .map((model) => model.unique_id);
 
+            console.error('allModelIds', allModelIds);
+            console.error('filteredModelIds', filteredModelIds);
             allModelIds = allModelIds.filter((modelId) =>
                 filteredModelIds.includes(modelId),
             );
@@ -395,7 +408,7 @@ export const getCompiledModels = async (
         (acc, model) => ({ ...acc, [model.unique_id]: model }),
         {},
     );
-
+    console.error('allModelIds', allModelIds.length);
     return allModelIds.map((modelId) => ({
         name: modelLookup[modelId].name,
         schema: modelLookup[modelId].schema,
