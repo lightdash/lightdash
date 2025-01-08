@@ -148,7 +148,6 @@ export const MetricExploreFilter: FC<Props> = ({
                                       height: 32,
                                       borderColor: theme.colors.gray[2],
                                       borderRadius: theme.radius.md,
-                                      //   boxShadow: theme.shadows.subtle,
                                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                                       color: theme.colors.dark[7],
                                       '&:hover': {
@@ -160,6 +159,12 @@ export const MetricExploreFilter: FC<Props> = ({
                                       },
                                       borderBottomLeftRadius: 0,
                                       borderBottomRightRadius: 0,
+                                      '&:focus': {
+                                          borderColor: theme.colors.gray[2],
+                                      },
+                                      '&:focus-within': {
+                                          borderColor: theme.colors.gray[2],
+                                      },
                                   },
                                   item: {
                                       fontSize: 14,
@@ -181,6 +186,7 @@ export const MetricExploreFilter: FC<Props> = ({
                                   },
                                   rightSection: {
                                       pointerEvents: 'none',
+                                      paddingRight: 4,
                                   },
                               }
                     }
@@ -206,8 +212,8 @@ export const MetricExploreFilter: FC<Props> = ({
                             }
                             size="xs"
                             radius="md"
-                            w={85}
-                            maw={85}
+                            w={90}
+                            maw={90}
                             styles={{
                                 input: {
                                     fontWeight: 500,
@@ -215,8 +221,7 @@ export const MetricExploreFilter: FC<Props> = ({
                                     height: 32,
                                     borderColor: theme.colors.gray[2],
                                     borderRadius: theme.radius.md,
-                                    // boxShadow: theme.shadows.subtle,
-                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                    padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
                                     color: theme.colors.dark[7],
                                     '&:hover': {
                                         backgroundColor: theme.colors.gray[0],
@@ -231,6 +236,12 @@ export const MetricExploreFilter: FC<Props> = ({
                                     borderBottomRightRadius: 0,
                                     paddingRight: 8,
                                     borderTop: 0,
+                                    '&:focus': {
+                                        borderColor: theme.colors.gray[2],
+                                    },
+                                    '&:focus-within': {
+                                        borderColor: theme.colors.gray[2],
+                                    },
                                 },
                                 item: {
                                     fontSize: 14,
@@ -255,80 +266,80 @@ export const MetricExploreFilter: FC<Props> = ({
                                 },
                             }}
                         />
+                        <>
+                            <TagInput
+                                placeholder="Type values..."
+                                value={filterState.values}
+                                disabled={!filterState.operator}
+                                onChange={(values) =>
+                                    setFilterState((prev) => ({
+                                        ...prev,
+                                        values,
+                                    }))
+                                }
+                                radius="md"
+                                size="xs"
+                                styles={{
+                                    wrapper: {
+                                        width: 200,
+                                    },
+                                    tagInput: {
+                                        fontWeight: 500,
+                                        fontSize: 14,
+                                    },
+                                    // @ts-expect-error this is a valid property
+                                    tagInputEmpty: {
+                                        fontWeight: 500,
+                                    },
+                                    value: {
+                                        fontWeight: 500,
+                                        borderRadius: theme.radius.sm,
+                                        color: theme.colors.dark[7],
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                    },
+                                    values: {
+                                        maxHeight: 32,
+                                    },
+                                    tagInputContainer: {
+                                        borderColor: theme.colors.gray[2],
+                                        borderRadius: theme.radius.md,
 
-                        {filterState.operator &&
-                            !['empty', 'not_empty'].includes(
-                                filterState.operator,
-                            ) && (
-                                <>
-                                    <TagInput
-                                        placeholder="Type values..."
-                                        value={filterState.values}
-                                        onChange={(values) =>
-                                            setFilterState((prev) => ({
-                                                ...prev,
-                                                values,
-                                            }))
-                                        }
-                                        radius="md"
-                                        w={180}
-                                        size="xs"
-                                        styles={{
-                                            wrapper: {
-                                                width: 204,
-                                            },
-                                            tagInput: {
-                                                fontWeight: 500,
-                                            },
-                                            // @ts-expect-error this is a valid property
-                                            tagInputEmpty: {
-                                                fontWeight: 500,
-                                            },
-                                            value: {
-                                                fontWeight: 500,
-                                                borderRadius: theme.radius.sm,
-                                                color: theme.colors.dark[7],
-                                                border: `1px solid ${theme.colors.gray[2]}`,
-                                            },
-                                            tagInputContainer: {
-                                                // border: `1px solid ${theme.colors.gray[2]}`,
-                                                borderColor:
-                                                    theme.colors.gray[2],
-                                                borderRadius: theme.radius.md,
+                                        borderTopRightRadius: 0,
+                                        borderTopLeftRadius: 0,
+                                        borderBottomLeftRadius: 0,
+                                        borderLeft: 0,
+                                        borderTop: 0,
+                                        fontWeight: 500,
+                                        overflow: 'scroll',
+                                        maxHeight: 32,
+                                        '&:focus': {
+                                            borderColor: theme.colors.gray[2],
+                                        },
+                                        '&:focus-within': {
+                                            borderColor: theme.colors.gray[2],
+                                        },
+                                    },
 
-                                                borderTopRightRadius: 0,
-                                                borderTopLeftRadius: 0,
-                                                borderBottomLeftRadius: 0,
-                                                borderLeft: 0,
-                                                borderTop: 0,
-                                                fontWeight: 500,
-                                                overflow: 'scroll',
-                                            },
+                                    input: {
+                                        height: 32,
+                                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                        color: theme.colors.dark[7],
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.gray[0],
+                                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                                        },
+                                        '&[value=""]': {
+                                            border: `1px dashed ${theme.colors.gray[4]}`,
+                                        },
+                                    },
 
-                                            input: {
-                                                fontWeight: 500,
-                                                fontSize: 14,
-                                                height: 32,
-                                                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                                color: theme.colors.dark[7],
-                                                // boxShadow: theme.shadows.subtle,
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        theme.colors.gray[0],
-                                                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                                },
-                                                '&[value=""]': {
-                                                    border: `1px dashed ${theme.colors.gray[4]}`,
-                                                },
-                                            },
-
-                                            rightSection: {
-                                                pointerEvents: 'none',
-                                            },
-                                        }}
-                                    />
-                                </>
-                            )}
+                                    rightSection: {
+                                        pointerEvents: 'none',
+                                    },
+                                }}
+                            />
+                        </>
                     </Group>
                 )}
             </Stack>
