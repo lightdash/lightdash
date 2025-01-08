@@ -1,3 +1,10 @@
+## [0.1443.1](https://github.com/lightdash/lightdash/compare/0.1443.0...0.1443.1) (2025-01-08)
+
+
+### Bug Fixes
+
+* split chart usage query into count and select for single chart ([#13133](https://github.com/lightdash/lightdash/issues/13133)) ([ddc07d6](https://github.com/lightdash/lightdash/commit/ddc07d630654e7b43784b3ffe080ceebffeca0ac))
+
 # [0.1443.0](https://github.com/lightdash/lightdash/compare/0.1442.1...0.1443.0) (2025-01-08)
 
 
