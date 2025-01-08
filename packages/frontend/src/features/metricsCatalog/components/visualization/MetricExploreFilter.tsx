@@ -94,6 +94,9 @@ export const MetricExploreFilter: FC<Props> = ({
                         '&:hover': {
                             backgroundColor: theme.colors.gray[1],
                         },
+                        visibility: filterState.dimension
+                            ? 'visible'
+                            : 'hidden',
                     }}
                     styles={{
                         rightIcon: {
