@@ -44,7 +44,7 @@
         "typescript": "^4.9.5"
     },
     "scripts": {
-        "preinstall": "node scripts/only-allow-pnpm.js",
+        "preinstall": "node -e \"require('fs').existsSync('./scripts/only-allow-pnpm.js') && require('./scripts/only-allow-pnpm.js')\"",
         "common-dev": "pnpm -F @lightdash/common dev",
         "common-build": "pnpm -F @lightdash/common build",
         "common-lint": "pnpm -F @lightdash/common lint",
