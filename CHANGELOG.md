@@ -1,3 +1,15 @@
+# [0.1442.0](https://github.com/lightdash/lightdash/compare/0.1441.0...0.1442.0) (2025-01-08)
+
+
+### Bug Fixes
+
+* metric tree nodes not loading edges when changing filters ([#13122](https://github.com/lightdash/lightdash/issues/13122)) ([698e7d2](https://github.com/lightdash/lightdash/commit/698e7d207824cd27a6b86bc5294a2fc00a6d14e4))
+
+
+### Features
+
+* metrics explorer chart zoom ([#13110](https://github.com/lightdash/lightdash/issues/13110)) ([cd2563b](https://github.com/lightdash/lightdash/commit/cd2563b5f25fca9ad3d9c308c5d56e40a989674f))
+
 # [0.1441.0](https://github.com/lightdash/lightdash/compare/0.1440.6...0.1441.0) (2025-01-08)
 
 
