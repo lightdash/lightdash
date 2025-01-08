@@ -1,3 +1,10 @@
+## [0.1444.1](https://github.com/lightdash/lightdash/compare/0.1444.0...0.1444.1) (2025-01-08)
+
+
+### Bug Fixes
+
+* google sheets sync form bug ([#13153](https://github.com/lightdash/lightdash/issues/13153)) ([9f134e5](https://github.com/lightdash/lightdash/commit/9f134e5cad158832c23b3649d725e21f5ae2ec8a))
+
 # [0.1444.0](https://github.com/lightdash/lightdash/compare/0.1443.1...0.1444.0) (2025-01-08)
 
 
