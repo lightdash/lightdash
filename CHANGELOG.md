@@ -1,3 +1,11 @@
+## [0.1440.6](https://github.com/lightdash/lightdash/compare/0.1440.5...0.1440.6) (2025-01-08)
+
+
+### Bug Fixes
+
+* missing field name does not truncate ([#13132](https://github.com/lightdash/lightdash/issues/13132)) ([4e65153](https://github.com/lightdash/lightdash/commit/4e651530f033fc0a83fafc7ac376c452fa010651))
+* sidebar resizing to allow showing long field labels ([#13134](https://github.com/lightdash/lightdash/issues/13134)) ([ae0001c](https://github.com/lightdash/lightdash/commit/ae0001c4ba8127f629dcd8bc61307a4c6e1b36d0))
+
 ## [0.1440.5](https://github.com/lightdash/lightdash/compare/0.1440.4...0.1440.5) (2025-01-07)
 
 
