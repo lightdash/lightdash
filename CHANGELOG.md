@@ -1,3 +1,10 @@
+# [0.1443.0](https://github.com/lightdash/lightdash/compare/0.1442.1...0.1443.0) (2025-01-08)
+
+
+### Features
+
+* show expanded node when dragging out ([#13130](https://github.com/lightdash/lightdash/issues/13130)) ([962c986](https://github.com/lightdash/lightdash/commit/962c986d0386bc6092960cf75ecb179e7693ffc5))
+
 ## [0.1442.1](https://github.com/lightdash/lightdash/compare/0.1442.0...0.1442.1) (2025-01-08)
 
 
