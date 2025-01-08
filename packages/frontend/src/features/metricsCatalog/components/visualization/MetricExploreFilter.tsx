@@ -17,7 +17,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconFilter, IconPencil, IconX } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { TagInput } from '../../../../components/common/TagInput/TagInput';
@@ -63,8 +63,8 @@ export const MetricExploreFilter: FC<Props> = ({
         operator: null,
         values: [],
     });
-    const [isReadMode, setIsReadMode] = useState(false);
-    const [activeFilter, setActiveFilter] = useState<FilterRule>();
+    const [mode, setMode] = useState<'read' | 'edit'>('read');
+    const [activeFilter, setActiveFilter] = useState<FilterRule | undefined>();
 
     const handleApplyFilter = useCallback(() => {
         const dimension = dimensions?.find(
@@ -84,12 +84,12 @@ export const MetricExploreFilter: FC<Props> = ({
         );
 
         setActiveFilter(filterRule);
-        setIsReadMode(true);
+        setMode('read');
         onFilterApply(filterRule);
     }, [dimensions, filterState, onFilterApply]);
 
     const handleClearFilter = () => {
-        setIsReadMode(false);
+        setMode('edit');
         setActiveFilter(undefined);
         setFilterState({
             dimension: null,
@@ -100,10 +100,18 @@ export const MetricExploreFilter: FC<Props> = ({
     };
 
     const handleEditFilter = () => {
-        setIsReadMode(false);
+        setMode('edit');
     };
 
-    const isFilterApplied = Boolean(activeFilter && isReadMode);
+    useEffect(() => {
+        if (activeFilter) {
+            setMode('read');
+        } else {
+            setMode('edit');
+        }
+    }, [activeFilter]);
+
+    const isFilterApplied = Boolean(activeFilter && mode === 'read');
 
     return (
         <Stack spacing="xs">
@@ -189,9 +197,9 @@ export const MetricExploreFilter: FC<Props> = ({
                             dimension: value,
                         }))
                     }
-                    data-selected={!!filterState.dimension || isReadMode}
+                    data-selected={!!filterState.dimension || mode === 'read'}
                     classNames={filterSelectClasses}
-                    readOnly={isFilterApplied ? true : undefined}
+                    readOnly={mode === 'read' ? true : undefined}
                 />
 
                 {isFilterApplied && (
@@ -291,7 +299,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     </Group>
                 )}
             </Stack>
-            {!isFilterApplied && (
+            {mode === 'edit' && filterState.dimension && (
                 <Button
                     color="dark"
                     compact
