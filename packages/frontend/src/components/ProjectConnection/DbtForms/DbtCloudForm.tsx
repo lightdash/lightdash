@@ -56,6 +56,20 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 }}
                 disabled={disabled}
             />
+            <Input
+                name="dbt.discovery_api_endpoint"
+                label="Discovery API endpoint"
+                documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
+                rules={{
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces(
+                            'Discovery API endpoint',
+                        ),
+                    },
+                }}
+                placeholder={'https://metadata.cloud.getdbt.com/graphql'}
+                disabled={disabled}
+            />
         </Stack>
     );
 };

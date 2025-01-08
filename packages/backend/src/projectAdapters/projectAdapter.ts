@@ -59,6 +59,7 @@ export const projectAdapterFromConfig = async (
             return new DbtCloudIdeProjectAdapter({
                 warehouseClient,
                 environmentId: `${config.environment_id}`,
+                discoveryApiEndpoint: config.discovery_api_endpoint,
                 apiKey: config.api_key,
                 cachedWarehouse,
                 dbtVersion,
