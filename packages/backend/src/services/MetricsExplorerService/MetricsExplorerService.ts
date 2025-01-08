@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     Dimension,
+    FilterRule,
     ForbiddenError,
     getDateCalcUtils,
     getDateRangeFromString,
@@ -230,6 +231,7 @@ export class MetricsExplorerService<
         endDate: string,
         query: MetricExplorerQuery,
         timeDimensionOverride: TimeDimensionConfig | undefined,
+        filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         return measureTime(
             () =>
@@ -242,6 +244,7 @@ export class MetricsExplorerService<
                     endDate,
                     query,
                     timeDimensionOverride,
+                    filter,
                 ),
             'runMetricExplorerQuery',
             this.logger,
@@ -293,6 +296,7 @@ export class MetricsExplorerService<
         endDate: string,
         query: MetricExplorerQuery,
         timeDimensionOverride: TimeDimensionConfig | undefined,
+        filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -388,10 +392,13 @@ export class MetricsExplorerService<
                             segmentDimensionId,
                             segments,
                         ),
+                        ...(filter ? [filter] : []),
                     ],
                 },
             },
         };
+
+        console.log(JSON.stringify(metricQuery, null, 2));
 
         const { rows: currentResults, fields } =
             await this.projectService.runMetricExplorerQuery(

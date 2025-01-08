@@ -19789,6 +19789,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                filter: { ref: 'FilterRule' },
                 query: { ref: 'MetricExplorerQuery', required: true },
                 timeDimensionOverride: { ref: 'TimeDimensionConfig' },
             },

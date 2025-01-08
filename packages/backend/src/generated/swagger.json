@@ -17922,6 +17922,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "filter": {
+                                        "$ref": "#/components/schemas/FilterRule"
+                                    },
                                     "query": {
                                         "$ref": "#/components/schemas/MetricExplorerQuery"
                                     },
