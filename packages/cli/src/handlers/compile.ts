@@ -7,7 +7,6 @@ import {
     isExploreError,
     isSupportedDbtAdapter,
     ParseError,
-    SupportedDbtAdapter,
     WarehouseCatalog,
 } from '@lightdash/common';
 import path from 'path';
@@ -57,6 +56,13 @@ export const compile = async (options: CompileHandlerOptions) => {
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const { warehouseClient } = await getWarehouseClient({
+        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
+    });
 
     const compiledModelIds: string[] | undefined =
         await maybeCompileModelsAndJoins(
@@ -65,14 +71,6 @@ export const compile = async (options: CompileHandlerOptions) => {
         );
 
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const warehouseClient = await getWarehouseClient({
-        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
-        dbtAdaptorType: manifest.metadata.adapter_type as SupportedDbtAdapter,
-        profilesDir: options.profilesDir,
-        profile: options.profile || context.profileName,
-        target: options.target,
-        startOfWeek: options.startOfWeek,
-    });
     const manifestVersion = getDbtManifestVersion(manifest);
     const manifestModels = getModelsFromManifest(manifest);
     const compiledModels = getCompiledModels(manifestModels, compiledModelIds);

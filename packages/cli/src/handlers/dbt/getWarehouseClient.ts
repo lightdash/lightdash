@@ -1,17 +1,47 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
+    isSupportedDbtAdapterType,
     isWeekDay,
+    ParseError,
     SupportedDbtAdapter,
     WarehouseTypes,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import execa from 'execa';
 import path from 'path';
 import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../../dbt/profile';
 import GlobalState from '../../globalState';
+
+const DBT_CLOUD_CONNECTION_TYPE_REGEX = /Connection type\s+(\w+)/;
+
+const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
+    try {
+        const { all } = await execa('dbt', ['environment', 'show'], {
+            all: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        const logs = all || '';
+        const connectionType = logs.match(DBT_CLOUD_CONNECTION_TYPE_REGEX);
+        if (connectionType === null || connectionType.length === 0) {
+            throw new ParseError(
+                `Can't locate connection type in 'dbt environment show' response`,
+            );
+        }
+        if (!isSupportedDbtAdapterType(connectionType[1])) {
+            throw new ParseError(
+                `Unsupported dbt adaptor type ${connectionType[1]}`,
+            );
+        }
+        return connectionType[1];
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
+        throw new ParseError(`Failed to get connection type:\n  ${msg}`);
+    }
+};
 
 function getMockCredentials(
     dbtAdaptorType: SupportedDbtAdapter,
@@ -99,21 +129,28 @@ function getMockCredentials(
 
 type GetWarehouseClientOptions = {
     isDbtCloudCLI: boolean;
-    dbtAdaptorType: SupportedDbtAdapter;
     profilesDir: string;
     profile: string;
     target?: string;
     startOfWeek?: number;
 };
 
+type GetWarehouseClientReturn = {
+    warehouseClient: ReturnType<typeof warehouseClientFromCredentials>;
+    credentials: CreateWarehouseCredentials;
+};
+
 export default async function getWarehouseClient(
     options: GetWarehouseClientOptions,
-) {
+): Promise<GetWarehouseClientReturn> {
     let warehouseClient;
+    let credentials;
     if (options.isDbtCloudCLI) {
-        GlobalState.debug(`> Using ${options.dbtAdaptorType} client mock`);
+        const dbtAdaptorType = await getDbtCloudConnectionType();
+        GlobalState.debug(`> Using ${dbtAdaptorType} client mock`);
+        credentials = getMockCredentials(dbtAdaptorType);
         warehouseClient = warehouseClientFromCredentials({
-            ...getMockCredentials(options.dbtAdaptorType),
+            ...credentials,
             startOfWeek: isWeekDay(options.startOfWeek)
                 ? options.startOfWeek
                 : undefined,
@@ -165,7 +202,7 @@ export default async function getWarehouseClient(
             targetName: options.target,
         });
         GlobalState.debug(`> Using target ${target}`);
-        const credentials = await warehouseCredentialsFromDbtTarget(target);
+        credentials = await warehouseCredentialsFromDbtTarget(target);
         warehouseClient = warehouseClientFromCredentials({
             ...credentials,
             startOfWeek: isWeekDay(options.startOfWeek)
@@ -173,5 +210,8 @@ export default async function getWarehouseClient(
                 : undefined,
         });
     }
-    return warehouseClient;
+    return {
+        warehouseClient,
+        credentials,
+    };
 }
