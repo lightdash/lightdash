@@ -183,7 +183,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             onChange={(value) => {
                                 methods.setValue(
                                     'timezone',
-                                    value ?? undefined,
+                                    value || undefined,
                                 );
                             }}
                             value={timezoneValue}
