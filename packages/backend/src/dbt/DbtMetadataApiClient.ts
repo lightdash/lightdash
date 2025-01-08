@@ -135,6 +135,11 @@ export class DbtMetadataApiClient implements DbtClient {
 
             const { adapterType } = results.environment;
             let fieldQuoteChar = '"';
+            if (!adapterType) {
+                throw new ParseError(
+                    `Warehouse connection not found for environment ${this.environmentId}`,
+                );
+            }
             if (isSupportedDbtAdapterType(adapterType)) {
                 fieldQuoteChar = quoteChars[adapterType];
             } else {
