@@ -1,3 +1,10 @@
+# [0.1441.0](https://github.com/lightdash/lightdash/compare/0.1440.6...0.1441.0) (2025-01-08)
+
+
+### Features
+
+* skip existing generate cli ([#13139](https://github.com/lightdash/lightdash/issues/13139)) ([a70cac4](https://github.com/lightdash/lightdash/commit/a70cac4e8af4f7d055ffa17297b7f9c77804d198))
+
 ## [0.1440.6](https://github.com/lightdash/lightdash/compare/0.1440.5...0.1440.6) (2025-01-08)
 
 
