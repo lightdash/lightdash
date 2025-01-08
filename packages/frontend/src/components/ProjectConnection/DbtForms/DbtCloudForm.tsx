@@ -1,5 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Alert, Stack } from '@mantine/core';
+import { Alert, Anchor, Stack } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
@@ -21,8 +21,8 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 variant="light"
             >
                 <p>
-                    The dbt job that builds your project must also generate docs
-                    and your API key must have the access to the Discovery API.
+                    The dbt job that builds your project must{' '}
+                    <b>generate docs</b>.
                 </p>
                 <p>
                     After your job finish you need to click the "refresh dbt"
@@ -31,7 +31,13 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             </Alert>
             <PasswordInput
                 name="dbt.api_key"
-                label="API key"
+                label="Service token"
+                description={
+                    <p>
+                        The service token must have the "Metadata Only"
+                        permission.
+                    </p>
+                }
                 documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
@@ -47,6 +53,13 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.environment_id"
                 label="Environment ID"
+                description={
+                    <p>
+                        The unique identifier for the dbt production
+                        environment, you can retrieve this from the dbt Cloud
+                        URL when you navigate to Environments under Deploy.
+                    </p>
+                }
                 documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/sl-jdbc#connection-parameters"
                 rules={{
                     required: 'Required field',
@@ -59,7 +72,19 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.discovery_api_endpoint"
                 label="Discovery API endpoint"
-                documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
+                description={
+                    <p>
+                        Use the endpoint that's appropriate for your{' '}
+                        <Anchor
+                            target="_blank"
+                            href="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
+                            rel="noreferrer"
+                        >
+                            region and plan
+                        </Anchor>
+                        .
+                    </p>
+                }
                 rules={{
                     validate: {
                         hasNoWhiteSpaces: hasNoWhiteSpaces(
