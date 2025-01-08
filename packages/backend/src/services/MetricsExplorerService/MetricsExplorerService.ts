@@ -398,8 +398,6 @@ export class MetricsExplorerService<
             },
         };
 
-        console.log(JSON.stringify(metricQuery, null, 2));
-
         const { rows: currentResults, fields } =
             await this.projectService.runMetricExplorerQuery(
                 user,

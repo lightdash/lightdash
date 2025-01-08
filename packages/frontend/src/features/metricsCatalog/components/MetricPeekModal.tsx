@@ -1,9 +1,11 @@
 import {
+    DimensionType,
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
     MetricExplorerComparison,
     type CatalogField,
+    type FilterRule,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
@@ -157,6 +159,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         );
     }, [query]);
 
+    const [filter, setFilter] = useState<FilterRule | undefined>(undefined);
+
     const isQueryEnabled =
         (!!projectUuid &&
             !!tableName &&
@@ -183,6 +187,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                   }
                 : query,
             timeDimensionOverride,
+            filter,
         },
         {
             enabled: isQueryEnabled,
@@ -383,6 +388,22 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         ['ArrowDown', () => handleGoToNextMetric()],
     ]);
 
+    const handleFilterApply = useCallback(
+        (filterRule: FilterRule | undefined) => {
+            setFilter(filterRule);
+        },
+        [],
+    );
+
+    const availableFilters = useMemo(
+        () =>
+            // TODO: Get filters from the query instead of segmentByData, this should include more types than just string
+            segmentDimensionsQuery.data?.filter(
+                (dimension) => dimension.type === DimensionType.STRING,
+            ) ?? [],
+        [segmentDimensionsQuery.data],
+    );
+
     return (
         <Modal.Root
             opened={opened}
@@ -500,7 +521,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                         >
                             <MetricExploreFilter
                                 // TODO: Get filters from the query instead of segmentByData
-                                filters={segmentByData}
+                                dimensions={availableFilters}
+                                onFilterApply={handleFilterApply}
                             />
                             <MetricPeekSegmentationPicker
                                 query={query}

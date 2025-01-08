@@ -1,47 +1,78 @@
+import {
+    FilterOperator,
+    getFilterRuleWithDefaultValue,
+    getItemId,
+    type CompiledDimension,
+    type FilterRule,
+} from '@lightdash/common';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { TagInput } from '../../../../components/common/TagInput/TagInput';
 import { useSelectStyles } from '../../styles/useSelectStyles';
 import SelectItem from '../SelectItem';
 
 type Props = {
-    filters: {
-        value: string;
-        label: string;
-    }[];
+    dimensions: CompiledDimension[] | undefined;
+    onFilterApply: (filterRule: FilterRule | undefined) => void;
 };
-
-type FilterCondition = 'is' | 'is not';
 
 interface FilterState {
     dimension: string | null;
-    condition: FilterCondition | null;
+    operator: FilterOperator | null;
     values: string[];
 }
 
-export const MetricExploreFilter: FC<Props> = ({ filters }) => {
+export const MetricExploreFilter: FC<Props> = ({
+    dimensions,
+    onFilterApply,
+}) => {
     const { classes, theme } = useSelectStyles();
 
     const [filterState, setFilterState] = useState<FilterState>({
         dimension: null,
-        condition: null,
+        operator: null,
         values: [],
     });
 
     const onFilterChange = (value: string | null) => {
-        // TODO: Implement filter change
-        console.log(value);
-
         if (value === null) {
             setFilterState({
                 dimension: null,
-                condition: null,
+                operator: null,
                 values: [],
             });
+            onFilterApply(undefined);
         }
     };
+
+    const handleApplyFilter = useCallback(() => {
+        const dimension = dimensions?.find(
+            (d) => d.name === filterState.dimension,
+        );
+        if (!dimension || !filterState.operator) return;
+        const filterRule = getFilterRuleWithDefaultValue(
+            dimension,
+            {
+                id: uuidv4(),
+                target: {
+                    fieldId: getItemId(dimension),
+                },
+                operator: filterState.operator,
+            },
+            filterState.values,
+        );
+
+        onFilterApply(filterRule);
+    }, [
+        dimensions,
+        filterState.operator,
+        filterState.dimension,
+        filterState.values,
+        onFilterApply,
+    ]);
 
     return (
         <Stack spacing="xs">
@@ -88,8 +119,13 @@ export const MetricExploreFilter: FC<Props> = ({ filters }) => {
                     searchable
                     radius="md"
                     size="xs"
-                    data={filters}
-                    disabled={filters.length === 0}
+                    data={
+                        dimensions?.map((dimension) => ({
+                            value: dimension.name,
+                            label: dimension.label,
+                        })) ?? []
+                    }
+                    disabled={dimensions?.length === 0}
                     value={filterState.dimension}
                     itemComponent={SelectItem}
                     onChange={(value) =>
@@ -148,18 +184,21 @@ export const MetricExploreFilter: FC<Props> = ({ filters }) => {
                 />
 
                 {filterState.dimension && (
-                    <Group spacing={0} noWrap grow>
+                    <Group spacing={0} noWrap>
                         <Select
                             placeholder="Condition"
                             data={[
-                                { value: 'is', label: 'is' },
-                                { value: 'is_not', label: 'is not' },
+                                { value: FilterOperator.EQUALS, label: 'is' },
+                                {
+                                    value: FilterOperator.NOT_EQUALS,
+                                    label: 'is not',
+                                },
                             ]}
-                            value={filterState.condition}
+                            value={filterState.operator}
                             onChange={(value) =>
                                 setFilterState((prev) => ({
                                     ...prev,
-                                    condition: value as FilterCondition,
+                                    operator: value as FilterOperator,
                                 }))
                             }
                             size="xs"
@@ -214,9 +253,9 @@ export const MetricExploreFilter: FC<Props> = ({ filters }) => {
                             }}
                         />
 
-                        {filterState.condition &&
+                        {filterState.operator &&
                             !['empty', 'not_empty'].includes(
-                                filterState.condition,
+                                filterState.operator,
                             ) && (
                                 <>
                                     <TagInput
@@ -229,11 +268,11 @@ export const MetricExploreFilter: FC<Props> = ({ filters }) => {
                                             }))
                                         }
                                         radius="md"
-                                        w={250}
+                                        w={180}
                                         size="xs"
                                         styles={{
                                             wrapper: {
-                                                width: 250,
+                                                width: 204,
                                             },
                                             tagInput: {
                                                 fontWeight: 500,
@@ -300,10 +339,7 @@ export const MetricExploreFilter: FC<Props> = ({ filters }) => {
                         boxShadow: theme.shadows.subtle,
                         alignSelf: 'flex-end',
                     }}
-                    onClick={() => {
-                        // TODO: Implement filter application
-                        console.log('Apply filter:', filterState);
-                    }}
+                    onClick={handleApplyFilter}
                 >
                     Apply
                 </Button>
