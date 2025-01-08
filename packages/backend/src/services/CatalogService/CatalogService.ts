@@ -767,10 +767,7 @@ export class CatalogService<
         catalogFieldMap: CatalogFieldMap,
     ) {
         const chartUsagesForFields =
-            await this.savedChartModel.getChartCountForFieldIds(
-                projectUuid,
-                Object.keys(catalogFieldMap),
-            );
+            await this.savedChartModel.getChartCountPerField(projectUuid);
 
         const chartUsageUpdates = chartUsagesForFields
             .map<ChartUsageIn | undefined>(({ fieldId, count }) => {

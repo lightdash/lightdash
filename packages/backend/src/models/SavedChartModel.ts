@@ -666,7 +666,7 @@ export class SavedChartModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
     }
 
-    async getChartCountForFieldIds(projectUuid: string, fieldIds: string[]) {
+    async getChartCountPerField(projectUuid: string) {
         const chartSummaryQuery = this.getChartSummaryQuery().clearSelect();
         const results = await chartSummaryQuery
             .select({
@@ -686,7 +686,6 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.saved_queries_version_id`,
                 `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
             )
-            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
             .where(
                 // filter by last version
                 `${SavedChartVersionsTableName}.saved_queries_version_id`,
