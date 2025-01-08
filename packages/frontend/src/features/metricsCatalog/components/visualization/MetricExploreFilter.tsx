@@ -5,13 +5,27 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
-import { IconFilter, IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Divider,
+    Group,
+    Select,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconFilter, IconPencil, IconX } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { TagInput } from '../../../../components/common/TagInput/TagInput';
-import { useSelectStyles } from '../../styles/useSelectStyles';
+import {
+    useFilterSelectStyles,
+    useFilterTagInputStyles,
+    useOperatorSelectStyles,
+} from '../../styles/useFilterStyles';
 import SelectItem from '../SelectItem';
 
 type Props = {
@@ -29,24 +43,28 @@ export const MetricExploreFilter: FC<Props> = ({
     dimensions,
     onFilterApply,
 }) => {
-    const { classes, theme } = useSelectStyles();
+    const { classes: filterSelectClasses, theme, cx } = useFilterSelectStyles();
+    const { classes: operatorSelectClasses } = useOperatorSelectStyles();
+    const { classes: tagInputClasses } = useFilterTagInputStyles();
+
+    const operatorOptions = [
+        {
+            value: FilterOperator.EQUALS,
+            label: 'is',
+        },
+        {
+            value: FilterOperator.NOT_EQUALS,
+            label: 'is not',
+        },
+    ];
 
     const [filterState, setFilterState] = useState<FilterState>({
         dimension: null,
         operator: null,
         values: [],
     });
-
-    const onFilterChange = (value: string | null) => {
-        if (value === null) {
-            setFilterState({
-                dimension: null,
-                operator: null,
-                values: [],
-            });
-            onFilterApply(undefined);
-        }
-    };
+    const [isReadMode, setIsReadMode] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<FilterRule>();
 
     const handleApplyFilter = useCallback(() => {
         const dimension = dimensions?.find(
@@ -65,48 +83,82 @@ export const MetricExploreFilter: FC<Props> = ({
             filterState.values,
         );
 
+        setActiveFilter(filterRule);
+        setIsReadMode(true);
         onFilterApply(filterRule);
-    }, [
-        dimensions,
-        filterState.operator,
-        filterState.dimension,
-        filterState.values,
-        onFilterApply,
-    ]);
+    }, [dimensions, filterState, onFilterApply]);
+
+    const handleClearFilter = () => {
+        setIsReadMode(false);
+        setActiveFilter(undefined);
+        setFilterState({
+            dimension: null,
+            operator: null,
+            values: [],
+        });
+        onFilterApply(undefined);
+    };
+
+    const handleEditFilter = () => {
+        setIsReadMode(false);
+    };
+
+    const isFilterApplied = Boolean(activeFilter && isReadMode);
 
     return (
         <Stack spacing="xs">
             <Group position="apart">
-                <Text fw={500} c="gray.7">
-                    Filter
-                </Text>
+                <Group spacing="xs" align="normal">
+                    <Text fw={500} c="gray.7">
+                        Filter
+                    </Text>
 
-                <Button
-                    variant="subtle"
-                    compact
-                    color="dark"
-                    size="xs"
-                    radius="md"
-                    rightIcon={
-                        <MantineIcon icon={IconX} color="gray.5" size={12} />
-                    }
-                    sx={{
-                        '&:hover': {
-                            backgroundColor: theme.colors.gray[1],
-                        },
-                        visibility: filterState.dimension
-                            ? 'visible'
-                            : 'hidden',
-                    }}
-                    styles={{
-                        rightIcon: {
-                            marginLeft: 4,
-                        },
-                    }}
-                    onClick={() => onFilterChange(null)}
-                >
-                    Clear
-                </Button>
+                    {isFilterApplied && (
+                        <Tooltip variant="xs" label="Edit filter">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                onClick={handleEditFilter}
+                            >
+                                <MantineIcon icon={IconPencil} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
+
+                <Group spacing="xs">
+                    <Button
+                        variant="subtle"
+                        compact
+                        color="dark"
+                        size="xs"
+                        radius="md"
+                        rightIcon={
+                            <MantineIcon
+                                icon={IconX}
+                                color="gray.5"
+                                size={12}
+                            />
+                        }
+                        sx={{
+                            '&:hover': {
+                                backgroundColor: theme.colors.gray[1],
+                            },
+                            visibility: filterState.dimension
+                                ? 'visible'
+                                : 'hidden',
+                        }}
+                        styles={{
+                            rightIcon: {
+                                marginLeft: 4,
+                            },
+                        }}
+                        onClick={handleClearFilter}
+                    >
+                        Clear
+                    </Button>
+                </Group>
             </Group>
 
             <Stack
@@ -137,72 +189,62 @@ export const MetricExploreFilter: FC<Props> = ({
                             dimension: value,
                         }))
                     }
-                    classNames={filterState.dimension ? undefined : classes}
-                    styles={
-                        !filterState.dimension
-                            ? undefined
-                            : {
-                                  input: {
-                                      fontWeight: 500,
-                                      fontSize: 14,
-                                      height: 32,
-                                      borderColor: theme.colors.gray[2],
-                                      borderRadius: theme.radius.md,
-                                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                      color: theme.colors.dark[7],
-                                      '&:hover': {
-                                          backgroundColor: theme.colors.gray[0],
-                                          transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                      },
-                                      '&[value=""]': {
-                                          border: `1px dashed ${theme.colors.gray[4]}`,
-                                      },
-                                      borderBottomLeftRadius: 0,
-                                      borderBottomRightRadius: 0,
-                                      '&:focus': {
-                                          borderColor: theme.colors.gray[2],
-                                      },
-                                      '&:focus-within': {
-                                          borderColor: theme.colors.gray[2],
-                                      },
-                                  },
-                                  item: {
-                                      fontSize: 14,
-                                      '&[data-selected="true"]': {
-                                          color: theme.colors.gray[7],
-                                          fontWeight: 500,
-                                          backgroundColor: theme.colors.gray[0],
-                                      },
-                                      '&[data-selected="true"]:hover': {
-                                          backgroundColor: theme.colors.gray[0],
-                                      },
-                                      '&:hover': {
-                                          backgroundColor: theme.colors.gray[0],
-                                          transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                      },
-                                  },
-                                  dropdown: {
-                                      minWidth: 300,
-                                  },
-                                  rightSection: {
-                                      pointerEvents: 'none',
-                                      paddingRight: 4,
-                                  },
-                              }
-                    }
+                    data-selected={!!filterState.dimension || isReadMode}
+                    classNames={filterSelectClasses}
+                    readOnly={isFilterApplied ? true : undefined}
                 />
 
-                {filterState.dimension && (
+                {isFilterApplied && (
+                    <Group
+                        sx={{
+                            border: `1px solid ${theme.colors.gray[2]}`,
+                            borderRadius: theme.radius.md,
+                            borderTopLeftRadius: 0,
+                            borderTopRightRadius: 0,
+                            borderTop: 0,
+                            backgroundColor: 'white',
+                        }}
+                        noWrap
+                        spacing={0}
+                    >
+                        <Box
+                            px="xs"
+                            py="xxs"
+                            bg="gray.0"
+                            sx={{
+                                borderBottomLeftRadius: theme.radius.md,
+                            }}
+                        >
+                            <Text fw={550} c="dark.6">
+                                {
+                                    operatorOptions.find(
+                                        (op) =>
+                                            op.value === filterState.operator,
+                                    )?.label
+                                }
+                            </Text>
+                        </Box>
+                        <Divider orientation="vertical" color="gray.2" />
+                        <Box
+                            px="xs"
+                            py="xxs"
+                            w="fit-content"
+                            sx={{
+                                borderBottomRightRadius: theme.radius.md,
+                            }}
+                        >
+                            <Text fw={500} c="gray.7">
+                                {activeFilter?.values?.join(', ')}
+                            </Text>
+                        </Box>
+                    </Group>
+                )}
+
+                {filterState.dimension && !isFilterApplied && (
                     <Group spacing={0} noWrap>
                         <Select
                             placeholder="Condition"
-                            data={[
-                                { value: FilterOperator.EQUALS, label: 'is' },
-                                {
-                                    value: FilterOperator.NOT_EQUALS,
-                                    label: 'is not',
-                                },
-                            ]}
+                            data={operatorOptions}
                             value={filterState.operator}
                             onChange={(value) =>
                                 setFilterState((prev) => ({
@@ -212,63 +254,26 @@ export const MetricExploreFilter: FC<Props> = ({
                             }
                             size="xs"
                             radius="md"
-                            w={90}
-                            maw={90}
-                            styles={{
-                                input: {
-                                    fontWeight: 500,
-                                    fontSize: 14,
-                                    height: 32,
-                                    borderColor: theme.colors.gray[2],
-                                    borderRadius: theme.radius.md,
-                                    padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
-                                    color: theme.colors.dark[7],
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.gray[0],
-                                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                    },
-                                    '&[value=""]': {
-                                        border: `1px dashed ${theme.colors.gray[4]}`,
-                                    },
-
-                                    borderTopLeftRadius: 0,
-                                    borderTopRightRadius: 0,
-                                    borderBottomRightRadius: 0,
-                                    paddingRight: 8,
-                                    borderTop: 0,
-                                    '&:focus': {
-                                        borderColor: theme.colors.gray[2],
-                                    },
-                                    '&:focus-within': {
-                                        borderColor: theme.colors.gray[2],
-                                    },
-                                },
-                                item: {
-                                    fontSize: 14,
-                                    '&[data-selected="true"]': {
-                                        color: theme.colors.gray[7],
-                                        fontWeight: 500,
-                                        backgroundColor: theme.colors.gray[0],
-                                    },
-                                    '&[data-selected="true"]:hover': {
-                                        backgroundColor: theme.colors.gray[0],
-                                    },
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.gray[0],
-                                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                    },
-                                },
-                                dropdown: {
-                                    minWidth: 60,
-                                },
-                                rightSection: {
-                                    pointerEvents: 'none',
-                                },
+                            classNames={{
+                                input: cx(
+                                    operatorSelectClasses.input,
+                                    isFilterApplied &&
+                                        operatorSelectClasses.inputReadOnly,
+                                ),
+                                item: operatorSelectClasses.item,
+                                dropdown: operatorSelectClasses.dropdown,
+                                rightSection:
+                                    operatorSelectClasses.rightSection,
                             }}
+                            readOnly={isFilterApplied ? true : undefined}
                         />
                         <>
                             <TagInput
-                                placeholder="Type values..."
+                                placeholder={
+                                    filterState.operator
+                                        ? 'Type values...'
+                                        : undefined
+                                }
                                 value={filterState.values}
                                 disabled={!filterState.operator}
                                 onChange={(values) =>
@@ -279,76 +284,23 @@ export const MetricExploreFilter: FC<Props> = ({
                                 }
                                 radius="md"
                                 size="xs"
-                                styles={{
-                                    wrapper: {
-                                        width: 200,
-                                    },
-                                    tagInput: {
-                                        fontWeight: 500,
-                                        fontSize: 14,
-                                    },
-                                    // @ts-expect-error this is a valid property
-                                    tagInputEmpty: {
-                                        fontWeight: 500,
-                                    },
-                                    value: {
-                                        fontWeight: 500,
-                                        borderRadius: theme.radius.sm,
-                                        color: theme.colors.dark[7],
-                                        border: `1px solid ${theme.colors.gray[2]}`,
-                                    },
-                                    values: {
-                                        maxHeight: 32,
-                                    },
-                                    tagInputContainer: {
-                                        borderColor: theme.colors.gray[2],
-                                        borderRadius: theme.radius.md,
-
-                                        borderTopRightRadius: 0,
-                                        borderTopLeftRadius: 0,
-                                        borderBottomLeftRadius: 0,
-                                        borderLeft: 0,
-                                        borderTop: 0,
-                                        fontWeight: 500,
-                                        overflow: 'scroll',
-                                        maxHeight: 32,
-                                        '&:focus': {
-                                            borderColor: theme.colors.gray[2],
-                                        },
-                                        '&:focus-within': {
-                                            borderColor: theme.colors.gray[2],
-                                        },
-                                    },
-
-                                    input: {
-                                        height: 32,
-                                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                        color: theme.colors.dark[7],
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.gray[0],
-                                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                        },
-                                        '&[value=""]': {
-                                            border: `1px dashed ${theme.colors.gray[4]}`,
-                                        },
-                                    },
-
-                                    rightSection: {
-                                        pointerEvents: 'none',
-                                    },
-                                }}
+                                classNames={tagInputClasses}
+                                readOnly={isFilterApplied ? true : undefined}
                             />
                         </>
                     </Group>
                 )}
             </Stack>
-            {filterState.values.length > 0 && (
+            {!isFilterApplied && (
                 <Button
                     color="dark"
                     compact
                     size="xs"
-                    ml={8}
+                    disabled={
+                        !filterState.dimension ||
+                        !filterState.operator ||
+                        filterState.values.length === 0
+                    }
                     sx={{
                         boxShadow: theme.shadows.subtle,
                         alignSelf: 'flex-end',
