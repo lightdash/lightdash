@@ -98,8 +98,8 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
 export const useFilterTagInputStyles = createStyles((theme: MantineTheme) => {
     const base = baseStyles(theme);
     return {
-        wrapper: {
-            width: 200,
+        root: {
+            flexGrow: 1,
         },
         input: {
             ...base.baseInput,
