@@ -17,8 +17,10 @@ import {
     useReactFlow,
     type Connection,
     type Edge,
-    type Node,
+    type EdgeChange,
     type NodeChange,
+    type NodePositionChange,
+    type NodeReplaceChange,
     type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -29,6 +31,7 @@ import {
     useCreateMetricsTreeEdge,
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
+import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
 import MetricTreeConnectedNode, {
     type MetricTreeConnectedNodeData,
 } from './MetricTreeConnectedNode';
@@ -96,7 +99,6 @@ const getNodeLayout = (
     edges: Edge[];
 } => {
     const { connectedNodes, freeNodes } = getNodeGroups(nodes, edges);
-
     const treeGraph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(
         () => ({}),
     );
@@ -162,26 +164,48 @@ const getNodeLayout = (
         };
     });
 
-    const groups = [
-        {
-            id: STATIC_NODE_TYPES.UNCONNECTED,
-            data: {
-                label: 'Unconnected nodes',
-            },
-            position: { x: left - mainPadding, y: top - mainPadding },
-            style: {
-                backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
-                border: `1px solid ${theme.colors.gray[3]}`,
-                boxShadow: theme.shadows.subtle,
-                height: bottom - top + mainPadding * 2,
-                width: right - left + mainPadding * 2,
-                pointerEvents: 'none' as const,
-                borderRadius: theme.radius.md,
-                padding: theme.spacing.md,
-            },
-            type: 'group',
-        },
-    ] satisfies MetricTreeNode[];
+    const unconnectedGroupX = left - mainPadding;
+    const unconnectedGroupY = top - mainPadding;
+    const unconnectedGroupWidth = right - left + mainPadding * 2;
+    const unconnectedGroupHeight = bottom - top + mainPadding * 2;
+
+    const groups =
+        free.length > 0
+            ? ([
+                  {
+                      id: STATIC_NODE_TYPES.UNCONNECTED,
+                      data: {
+                          label: 'Unconnected nodes',
+                      },
+                      position: {
+                          x: isFinite(unconnectedGroupX)
+                              ? unconnectedGroupX
+                              : 0,
+                          y: isFinite(unconnectedGroupY)
+                              ? unconnectedGroupY
+                              : 0,
+                      },
+                      style: {
+                          backgroundColor: theme.fn.lighten(
+                              theme.colors.gray[0],
+                              0.7,
+                          ),
+                          border: `1px solid ${theme.colors.gray[3]}`,
+                          boxShadow: theme.shadows.subtle,
+                          height: isFinite(unconnectedGroupHeight)
+                              ? unconnectedGroupHeight
+                              : 0,
+                          width: isFinite(unconnectedGroupWidth)
+                              ? unconnectedGroupWidth
+                              : 0,
+                          pointerEvents: 'none' as const,
+                          borderRadius: theme.radius.md,
+                          padding: theme.spacing.md,
+                      },
+                      type: 'group',
+                  },
+              ] satisfies MetricTreeNode[])
+            : [];
 
     return {
         nodes: [...groups, ...tree, ...free],
@@ -197,9 +221,15 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
-    const { fitView } = useReactFlow();
+    const { fitView, getNode } = useReactFlow<MetricTreeNode, Edge>();
     const nodesInitialized = useNodesInitialized();
-    const [layoutReady, setLayoutReady] = useState(false);
+    const [layoutState, setLayoutState] = useState({
+        isReady: false,
+        shouldFitView: true,
+    });
+    const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
+        STATIC_NODE_TYPES.UNCONNECTED,
+    );
 
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
@@ -259,13 +289,6 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
 
-    const findNodeById = useCallback(
-        (id: string) => {
-            return currentNodes.find((n) => n.id === id);
-        },
-        [currentNodes],
-    );
-
     const getNodeEdges = useCallback(
         (id: string) => {
             return currentEdges.filter(
@@ -275,19 +298,71 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [currentEdges],
     );
 
+    const handleNodePositionChange = useCallback(
+        (changes: NodePositionChange[]) => {
+            const changesToApply = changes.map((c) => {
+                const node = getNode(c.id);
+
+                if (!node) {
+                    return c;
+                }
+
+                const nodeEdges = getNodeEdges(c.id);
+
+                if (unconnectGroupContainsNode(c.id) && !nodeEdges.length) {
+                    return {
+                        id: c.id,
+                        type: 'replace',
+                        item: {
+                            ...node,
+                            type: MetricTreeNodeType.FREE,
+                            position: c.position ?? node.position,
+                        },
+                    } satisfies NodeReplaceChange<MetricTreeNode>;
+                }
+
+                return {
+                    id: c.id,
+                    type: 'replace',
+                    item: {
+                        ...node,
+                        type: MetricTreeNodeType.CONNECTED,
+                        position: c.position ?? node.position,
+                    },
+                } satisfies NodeReplaceChange<MetricTreeNode>;
+            });
+
+            return changesToApply;
+        },
+        [getNode, getNodeEdges, unconnectGroupContainsNode],
+    );
+
     const handleNodeChange = useCallback(
         (changes: NodeChange<MetricTreeNode>[]) => {
-            const preventedChangeTypes: NodeChange<Node>['type'][] = [
+            const preventedChangeTypes: NodeChange<MetricTreeNode>['type'][] = [
                 'replace',
                 'remove',
             ];
-            const changesToApply = changes.filter(
+
+            const changesWithoutPreventedTypes = changes.filter(
                 (c) => !preventedChangeTypes.includes(c.type),
             );
 
-            onNodesChange(changesToApply);
+            const positionChanges = changesWithoutPreventedTypes.filter(
+                // Position change infer in vscode was correct but not in build, fixed by type assertion
+                (c): c is NodePositionChange => c.type === 'position',
+            );
+
+            const otherChanges = changesWithoutPreventedTypes.filter(
+                (c) => c.type !== 'position',
+            );
+
+            const positionChangesToApply =
+                handleNodePositionChange(positionChanges);
+
+            onNodesChange([...positionChangesToApply, ...otherChanges]);
         },
-        [onNodesChange],
+        [handleNodePositionChange, onNodesChange],
     );
 
     const handleConnect = useCallback(
@@ -299,43 +374,10 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     targetCatalogSearchUuid: params.target,
                 });
 
-                const edgeNodesTypeChanges: NodeChange<MetricTreeNode>[] = [];
-                const sourceNode = findNodeById(params.source);
-                const targetNode = findNodeById(params.target);
-
-                if (sourceNode) {
-                    edgeNodesTypeChanges.push({
-                        id: params.source,
-                        type: 'replace',
-                        item: {
-                            ...sourceNode,
-                            type: MetricTreeNodeType.CONNECTED,
-                        },
-                    });
-                }
-
-                if (targetNode) {
-                    edgeNodesTypeChanges.push({
-                        id: params.target,
-                        type: 'replace',
-                        item: {
-                            ...targetNode,
-                            type: MetricTreeNodeType.CONNECTED,
-                        },
-                    });
-                }
-
-                onNodesChange(edgeNodesTypeChanges);
                 setCurrentEdges((els) => addEdge(params, els));
             }
         },
-        [
-            projectUuid,
-            createMetricsTreeEdge,
-            findNodeById,
-            onNodesChange,
-            setCurrentEdges,
-        ],
+        [projectUuid, createMetricsTreeEdge, setCurrentEdges],
     );
 
     const handleEdgesDelete = useCallback(
@@ -350,53 +392,9 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 });
 
                 await Promise.all(promises);
-
-                const removedEdgeNodesTypeChanges: NodeChange<MetricTreeNode>[] =
-                    edgesToDelete.flatMap((edge) => {
-                        const changes: NodeChange<
-                            | MetricTreeConnectedNodeData
-                            | MetricTreeUnconnectedNodeData
-                        >[] = [];
-                        const sourceNode = findNodeById(edge.source);
-                        const targetNode = findNodeById(edge.target);
-                        const sourceNodeEdges = getNodeEdges(edge.source);
-                        const targetNodeEdges = getNodeEdges(edge.target);
-
-                        if (sourceNode && sourceNodeEdges.length <= 1) {
-                            changes.push({
-                                id: sourceNode.id,
-                                type: 'replace',
-                                item: {
-                                    ...sourceNode,
-                                    type: MetricTreeNodeType.FREE,
-                                },
-                            });
-                        }
-
-                        if (targetNode && targetNodeEdges.length <= 1) {
-                            changes.push({
-                                id: targetNode.id,
-                                type: 'replace',
-                                item: {
-                                    ...targetNode,
-                                    type: MetricTreeNodeType.FREE,
-                                },
-                            });
-                        }
-
-                        return changes;
-                    });
-
-                onNodesChange(removedEdgeNodesTypeChanges);
             }
         },
-        [
-            projectUuid,
-            onNodesChange,
-            deleteMetricsTreeEdge,
-            findNodeById,
-            getNodeEdges,
-        ],
+        [projectUuid, deleteMetricsTreeEdge],
     );
 
     const onLayout = useCallback(() => {
@@ -405,26 +403,34 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         setCurrentNodes(layout.nodes);
         setCurrentEdges(layout.edges);
 
-        setLayoutReady(true);
+        setLayoutState((prev) => ({
+            ...prev,
+            isReady: true,
+        }));
     }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, theme]);
 
     // Runs layout when the nodes are initialized
     useEffect(() => {
-        if (!nodesInitialized || layoutReady) {
+        if (!nodesInitialized || layoutState.isReady) {
             return;
         }
 
         onLayout();
-    }, [onLayout, layoutReady, nodesInitialized, fitView]);
+    }, [onLayout, layoutState.isReady, nodesInitialized, fitView]);
 
     // Fits the view when the layout is ready
     useEffect(() => {
-        if (layoutReady) {
+        if (layoutState.isReady && layoutState.shouldFitView) {
             window.requestAnimationFrame(async () => {
                 await fitView();
             });
+
+            setLayoutState((prev) => ({
+                ...prev,
+                shouldFitView: false,
+            }));
         }
-    }, [layoutReady, fitView]);
+    }, [layoutState, fitView]);
 
     useEffect(() => {
         const addNodeChanges: NodeChange<MetricTreeNode>[] = initialNodes
@@ -448,9 +454,44 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
-            setLayoutReady(false);
+            setLayoutState({
+                isReady: false,
+                shouldFitView: true,
+            });
         }
     }, [initialNodes, currentNodes, onNodesChange]);
+
+    useEffect(() => {
+        const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
+            .filter((edge) => !currentEdges.some((e) => e.id === edge.id))
+            .map((edge) => ({
+                id: edge.id,
+                type: 'add',
+                item: edge,
+            }));
+
+        const removeEdgeChanges: EdgeChange<Edge>[] = currentEdges
+            .filter((edge) => !initialEdges.some((e) => e.id === edge.id))
+            .map((edge) => ({
+                id: edge.id,
+                type: 'remove',
+            }));
+
+        if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
+            onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
+            setLayoutState({
+                isReady: false,
+                shouldFitView: false,
+            });
+        }
+    }, [currentEdges, initialEdges, onEdgesChange]);
+
+    const cleanUpLayout = useCallback(() => {
+        setLayoutState({
+            isReady: false,
+            shouldFitView: true,
+        });
+    }, [setLayoutState]);
 
     return (
         <Box h="100%">
@@ -474,7 +515,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                         <Button
                             variant="default"
                             radius="md"
-                            onClick={() => onLayout()}
+                            onClick={cleanUpLayout}
                             size="xs"
                             sx={{
                                 boxShadow: theme.shadows.subtle,

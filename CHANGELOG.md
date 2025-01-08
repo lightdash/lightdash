@@ -1,3 +1,79 @@
+# [0.1444.0](https://github.com/lightdash/lightdash/compare/0.1443.1...0.1444.0) (2025-01-08)
+
+
+### Features
+
+* support all dbt cloud regions when connecting project ([#13150](https://github.com/lightdash/lightdash/issues/13150)) ([c4f8d3c](https://github.com/lightdash/lightdash/commit/c4f8d3c0cdf0278b4315ba9fc55411f389bdfb2c))
+
+## [0.1443.1](https://github.com/lightdash/lightdash/compare/0.1443.0...0.1443.1) (2025-01-08)
+
+
+### Bug Fixes
+
+* split chart usage query into count and select for single chart ([#13133](https://github.com/lightdash/lightdash/issues/13133)) ([ddc07d6](https://github.com/lightdash/lightdash/commit/ddc07d630654e7b43784b3ffe080ceebffeca0ac))
+
+# [0.1443.0](https://github.com/lightdash/lightdash/compare/0.1442.1...0.1443.0) (2025-01-08)
+
+
+### Features
+
+* show expanded node when dragging out ([#13130](https://github.com/lightdash/lightdash/issues/13130)) ([962c986](https://github.com/lightdash/lightdash/commit/962c986d0386bc6092960cf75ecb179e7693ffc5))
+
+## [0.1442.1](https://github.com/lightdash/lightdash/compare/0.1442.0...0.1442.1) (2025-01-08)
+
+
+### Bug Fixes
+
+* google sheets sync timezone empty string ([#13146](https://github.com/lightdash/lightdash/issues/13146)) ([83d909b](https://github.com/lightdash/lightdash/commit/83d909b2a9c65bdcfd2ad7272594de83a9087719))
+
+# [0.1442.0](https://github.com/lightdash/lightdash/compare/0.1441.0...0.1442.0) (2025-01-08)
+
+
+### Bug Fixes
+
+* metric tree nodes not loading edges when changing filters ([#13122](https://github.com/lightdash/lightdash/issues/13122)) ([698e7d2](https://github.com/lightdash/lightdash/commit/698e7d207824cd27a6b86bc5294a2fc00a6d14e4))
+
+
+### Features
+
+* metrics explorer chart zoom ([#13110](https://github.com/lightdash/lightdash/issues/13110)) ([cd2563b](https://github.com/lightdash/lightdash/commit/cd2563b5f25fca9ad3d9c308c5d56e40a989674f))
+
+# [0.1441.0](https://github.com/lightdash/lightdash/compare/0.1440.6...0.1441.0) (2025-01-08)
+
+
+### Features
+
+* skip existing generate cli ([#13139](https://github.com/lightdash/lightdash/issues/13139)) ([a70cac4](https://github.com/lightdash/lightdash/commit/a70cac4e8af4f7d055ffa17297b7f9c77804d198))
+
+## [0.1440.6](https://github.com/lightdash/lightdash/compare/0.1440.5...0.1440.6) (2025-01-08)
+
+
+### Bug Fixes
+
+* missing field name does not truncate ([#13132](https://github.com/lightdash/lightdash/issues/13132)) ([4e65153](https://github.com/lightdash/lightdash/commit/4e651530f033fc0a83fafc7ac376c452fa010651))
+* sidebar resizing to allow showing long field labels ([#13134](https://github.com/lightdash/lightdash/issues/13134)) ([ae0001c](https://github.com/lightdash/lightdash/commit/ae0001c4ba8127f629dcd8bc61307a4c6e1b36d0))
+
+## [0.1440.5](https://github.com/lightdash/lightdash/compare/0.1440.4...0.1440.5) (2025-01-07)
+
+
+### Bug Fixes
+
+* dbt version fallback prompt ([#13112](https://github.com/lightdash/lightdash/issues/13112)) ([ae174f5](https://github.com/lightdash/lightdash/commit/ae174f510c7357208133621e5c391f63f00d76b9))
+
+## [0.1440.4](https://github.com/lightdash/lightdash/compare/0.1440.3...0.1440.4) (2025-01-07)
+
+
+### Bug Fixes
+
+* handle empty string timezone in FE ([#13127](https://github.com/lightdash/lightdash/issues/13127)) ([e36b437](https://github.com/lightdash/lightdash/commit/e36b437bd1b333c284156994e7c68e9229b66927))
+
+## [0.1440.3](https://github.com/lightdash/lightdash/compare/0.1440.2...0.1440.3) (2025-01-07)
+
+
+### Bug Fixes
+
+* use 2-space tabs instead of 4 in sql runner ([#13123](https://github.com/lightdash/lightdash/issues/13123)) ([5f189cd](https://github.com/lightdash/lightdash/commit/5f189cd8a49465d5ee437917d43781e6b0c2d1d0))
+
 ## [0.1440.2](https://github.com/lightdash/lightdash/compare/0.1440.1...0.1440.2) (2025-01-07)
 
 

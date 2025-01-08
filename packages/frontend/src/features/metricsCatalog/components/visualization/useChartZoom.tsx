@@ -1,10 +1,3 @@
-/*
-    REMOVE COMMENTS TO ENABLE CHART ZOOM
-*/
-
-export {};
-
-/*
 import type { MetricExploreDataPoint } from '@lightdash/common';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
@@ -30,7 +23,6 @@ type ZoomState<T extends MetricExploreDataPoint> = {
     refAreaRight: number | null;
     zoomedData: T[] | null;
 };
-*/
 
 /**
  * Hook to handle zooming on the chart using the recharts library
@@ -39,7 +31,6 @@ type ZoomState<T extends MetricExploreDataPoint> = {
  * @returns The zoom state and handlers
  */
 
-/*
 export const useChartZoom = <T extends MetricExploreDataPoint>({
     data,
 }: UseChartZoomArgs<T>): ChartZoom<T> => {
@@ -48,6 +39,22 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         refAreaRight: null,
         zoomedData: null,
     });
+
+    const resetZoom = useCallback(() => {
+        setZoomState({
+            refAreaLeft: null,
+            refAreaRight: null,
+            zoomedData: null,
+        });
+    }, []);
+
+    const resetZoomRefs = useCallback(() => {
+        setZoomState((prev) => ({
+            ...prev,
+            refAreaLeft: null,
+            refAreaRight: null,
+        }));
+    }, []);
 
     const handleMouseDown: CategoricalChartFunc = useCallback((e) => {
         if (!e) return;
@@ -77,31 +84,39 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
     );
 
     const handleMouseUp: CategoricalChartFunc = useCallback(() => {
-        if (!zoomState.refAreaLeft || !zoomState.refAreaRight) return;
+        if (!zoomState.refAreaLeft || !zoomState.refAreaRight) {
+            // Reset refs but keep zoomed in data, this is so that the chart is not reset
+            resetZoomRefs();
+            return;
+        }
 
         const start = Math.min(zoomState.refAreaLeft, zoomState.refAreaRight);
         const end = Math.max(zoomState.refAreaLeft, zoomState.refAreaRight);
+        const startEndDelta = end - start;
 
-        const filteredData = data.filter(
-            (item) =>
-                dayjs(item.date).isAfter(dayjs(start)) &&
-                dayjs(item.date).isBefore(dayjs(end)),
-        );
+        if (startEndDelta === 0) {
+            // Reset refs but keep zoomed in data, this is so that the chart is not reset
+            resetZoomRefs();
+            return;
+        }
+
+        const filteredData = data.filter((item) => {
+            const itemDate = dayjs(item.date);
+
+            return (
+                (itemDate.isAfter(dayjs(start)) &&
+                    itemDate.isBefore(dayjs(end))) ||
+                itemDate.isSame(dayjs(start)) ||
+                itemDate.isSame(dayjs(end))
+            );
+        });
 
         setZoomState({
             refAreaLeft: null,
             refAreaRight: null,
             zoomedData: filteredData,
         });
-    }, [data, zoomState.refAreaLeft, zoomState.refAreaRight]);
-
-    const resetZoom = useCallback(() => {
-        setZoomState({
-            refAreaLeft: null,
-            refAreaRight: null,
-            zoomedData: null,
-        });
-    }, []);
+    }, [data, zoomState, resetZoomRefs]);
 
     const handlers = useMemo(
         () => ({
@@ -124,4 +139,3 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
 
     return result;
 };
-*/

@@ -103,12 +103,12 @@ const TableTreeSections: FC<Props> = ({
         <>
             {missingFields && missingFields.all.length > 0 && (
                 <>
-                    {' '}
                     <Group mt="sm" mb="xs">
                         <Text fw={600} color="gray.6">
                             Missing fields
                         </Text>
                     </Group>
+
                     {missingFields.all.map((missingField) => {
                         return (
                             <Tooltip
@@ -131,20 +131,25 @@ const TableTreeSections: FC<Props> = ({
                                         );
                                     }}
                                     ml={12}
+                                    my="xs"
                                     sx={{ cursor: 'pointer' }}
+                                    noWrap
+                                    spacing="sm"
                                 >
                                     <MantineIcon
                                         icon={IconAlertTriangle}
                                         color="yellow.9"
                                         style={{ flexShrink: 0 }}
                                     />
-                                    <Text>{missingField}</Text>
+
+                                    <Text truncate>{missingField}</Text>
                                 </Group>
                             </Tooltip>
                         );
                     })}
                 </>
             )}
+
             {isSearching &&
             getSearchResults(dimensions, searchQuery).size === 0 ? null : (
                 <Group mt="sm" mb="xs" position={'apart'}>

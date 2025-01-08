@@ -6,6 +6,7 @@ import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtCloudideProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
+    discoveryApiEndpoint: string | undefined;
     environmentId: string | number;
     apiKey: string;
     cachedWarehouse: CachedWarehouse;
@@ -22,8 +23,13 @@ export class DbtCloudIdeProjectAdapter
         apiKey,
         cachedWarehouse,
         dbtVersion,
+        discoveryApiEndpoint,
     }: DbtCloudideProjectAdapterArgs) {
-        const dbtClient = new DbtMetadataApiClient(environmentId, apiKey);
+        const dbtClient = new DbtMetadataApiClient({
+            environmentId,
+            bearerToken: apiKey,
+            discoveryApiEndpoint,
+        });
         super(dbtClient, warehouseClient, cachedWarehouse, dbtVersion);
     }
 }

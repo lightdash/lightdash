@@ -46,6 +46,7 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     quickSuggestions: true,
     contextmenu: false,
     automaticLayout: true,
+    tabSize: 2,
 };
 
 const getLanguage = (warehouseType?: WarehouseTypes): string => {

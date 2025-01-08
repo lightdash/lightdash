@@ -1,4 +1,8 @@
-import { DbtModelNode, ParseError } from '@lightdash/common';
+import {
+    DbtModelNode,
+    ParseError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import execa from 'execa';
 import { xor } from 'lodash';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
@@ -131,8 +135,8 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             'unique_id',
         ];
         const version = await getDbtVersion();
-        // older dbt versions don't support --quiet flag
-        if (!version.startsWith('1.3.') && !version.startsWith('1.4.')) {
+        // only dbt 1.5 and above support --quiet flag
+        if (version.versionOption !== SupportedDbtVersions.V1_4) {
             args.push('--quiet');
         }
         GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
