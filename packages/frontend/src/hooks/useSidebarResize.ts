@@ -1,3 +1,4 @@
+import { useViewportSize } from '@mantine/hooks';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { PAGE_MIN_CONTENT_WIDTH } from '../components/common/Page/constants';
 import { SidebarPosition } from '../components/common/Page/types';
@@ -5,7 +6,6 @@ import { SidebarPosition } from '../components/common/Page/types';
 type Args = {
     defaultWidth: number;
     minWidth: number;
-    maxWidth: number;
     position: SidebarPosition;
     mainWidth?: number;
     onResizeStart?: () => void;
@@ -13,7 +13,6 @@ type Args = {
 };
 
 const useSidebarResize = ({
-    maxWidth,
     minWidth,
     defaultWidth,
     position,
@@ -34,6 +33,10 @@ const useSidebarResize = ({
         setIsResizing(false);
         onResizeEnd?.();
     }, [onResizeEnd, setIsResizing]);
+
+    const { width: viewportWidth } = useViewportSize();
+
+    const maxWidth = viewportWidth / 2;
 
     const resize = useCallback(
         // mouse event on div
@@ -58,8 +61,14 @@ const useSidebarResize = ({
 
             setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
         },
-        [isResizing, position, maxWidth, minWidth, mainWidth],
+        [isResizing, position, minWidth, mainWidth, maxWidth],
     );
+
+    useLayoutEffect(() => {
+        if (sidebarWidth > maxWidth && maxWidth > minWidth) {
+            setSidebarWidth(maxWidth);
+        }
+    }, [maxWidth, minWidth, sidebarWidth]);
 
     useLayoutEffect(() => {
         if (!isResizing) return;
