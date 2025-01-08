@@ -64,6 +64,12 @@ export const useFilterSelectStyles = createStyles((theme) => {
 export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
     const base = baseStyles(theme);
     return {
+        root: {
+            '&:has(input[data-full-width="true"])': {
+                flexGrow: 1,
+            },
+        },
+
         input: {
             ...base.baseInput,
             padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
@@ -73,10 +79,13 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
             borderTop: 0,
             paddingRight: 8,
             paddingLeft: 8,
-            width: 90,
-            maxWidth: 90,
             '&[value=""]': {
                 border: `1px dashed ${theme.colors.gray[4]}`,
+            },
+            '&[data-full-width="true"]': {
+                width: '100%',
+                maxWidth: '100%',
+                borderBottomRightRadius: theme.radius.md,
             },
         },
         inputReadOnly: {
