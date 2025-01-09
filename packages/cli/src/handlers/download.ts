@@ -324,8 +324,8 @@ const getPromoteAction = (action: PromotionAction) => {
         case PromotionAction.NO_CHANGES:
             return 'skipped';
         default:
+            // eslint-disable-next-line consistent-return
             assertUnreachable(action, `Unknown promotion action: ${action}`);
-            return ''; // Added return statement to satisfy consistent-return rule
     }
 };
 
