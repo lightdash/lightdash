@@ -194,7 +194,7 @@ export default async function getWarehouseClient(
                     const fields = await getTableSchema({
                         projectUuid: config.context.project,
                         tableName: ref.table,
-                        schemaName: 'e2e_jaffle_shop', // ref.schema,
+                        schemaName: ref.schema,
                     });
                     acc[ref.database] = {
                         [ref.schema]: {

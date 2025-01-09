@@ -106,7 +106,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         isDbtCloudCLI(verboseVersion) &&
         !GlobalState.getSavedPromptAnswer('useExperimentalDbtCloudCLI')
     ) {
-        const message = `Support for dbt Cloud CLI is still experimental and might not work as expected. Please consider using dbt core CLI for the best experience.`;
+        const message = `Support for dbt Cloud CLI is still experimental and might not work as expected.`;
         const spinner = GlobalState.getActiveSpinner();
         spinner?.stop();
         if (process.env.CI === 'true') {
@@ -123,7 +123,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
             ]);
             if (!answers.isConfirm) {
                 throw new Error(
-                    `Unsupported dbt version ${verboseVersion}. Please consider using dbt core CLI.`,
+                    `Unsupported dbt version ${verboseVersion}. Please consider using dbt core CLI for the best experience.`,
                 );
             }
         }
