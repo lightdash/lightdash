@@ -538,7 +538,7 @@ export default class SchedulerTask {
                 footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
                     cron,
                     timezone || defaultSchedulerTimezone,
-                )} from Lightdash\n${
+                )} from Lightdash.\n${
                     showExpirationWarning
                         ? this.s3Client.getExpirationWarning()?.slack || ''
                         : ''
@@ -561,10 +561,16 @@ export default class SchedulerTask {
                           }|data alert>`
                         : 'data alert';
 
+                    const expiration = slackImageUrl.expiring
+                        ? `For security reasons, delivered files expire after ${
+                              this.s3Client.getExpirationWarning()?.days || 3
+                          } days.`
+                        : '';
+
                     const blocks = getChartThresholdAlertBlocks({
                         ...getBlocksArgs,
-                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash.`,
-                        imageUrl: slackImageUrl,
+                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. ${expiration}`,
+                        imageUrl: slackImageUrl.url,
                         thresholds,
                         includeLinks,
                     });
@@ -585,9 +591,15 @@ export default class SchedulerTask {
                         name,
                     );
 
+                const expiration = slackImageUrl.expiring
+                    ? `For security reasons, delivered files expire after ${
+                          this.s3Client.getExpirationWarning()?.days || 3
+                      } days.`
+                    : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
-                    imageUrl: slackImageUrl,
+                    footerMarkdown: `${getBlocksArgs.footerMarkdown} ${expiration}`,
+                    imageUrl: slackImageUrl.url,
                 });
 
                 const message = await this.slackClient.postMessage({

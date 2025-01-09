@@ -455,9 +455,8 @@ export class SlackClient {
     ) {
         try {
             if (!imageUrl) {
-                return imageUrl;
+                return { url: imageUrl, expiring: true };
             }
-
             const response = await fetch(imageUrl);
             const buffer = Buffer.from(await response.arrayBuffer());
             const slackFileUrl = await this.uploadFile({
@@ -465,10 +464,10 @@ export class SlackClient {
                 file: buffer,
                 title: name,
             });
-            return slackFileUrl;
+            return { url: slackFileUrl, expiring: false };
         } catch (e) {
             Logger.error(`Failed to upload image to slack: ${e}`);
-            return imageUrl;
+            return { url: imageUrl, expiring: true };
         }
     }
 }
