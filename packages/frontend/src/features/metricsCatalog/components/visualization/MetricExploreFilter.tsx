@@ -1,6 +1,6 @@
 import {
+    FilterOperator,
     type CompiledDimension,
-    type FilterOperator,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -208,6 +208,8 @@ export const MetricExploreFilter: FC<Props> = ({
                         setFilterState((prev) => ({
                             ...prev,
                             dimension: value,
+                            operator: value ? FilterOperator.EQUALS : null,
+                            values: [],
                         }))
                     }
                     data-selected={!!filterState.dimension || mode === 'read'}

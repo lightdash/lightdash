@@ -79,9 +79,7 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
             borderTop: 0,
             paddingRight: 8,
             paddingLeft: 8,
-            '&[value=""]': {
-                border: `1px dashed ${theme.colors.gray[4]}`,
-            },
+
             '&[data-full-width="true"]': {
                 width: '100%',
                 maxWidth: '100%',
@@ -99,7 +97,6 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
         },
         rightSection: {
             pointerEvents: 'none',
-            width: 20,
         },
     };
 });
