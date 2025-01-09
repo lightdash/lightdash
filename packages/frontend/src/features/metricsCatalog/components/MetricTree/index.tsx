@@ -216,7 +216,7 @@ const getNodeLayout = (
         const y = position.y - (node.measured?.height ?? 0) / 2;
         const xFromUnconnectedGroup =
             unconnectedGroupWidth + x + 3 * mainPadding;
-        const yFromUnconnectedGroup = unconnectedGroup?.position.y ?? 0 + y;
+        const yFromUnconnectedGroup = -mainPadding + y;
 
         return {
             ...node,
