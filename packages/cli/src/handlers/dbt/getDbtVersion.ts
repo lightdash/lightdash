@@ -102,6 +102,35 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
     }
 
+    if (
+        isDbtCloudCLI(verboseVersion) &&
+        !GlobalState.getSavedPromptAnswer('useExperimentalDbtCloudCLI')
+    ) {
+        const message = `Support for dbt Cloud CLI is still experimental and might not work as expected. Please consider using dbt core CLI for the best experience.`;
+        const spinner = GlobalState.getActiveSpinner();
+        spinner?.stop();
+        if (process.env.CI === 'true') {
+            console.error(styles.warning(message));
+        } else {
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `${styles.warning(
+                        message,
+                    )}\nDo you still want to continue?`,
+                },
+            ]);
+            if (!answers.isConfirm) {
+                throw new Error(
+                    `Unsupported dbt version ${verboseVersion}. Please consider using dbt core CLI.`,
+                );
+            }
+        }
+        spinner?.start();
+        GlobalState.savePromptAnswer('useExperimentalDbtCloudCLI', true);
+    }
+
     return {
         verboseVersion,
         isDbtCloudCLI: isDbtCloudCLI(verboseVersion),
