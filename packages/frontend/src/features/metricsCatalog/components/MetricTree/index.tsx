@@ -150,41 +150,52 @@ const getNodeLayout = (
         }),
     );
 
-    // Group bounds
-    const unconnectedGroupWidth =
-        Math.max(
-            ...free.map(
-                (node) => node.position.x + (node.measured?.width ?? 0),
-            ),
-        ) +
-        mainPadding * 2;
+    let unconnectedGroup: MetricTreeNode | undefined;
+    let unconnectedGroupWidth = 0;
+    let unconnectedGroupHeight = 0;
 
-    const unconnectedGroupHeight =
-        Math.max(
-            ...free.map(
-                (node) => node.position.y + (node.measured?.height ?? 0),
-            ),
-        ) +
-        mainPadding * 2;
+    if (free.length) {
+        // Group bounds
+        unconnectedGroupWidth =
+            Math.max(
+                ...free.map(
+                    (node) => node.position.x + (node.measured?.width ?? 0),
+                ),
+            ) +
+            mainPadding * 2;
 
-    const unconnectedGroup = {
-        id: STATIC_NODE_TYPES.UNCONNECTED,
-        data: { label: 'Unconnected nodes' },
-        position: { x: -mainPadding, y: -mainPadding },
-        style: {
-            backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
-            border: `1px solid ${theme.colors.gray[3]}`,
-            boxShadow: theme.shadows.subtle,
-            height: unconnectedGroupHeight,
-            width: unconnectedGroupWidth,
-            pointerEvents: 'none' as const,
-            borderRadius: theme.radius.md,
-            padding: theme.spacing.md,
-        },
-        type: 'group',
-    } satisfies MetricTreeNode;
+        unconnectedGroupHeight =
+            Math.max(
+                ...free.map(
+                    (node) => node.position.y + (node.measured?.height ?? 0),
+                ),
+            ) +
+            mainPadding * 2;
 
-    const groups = free.length > 0 ? [unconnectedGroup] : [];
+        unconnectedGroup = free.length
+            ? ({
+                  id: STATIC_NODE_TYPES.UNCONNECTED,
+                  data: { label: 'Unconnected nodes' },
+                  position: { x: -mainPadding, y: -mainPadding },
+                  style: {
+                      backgroundColor: theme.fn.lighten(
+                          theme.colors.gray[0],
+                          0.7,
+                      ),
+                      border: `1px solid ${theme.colors.gray[3]}`,
+                      boxShadow: theme.shadows.subtle,
+                      height: unconnectedGroupHeight,
+                      width: unconnectedGroupWidth,
+                      pointerEvents: 'none' as const,
+                      borderRadius: theme.radius.md,
+                      padding: theme.spacing.md,
+                  },
+                  type: 'group',
+              } satisfies MetricTreeNode)
+            : undefined;
+    }
+
+    const groups = unconnectedGroup ? [unconnectedGroup] : [];
 
     // Draw the connected tree
     edges.forEach((edge) => treeGraph.setEdge(edge.source, edge.target));
@@ -205,7 +216,7 @@ const getNodeLayout = (
         const y = position.y - (node.measured?.height ?? 0) / 2;
         const xFromUnconnectedGroup =
             unconnectedGroupWidth + x + 3 * mainPadding;
-        const yFromUnconnectedGroup = unconnectedGroup.position.y + y;
+        const yFromUnconnectedGroup = unconnectedGroup?.position.y ?? 0 + y;
 
         return {
             ...node,
