@@ -313,6 +313,7 @@ export const getModelsFromManifest = (
             node.resource_type === 'model' &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
+
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         throw new ParseError(
             `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
@@ -345,7 +346,7 @@ export const getCompiledModels = async (
     if (args.select || args.exclude) {
         const spinner = GlobalState.startSpinner(`Filtering models`);
         try {
-            const { stdout, command } = await execa('dbt', [
+            const { stdout } = await execa('dbt', [
                 'ls',
                 ...(args.projectDir ? ['--project-dir', args.projectDir] : []),
                 ...(args.target ? ['--target', args.target] : []),
@@ -356,7 +357,6 @@ export const getCompiledModels = async (
                 '--resource-type=model',
                 '--output=json',
             ]);
-            GlobalState.debug(`> Compiled models: ${command}`);
             const filteredModelIds = stdout
                 .split('\n')
                 .map((l) => l.trim())

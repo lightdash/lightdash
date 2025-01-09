@@ -21,7 +21,6 @@ import {
 import GlobalState from '../../globalState';
 import { lightdashApi } from './apiClient';
 
-// /api/v1/projects/b5c8914d-ff8b-41b0-ba1b-4e7403451f53/sqlRunner/fields?tableName=events_partitioned&schemaName=e2e_jaffle_shop
 type GetTableCatalogProps = {
     projectUuid: string;
     tableName: string;
