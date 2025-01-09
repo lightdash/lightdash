@@ -50,8 +50,9 @@ export const MetricExploreFilter: FC<Props> = ({
     const [activeFilter, setActiveFilter] = useState<FilterRule | undefined>();
 
     const selectedDimension = dimensions?.find(
-        (d) => d.name === filterState.dimension,
+        (d) => getItemId(d) === filterState.fieldId,
     );
+
     const operatorOptions = getOperatorOptions(selectedDimension);
     const dimensionMetadata = useMemo(() => {
         if (!selectedDimension) return null;
@@ -78,7 +79,7 @@ export const MetricExploreFilter: FC<Props> = ({
 
     const handleApplyFilter = useCallback(() => {
         const dimension = dimensions?.find(
-            (d) => d.name === filterState.dimension,
+            (d) => getItemId(d) === filterState.fieldId,
         );
         if (!dimension || !filterState.operator) return;
 
@@ -112,22 +113,24 @@ export const MetricExploreFilter: FC<Props> = ({
     }, [dimensionMetadata?.requiresValues]);
 
     const handleDimensionChange = useCallback(
-        (value: string | null) => {
-            const newDimension = dimensions?.find((d) => d.name === value);
+        (fieldId: string | null) => {
+            const newDimension = dimensions?.find(
+                (d) => getItemId(d) === fieldId,
+            );
             if (!newDimension) return;
             const requiresValues = doesDimensionRequireValues(newDimension);
 
             const newState = {
-                dimension: value,
+                dimension: newDimension.name,
                 fieldId: getItemId(newDimension),
-                operator: value ? FilterOperator.EQUALS : null,
+                operator: FilterOperator.EQUALS,
                 values: [],
             };
 
             setFilterState(newState);
 
             // Automatically apply filter for dimensions that do not require values
-            if (!requiresValues && value) {
+            if (!requiresValues && newDimension) {
                 const filterRule = createFilterRule(
                     newDimension,
                     FilterOperator.EQUALS,
@@ -141,19 +144,18 @@ export const MetricExploreFilter: FC<Props> = ({
     );
 
     const handleOperatorChange = useCallback(
-        (value: string | null) => {
-            const newOperator = value as FilterOperator;
+        (operator: FilterOperator | null) => {
             setFilterState((prev) => ({
                 ...prev,
-                operator: newOperator,
+                operator,
                 values: showValuesSection ? prev.values : [],
             }));
 
             // Automatically apply filter for dimensions that do not require values
-            if (!showValuesSection && newOperator && selectedDimension) {
+            if (!showValuesSection && operator && selectedDimension) {
                 const filterRule = createFilterRule(
                     selectedDimension,
-                    newOperator,
+                    operator,
                     [],
                 );
                 setActiveFilter(filterRule);
@@ -219,19 +221,19 @@ export const MetricExploreFilter: FC<Props> = ({
                     size="xs"
                     data={
                         dimensions?.map((dimension) => ({
-                            value: dimension.name,
+                            value: getItemId(dimension),
                             label: dimension.label,
                         })) ?? []
                     }
                     disabled={dimensions?.length === 0}
-                    value={filterState.dimension}
+                    value={filterState.fieldId}
                     itemComponent={SelectItem}
                     onChange={handleDimensionChange}
-                    data-selected={!!filterState.dimension}
+                    data-selected={!!filterState.fieldId}
                     classNames={filterSelectClasses}
                 />
 
-                {filterState.dimension && (
+                {filterState.fieldId && (
                     <Group spacing={0} noWrap>
                         <Select
                             w={showValuesSection ? 70 : '100%'}
@@ -276,7 +278,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     </Group>
                 )}
             </Stack>
-            {filterState.dimension && dimensionMetadata?.requiresValues && (
+            {filterState.fieldId && dimensionMetadata?.requiresValues && (
                 <Button
                     color="dark"
                     compact
