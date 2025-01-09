@@ -444,7 +444,13 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option(
+        '--path <path>',
+        'specify a custom path to download charts and dashboards',
+        undefined,
+    )
     .action(downloadHandler);
+
 program
     .command('upload')
     .description('Uploads charts and dashboards as code')
@@ -463,6 +469,11 @@ program
         '--force',
         'Force upload even if local files have not changed, use this when you want to upload files to a new project',
         false,
+    )
+    .option(
+        '--path <path>',
+        'specify a custom path to upload charts and dashboards from',
+        undefined,
     )
     .action(uploadHandler);
 
