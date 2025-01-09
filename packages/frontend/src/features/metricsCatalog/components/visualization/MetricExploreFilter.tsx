@@ -52,7 +52,7 @@ export const MetricExploreFilter: FC<Props> = ({
     const selectedDimension = dimensions?.find(
         (d) => d.name === filterState.dimension,
     );
-
+    const operatorOptions = getOperatorOptions(selectedDimension);
     const dimensionMetadata = useMemo(() => {
         if (!selectedDimension) return null;
         return {
@@ -61,7 +61,7 @@ export const MetricExploreFilter: FC<Props> = ({
         };
     }, [selectedDimension]);
 
-    const isFilterValid = useMemo(() => {
+    const canApplyFilter = useMemo(() => {
         if (!filterState.dimension || !filterState.operator) return false;
         if (!dimensionMetadata?.requiresValues) return true;
 
@@ -75,8 +75,6 @@ export const MetricExploreFilter: FC<Props> = ({
 
         return filterState.values.length > 0 && hasChanges;
     }, [filterState, dimensionMetadata, activeFilter]);
-
-    const operatorOptions = getOperatorOptions(selectedDimension);
 
     const handleApplyFilter = useCallback(() => {
         const dimension = dimensions?.find(
@@ -113,55 +111,57 @@ export const MetricExploreFilter: FC<Props> = ({
         return dimensionMetadata?.requiresValues;
     }, [dimensionMetadata?.requiresValues]);
 
-    const handleDimensionChange = (value: string | null) => {
-        const newDimension = dimensions?.find((d) => d.name === value);
-        if (!newDimension) return;
-        const requiresValues = doesDimensionRequireValues(newDimension);
+    const handleDimensionChange = useCallback(
+        (value: string | null) => {
+            const newDimension = dimensions?.find((d) => d.name === value);
+            if (!newDimension) return;
+            const requiresValues = doesDimensionRequireValues(newDimension);
 
-        const newState = {
-            dimension: value,
-            fieldId: getItemId(newDimension),
-            operator: value ? FilterOperator.EQUALS : null,
-            values: [],
-        };
+            const newState = {
+                dimension: value,
+                fieldId: getItemId(newDimension),
+                operator: value ? FilterOperator.EQUALS : null,
+                values: [],
+            };
 
-        setFilterState(newState);
+            setFilterState(newState);
 
-        // Automatically apply filter for dimensions that do not require values
-        if (!requiresValues && value) {
-            const filterRule = createFilterRule(
-                newDimension,
-                FilterOperator.EQUALS,
-                [],
-            );
-            setActiveFilter(filterRule);
-            onFilterApply(filterRule);
-        }
-    };
+            // Automatically apply filter for dimensions that do not require values
+            if (!requiresValues && value) {
+                const filterRule = createFilterRule(
+                    newDimension,
+                    FilterOperator.EQUALS,
+                    [],
+                );
+                setActiveFilter(filterRule);
+                onFilterApply(filterRule);
+            }
+        },
+        [dimensions, onFilterApply],
+    );
 
-    const handleOperatorChange = (value: string | null) => {
-        const newOperator = value as FilterOperator;
-        setFilterState((prev) => ({
-            ...prev,
-            operator: newOperator,
-            values: showValuesSection ? prev.values : [],
-        }));
+    const handleOperatorChange = useCallback(
+        (value: string | null) => {
+            const newOperator = value as FilterOperator;
+            setFilterState((prev) => ({
+                ...prev,
+                operator: newOperator,
+                values: showValuesSection ? prev.values : [],
+            }));
 
-        // Automatically apply filter for dimensions that do not require values
-        if (
-            !dimensionMetadata?.requiresValues &&
-            newOperator &&
-            selectedDimension
-        ) {
-            const filterRule = createFilterRule(
-                selectedDimension,
-                newOperator,
-                [],
-            );
-            setActiveFilter(filterRule);
-            onFilterApply(filterRule);
-        }
-    };
+            // Automatically apply filter for dimensions that do not require values
+            if (!showValuesSection && newOperator && selectedDimension) {
+                const filterRule = createFilterRule(
+                    selectedDimension,
+                    newOperator,
+                    [],
+                );
+                setActiveFilter(filterRule);
+                onFilterApply(filterRule);
+            }
+        },
+        [showValuesSection, selectedDimension, onFilterApply],
+    );
 
     return (
         <Stack spacing="xs">
@@ -234,8 +234,8 @@ export const MetricExploreFilter: FC<Props> = ({
                 {filterState.dimension && (
                     <Group spacing={0} noWrap>
                         <Select
-                            w={showValuesSection ? 90 : '100%'}
-                            maw={showValuesSection ? 90 : '100%'}
+                            w={showValuesSection ? 70 : '100%'}
+                            maw={showValuesSection ? 70 : '100%'}
                             placeholder="Condition"
                             data={operatorOptions}
                             value={filterState.operator}
@@ -281,7 +281,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     color="dark"
                     compact
                     size="xs"
-                    disabled={!isFilterValid}
+                    disabled={!canApplyFilter}
                     sx={{
                         boxShadow: theme.shadows.subtle,
                         alignSelf: 'flex-end',
