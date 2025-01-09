@@ -336,6 +336,7 @@ export const getCompiledModels = async (
         select: string[] | undefined;
         exclude: string[] | undefined;
         projectDir: string | undefined;
+        profilesDir: string | undefined;
         target: string | undefined;
         profile: string | undefined;
         vars: string | undefined;
@@ -349,6 +350,9 @@ export const getCompiledModels = async (
             const { stdout } = await execa('dbt', [
                 'ls',
                 ...(args.projectDir ? ['--project-dir', args.projectDir] : []),
+                ...(args.profilesDir
+                    ? ['--profiles-dir', args.profilesDir]
+                    : []),
                 ...(args.target ? ['--target', args.target] : []),
                 ...(args.profile ? ['--profile', args.profile] : []),
                 ...(args.select ? ['--select', args.select.join(' ')] : []),

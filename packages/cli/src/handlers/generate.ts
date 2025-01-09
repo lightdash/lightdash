@@ -80,6 +80,9 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const models = getModelsFromManifest(manifest);
     const compiledModels = await getCompiledModels(models, {
         projectDir: dbtVersion.isDbtCloudCLI ? undefined : absoluteProjectPath,
+        profilesDir: dbtVersion.isDbtCloudCLI
+            ? undefined
+            : path.resolve(options.profilesDir),
         profile: dbtVersion.isDbtCloudCLI ? undefined : profileName,
         target: options.target,
         select: options.select || options.models,
