@@ -78,7 +78,6 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     });
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
-    console.error('models 3', models.length);
     const compiledModels = await getCompiledModels(models, {
         projectDir: dbtVersion.isDbtCloudCLI ? undefined : absoluteProjectPath,
         profile: dbtVersion.isDbtCloudCLI ? undefined : profileName,

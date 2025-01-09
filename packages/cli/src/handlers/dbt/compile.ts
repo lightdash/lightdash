@@ -145,7 +145,12 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             .split('\n')
             .map<string>((line) => {
                 try {
-                    return JSON.parse(line).unique_id;
+                    // remove prefixed time in dbt cloud cli output
+                    const lineWithoutPrefixedTime = line.replace(
+                        /^\d{2}:\d{2}:\d{2}\s*/,
+                        '',
+                    );
+                    return JSON.parse(lineWithoutPrefixedTime).unique_id;
                 } catch {
                     // ignore non-json lines
                     return '';

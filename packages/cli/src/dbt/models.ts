@@ -308,13 +308,11 @@ export const findAndUpdateModelYaml = async ({
 export const getModelsFromManifest = (
     manifest: DbtManifest,
 ): DbtModelNode[] => {
-    console.error('models', Object.values(manifest.nodes).length);
     const models = Object.values(manifest.nodes).filter(
         (node) =>
             node.resource_type === 'model' &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
-    console.error('models 2', models.length);
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         throw new ParseError(
             `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
@@ -359,40 +357,29 @@ export const getCompiledModels = async (
                 '--output=json',
             ]);
             GlobalState.debug(`> Compiled models: ${command}`);
-            console.error('stdout', stdout.length, stdout.split('\n').length);
-            console.error('stdout', stdout);
             const filteredModelIds = stdout
                 .split('\n')
                 .map((l) => l.trim())
                 .filter((l) => l.length > 0)
                 .map((l) => {
                     try {
-                        console.error('l', l);
                         // remove prefixed time in dbt cloud cli output
                         const lineWithoutPrefixedTime = l.replace(
                             /^\d{2}:\d{2}:\d{2}\s*/,
                             '',
                         );
                         return JSON.parse(lineWithoutPrefixedTime);
-                    } catch (e) {
-                        console.error('Failed to parse line', e);
+                    } catch {
                         return null;
                     }
                 })
                 .filter(
-                    (l): l is { resource_type: string; unique_id: string } => {
-                        console.error('l1', l);
-                        return l !== null;
-                    },
+                    (l): l is { resource_type: string; unique_id: string } =>
+                        l !== null,
                 )
-                .filter((model) => {
-                    console.error('l2', model);
-                    return model.resource_type === 'model';
-                })
+                .filter((model) => model.resource_type === 'model')
                 .map((model) => model.unique_id);
 
-            console.error('allModelIds', allModelIds);
-            console.error('filteredModelIds', filteredModelIds);
             allModelIds = allModelIds.filter((modelId) =>
                 filteredModelIds.includes(modelId),
             );
@@ -408,7 +395,7 @@ export const getCompiledModels = async (
         (acc, model) => ({ ...acc, [model.unique_id]: model }),
         {},
     );
-    console.error('allModelIds', allModelIds.length);
+
     return allModelIds.map((modelId) => ({
         name: modelLookup[modelId].name,
         schema: modelLookup[modelId].schema,
