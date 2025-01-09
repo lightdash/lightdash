@@ -128,12 +128,22 @@ export class DbtMetadataApiClient implements DbtClient {
                     }
                 }
             `;
-            const results = await this.client.request(query, {
-                environmentId: this.environmentId,
-                first: 500,
-            });
 
-            const { adapterType } = results.environment;
+            type ManifestQueryQuery = {
+                environment: { adapterType: string; applied: any };
+            };
+            const results = await this.client.request<ManifestQueryQuery>(
+                query,
+                {
+                    environmentId: this.environmentId,
+                    first: 500,
+                },
+            );
+
+            const { environment } = results as {
+                environment: { adapterType: string };
+            };
+            const { adapterType } = environment;
             let fieldQuoteChar = '"';
             if (!adapterType) {
                 throw new ParseError(
