@@ -93,9 +93,12 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
                 },
             ]);
             if (!answers.isConfirm) {
-                throw new Error(
-                    `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
+                console.error(
+                    styles.error(
+                        `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
+                    ),
                 );
+                process.exit(1);
             }
         }
         spinner?.start();
@@ -122,9 +125,12 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
                 },
             ]);
             if (!answers.isConfirm) {
-                throw new Error(
-                    `Unsupported dbt version ${verboseVersion}. Please consider using dbt core CLI for the best experience.`,
+                console.error(
+                    styles.error(
+                        `Command using dbt cloud CLI has been canceled. Please consider using dbt core CLI for the best experience.`,
+                    ),
                 );
+                process.exit(1);
             }
         }
         spinner?.start();
