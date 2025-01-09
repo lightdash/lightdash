@@ -1,3 +1,10 @@
+## [0.1445.1](https://github.com/lightdash/lightdash/compare/0.1445.0...0.1445.1) (2025-01-09)
+
+
+### Bug Fixes
+
+* different sidebar spacing between saved and unsaved explores ([#13152](https://github.com/lightdash/lightdash/issues/13152)) ([4171103](https://github.com/lightdash/lightdash/commit/417110350c0758f8d66698f8455c772d38d93c86))
+
 # [0.1445.0](https://github.com/lightdash/lightdash/compare/0.1444.1...0.1445.0) (2025-01-09)
 
 
