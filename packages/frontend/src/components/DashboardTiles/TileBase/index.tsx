@@ -135,6 +135,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 $isEditMode={isEditMode}
                 $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                 style={{
+                    display: 'inline-block',
                     backgroundColor: 'white',
                     zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
                     borderRadius: '5px',
