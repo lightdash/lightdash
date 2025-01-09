@@ -30,10 +30,11 @@ export type DownloadHandlerOptions = {
 
 const getDownloadFolder = (customPath?: string): string => {
     if (customPath) {
-        return path.isAbsolute(customPath) ? customPath : path.join(process.cwd(), customPath);
-    } else {
-        return path.join(process.cwd(), 'lightdash');
+        return path.isAbsolute(customPath)
+            ? customPath
+            : path.join(process.cwd(), customPath);
     }
+    return path.join(process.cwd(), 'lightdash');
 };
 
 /*
@@ -329,9 +330,9 @@ const getPromoteAction = (action: PromotionAction) => {
         case PromotionAction.NO_CHANGES:
             return 'skipped';
         default:
-            // eslint-disable-next-line consistent-return
             assertUnreachable(action, `Unknown promotion action: ${action}`);
     }
+    return 'skipped';
 };
 
 const storeUploadChanges = (
