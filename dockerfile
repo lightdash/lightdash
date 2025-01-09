@@ -7,6 +7,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
 RUN corepack prepare pnpm@latest --activate
+RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
 
@@ -164,6 +165,7 @@ ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
 RUN corepack prepare pnpm@latest --activate
+RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
 
