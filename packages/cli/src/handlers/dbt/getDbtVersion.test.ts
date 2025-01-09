@@ -89,12 +89,15 @@ describe('Get dbt version', () => {
             expect(consoleError).toHaveBeenCalledTimes(0);
         });
         test('when CI=false, should return error if user declines fallback', async () => {
+            const exitSpy = jest.spyOn(process, 'exit').mockImplementation();
             process.env.CI = 'false';
             execaMock.mockImplementation(async () => cliMocks.dbt1_3);
             promptMock.mockImplementation(async () => ({ isConfirm: false }));
-            await expect(getDbtVersion()).rejects.toThrowError();
+            await getDbtVersion();
             expect(promptMock).toHaveBeenCalledTimes(1);
-            expect(consoleError).toHaveBeenCalledTimes(0);
+            expect(consoleError).toHaveBeenCalledTimes(1);
+            expect(exitSpy).toHaveBeenCalledWith(1);
+            exitSpy.mockRestore();
         });
     });
 });
