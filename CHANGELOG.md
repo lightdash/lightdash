@@ -1,3 +1,10 @@
+## [0.1447.1](https://github.com/lightdash/lightdash/compare/0.1447.0...0.1447.1) (2025-01-09)
+
+
+### Bug Fixes
+
+* threshold alert upload image to slack ([#13138](https://github.com/lightdash/lightdash/issues/13138)) ([7e0bd31](https://github.com/lightdash/lightdash/commit/7e0bd31fee94daff192fd1ea2e7974d0ddd308e2))
+
 # [0.1447.0](https://github.com/lightdash/lightdash/compare/0.1446.0...0.1447.0) (2025-01-09)
 
 
