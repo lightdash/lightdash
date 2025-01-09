@@ -11,7 +11,6 @@ import {
     type ApiCatalogSearch,
     type ApiSort,
     type CatalogFieldMap,
-    type CatalogFieldWhere,
     type CatalogItem,
     type CatalogItemSummary,
     type CatalogItemWithTagUuids,
