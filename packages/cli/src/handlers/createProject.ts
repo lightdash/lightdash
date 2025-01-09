@@ -130,6 +130,7 @@ export const createProject = async (
         name: options.name,
         type: options.type,
         warehouseConnection: credentials,
+        copyWarehouseConnectionFromUpstreamProject: dbtVersion.isDbtCloudCLI,
         dbtConnection: {
             type: DbtProjectType.NONE,
             target: targetName,
