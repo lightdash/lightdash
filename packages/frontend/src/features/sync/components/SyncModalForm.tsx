@@ -95,21 +95,20 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
             targets: [],
         };
 
-        if (isEditing) {
-            updateChartSync({
-                ...data,
-                ...defaultNewSchedulerValues,
-            });
-            return;
-        }
+        const payload = {
+            ...data,
+            ...defaultNewSchedulerValues,
+            timezone: data.timezone || undefined,
+        };
 
-        createChartSync({
-            resourceUuid: chartUuid,
-            data: {
-                ...data,
-                ...defaultNewSchedulerValues,
-            },
-        });
+        if (isEditing) {
+            updateChartSync(payload);
+        } else {
+            createChartSync({
+                resourceUuid: chartUuid,
+                data: payload,
+            });
+        }
     };
 
     useEffect(() => {
@@ -183,7 +182,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             onChange={(value) => {
                                 methods.setValue(
                                     'timezone',
-                                    value ?? undefined,
+                                    value || undefined,
                                 );
                             }}
                             value={timezoneValue}

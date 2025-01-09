@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1440.5",
+    "version": "0.1445.1",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -10,6 +10,7 @@
     "devDependencies": {
         "@types/pegjs": "^0.10.3",
         "@types/sanitize-html": "^2.11.0",
+        "@types/uuid": "^10.0.0",
         "typescript-json-schema": "^0.54.0"
     },
     "dependencies": {
@@ -20,14 +21,14 @@
         "cronstrue": "^2.23.0",
         "dayjs": "^1.11.9",
         "dependency-graph": "^0.11.0",
-        "type-fest": "^3.10.0",
         "liquidjs": "^10.0.0",
         "lodash": "^4.17.21",
         "moment": "^2.29.4",
         "moment-timezone": "^0.5.45",
         "pegjs": "^0.10.0",
         "sanitize-html": "^2.12.1",
-        "uuid": "^8.3.2",
+        "type-fest": "^3.10.0",
+        "uuid": "^11.0.3",
         "zod": "^3.23.3"
     },
     "scripts": {
@@ -35,10 +36,10 @@
         "build": "tsc --build tsconfig.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
-        "lint": "yarn run linter ./src",
-        "fix-lint": "yarn run linter ./src --fix",
-        "format": "yarn run formatter ./src --check",
-        "fix-format": "yarn run formatter ./src --write",
+        "lint": "pnpm run linter ./src",
+        "fix-lint": "pnpm run linter ./src --fix",
+        "format": "pnpm run formatter ./src --check",
+        "fix-format": "pnpm run formatter ./src --write",
         "test": "TZ=UTC jest"
     }
 }

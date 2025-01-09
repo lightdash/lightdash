@@ -21,6 +21,7 @@ interface InputProps {
 export interface InputWrapperProps {
     name: string;
     label?: string;
+    description?: string | ReactNode;
     disabled?: boolean;
     placeholder?: string;
     defaultValue?: any;
