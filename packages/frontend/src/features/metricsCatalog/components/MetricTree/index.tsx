@@ -102,13 +102,97 @@ const getNodeLayout = (
     );
     treeGraph.setGraph({ rankdir: 'TB' });
 
+    // Main padding
+    const mainPadding = 15;
+
+    // Organize nodes into a 2D grid array first
+    const GRID_COLUMNS = 3;
+    const gridArray: MetricTreeNode[][] = [];
+
+    freeNodes.forEach((node, index) => {
+        const row = Math.floor(index / GRID_COLUMNS);
+        if (!gridArray[row]) {
+            gridArray[row] = [];
+        }
+        gridArray[row].push(node);
+    });
+
+    // Draw the unconnected grid
+    const free = gridArray.flatMap((row, rowIndex) =>
+        row.map<MetricTreeCollapsedNodeData>((node, colIndex) => {
+            // Calculate x position based on widths of nodes in same column
+            const prevNodeInRow = gridArray[rowIndex][colIndex - 1];
+            const x = prevNodeInRow
+                ? prevNodeInRow.position.x +
+                  (prevNodeInRow.measured?.width ?? 0) +
+                  mainPadding
+                : 0;
+
+            // Calculate y position based on sum of previous rows' max heights
+            const prevRow = gridArray[rowIndex - 1];
+            const y = prevRow
+                ? Math.max(
+                      ...prevRow.map(
+                          (n) =>
+                              n.position.y +
+                              (n.measured?.height ?? 0) +
+                              mainPadding,
+                      ),
+                  )
+                : 0;
+
+            return {
+                ...node,
+                type: MetricTreeNodeType.COLLAPSED,
+                position: { x, y },
+                id: `${node.id}`,
+            };
+        }),
+    );
+
+    // Group bounds
+    const unconnectedGroupWidth =
+        Math.max(
+            ...free.map(
+                (node) => node.position.x + (node.measured?.width ?? 0),
+            ),
+        ) +
+        mainPadding * 2;
+
+    const unconnectedGroupHeight =
+        Math.max(
+            ...free.map(
+                (node) => node.position.y + (node.measured?.height ?? 0),
+            ),
+        ) +
+        mainPadding * 2;
+
+    const unconnectedGroup = {
+        id: STATIC_NODE_TYPES.UNCONNECTED,
+        data: { label: 'Unconnected nodes' },
+        position: { x: -mainPadding, y: -mainPadding },
+        style: {
+            backgroundColor: theme.fn.lighten(theme.colors.gray[0], 0.7),
+            border: `1px solid ${theme.colors.gray[3]}`,
+            boxShadow: theme.shadows.subtle,
+            height: unconnectedGroupHeight,
+            width: unconnectedGroupWidth,
+            pointerEvents: 'none' as const,
+            borderRadius: theme.radius.md,
+            padding: theme.spacing.md,
+        },
+        type: 'group',
+    } satisfies MetricTreeNode;
+
+    const groups = free.length > 0 ? [unconnectedGroup] : [];
+
+    // Draw the connected tree
     edges.forEach((edge) => treeGraph.setEdge(edge.source, edge.target));
     connectedNodes.forEach((node) =>
         treeGraph.setNode(node.id, {
             ...node,
-            // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
-            width: 200,
-            height: 110,
+            width: node.measured?.width ?? 0,
+            height: node.measured?.height ?? 0,
         }),
     );
 
@@ -119,91 +203,16 @@ const getNodeLayout = (
         const position = treeGraph.node(node.id);
         const x = position.x - (node.measured?.width ?? 0) / 2;
         const y = position.y - (node.measured?.height ?? 0) / 2;
-        return { ...node, type: 'connected', position: { x, y } };
-    });
-
-    // Main padding
-    const mainPadding = 15;
-
-    // Bounds of grid
-    let top = Infinity;
-    let left = Infinity;
-    let bottom = -Infinity;
-    let right = -Infinity;
-
-    // Draw the unconnected grid
-    const free = freeNodes.map<MetricTreeCollapsedNodeData>((node, index) => {
-        // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
-        const nodeWidth = 170;
-        const nodeHeight = 38;
-
-        // TODO: this is an arbitrary offset that looks ok with the
-        // basic setup. Placement of the grid will probably need to be
-        // more robust and include the tree size
-        const leftOffset = -1 * nodeWidth - 70;
-
-        // 3 column grid
-        const column = index % 3;
-        const row = Math.floor(index / 3);
-        const x = leftOffset - column * (nodeWidth + mainPadding);
-        const y = row * (nodeHeight + mainPadding);
-
-        // Update bounds
-        top = Math.min(top, y);
-        left = Math.min(left, x);
-        bottom = Math.max(bottom, y + nodeHeight);
-        right = Math.max(right, x + nodeWidth);
+        const xFromUnconnectedGroup =
+            unconnectedGroupWidth + x + 3 * mainPadding;
+        const yFromUnconnectedGroup = unconnectedGroup.position.y + y;
 
         return {
             ...node,
-            type: 'free',
-            position: { x, y },
-            id: `${node.id}`,
+            type: MetricTreeNodeType.EXPANDED,
+            position: { x: xFromUnconnectedGroup, y: yFromUnconnectedGroup },
         };
     });
-
-    const unconnectedGroupX = left - mainPadding;
-    const unconnectedGroupY = top - mainPadding;
-    const unconnectedGroupWidth = right - left + mainPadding * 2;
-    const unconnectedGroupHeight = bottom - top + mainPadding * 2;
-
-    const groups =
-        free.length > 0
-            ? ([
-                  {
-                      id: STATIC_NODE_TYPES.UNCONNECTED,
-                      data: {
-                          label: 'Unconnected nodes',
-                      },
-                      position: {
-                          x: isFinite(unconnectedGroupX)
-                              ? unconnectedGroupX
-                              : 0,
-                          y: isFinite(unconnectedGroupY)
-                              ? unconnectedGroupY
-                              : 0,
-                      },
-                      style: {
-                          backgroundColor: theme.fn.lighten(
-                              theme.colors.gray[0],
-                              0.7,
-                          ),
-                          border: `1px solid ${theme.colors.gray[3]}`,
-                          boxShadow: theme.shadows.subtle,
-                          height: isFinite(unconnectedGroupHeight)
-                              ? unconnectedGroupHeight
-                              : 0,
-                          width: isFinite(unconnectedGroupWidth)
-                              ? unconnectedGroupWidth
-                              : 0,
-                          pointerEvents: 'none' as const,
-                          borderRadius: theme.radius.md,
-                          padding: theme.spacing.md,
-                      },
-                      type: 'group',
-                  },
-              ] satisfies MetricTreeNode[])
-            : [];
 
     return {
         nodes: [...groups, ...tree, ...free],
