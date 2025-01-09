@@ -1,3 +1,10 @@
+# [0.1445.0](https://github.com/lightdash/lightdash/compare/0.1444.1...0.1445.0) (2025-01-09)
+
+
+### Features
+
+* Enable to specify path of `lightdasah {download,upload}` ([#13158](https://github.com/lightdash/lightdash/issues/13158)) ([cbda070](https://github.com/lightdash/lightdash/commit/cbda070b711103482bd72ba3739dd22fb86155e4))
+
 ## [0.1444.1](https://github.com/lightdash/lightdash/compare/0.1444.0...0.1444.1) (2025-01-08)
 
 
