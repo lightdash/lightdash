@@ -17,7 +17,7 @@ import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../hooks/useRunMetricExplorerQuery';
 
-export type MetricTreeConnectedNodeData = Node<{
+export type MetricTreeExpandedNodeData = Node<{
     label: string;
     tableName: string;
     metricName: string;
@@ -26,8 +26,8 @@ export type MetricTreeConnectedNodeData = Node<{
     timeFrame: TimeFrames;
 }>;
 
-const MetricTreeConnectedNode: React.FC<
-    NodeProps<MetricTreeConnectedNodeData>
+const MetricTreeExpandedNode: React.FC<
+    NodeProps<MetricTreeExpandedNodeData>
 > = ({ data, isConnectable }) => {
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
@@ -163,4 +163,4 @@ const MetricTreeConnectedNode: React.FC<
     );
 };
 
-export default MetricTreeConnectedNode;
+export default MetricTreeExpandedNode;

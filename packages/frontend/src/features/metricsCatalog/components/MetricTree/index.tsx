@@ -32,21 +32,21 @@ import {
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
 import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
-import MetricTreeConnectedNode, {
-    type MetricTreeConnectedNodeData,
-} from './MetricTreeConnectedNode';
-import MetricTreeUnconnectedNode, {
-    type MetricTreeUnconnectedNodeData,
-} from './MetricTreeUnconnectedNode';
+import MetricTreeExpandedNode, {
+    type MetricTreeExpandedNodeData,
+} from './MetricTreeExpandedNode';
+import MetricTreeCollapsedNode, {
+    type MetricTreeCollapsedNodeData,
+} from './MetricTreeCollapsedNode';
 
 enum MetricTreeNodeType {
-    CONNECTED = 'connected',
-    FREE = 'free',
+    EXPANDED = 'expanded',
+    COLLAPSED = 'collapsed',
 }
 
 const metricTreeNodeTypes: NodeTypes = {
-    [MetricTreeNodeType.CONNECTED]: MetricTreeConnectedNode,
-    [MetricTreeNodeType.FREE]: MetricTreeUnconnectedNode,
+    [MetricTreeNodeType.EXPANDED]: MetricTreeExpandedNode,
+    [MetricTreeNodeType.COLLAPSED]: MetricTreeCollapsedNode,
 };
 
 type Props = {
@@ -61,9 +61,7 @@ enum STATIC_NODE_TYPES {
 
 const DEFAULT_TIME_FRAME = DEFAULT_METRICS_EXPLORER_TIME_INTERVAL; // TODO: this should be dynamic
 
-type MetricTreeNode =
-    | MetricTreeConnectedNodeData
-    | MetricTreeUnconnectedNodeData;
+type MetricTreeNode = MetricTreeExpandedNodeData | MetricTreeCollapsedNodeData;
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
@@ -134,7 +132,7 @@ const getNodeLayout = (
     let right = -Infinity;
 
     // Draw the unconnected grid
-    const free = freeNodes.map<MetricTreeUnconnectedNodeData>((node, index) => {
+    const free = freeNodes.map<MetricTreeCollapsedNodeData>((node, index) => {
         // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
         const nodeWidth = 170;
         const nodeHeight = 38;
@@ -315,7 +313,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                         type: 'replace',
                         item: {
                             ...node,
-                            type: MetricTreeNodeType.FREE,
+                            type: MetricTreeNodeType.COLLAPSED,
                             position: c.position ?? node.position,
                         },
                     } satisfies NodeReplaceChange<MetricTreeNode>;
@@ -326,7 +324,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     type: 'replace',
                     item: {
                         ...node,
-                        type: MetricTreeNodeType.CONNECTED,
+                        type: MetricTreeNodeType.EXPANDED,
                         position: c.position ?? node.position,
                     },
                 } satisfies NodeReplaceChange<MetricTreeNode>;
