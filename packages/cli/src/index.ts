@@ -445,7 +445,7 @@ program
         [],
     )
     .option(
-        '--path <path>',
+        '-p, --path <path>',
         'specify a custom path to download charts and dashboards',
         undefined,
     )
@@ -471,7 +471,7 @@ program
         false,
     )
     .option(
-        '--path <path>',
+        '-p, --path <path>',
         'specify a custom path to upload charts and dashboards from',
         undefined,
     )
