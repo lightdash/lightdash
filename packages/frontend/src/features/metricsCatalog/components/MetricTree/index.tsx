@@ -199,6 +199,7 @@ const getNodeLayout = (
 
     // Draw the connected tree
     edges.forEach((edge) => treeGraph.setEdge(edge.source, edge.target));
+
     connectedNodes.forEach((node) =>
         treeGraph.setNode(node.id, {
             ...node,
@@ -221,7 +222,10 @@ const getNodeLayout = (
         return {
             ...node,
             type: MetricTreeNodeType.EXPANDED,
-            position: { x: xFromUnconnectedGroup, y: yFromUnconnectedGroup },
+            position: {
+                x: xFromUnconnectedGroup,
+                y: yFromUnconnectedGroup,
+            },
         };
     });
 
