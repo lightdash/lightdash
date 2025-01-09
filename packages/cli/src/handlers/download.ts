@@ -28,8 +28,13 @@ export type DownloadHandlerOptions = {
     path?: string; // New optional path parameter
 };
 
-const getDownloadFolder = (customPath?: string): string =>
-    customPath || path.join(process.cwd(), 'lightdash');
+const getDownloadFolder = (customPath?: string): string => {
+    if (customPath) {
+        return path.isAbsolute(customPath) ? customPath : path.join(process.cwd(), customPath);
+    } else {
+        return path.join(process.cwd(), 'lightdash');
+    }
+};
 
 /*
     This function is used to parse the content filters.
