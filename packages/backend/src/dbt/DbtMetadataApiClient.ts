@@ -140,10 +140,7 @@ export class DbtMetadataApiClient implements DbtClient {
                 },
             );
 
-            const { environment } = results as {
-                environment: { adapterType: string };
-            };
-            const { adapterType } = environment;
+            const { adapterType } = results.environment;
             let fieldQuoteChar = '"';
             if (!adapterType) {
                 throw new ParseError(
