@@ -83,6 +83,7 @@ export class MetricsExplorerService<
         metricQuery: MetricQuery,
         timeDimensionConfig: TimeDimensionConfig,
         dateRange: MetricExplorerDateRange,
+        filter: FilterRule | undefined,
     ): Promise<{
         rows: ResultRow[];
         fields: ItemsMap;
@@ -102,10 +103,13 @@ export class MetricsExplorerService<
             filters: {
                 dimensions: {
                     id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        timeDimensionConfig,
-                        forwardBackDateRange,
-                    ),
+                    and: [
+                        ...getMetricExplorerDateRangeFilters(
+                            timeDimensionConfig,
+                            forwardBackDateRange,
+                        ),
+                        ...(filter ? [filter] : []),
+                    ],
                 },
             },
         };
@@ -137,6 +141,7 @@ export class MetricsExplorerService<
         query: MetricExplorerQuery,
         dateRange: MetricExplorerDateRange,
         timeDimensionOverride: TimeDimensionConfig | undefined,
+        filter: FilterRule | undefined,
     ): Promise<{
         rows: ResultRow[];
         fields: ItemsMap;
@@ -186,14 +191,17 @@ export class MetricsExplorerService<
             filters: {
                 dimensions: {
                     id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        {
-                            table: timeDimension.table,
-                            field: timeDimension.field,
-                            interval: metricDimensionGrain,
-                        },
-                        dateRange,
-                    ),
+                    and: [
+                        ...getMetricExplorerDateRangeFilters(
+                            {
+                                table: timeDimension.table,
+                                field: timeDimension.field,
+                                interval: metricDimensionGrain,
+                            },
+                            dateRange,
+                        ),
+                        ...(filter ? [filter] : []),
+                    ],
                 },
             },
             sorts: [{ fieldId: dimensionFieldId, descending: false }],
@@ -435,6 +443,7 @@ export class MetricsExplorerService<
                         interval: dimensionGrain,
                     },
                     dateRange,
+                    filter,
                 );
                 comparisonResults = prevRows;
                 allFields = { ...allFields, ...prevFields };
@@ -454,6 +463,7 @@ export class MetricsExplorerService<
                     query,
                     dateRange,
                     timeDimensionOverride,
+                    filter,
                 );
                 comparisonResults = diffRows;
                 allFields = { ...allFields, ...diffFields };
