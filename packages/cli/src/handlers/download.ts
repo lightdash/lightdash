@@ -20,15 +20,24 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
-const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
     force: boolean;
+    path?: string; // New optional path parameter
 };
 
-/* 
+const getDownloadFolder = (customPath?: string): string => {
+    if (customPath) {
+        return path.isAbsolute(customPath)
+            ? customPath
+            : path.join(process.cwd(), customPath);
+    }
+    return path.join(process.cwd(), 'lightdash');
+};
+
+/*
     This function is used to parse the content filters.
     It can be slugs, uuids or urls
     We remove the URL part (if any) and return a list of `slugs or uuids` that can be used in the API call
@@ -51,8 +60,9 @@ const parseContentFilters = (items: string[]): string => {
 const dumpIntoFiles = async (
     folder: 'charts' | 'dashboards',
     items: (ChartAsCode | DashboardAsCode)[],
+    customPath?: string,
 ) => {
-    const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
+    const outputDir = path.join(getDownloadFolder(customPath), folder);
 
     GlobalState.debug(`Writing ${items.length} ${folder} into ${outputDir}`);
     // Make directory
@@ -70,8 +80,9 @@ const dumpIntoFiles = async (
 
 const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     folder: 'charts' | 'dashboards',
+    customPath?: string,
 ): Promise<(T & { needsUpdating: boolean })[]> => {
-    const inputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
+    const inputDir = path.join(getDownloadFolder(customPath), folder);
 
     console.info(`Reading ${folder} from ${inputDir}`);
     const items: (T & { needsUpdating: boolean })[] = [];
@@ -128,6 +139,7 @@ export const downloadContent = async (
     ids: string[], // slug, uuid or url
     type: 'charts' | 'dashboards',
     projectId: string,
+    customPath?: string,
 ): Promise<[number, string[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
@@ -157,7 +169,11 @@ export const downloadContent = async (
         });
 
         if ('dashboards' in contentAsCode) {
-            await dumpIntoFiles('dashboards', contentAsCode.dashboards);
+            await dumpIntoFiles(
+                'dashboards',
+                contentAsCode.dashboards,
+                customPath,
+            );
             // Extract chart slugs from dashboards
             chartSlugs = contentAsCode.dashboards.reduce<string[]>(
                 (acc, dashboard) => {
@@ -176,7 +192,7 @@ export const downloadContent = async (
                 chartSlugs,
             );
         } else {
-            await dumpIntoFiles('charts', contentAsCode.charts);
+            await dumpIntoFiles('charts', contentAsCode.charts, customPath);
         }
         offset = contentAsCode.offset;
     } while (contentAsCode.offset < contentAsCode.total);
@@ -234,6 +250,7 @@ export const downloadHandler = async (
                 options.charts,
                 'charts',
                 projectId,
+                options.path,
             );
             spinner.succeed(`Downloaded ${chartTotal} charts`);
         }
@@ -250,6 +267,7 @@ export const downloadHandler = async (
                 options.dashboards,
                 'dashboards',
                 projectId,
+                options.path,
             );
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
@@ -265,6 +283,7 @@ export const downloadHandler = async (
                     chartSlugs,
                     'charts',
                     projectId,
+                    options.path,
                 );
 
                 spinner.succeed(
@@ -298,8 +317,6 @@ export const downloadHandler = async (
             },
         });
     }
-
-    // TODO delete files if chart don't exist ?*/
 };
 
 const getPromoteAction = (action: PromotionAction) => {
@@ -317,6 +334,7 @@ const getPromoteAction = (action: PromotionAction) => {
     }
     return 'skipped';
 };
+
 const storeUploadChanges = (
     changes: Record<string, number>,
     promoteChanges: PromotionChanges,
@@ -352,6 +370,7 @@ const storeUploadChanges = (
 
     return updatedChanges;
 };
+
 const logUploadChanges = (changes: Record<string, number>) => {
     Object.entries(changes).forEach(([key, value]) => {
         console.info(`Total ${key}: ${value} `);
@@ -368,10 +387,11 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     changes: Record<string, number>,
     force: boolean,
     slugs: string[],
+    customPath?: string,
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
-    const items = await readCodeFiles<T>(type);
+    const items = await readCodeFiles<T>(type, customPath);
 
     console.info(`Found ${items.length} ${type} files`);
 
@@ -498,6 +518,7 @@ export const uploadHandler = async (
                     changes,
                     options.force,
                     options.charts,
+                    options.path,
                 );
             changes = chartChanges;
             chartTotal = total;
@@ -515,6 +536,7 @@ export const uploadHandler = async (
                     changes,
                     options.force,
                     options.dashboards,
+                    options.path,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;

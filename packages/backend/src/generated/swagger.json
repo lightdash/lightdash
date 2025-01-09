@@ -6573,6 +6573,9 @@
                     },
                     "environment_id": {
                         "type": "string"
+                    },
+                    "discovery_api_endpoint": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "api_key", "environment_id"],
@@ -8241,7 +8244,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_": {
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-updatedAt_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -8251,10 +8254,6 @@
                     },
                     "slug": {
                         "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -8285,7 +8284,6 @@
                 "required": [
                     "name",
                     "slug",
-                    "dashboardUuid",
                     "updatedAt",
                     "tableName",
                     "metricQuery",
@@ -8298,7 +8296,7 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-updatedAt_"
                     },
                     {
                         "properties": {
@@ -8312,6 +8310,9 @@
                             "version": {
                                 "type": "number",
                                 "format": "double"
+                            },
+                            "dashboardSlug": {
+                                "type": "string"
                             }
                         },
                         "required": ["spaceSlug", "version"],
@@ -8544,10 +8545,6 @@
                     "slug": {
                         "type": "string"
                     },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -8567,6 +8564,9 @@
                         "required": ["columnOrder"],
                         "type": "object"
                     },
+                    "dashboardSlug": {
+                        "type": "string"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -8582,7 +8582,6 @@
                 "required": [
                     "name",
                     "slug",
-                    "dashboardUuid",
                     "updatedAt",
                     "tableName",
                     "tableConfig",
@@ -12903,7 +12902,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1434.1",
+        "version": "0.1444.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17923,6 +17922,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "filter": {
+                                        "$ref": "#/components/schemas/FilterRule"
+                                    },
                                     "query": {
                                         "$ref": "#/components/schemas/MetricExplorerQuery"
                                     },
