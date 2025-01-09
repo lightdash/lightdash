@@ -538,7 +538,7 @@ export default class SchedulerTask {
                 footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
                     cron,
                     timezone || defaultSchedulerTimezone,
-                )} from Lightdash\n${
+                )} from Lightdash.\n${
                     showExpirationWarning
                         ? this.s3Client.getExpirationWarning()?.slack || ''
                         : ''
@@ -549,18 +549,28 @@ export default class SchedulerTask {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
                 if (savedChartUuid) {
+                    const slackImageUrl =
+                        await this.slackClient.tryUploadingImageToSlack(
+                            organizationUuid,
+                            imageUrl,
+                            name,
+                        );
                     const thresholdFooter = includeLinks
                         ? `<${url}?threshold_uuid=${
                               schedulerUuid || ''
                           }|data alert>`
                         : 'data alert';
 
+                    const expiration = slackImageUrl.expiring
+                        ? `For security reasons, delivered files expire after ${
+                              this.s3Client.getExpirationWarning()?.days || 3
+                          } days.`
+                        : '';
+
                     const blocks = getChartThresholdAlertBlocks({
                         ...getBlocksArgs,
-                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. For security reasons, delivered files expire after ${
-                            this.s3Client.getExpirationWarning()?.days || 3
-                        } days`,
-                        imageUrl,
+                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. ${expiration}`,
+                        imageUrl: slackImageUrl.url,
                         thresholds,
                         includeLinks,
                     });
@@ -574,29 +584,22 @@ export default class SchedulerTask {
                     throw new Error('Not implemented');
                 }
             } else if (format === SchedulerFormat.IMAGE) {
-                if (imageUrl === undefined) {
-                    throw new Error('Missing image URL');
-                }
-
-                let fileUrl = imageUrl;
-                try {
-                    // We will try to upload the image to slack, so it can be used in blocks without expiration
-                    // If it fails, we will keep using the same URL (s3)
-                    const response = await fetch(imageUrl);
-                    const buffer = Buffer.from(await response.arrayBuffer());
-                    const slackFileUrl = await this.slackClient.uploadFile({
+                const slackImageUrl =
+                    await this.slackClient.tryUploadingImageToSlack(
                         organizationUuid,
-                        file: buffer,
-                        title: name,
-                    });
-                    fileUrl = slackFileUrl;
-                } catch (e) {
-                    Logger.error(`Failed to upload image to slack: ${e}`);
-                }
+                        imageUrl,
+                        name,
+                    );
 
+                const expiration = slackImageUrl.expiring
+                    ? `For security reasons, delivered files expire after ${
+                          this.s3Client.getExpirationWarning()?.days || 3
+                      } days.`
+                    : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
-                    imageUrl: fileUrl,
+                    footerMarkdown: `${getBlocksArgs.footerMarkdown} ${expiration}`,
+                    imageUrl: slackImageUrl.url,
                 });
 
                 const message = await this.slackClient.postMessage({
