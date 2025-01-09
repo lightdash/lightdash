@@ -135,6 +135,7 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         upstreamProjectUuid: string,
         chartUuid: string,
+        includeOrphanChartsWithinDashboard?: boolean,
     ): Promise<{
         promotedChart: PromotedChart;
         upstreamChart: UpstreamChart;
@@ -147,6 +148,7 @@ export class PromoteService extends BaseService {
         const upstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
             slug: savedChart.slug,
+            includeOrphanChartsWithinDashboard,
         });
         if (upstreamCharts.length > 1) {
             throw new AlreadyExistsError(
@@ -1038,6 +1040,7 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
+        includeOrphanChartsWithinDashboard?: boolean,
     ): Promise<
         [
             PromotionChanges,
@@ -1060,7 +1063,12 @@ export class PromoteService extends BaseService {
         );
 
         const chartPromises = chartUuids.map((chartUuid) =>
-            this.getPromoteCharts(user, upstreamProjectUuid, chartUuid),
+            this.getPromoteCharts(
+                user,
+                upstreamProjectUuid,
+                chartUuid,
+                includeOrphanChartsWithinDashboard,
+            ),
         );
         const charts = await Promise.all(chartPromises);
 

@@ -6029,6 +6029,7 @@ const models: TsoaRoute.Models = {
             type: { ref: 'DbtProjectType.DBT_CLOUD_IDE', required: true },
             api_key: { dataType: 'string', required: true },
             environment_id: { dataType: 'string', required: true },
+            discovery_api_endpoint: { dataType: 'string' },
         },
         additionalProperties: true,
     },
@@ -7712,7 +7713,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_':
+    'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-updatedAt_':
         {
             dataType: 'refAlias',
             type: {
@@ -7727,14 +7728,6 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     slug: { dataType: 'string', required: true },
-                    dashboardUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
                     updatedAt: { dataType: 'datetime', required: true },
                     tableName: { dataType: 'string', required: true },
                     metricQuery: { ref: 'MetricQuery', required: true },
@@ -7761,7 +7754,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_',
+                    ref: 'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-updatedAt_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -7769,6 +7762,14 @@ const models: TsoaRoute.Models = {
                         downloadedAt: { dataType: 'datetime' },
                         spaceSlug: { dataType: 'string', required: true },
                         version: { dataType: 'double', required: true },
+                        dashboardSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                     },
                 },
             ],
@@ -7999,14 +8000,6 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     slug: { dataType: 'string', required: true },
-                    dashboardUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
                     updatedAt: { dataType: 'datetime', required: true },
                     tableName: { dataType: 'string', required: true },
                     tableConfig: {
@@ -8018,6 +8011,14 @@ const models: TsoaRoute.Models = {
                                 required: true,
                             },
                         },
+                        required: true,
+                    },
+                    dashboardSlug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
                         required: true,
                     },
                     version: { dataType: 'double', required: true },
