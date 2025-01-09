@@ -1,4 +1,5 @@
 import {
+    DbtVersionOptionLatest,
     getLatestSupportDbtVersion,
     SupportedDbtVersions,
 } from '@lightdash/common';
@@ -47,6 +48,16 @@ describe('Get dbt version', () => {
             const version2 = await getDbtVersion();
             expect(version2.verboseVersion).toEqual('1.9.1');
             expect(version2.versionOption).toEqual(SupportedDbtVersions.V1_9);
+        });
+        test('should return latest for dbt cloud', async () => {
+            execaMock.mockImplementation(async () => cliMocks.dbtCloud);
+            const version3 = await getDbtVersion();
+            expect(version3.verboseVersion).toEqual(
+                expect.stringContaining('dbt Cloud CLI'),
+            );
+            expect(version3.versionOption).toEqual(
+                DbtVersionOptionLatest.LATEST,
+            );
         });
         test('when CI=true, should warn user about unsupported version and return fallback', async () => {
             process.env.CI = 'true';
