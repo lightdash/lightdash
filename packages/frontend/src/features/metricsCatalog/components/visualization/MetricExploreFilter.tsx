@@ -1,8 +1,6 @@
 import {
-    FilterOperator,
-    getFilterRuleWithDefaultValue,
-    getItemId,
     type CompiledDimension,
+    type FilterOperator,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -17,8 +15,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconFilter, IconPencil, IconX } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { TagInput } from '../../../../components/common/TagInput/TagInput';
 import {
@@ -26,6 +23,10 @@ import {
     useFilterTagInputStyles,
     useOperatorSelectStyles,
 } from '../../styles/useFilterStyles';
+import {
+    createFilterRule,
+    getOperatorOptions,
+} from '../../utils/metricExploreFilter';
 import SelectItem from '../SelectItem';
 
 type Props = {
@@ -43,20 +44,9 @@ export const MetricExploreFilter: FC<Props> = ({
     dimensions,
     onFilterApply,
 }) => {
-    const { classes: filterSelectClasses, theme, cx } = useFilterSelectStyles();
-    const { classes: operatorSelectClasses } = useOperatorSelectStyles();
+    const { classes: filterSelectClasses, theme } = useFilterSelectStyles();
+    const { classes: operatorSelectClasses, cx } = useOperatorSelectStyles();
     const { classes: tagInputClasses } = useFilterTagInputStyles();
-
-    const operatorOptions = [
-        {
-            value: FilterOperator.EQUALS,
-            label: 'is',
-        },
-        {
-            value: FilterOperator.NOT_EQUALS,
-            label: 'is not',
-        },
-    ];
 
     const [filterState, setFilterState] = useState<FilterState>({
         dimension: null,
@@ -66,20 +56,35 @@ export const MetricExploreFilter: FC<Props> = ({
     const [mode, setMode] = useState<'read' | 'edit'>('read');
     const [activeFilter, setActiveFilter] = useState<FilterRule | undefined>();
 
+    const selectedDimension = dimensions?.find(
+        (d) => d.name === filterState.dimension,
+    );
+
+    const dimensionMetadata = useMemo(() => {
+        if (!selectedDimension) return null;
+        return {
+            requiresValues: selectedDimension.type !== 'boolean',
+            type: selectedDimension.type,
+        };
+    }, [selectedDimension]);
+
+    const isFilterValid = useMemo(() => {
+        if (!filterState.dimension || !filterState.operator) return false;
+        if (!dimensionMetadata?.requiresValues) return true;
+        return filterState.values.length > 0;
+    }, [filterState, dimensionMetadata]);
+
+    const operatorOptions = getOperatorOptions(selectedDimension);
+
     const handleApplyFilter = useCallback(() => {
         const dimension = dimensions?.find(
             (d) => d.name === filterState.dimension,
         );
         if (!dimension || !filterState.operator) return;
-        const filterRule = getFilterRuleWithDefaultValue(
+
+        const filterRule = createFilterRule(
             dimension,
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId: getItemId(dimension),
-                },
-                operator: filterState.operator,
-            },
+            filterState.operator,
             filterState.values,
         );
 
@@ -111,7 +116,17 @@ export const MetricExploreFilter: FC<Props> = ({
         }
     }, [activeFilter]);
 
-    const isFilterApplied = Boolean(activeFilter && mode === 'read');
+    const isFilterApplied = useMemo(() => {
+        return Boolean(activeFilter && mode === 'read');
+    }, [activeFilter, mode]);
+
+    const showClearButton = useMemo(() => {
+        return filterState.dimension ? 'visible' : 'hidden';
+    }, [filterState.dimension]);
+
+    const showValuesSection = useMemo(() => {
+        return dimensionMetadata?.requiresValues;
+    }, [dimensionMetadata?.requiresValues]);
 
     return (
         <Stack spacing="xs">
@@ -153,9 +168,7 @@ export const MetricExploreFilter: FC<Props> = ({
                             '&:hover': {
                                 backgroundColor: theme.colors.gray[1],
                             },
-                            visibility: filterState.dimension
-                                ? 'visible'
-                                : 'hidden',
+                            visibility: showClearButton,
                         }}
                         styles={{
                             rightIcon: {
@@ -204,6 +217,8 @@ export const MetricExploreFilter: FC<Props> = ({
 
                 {isFilterApplied && (
                     <Group
+                        h={32}
+                        position="left"
                         sx={{
                             border: `1px solid ${theme.colors.gray[2]}`,
                             borderRadius: theme.radius.md,
@@ -213,17 +228,22 @@ export const MetricExploreFilter: FC<Props> = ({
                             backgroundColor: 'white',
                         }}
                         noWrap
+                        grow={!showValuesSection}
                         spacing={0}
                     >
                         <Box
-                            px="xs"
-                            py="xxs"
+                            p="xs"
                             bg="gray.0"
+                            h={32}
+                            maw={showValuesSection ? 'fit-content' : '100%'}
                             sx={{
                                 borderBottomLeftRadius: theme.radius.md,
+                                ...(!showValuesSection && {
+                                    borderBottomRightRadius: theme.radius.md,
+                                }),
                             }}
                         >
-                            <Text fw={550} c="dark.6">
+                            <Text fw={550} c="dark.6" lh={1.2}>
                                 {
                                     operatorOptions.find(
                                         (op) =>
@@ -232,25 +252,39 @@ export const MetricExploreFilter: FC<Props> = ({
                                 }
                             </Text>
                         </Box>
-                        <Divider orientation="vertical" color="gray.2" />
-                        <Box
-                            px="xs"
-                            py="xxs"
-                            w="fit-content"
-                            sx={{
-                                borderBottomRightRadius: theme.radius.md,
-                            }}
-                        >
-                            <Text fw={500} c="gray.7">
-                                {activeFilter?.values?.join(', ')}
-                            </Text>
-                        </Box>
+                        {showValuesSection && (
+                            <>
+                                <Divider
+                                    orientation="vertical"
+                                    color="gray.2"
+                                    sx={{
+                                        flexGrow: 0,
+                                    }}
+                                />
+
+                                <Box
+                                    p="xs"
+                                    w="fit-content"
+                                    h={32}
+                                    sx={{
+                                        borderBottomRightRadius:
+                                            theme.radius.md,
+                                    }}
+                                >
+                                    <Text fw={500} c="gray.7" lh={1.2}>
+                                        {activeFilter?.values?.join(', ')}
+                                    </Text>
+                                </Box>
+                            </>
+                        )}
                     </Group>
                 )}
 
                 {filterState.dimension && !isFilterApplied && (
                     <Group spacing={0} noWrap>
                         <Select
+                            w={showValuesSection ? 90 : '100%'}
+                            maw={showValuesSection ? 90 : '100%'}
                             placeholder="Condition"
                             data={operatorOptions}
                             value={filterState.operator}
@@ -258,6 +292,9 @@ export const MetricExploreFilter: FC<Props> = ({
                                 setFilterState((prev) => ({
                                     ...prev,
                                     operator: value as FilterOperator,
+                                    values: showValuesSection
+                                        ? prev.values
+                                        : [],
                                 }))
                             }
                             size="xs"
@@ -273,9 +310,12 @@ export const MetricExploreFilter: FC<Props> = ({
                                 rightSection:
                                     operatorSelectClasses.rightSection,
                             }}
+                            data-full-width={
+                                !showValuesSection ? 'true' : 'false'
+                            }
                             readOnly={isFilterApplied ? true : undefined}
                         />
-                        <>
+                        {showValuesSection && (
                             <TagInput
                                 placeholder={
                                     filterState.operator
@@ -295,7 +335,7 @@ export const MetricExploreFilter: FC<Props> = ({
                                 classNames={tagInputClasses}
                                 readOnly={isFilterApplied ? true : undefined}
                             />
-                        </>
+                        )}
                     </Group>
                 )}
             </Stack>
@@ -304,11 +344,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     color="dark"
                     compact
                     size="xs"
-                    disabled={
-                        !filterState.dimension ||
-                        !filterState.operator ||
-                        filterState.values.length === 0
-                    }
+                    disabled={!isFilterValid}
                     sx={{
                         boxShadow: theme.shadows.subtle,
                         alignSelf: 'flex-end',
