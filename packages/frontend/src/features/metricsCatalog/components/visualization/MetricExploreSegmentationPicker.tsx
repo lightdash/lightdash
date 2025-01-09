@@ -30,7 +30,7 @@ type Props = {
     hasFilteredSeries: boolean;
 };
 
-export const MetricPeekSegmentationPicker: FC<Props> = ({
+export const MetricExploreSegmentationPicker: FC<Props> = ({
     query,
     onSegmentDimensionChange,
     segmentByData,

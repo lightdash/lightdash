@@ -30,7 +30,7 @@ import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import {
     getGranularityLabel,
     getGranularitySublabel,
-} from '../../utils/metricPeekDate';
+} from '../../utils/metricExploreDate';
 import type { MetricVisualizationFormatConfig } from './types';
 
 type RechartsTooltipPropsPayload = NonNullable<

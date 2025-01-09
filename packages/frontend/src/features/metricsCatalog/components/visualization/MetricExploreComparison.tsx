@@ -33,7 +33,7 @@ type Props = {
     >;
 };
 
-export const MetricPeekComparison: FC<Props> = ({
+export const MetricExploreComparison: FC<Props> = ({
     baseMetricLabel,
     query,
     onQueryChange,

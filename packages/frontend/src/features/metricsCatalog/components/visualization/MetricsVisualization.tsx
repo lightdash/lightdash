@@ -53,11 +53,11 @@ import { useDynamicYAxisWidth } from '../../hooks/useDynamicYAxisWidth';
 import {
     is5YearDateRange,
     isInCurrentTimeFrame,
-} from '../../utils/metricPeekDate';
+} from '../../utils/metricExploreDate';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
-import { MetricPeekDatePicker } from './MetricPeekDatePicker';
+import { MetricExploreDatePicker } from './MetricExploreDatePicker';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { DATE_FORMATS, type MetricVisualizationFormatConfig } from './types';
 import { useChartZoom } from './useChartZoom';
@@ -568,7 +568,7 @@ const MetricsVisualization: FC<Props> = ({
         <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
                 {dateRange && results?.metric.timeDimension && (
-                    <MetricPeekDatePicker
+                    <MetricExploreDatePicker
                         dateRange={dateRange}
                         onChange={onDateRangeChange}
                         showTimeDimensionIntervalPicker={
