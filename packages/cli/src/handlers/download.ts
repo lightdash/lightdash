@@ -4,6 +4,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiDashboardAsCodeListResponse,
+    assertUnreachable,
     AuthorizationError,
     ChartAsCode,
     DashboardAsCode,
@@ -323,7 +324,8 @@ const getPromoteAction = (action: PromotionAction) => {
         case PromotionAction.NO_CHANGES:
             return 'skipped';
         default:
-            return 'skipped';
+            assertUnreachable(action, `Unknown promotion action: ${action}`);
+            return ''; // Added return statement to satisfy consistent-return rule
     }
 };
 
