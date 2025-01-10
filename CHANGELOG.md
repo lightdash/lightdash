@@ -1,3 +1,44 @@
+## [0.1449.1](https://github.com/lightdash/lightdash/compare/0.1449.0...0.1449.1) (2025-01-10)
+
+
+### Bug Fixes
+
+* remove extra properties from dashboard tiles and support markdown types  ([#13194](https://github.com/lightdash/lightdash/issues/13194)) ([29dbbe2](https://github.com/lightdash/lightdash/commit/29dbbe28b742c6058fd145f3c4b6fc46604889fb)), closes [#13196](https://github.com/lightdash/lightdash/issues/13196)
+
+# [0.1449.0](https://github.com/lightdash/lightdash/compare/0.1448.1...0.1449.0) (2025-01-10)
+
+
+### Features
+
+* dbt cloud CLI ([#13167](https://github.com/lightdash/lightdash/issues/13167)) ([6d4e13f](https://github.com/lightdash/lightdash/commit/6d4e13f94d08ac84ac99f249b337d058dbe90a5f))
+
+## [0.1448.1](https://github.com/lightdash/lightdash/compare/0.1448.0...0.1448.1) (2025-01-10)
+
+
+### Bug Fixes
+
+* sql runner edit-mode buttons get the right state ([#13109](https://github.com/lightdash/lightdash/issues/13109)) ([dd5e6a9](https://github.com/lightdash/lightdash/commit/dd5e6a955deef9c92979f388513455538c1c18d1))
+
+# [0.1448.0](https://github.com/lightdash/lightdash/compare/0.1447.2...0.1448.0) (2025-01-10)
+
+
+### Features
+
+* improve metric explore filter ux  ([#13173](https://github.com/lightdash/lightdash/issues/13173)) ([94969e8](https://github.com/lightdash/lightdash/commit/94969e8447dfaf7874e6954d4c86b942f5c053ec))
+
+## [0.1447.2](https://github.com/lightdash/lightdash/compare/0.1447.1...0.1447.2) (2025-01-10)
+
+
+### Bug Fixes
+
+* release action ([#13182](https://github.com/lightdash/lightdash/issues/13182)) ([0f1d3d9](https://github.com/lightdash/lightdash/commit/0f1d3d9fd83b3fc08ea276952a8aefa9f918baef))
+* release workflow npm audit ([#13189](https://github.com/lightdash/lightdash/issues/13189)) ([cf4fa4c](https://github.com/lightdash/lightdash/commit/cf4fa4cb8bda04ca818adf5cd25b8a3c6e532124))
+* release workflow pnpm workspaces ([#13178](https://github.com/lightdash/lightdash/issues/13178)) ([682a41a](https://github.com/lightdash/lightdash/commit/682a41ade724f4dabf03cb3ba1159eddce645217))
+* release workflow pnpm workspaces ([#13180](https://github.com/lightdash/lightdash/issues/13180)) ([85b847c](https://github.com/lightdash/lightdash/commit/85b847c9141b3a20d50f63763093e1921ae0896f))
+* release workflow pnpm workspaces ([#13181](https://github.com/lightdash/lightdash/issues/13181)) ([15b79f0](https://github.com/lightdash/lightdash/commit/15b79f04ac3721e9530f2419d244d6e391ddcfb7))
+* release workflow pnpm workspaces file order ([#13179](https://github.com/lightdash/lightdash/issues/13179)) ([2ba651e](https://github.com/lightdash/lightdash/commit/2ba651ead28d55aaae6583c40439b18238987cae))
+* revert yarn to pnpm ([#13190](https://github.com/lightdash/lightdash/issues/13190)) ([d2af2a9](https://github.com/lightdash/lightdash/commit/d2af2a90888780a5a91385e6626de3e79f004170))
+
 ## [0.1447.1](https://github.com/lightdash/lightdash/compare/0.1447.0...0.1447.1) (2025-01-09)
 
 

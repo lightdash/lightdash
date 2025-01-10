@@ -41,7 +41,7 @@ Controllers are responsible for handling the request and response from the API. 
 be as thin as possible, delegating the business logic to services.
 
 When making changes to a controller or the types used in a controller, you should also generate the
-corresponding HOA files. You can do it by running `pnpm generate-api`.
+corresponding HOA files. You can do it by running `yarn generate-api`.
 
 Guidelines:
 
@@ -102,10 +102,10 @@ Restrictions:
 
 Useful Development Scripts:
 
-- migrate database - `pnpm -F backend migrate`
-- rollback database - `pnpm -F backend rollback`
-- rollback last migration - `pnpm -F backend rollback-last`
-- create a new migration file - `pnpm -F backend create-migration <migration-name>`
+- migrate database - `yarn workspace backend migrate`
+- rollback database - `yarn workspace backend rollback`
+- rollback last migration - `yarn workspace backend rollback-last`
+- create a new migration file - `yarn workspace backend create-migration <migration-name>`
 
 #### Seeds
 

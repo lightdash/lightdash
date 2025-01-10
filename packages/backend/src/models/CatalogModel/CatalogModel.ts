@@ -11,7 +11,6 @@ import {
     type ApiCatalogSearch,
     type ApiSort,
     type CatalogFieldMap,
-    type CatalogFieldWhere,
     type CatalogItem,
     type CatalogItemSummary,
     type CatalogItemWithTagUuids,
@@ -857,16 +856,24 @@ export class CatalogModel {
             })
             .innerJoin(
                 { source_metric: CatalogTableName },
-                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                `source_metric.catalog_search_uuid`,
+                function joinSource() {
+                    void this.on(
+                        `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                        '=',
+                        `source_metric.catalog_search_uuid`,
+                    ).andOnVal('source_metric.project_uuid', '=', projectUuid);
+                },
             )
             .innerJoin(
                 { target_metric: CatalogTableName },
-                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                `target_metric.catalog_search_uuid`,
-            )
-            .where('source_metric.project_uuid', projectUuid)
-            .andWhere('target_metric.project_uuid', projectUuid);
+                function joinTarget() {
+                    void this.on(
+                        `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                        '=',
+                        `target_metric.catalog_search_uuid`,
+                    ).andOnVal('target_metric.project_uuid', '=', projectUuid);
+                },
+            );
 
         return edges.map((e) => ({
             source: {

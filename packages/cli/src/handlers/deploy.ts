@@ -20,6 +20,7 @@ import { compile } from './compile';
 import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
+import { getDbtVersion } from './dbt/getDbtVersion';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -163,6 +164,7 @@ const createNewProject = async (
 
 export const deployHandler = async (options: DeployHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
+    const dbtVersion = await getDbtVersion();
     await checkLightdashVersion();
     const executionId = uuidv4();
     const explores = await compile(options);
@@ -200,11 +202,16 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     await deploy(explores, { ...options, projectUuid });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');
-    const displayUrl = options.create
+    let displayUrl = options.create
         ? `${serverUrl}/createProject/cli?projectUuid=${projectUuid}`
         : `${serverUrl}/projects/${projectUuid}/home`;
-
-    console.error(`${styles.bold('Successfully deployed project:')}`);
+    let successMessage = 'Successfully deployed project:';
+    if (dbtVersion.isDbtCloudCLI && options.create) {
+        successMessage =
+            'Successfully deployed project! Complete the setup by adding warehouse connection details here:';
+        displayUrl = `${serverUrl}/generalSettings/projectManagement/${projectUuid}/settings`;
+    }
+    console.error(`${styles.bold(successMessage)}`);
     console.error('');
     console.error(`      ${styles.bold(`⚡️ ${displayUrl}`)}`);
     console.error('');

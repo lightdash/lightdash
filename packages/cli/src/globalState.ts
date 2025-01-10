@@ -3,6 +3,7 @@ import * as styles from './styles';
 
 type PromptAnswer = {
     useFallbackDbtVersion?: boolean;
+    useExperimentalDbtCloudCLI?: boolean;
 };
 
 class GlobalState {

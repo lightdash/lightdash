@@ -17,7 +17,7 @@ export const formatDate = (date: Date | null): string | undefined => {
 };
 
 /**
- * Get the date range presets for the metric peek date picker
+ * Get the date range presets for the metric explore date picker
  * @param timeInterval - The timeframe for which to get the date range presets
  * @returns The date range presets
  */

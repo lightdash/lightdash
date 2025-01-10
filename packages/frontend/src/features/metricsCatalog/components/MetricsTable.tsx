@@ -48,10 +48,10 @@ import {
 import { useMetricsTree } from '../hooks/useMetricsTree';
 import {
     setCategoryFilters,
-    toggleMetricPeekModal,
+    toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
-import { MetricPeekModal } from './MetricPeekModal';
+import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import MetricTree from './MetricTree';
@@ -73,8 +73,8 @@ export const MetricsTable = () => {
     const { canManageTags, canManageMetricsTree } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
     );
-    const isMetricPeekModalOpen = useAppSelector(
-        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
+    const isMetricExploreModalOpen = useAppSelector(
+        (state) => state.metricsCatalog.modals.metricExploreModal.isOpen,
     );
     const metricCatalogView = useAppSelector(
         (state) => state.metricsCatalog.view,
@@ -97,8 +97,8 @@ export const MetricsTable = () => {
 
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
 
-    const onCloseMetricPeekModal = () => {
-        dispatch(toggleMetricPeekModal(undefined));
+    const onCloseMetricExploreModal = () => {
+        dispatch(toggleMetricExploreModal(undefined));
     };
 
     const {
@@ -595,10 +595,10 @@ export const MetricsTable = () => {
             return (
                 <>
                     <MantineReactTable table={table} />
-                    {isMetricPeekModalOpen && (
-                        <MetricPeekModal
-                            opened={isMetricPeekModalOpen}
-                            onClose={onCloseMetricPeekModal}
+                    {isMetricExploreModalOpen && (
+                        <MetricExploreModal
+                            opened={isMetricExploreModalOpen}
+                            onClose={onCloseMetricExploreModal}
                             metrics={flatData}
                         />
                     )}

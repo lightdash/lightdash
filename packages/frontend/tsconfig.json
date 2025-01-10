@@ -20,6 +20,7 @@
         "moduleResolution": "node",
         "resolveJsonModule": true,
         "isolatedModules": true,
+        "emitDeclarationOnly": true,
         "declarationDir": "./build/types",
         "importHelpers": true,
         "jsx": "react-jsx",
