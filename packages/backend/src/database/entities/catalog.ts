@@ -11,6 +11,7 @@ export type DbCatalog = {
     cached_explore_uuid: string;
     project_uuid: string;
     name: string;
+    label: string | null;
     description: string | null;
     type: CatalogType;
     search_vector: string;
@@ -27,6 +28,7 @@ export type DbCatalogIn = Pick<
     | 'cached_explore_uuid'
     | 'project_uuid'
     | 'name'
+    | 'label'
     | 'description'
     | 'type'
     | 'field_type'
@@ -53,6 +55,8 @@ export function getDbCatalogColumnFromCatalogProperty(
     switch (property) {
         case 'name':
             return 'name';
+        case 'label':
+            return 'label';
         case 'description':
             return 'description';
         case 'type':
@@ -66,7 +70,6 @@ export function getDbCatalogColumnFromCatalogProperty(
         case 'icon':
             return 'icon';
         case 'categories':
-        case 'label':
         case 'tags':
             throw new Error(
                 'Property has no corresponding column in the catalog table',

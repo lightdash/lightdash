@@ -209,6 +209,7 @@ export class CatalogModel {
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
                 'description',
                 'type',
                 `${CachedExploreTableName}.explore`,
