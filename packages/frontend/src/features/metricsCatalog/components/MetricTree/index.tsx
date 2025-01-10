@@ -504,7 +504,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
         }
-    }, [initialNodes, currentNodes, onNodesChange, cleanUpLayout]);
+    }, [initialNodes, currentNodes, onNodesChange]);
 
     useEffect(() => {
         const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
