@@ -7864,7 +7864,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__':
+    'Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_':
         {
             dataType: 'refAlias',
             type: {
@@ -7877,21 +7877,26 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    hideTitle: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    chartSlug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_':
-        {
-            dataType: 'refAlias',
-            type: {
-                ref: 'Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__',
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardTileWithoutUuids: {
+    DashboardTileAsCode: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -7901,7 +7906,39 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         properties: {
-                            ref: 'Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_',
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    ref: 'Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_',
+                                },
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        content: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                        title: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                    },
+                                },
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        url: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                        hideTitle: { dataType: 'boolean' },
+                                        title: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                    },
+                                },
+                            ],
                             required: true,
                         },
                         uuid: {
@@ -7937,7 +7974,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'DashboardTileWithoutUuids',
+                                ref: 'DashboardTileAsCode',
                             },
                             required: true,
                         },
