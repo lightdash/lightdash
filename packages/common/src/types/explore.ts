@@ -63,6 +63,14 @@ export enum InlineErrorType {
     NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
 }
 
+export type AllowedActions =
+    | 'update'
+    | 'manage'
+    | 'view'
+    | 'create'
+    | 'delete'
+    | 'promote';
+
 export type InlineError = {
     type: InlineErrorType;
     message: string;
