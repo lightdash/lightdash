@@ -26,6 +26,7 @@ export type DownloadHandlerOptions = {
     dashboards: string[]; // These can be slugs, uuids or urls
     force: boolean;
     path?: string; // New optional path parameter
+    project?: string;
 };
 
 const getDownloadFolder = (customPath?: string): string => {
@@ -213,7 +214,7 @@ export const downloadHandler = async (
         );
     }
 
-    const projectId = config.context.project;
+    const projectId = config.context.project || options.project;
     if (!projectId) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
@@ -478,7 +479,7 @@ export const uploadHandler = async (
         );
     }
 
-    const projectId = config.context.project;
+    const projectId = config.context.project || options.project;
     if (!projectId) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
