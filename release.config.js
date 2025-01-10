@@ -41,10 +41,7 @@ const expectedResults = [
     },
 ];
 
-/**
- * @type {import('semantic-release').GlobalConfig}
- */
-export default {
+module.exports = {
     branches: [
         '+([0-9])?(.{+([0-9]),x}).x',
         'main',
@@ -65,12 +62,12 @@ export default {
         ],
 
         [
-            'semantic-release-replace-plugin',
+            '@google/semantic-release-replace-plugin',
             {
                 replacements: [
                     {
                         files: packagesWithWorkspaceDependencies,
-                        from: 'workspace:\\*',
+                        from: 'workspace:*',
                         to: '^${nextRelease.version}',
                         countMatches: true,
                         results: expectedResults,
@@ -116,15 +113,12 @@ export default {
         ],
 
         [
-            'semantic-release-replace-plugin',
+            '@google/semantic-release-replace-plugin',
             {
                 replacements: [
                     {
                         files: packagesWithWorkspaceDependencies,
-                        from: (_file, { nextRelease: { version } }) => {
-                            const regexVersion = version.replace(/\./g, '\\.');
-                            return new RegExp(`\\^${regexVersion}`, 'gm');
-                        },
+                        from: '\\^${nextRelease.version}',
                         to: 'workspace:*',
                         countMatches: true,
                         results: expectedResults,
