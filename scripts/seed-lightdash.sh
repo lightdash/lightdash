@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-pnpm -F backend seed
+yarn workspace backend seed

@@ -76,9 +76,9 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     return (
         <>
-            {item && value.raw && isField(item) ? (
+            {item && value.raw && isField(item) && (
                 <UrlMenuItems urls={item.urls} cell={cell} />
-            ) : null}
+            )}
 
             {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
 

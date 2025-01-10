@@ -13,33 +13,29 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             # Install packages
-            - uses: pnpm/action-setup@v4
-              with:
-                  version: 9
             - uses: actions/setup-node@v4
               with:
                   node-version: '20'
-                  cache: 'pnpm'
-                  cache-dependency-path: 'pnpm-lock.yaml'
+                  cache: 'yarn'
             - name: Install packages
-              run: pnpm install --frozen-lockfile --prefer-offline
+              run: yarn install --frozen-lockfile
             - name: Run dangerjs
               if: github.event_name == 'pull_request'
-              run: pnpm danger-ci-lint
+              run: yarn danger-ci-lint
               env:
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
             - name: Lint all packages
-              run: pnpm lint
+              run: yarn lint
             - name: Check formatting all packages
-              run: pnpm format
+              run: yarn format
             - name: Check for unused exports
-              run: pnpm -F frontend unused-exports
+              run: yarn workspace frontend unused-exports
 
             - name: Build common
-              run: pnpm common-build
+              run: yarn common-build
 
             - name: Build warehouses
-              run: pnpm warehouses-build
+              run: yarn warehouses-build
 
             - name: Run unit tests
-              run: pnpm backend-build && pnpm test
+              run: yarn backend-build && yarn test
