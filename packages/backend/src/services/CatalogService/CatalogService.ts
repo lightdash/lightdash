@@ -263,11 +263,13 @@ export class CatalogService<
         organizationUuid: string,
         projectUuid: string,
     ) {
-        const explores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
 
-        if (!explores) return [];
+        if (!cachedExplores) return [];
+
+        const explores = Object.values(cachedExplores);
 
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
