@@ -23,7 +23,7 @@ import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
-        accessorKey: 'name',
+        accessorKey: 'label',
         header: 'Metric',
         enableSorting: true,
         enableEditing: false,
