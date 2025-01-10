@@ -44,7 +44,7 @@ type CoderServiceArguments = {
 const isChartTile = (
     tile: DashboardTileAsCode,
 ): tile is DashboardTileAsCode & {
-    properties: { chartSlug: string };
+    properties: { chartSlug: string; hideTitle: boolean };
 } =>
     tile.type === DashboardTileTypes.SAVED_CHART ||
     tile.type === DashboardTileTypes.SQL_CHART ||
@@ -133,31 +133,28 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
         }
 
-        const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.reduce<
-            DashboardTileAsCode[]
-        >((acc, tile) => {
-            // TODO support other tile types
-            const chartProperties = isChartTile(tile)
-                ? tile.properties
-                : undefined;
-            if (!chartProperties) {
-                console.info(
-                    `Skipped download dashboard tile with type: ${tile.type}`,
-                );
-                return acc;
-            }
-            const tileAsCode: DashboardTileAsCode = {
-                ...tile,
-                properties: {
-                    title: tile.properties.title,
-                    hideTitle: chartProperties.hideTitle,
-                    chartSlug: chartProperties.chartSlug,
-                },
-            };
+        const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
+            (tile) => {
+                if (isChartTile(tile)) {
+                    return {
+                        ...tile,
+                        uuid: undefined,
+                        properties: {
+                            title: tile.properties.title,
+                            hideTitle: tile.properties.hideTitle,
+                            chartSlug: tile.properties.chartSlug,
+                        },
+                    };
+                }
 
-            return [...acc, tileAsCode];
-        }, []);
-
+                // Markdown and loom are returned as they are
+                return {
+                    ...tile,
+                    uuid: undefined,
+                };
+            },
+            [],
+        );
         return {
             name: dashboard.name,
             description: dashboard.description,
