@@ -1,3 +1,10 @@
+## [0.1449.2](https://github.com/lightdash/lightdash/compare/0.1449.1...0.1449.2) (2025-01-10)
+
+
+### Bug Fixes
+
+* store label in catalog search to be searchable ([#13205](https://github.com/lightdash/lightdash/issues/13205)) ([3a8ef85](https://github.com/lightdash/lightdash/commit/3a8ef857f82f2c25edd926dc6c0225255ddbb52c))
+
 ## [0.1449.1](https://github.com/lightdash/lightdash/compare/0.1449.0...0.1449.1) (2025-01-10)
 
 
