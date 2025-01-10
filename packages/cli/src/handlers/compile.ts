@@ -6,22 +6,15 @@ import {
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
-    isWeekDay,
     ParseError,
     WarehouseCatalog,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
-import inquirer from 'inquirer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
-import {
-    loadDbtTarget,
-    warehouseCredentialsFromDbtTarget,
-} from '../dbt/profile';
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -30,7 +23,8 @@ import {
     getCompiledModels,
     maybeCompileModelsAndJoins,
 } from './dbt/compile';
-import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
+import { getDbtVersion } from './dbt/getDbtVersion';
+import getWarehouseClient from './dbt/getWarehouseClient';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -50,65 +44,31 @@ export const compile = async (options: CompileHandlerOptions) => {
         event: 'compile.started',
         properties: {
             executionId,
-            dbtVersion,
+            dbtVersion: dbtVersion.verboseVersion,
             useDbtList: !!options.useDbtList,
             skipWarehouseCatalog: !!options.skipWarehouseCatalog,
             skipDbtCompile: !!options.skipDbtCompile,
         },
     });
 
-    if (!isSupportedDbtVersion(dbtVersion)) {
-        if (process.env.CI === 'true') {
-            console.error(
-                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.* - 1.9.*), this could cause problems on compile or validation.`,
-            );
-        } else {
-            const answers = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'isConfirm',
-                    message: `${styles.warning(
-                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.* - 1.9.*), this could cause problems on compile or validation.`,
-                    )}\nDo you still want to continue?`,
-                },
-            ]);
-            if (!answers.isConfirm) {
-                throw new Error(`Unsupported dbt version ${dbtVersion}`);
-            }
-        }
-    }
-
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const absoluteProfilesPath = path.resolve(options.profilesDir);
 
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
-    GlobalState.debug(`> Compiling with profiles dir ${absoluteProfilesPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const { warehouseClient } = await getWarehouseClient({
+        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
+    });
 
     const compiledModelIds: string[] | undefined =
         await maybeCompileModelsAndJoins(
             { targetDir: context.targetDir },
             options,
         );
-
-    const profileName = options.profile || context.profileName;
-    const { target } = await loadDbtTarget({
-        profilesDir: absoluteProfilesPath,
-        profileName,
-        targetName: options.target,
-    });
-
-    GlobalState.debug(`> Compiling with profile ${profileName}`);
-    GlobalState.debug(`> Compiling with target ${target}`);
-
-    const credentials = await warehouseCredentialsFromDbtTarget(target);
-    const warehouseClient = warehouseClientFromCredentials({
-        ...credentials,
-        startOfWeek: isWeekDay(options.startOfWeek)
-            ? options.startOfWeek
-            : undefined,
-    });
 
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const manifestVersion = getDbtManifestVersion(manifest);
@@ -155,7 +115,7 @@ ${errors.join('')}`),
             event: 'compile.error',
             properties: {
                 executionId,
-                dbtVersion,
+                dbtVersion: dbtVersion.verboseVersion,
                 error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
             },
         });
@@ -208,7 +168,7 @@ ${errors.join('')}`),
             explores: explores.length,
             errors,
             dbtMetrics: Object.values(manifest.metrics).length,
-            dbtVersion,
+            dbtVersion: dbtVersion.verboseVersion,
         },
     });
     return explores;

@@ -285,7 +285,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                   <Text fz="xs" color="gray.6">
                                       {getHumanReadableCronExpression(
                                           item.cron,
-                                          item.timezone ??
+                                          item.timezone ||
                                               project.schedulerTimezone,
                                       )}
                                   </Text>
@@ -322,7 +322,9 @@ const Schedulers: FC<SchedulersProps> = ({
                               return (
                                   <Box
                                       component="div"
-                                      onClick={(e) => {
+                                      onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                      ) => {
                                           e.stopPropagation();
                                           e.preventDefault();
                                       }}

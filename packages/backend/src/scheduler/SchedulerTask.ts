@@ -62,6 +62,7 @@ import {
     VizColumn,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
+import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import {
@@ -513,7 +514,7 @@ export default class SchedulerTask {
                 imageUrl,
                 csvUrl,
                 csvUrls,
-                // pdfFile, // TODO: add pdf to slack
+                pdfFile,
             } = notificationPageData;
 
             const defaultSchedulerTimezone =
@@ -536,8 +537,8 @@ export default class SchedulerTask {
                 ctaUrl: url,
                 footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
                     cron,
-                    timezone ?? defaultSchedulerTimezone,
-                )} from Lightdash\n${
+                    timezone || defaultSchedulerTimezone,
+                )} from Lightdash.\n${
                     showExpirationWarning
                         ? this.s3Client.getExpirationWarning()?.slack || ''
                         : ''
@@ -548,18 +549,28 @@ export default class SchedulerTask {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
                 if (savedChartUuid) {
+                    const slackImageUrl =
+                        await this.slackClient.tryUploadingImageToSlack(
+                            organizationUuid,
+                            imageUrl,
+                            name,
+                        );
                     const thresholdFooter = includeLinks
                         ? `<${url}?threshold_uuid=${
                               schedulerUuid || ''
                           }|data alert>`
                         : 'data alert';
 
+                    const expiration = slackImageUrl.expiring
+                        ? `For security reasons, delivered files expire after ${
+                              this.s3Client.getExpirationWarning()?.days || 3
+                          } days.`
+                        : '';
+
                     const blocks = getChartThresholdAlertBlocks({
                         ...getBlocksArgs,
-                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. For security reasons, delivered files expire after ${
-                            this.s3Client.getExpirationWarning()?.days || 3
-                        } days`,
-                        imageUrl,
+                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. ${expiration}`,
+                        imageUrl: slackImageUrl.url,
                         thresholds,
                         includeLinks,
                     });
@@ -573,37 +584,45 @@ export default class SchedulerTask {
                     throw new Error('Not implemented');
                 }
             } else if (format === SchedulerFormat.IMAGE) {
-                if (imageUrl === undefined) {
-                    throw new Error('Missing image URL');
-                }
-
-                let fileUrl = imageUrl;
-                try {
-                    // We will try to upload the image to slack, so it can be used in blocks without expiration
-                    // If it fails, we will keep using the same URL (s3)
-                    const response = await fetch(imageUrl);
-                    const buffer = Buffer.from(await response.arrayBuffer());
-                    const slackFileUrl = await this.slackClient.uploadFile({
+                const slackImageUrl =
+                    await this.slackClient.tryUploadingImageToSlack(
                         organizationUuid,
-                        file: buffer,
-                        title: name,
-                    });
-                    fileUrl = slackFileUrl;
-                } catch (e) {
-                    Logger.error(`Failed to upload image to slack: ${e}`);
-                }
+                        imageUrl,
+                        name,
+                    );
 
+                const expiration = slackImageUrl.expiring
+                    ? `For security reasons, delivered files expire after ${
+                          this.s3Client.getExpirationWarning()?.days || 3
+                      } days.`
+                    : '';
                 const blocks = getChartAndDashboardBlocks({
                     ...getBlocksArgs,
-                    imageUrl: fileUrl,
+                    footerMarkdown: `${getBlocksArgs.footerMarkdown} ${expiration}`,
+                    imageUrl: slackImageUrl.url,
                 });
 
-                await this.slackClient.postMessage({
+                const message = await this.slackClient.postMessage({
                     organizationUuid,
                     text: name,
                     channel,
                     blocks,
                 });
+
+                if (pdfFile && message.ts) {
+                    // Add the pdf to the thread
+                    const pdfBuffer = await fs.readFile(pdfFile);
+
+                    await this.slackClient.postFileToThread({
+                        organizationUuid,
+                        file: pdfBuffer,
+                        title: name,
+                        channelId: channel,
+                        threadTs: message.ts,
+                        filename: `${name}.pdf`,
+                        fileType: 'pdf',
+                    });
+                }
             } else {
                 let blocks;
                 if (savedChartUuid) {
@@ -1365,7 +1384,7 @@ export default class SchedulerTask {
                     new Date().toLocaleDateString('en-GB'),
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     imageUrl,
                     url,
@@ -1387,7 +1406,7 @@ export default class SchedulerTask {
                     new Date().toLocaleDateString('en-GB'),
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     csvUrl,
                     url,
@@ -1409,7 +1428,7 @@ export default class SchedulerTask {
                     new Date().toLocaleDateString('en-GB'),
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     csvUrls,
                     url,
@@ -1660,7 +1679,7 @@ export default class SchedulerTask {
                     gdriveId,
                     getHumanReadableCronExpression(
                         scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
+                        scheduler.timezone || defaultSchedulerTimezone,
                     ),
                     undefined,
                     reportUrl,

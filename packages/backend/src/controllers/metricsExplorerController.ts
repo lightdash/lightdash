@@ -5,6 +5,7 @@ import {
     TimeDimensionConfig,
     type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
+    type FilterRule,
     type TimeFrames,
 } from '@lightdash/common';
 import {
@@ -50,6 +51,7 @@ export class MetricsExplorerController extends BaseController {
         body: {
             timeDimensionOverride?: TimeDimensionConfig;
             query: MetricExplorerQuery;
+            filter?: FilterRule;
         },
     ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
@@ -69,6 +71,7 @@ export class MetricsExplorerController extends BaseController {
                 endDate,
                 body.query,
                 body?.timeDimensionOverride,
+                body?.filter,
             );
 
         return {

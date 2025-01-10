@@ -7,6 +7,8 @@ import { generateHandler } from '../generate';
 import { DbtCompileOptions } from './compile';
 
 type DbtRunHandlerOptions = DbtCompileOptions & {
+    profilesDir: string;
+    projectDir: string;
     excludeMeta: boolean;
     verbose: boolean;
     assumeYes: boolean;

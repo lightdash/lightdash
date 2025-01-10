@@ -6573,6 +6573,9 @@
                     },
                     "environment_id": {
                         "type": "string"
+                    },
+                    "discovery_api_endpoint": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "api_key", "environment_id"],
@@ -8241,7 +8244,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_": {
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-updatedAt_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -8251,10 +8254,6 @@
                     },
                     "slug": {
                         "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -8285,7 +8284,6 @@
                 "required": [
                     "name",
                     "slug",
-                    "dashboardUuid",
                     "updatedAt",
                     "tableName",
                     "metricQuery",
@@ -8298,7 +8296,7 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-updatedAt_"
                     },
                     {
                         "properties": {
@@ -8312,6 +8310,9 @@
                             "version": {
                                 "type": "number",
                                 "format": "double"
+                            },
+                            "dashboardSlug": {
+                                "type": "string"
                             }
                         },
                         "required": ["spaceSlug", "version"],
@@ -8418,20 +8419,22 @@
                 "$ref": "#/components/schemas/Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__": {
+            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_": {
                 "properties": {
                     "title": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    },
+                    "chartSlug": {
                         "type": "string"
                     }
                 },
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_": {
-                "$ref": "#/components/schemas/Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "DashboardTileWithoutUuids": {
+            "DashboardTileAsCode": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/Omit_DashboardTile.properties-or-uuid_"
@@ -8439,7 +8442,38 @@
                     {
                         "properties": {
                             "properties": {
-                                "$ref": "#/components/schemas/Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_"
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "content": {
+                                                "type": "string"
+                                            },
+                                            "title": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["content", "title"],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "properties": {
+                                            "url": {
+                                                "type": "string"
+                                            },
+                                            "hideTitle": {
+                                                "type": "boolean"
+                                            },
+                                            "title": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["url", "title"],
+                                        "type": "object"
+                                    }
+                                ]
                             },
                             "uuid": {
                                 "type": "string"
@@ -8470,7 +8504,7 @@
                             },
                             "tiles": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTileWithoutUuids"
+                                    "$ref": "#/components/schemas/DashboardTileAsCode"
                                 },
                                 "type": "array"
                             }
@@ -8544,10 +8578,6 @@
                     "slug": {
                         "type": "string"
                     },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -8567,6 +8597,9 @@
                         "required": ["columnOrder"],
                         "type": "object"
                     },
+                    "dashboardSlug": {
+                        "type": "string"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -8582,7 +8615,6 @@
                 "required": [
                     "name",
                     "slug",
-                    "dashboardUuid",
                     "updatedAt",
                     "tableName",
                     "tableConfig",
@@ -12903,7 +12935,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1434.1",
+        "version": "0.1447.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17923,6 +17955,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "filter": {
+                                        "$ref": "#/components/schemas/FilterRule"
+                                    },
                                     "query": {
                                         "$ref": "#/components/schemas/MetricExplorerQuery"
                                     },

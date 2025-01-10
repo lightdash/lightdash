@@ -17,7 +17,7 @@ export const formatDate = (date: Date | null): string | undefined => {
 };
 
 /**
- * Get the date range presets for the metric peek date picker
+ * Get the date range presets for the metric explore date picker
  * @param timeInterval - The timeframe for which to get the date range presets
  * @returns The date range presets
  */
@@ -344,4 +344,27 @@ export const is5YearDateRange = (
 ): boolean => {
     const preset = getMatchingPresetLabel(dateRange, timeInterval);
     return preset === '5Y';
+};
+
+export const isInCurrentTimeFrame = (
+    date: Date,
+    timeInterval: TimeFrames | undefined,
+): boolean => {
+    if (!timeInterval) {
+        return false;
+    }
+
+    const now = dayjs();
+    switch (timeInterval) {
+        case TimeFrames.DAY:
+            return dayjs(date).isSame(now, 'day');
+        case TimeFrames.WEEK:
+            return dayjs(date).isSame(now, 'week');
+        case TimeFrames.MONTH:
+            return dayjs(date).isSame(now, 'month');
+        case TimeFrames.YEAR:
+            return dayjs(date).isSame(now, 'year');
+        default:
+            return assertUnimplementedTimeframe(timeInterval);
+    }
 };

@@ -1,9 +1,19 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Button, SegmentedControl, Select, Stack, Text } from '@mantine/core';
-import { IconDownload } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    SegmentedControl,
+    Select,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
 import React, { useCallback, useState } from 'react';
 
+import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import MantineIcon from '../MantineIcon';
 import {
     base64SvgToBase64Image,
@@ -22,6 +32,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     getChartInstance,
     unavailableOptions,
 }) => {
+    const [isCopied, setIsCopied] = useState(false);
     const [type, setType] = useState<DownloadType>(DownloadType.PNG);
     const [isBackgroundTransparent, setIsBackgroundTransparent] =
         useState(false);
@@ -79,6 +90,33 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         }
     }, [getChartInstance, type, isBackgroundTransparent]);
 
+    const onCopyToClipboard = useCallback(async () => {
+        setIsCopied(true);
+        const chartInstance = getChartInstance();
+        if (!chartInstance) {
+            console.error('Chart instance is not available');
+            return;
+        }
+
+        try {
+            const svgBase64 = chartInstance.getDataURL();
+            const width = chartInstance.getWidth();
+            const base64Image = await base64SvgToBase64Image(
+                svgBase64,
+                width,
+                'png',
+                isBackgroundTransparent,
+            );
+            await copyImageToClipboard(base64Image);
+
+            setTimeout(() => {
+                setIsCopied(false);
+            }, 1000);
+        } catch (e) {
+            console.error('Unable to copy chart to clipboard:', e);
+        }
+    }, [getChartInstance, isBackgroundTransparent]);
+
     return (
         <Stack>
             <Text fw={500}>Options</Text>
@@ -111,14 +149,25 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     ]}
                 />
             )}
-            <Button
-                size="xs"
-                ml="auto"
-                leftIcon={<MantineIcon icon={IconDownload} />}
-                onClick={onDownload}
-            >
-                Download
-            </Button>
+            <Group spacing="xs" position="right">
+                <Tooltip variant="xs" withinPortal label="Copy to clipboard">
+                    <ActionIcon
+                        size="md"
+                        onClick={onCopyToClipboard}
+                        variant="outline"
+                        color={isCopied ? 'teal' : 'gray'}
+                    >
+                        <MantineIcon icon={isCopied ? IconCheck : IconCopy} />
+                    </ActionIcon>
+                </Tooltip>
+                <Button
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconDownload} />}
+                    onClick={onDownload}
+                >
+                    Download
+                </Button>
+            </Group>
         </Stack>
     );
 };

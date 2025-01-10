@@ -265,7 +265,9 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 },
                             }}
                             value={query ?? ''}
-                            onChange={(e) => setQuery(e.currentTarget.value)}
+                            onChange={(
+                                e: React.ChangeEvent<HTMLInputElement>,
+                            ) => setQuery(e.currentTarget.value)}
                         />
 
                         <OmnibarFilters

@@ -20,6 +20,7 @@ import {
     isCustomSqlDimension,
     isUserWithOrg,
     isValidFrequency,
+    isValidTimezone,
     ParameterError,
     SavedChart,
     SavedChartDAO,
@@ -1010,6 +1011,11 @@ export class SavedChartService extends BaseService {
                 'Frequency not allowed, custom input is limited to hourly',
             );
         }
+
+        if (!isValidTimezone(newScheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
+        }
+
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         const scheduler = await this.schedulerModel.createScheduler({

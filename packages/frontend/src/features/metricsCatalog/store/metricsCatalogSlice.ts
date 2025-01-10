@@ -7,7 +7,7 @@ type MetricsCatalogState = {
         chartUsageModal: {
             isOpen: boolean;
         };
-        metricPeekModal: {
+        metricExploreModal: {
             isOpen: boolean;
             metric: Pick<CatalogField, 'name' | 'tableName'> | undefined;
         };
@@ -49,7 +49,7 @@ const initialState: MetricsCatalogState = {
         chartUsageModal: {
             isOpen: false,
         },
-        metricPeekModal: {
+        metricExploreModal: {
             isOpen: false,
             metric: undefined,
         },
@@ -109,14 +109,14 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.popovers.description.isClosing = action.payload;
         },
-        toggleMetricPeekModal: (
+        toggleMetricExploreModal: (
             state,
             action: PayloadAction<
                 Pick<CatalogField, 'name' | 'tableName'> | undefined
             >,
         ) => {
-            state.modals.metricPeekModal.isOpen = Boolean(action.payload);
-            state.modals.metricPeekModal.metric = action.payload;
+            state.modals.metricExploreModal.isOpen = Boolean(action.payload);
+            state.modals.metricExploreModal.metric = action.payload;
         },
         setMetricCatalogView: (
             state,
@@ -135,6 +135,6 @@ export const {
     setAbility,
     setCategoryPopoverIsClosing,
     setDescriptionPopoverIsClosing,
-    toggleMetricPeekModal,
+    toggleMetricExploreModal,
     setMetricCatalogView,
 } = metricsCatalogSlice.actions;

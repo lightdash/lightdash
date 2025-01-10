@@ -324,7 +324,9 @@ const ProjectSwitcher = () => {
                             {inactiveProjects.length > 0 && <Menu.Divider />}
 
                             <Menu.Item
-                                onClick={(e) => {
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
                                     setIsCreatePreview(!isCreatePreviewOpen);
                                     e.stopPropagation();
                                 }}

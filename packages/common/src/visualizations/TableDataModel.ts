@@ -75,7 +75,6 @@ export class TableDataModel {
                     reference: key,
                     label: this.columnsConfig?.[key]?.label ?? key,
                     frozen: this.columnsConfig?.[key]?.frozen ?? false,
-                    order: this.columnsConfig?.[key]?.order,
                 },
             }),
             {},

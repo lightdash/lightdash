@@ -180,7 +180,7 @@ const ValidDashboardChartTile: FC<{
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-    setEchartsRef?: (ref: RefObject<EChartsReact> | undefined) => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 }> = ({
     tileUuid,
     isTitleHidden = false,
@@ -244,7 +244,7 @@ const ValidDashboardChartTileMinimal: FC<{
     isTitleHidden?: boolean;
     title: string;
     chartAndResults: ApiChartAndResults;
-    setEchartsRef?: (ref: RefObject<EChartsReact> | undefined) => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 }> = ({
     tileUuid,
     chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
@@ -328,7 +328,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         (c) => c.addDimensionDashboardFilter,
     );
     const [echartRef, setEchartRef] = useState<
-        RefObject<EChartsReact> | undefined
+        RefObject<EChartsReact | null> | undefined
     >();
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
 
@@ -1084,7 +1084,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const { chart } = chartAndResults;
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [echartRef, setEchartRef] = useState<
-        RefObject<EChartsReact> | undefined
+        RefObject<EChartsReact | null> | undefined
     >();
 
     return (

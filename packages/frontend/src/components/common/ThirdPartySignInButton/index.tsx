@@ -4,7 +4,7 @@ import {
 } from '@lightdash/common';
 import { Button, Image, type ButtonProps } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 
@@ -19,7 +19,7 @@ type ThirdPartySignInButtonProps = {
 const ThirdPartySignInButtonBase: FC<
     {
         loginPath: string;
-        logo: string | JSX.Element;
+        logo: string | ReactNode;
         providerName: string;
         redirect?: string;
     } & Pick<ThirdPartySignInButtonProps, 'inviteCode' | 'intent'> &

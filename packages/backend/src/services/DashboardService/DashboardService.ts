@@ -17,6 +17,7 @@ import {
     isDashboardVersionedFields,
     isUserWithOrg,
     isValidFrequency,
+    isValidTimezone,
     ParameterError,
     SchedulerAndTargets,
     SchedulerFormat,
@@ -974,6 +975,11 @@ export class DashboardService extends BaseService {
                 'Frequency not allowed, custom input is limited to hourly',
             );
         }
+
+        if (!isValidTimezone(newScheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
+        }
+
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
         const scheduler = await this.schedulerModel.createScheduler({

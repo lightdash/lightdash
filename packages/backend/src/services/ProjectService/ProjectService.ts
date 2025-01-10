@@ -560,7 +560,21 @@ export class ProjectService extends BaseService {
 
         await this.validateProjectCreationPermissions(user, data);
 
-        const createProject = await this._resolveWarehouseClientSshKeys(data);
+        const newProjectData = data;
+        if (
+            newProjectData.type === ProjectType.PREVIEW &&
+            data.copyWarehouseConnectionFromUpstreamProject &&
+            data.upstreamProjectUuid
+        ) {
+            newProjectData.warehouseConnection =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    data.upstreamProjectUuid,
+                );
+        }
+
+        const createProject = await this._resolveWarehouseClientSshKeys(
+            newProjectData,
+        );
         const projectUuid = await this.projectModel.create(
             user.userUuid,
             user.organizationUuid,

@@ -1,4 +1,8 @@
-import { DbtModelNode, ParseError } from '@lightdash/common';
+import {
+    DbtModelNode,
+    ParseError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import execa from 'execa';
 import { xor } from 'lodash';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
@@ -7,8 +11,8 @@ import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
 export type DbtCompileOptions = {
-    profilesDir: string;
-    projectDir: string;
+    profilesDir: string | undefined;
+    projectDir: string | undefined;
     target: string | undefined;
     profile: string | undefined;
     select: string[] | undefined;
@@ -131,8 +135,8 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             'unique_id',
         ];
         const version = await getDbtVersion();
-        // older dbt versions don't support --quiet flag
-        if (!version.startsWith('1.3.') && !version.startsWith('1.4.')) {
+        // only dbt 1.5 and above support --quiet flag
+        if (version.versionOption !== SupportedDbtVersions.V1_4) {
             args.push('--quiet');
         }
         GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
@@ -141,7 +145,12 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             .split('\n')
             .map<string>((line) => {
                 try {
-                    return JSON.parse(line).unique_id;
+                    // remove prefixed time in dbt cloud cli output
+                    const lineWithoutPrefixedTime = line.replace(
+                        /^\d{2}:\d{2}:\d{2}\s*/,
+                        '',
+                    );
+                    return JSON.parse(lineWithoutPrefixedTime).unique_id;
                 } catch {
                     // ignore non-json lines
                     return '';
@@ -161,8 +170,18 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
 
 export async function maybeCompileModelsAndJoins(
     loadManifestOpts: LoadManifestArgs,
-    options: DbtCompileOptions,
+    initialOptions: DbtCompileOptions,
 ): Promise<string[] | undefined> {
+    const dbtVersion = await getDbtVersion();
+    let options = initialOptions;
+    if (dbtVersion.isDbtCloudCLI) {
+        options = {
+            ...initialOptions,
+            projectDir: undefined,
+            profilesDir: undefined,
+        };
+    }
+
     // Skipping assumes manifest.json already exists.
     if (options.skipDbtCompile) {
         GlobalState.debug('> Skipping dbt compile');

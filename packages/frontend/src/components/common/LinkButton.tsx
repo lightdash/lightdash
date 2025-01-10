@@ -34,7 +34,7 @@ const LinkButton: FC<LinkButtonProps> = ({
             href={href}
             leftIcon={<MantineIcon icon={IconTelescope} />}
             target={target}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 if (
                     !forceRefresh &&
                     !e.ctrlKey &&

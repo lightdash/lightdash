@@ -337,7 +337,9 @@ const AppearanceColorSettings: FC = () => {
                         <Tooltip label="Restore default color">
                             <ActionIcon
                                 size="xs"
-                                onClick={(event) => {
+                                onClick={(
+                                    event: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
                                     event.stopPropagation();
                                     event.preventDefault();
                                     form.setFieldValue(inputKey, defaultColor);

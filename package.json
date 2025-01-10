@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1436.0",
+    "version": "0.1449.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -13,6 +13,11 @@
         "concurrently": "^8.2.0",
         "npm-run-all2": "^6.0.6",
         "tslib": "^2.6.2"
+    },
+    "resolutions": {
+        "react-is": "19.0.0",
+        "@types/react": "19.0.2",
+        "@types/react-dom": "19.0.2"
     },
     "devDependencies": {
         "@types/jest": "^29.5.5",
@@ -29,7 +34,6 @@
         "eslint-config-airbnb-base": "^15.0.0",
         "eslint-config-airbnb-typescript": "^17.0.0",
         "eslint-config-prettier": "^8.5.0",
-        "eslint-config-react": "^1.1.7",
         "eslint-plugin-import": "^2.26.0",
         "eslint-plugin-jest": "^27.4.2",
         "eslint-plugin-json": "^3.1.0",
