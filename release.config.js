@@ -68,7 +68,7 @@ module.exports = {
                     {
                         files: packagesWithWorkspaceDependencies,
                         from: 'workspace:*',
-                        to: '^${nextRelease.version}',
+                        to: '^${lastRelease.version}',
                         countMatches: true,
                         results: expectedResults,
                     },
@@ -118,7 +118,7 @@ module.exports = {
                 replacements: [
                     {
                         files: packagesWithWorkspaceDependencies,
-                        from: '\\^${nextRelease.version}',
+                        from: '^${lastRelease.version}',
                         to: 'workspace:*',
                         countMatches: true,
                         results: expectedResults,
