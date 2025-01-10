@@ -32,12 +32,12 @@ import {
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
 import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
-import MetricTreeExpandedNode, {
-    type MetricTreeExpandedNodeData,
-} from './MetricTreeExpandedNode';
 import MetricTreeCollapsedNode, {
     type MetricTreeCollapsedNodeData,
 } from './MetricTreeCollapsedNode';
+import MetricTreeExpandedNode, {
+    type MetricTreeExpandedNodeData,
+} from './MetricTreeExpandedNode';
 
 enum MetricTreeNodeType {
     EXPANDED = 'expanded',
@@ -78,6 +78,7 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
     const connectedNodes = nodes.filter((node) =>
         connectedNodeIds.has(node.id),
     );
+
     const freeNodes = nodes.filter(
         (node) => !connectedNodeIds.has(node.id) && node.type !== 'group',
     );
@@ -121,25 +122,23 @@ const getNodeLayout = (
     const free = gridArray.flatMap((row, rowIndex) =>
         row.map<MetricTreeCollapsedNodeData>((node, colIndex) => {
             // Calculate x position based on widths of nodes in same column
-            const prevNodeInRow = gridArray[rowIndex][colIndex - 1];
-            const x = prevNodeInRow
-                ? prevNodeInRow.position.x +
-                  (prevNodeInRow.measured?.width ?? 0) +
-                  mainPadding
+            const allPrevNodesInRowWidths = row
+                .slice(0, colIndex)
+                .map((n) => n.measured?.width ?? 0)
+                .reduce((acc, width) => acc + width + mainPadding, 0);
+
+            const x = 1 * colIndex + allPrevNodesInRowWidths;
+
+            // Calculate y position based on sum of previous rows' max height
+            const prevRowMaxHeight = gridArray[rowIndex - 1]
+                ? Math.max(
+                      ...gridArray[rowIndex - 1].map(
+                          (n) => n.measured?.height ?? 0,
+                      ),
+                  ) + mainPadding
                 : 0;
 
-            // Calculate y position based on sum of previous rows' max heights
-            const prevRow = gridArray[rowIndex - 1];
-            const y = prevRow
-                ? Math.max(
-                      ...prevRow.map(
-                          (n) =>
-                              n.position.y +
-                              (n.measured?.height ?? 0) +
-                              mainPadding,
-                      ),
-                  )
-                : 0;
+            const y = 1 * rowIndex + prevRowMaxHeight;
 
             return {
                 ...node,
@@ -248,6 +247,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const [layoutState, setLayoutState] = useState({
         isReady: false,
         shouldFitView: true,
+        renderTwice: false, // this is a hack for when nodes change from collapsed to expanded on layout
     });
     const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
         STATIC_NODE_TYPES.UNCONNECTED,
@@ -319,6 +319,45 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         },
         [currentEdges],
     );
+
+    const onLayout = useCallback(() => {
+        const layout = getNodeLayout(currentNodes, currentEdges, theme);
+
+        setCurrentNodes(layout.nodes);
+        setCurrentEdges(layout.edges);
+
+        if (layoutState.renderTwice) {
+            setTimeout(() => {
+                setLayoutState((prev) => ({
+                    ...prev,
+                    renderTwice: false,
+                }));
+            }, 0);
+
+            return;
+        }
+
+        setLayoutState((prev) => ({
+            ...prev,
+            isReady: true,
+        }));
+    }, [
+        currentNodes,
+        currentEdges,
+        theme,
+        layoutState,
+        setCurrentNodes,
+        setCurrentEdges,
+    ]);
+
+    const cleanUpLayout = useCallback(() => {
+        setLayoutState((prev) => ({
+            ...prev,
+            isReady: false,
+            shouldFitView: true,
+            renderTwice: true,
+        }));
+    }, [setLayoutState]);
 
     const handleNodePositionChange = useCallback(
         (changes: NodePositionChange[]) => {
@@ -419,18 +458,6 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [projectUuid, deleteMetricsTreeEdge],
     );
 
-    const onLayout = useCallback(() => {
-        const layout = getNodeLayout(currentNodes, currentEdges, theme);
-
-        setCurrentNodes(layout.nodes);
-        setCurrentEdges(layout.edges);
-
-        setLayoutState((prev) => ({
-            ...prev,
-            isReady: true,
-        }));
-    }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, theme]);
-
     // Runs layout when the nodes are initialized
     useEffect(() => {
         if (!nodesInitialized || layoutState.isReady) {
@@ -443,8 +470,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     // Fits the view when the layout is ready
     useEffect(() => {
         if (layoutState.isReady && layoutState.shouldFitView) {
-            window.requestAnimationFrame(async () => {
-                await fitView();
+            window.requestAnimationFrame(() => {
+                void fitView();
             });
 
             setLayoutState((prev) => ({
@@ -476,12 +503,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
-            setLayoutState({
-                isReady: false,
-                shouldFitView: true,
-            });
         }
-    }, [initialNodes, currentNodes, onNodesChange]);
+    }, [initialNodes, currentNodes, onNodesChange, cleanUpLayout]);
 
     useEffect(() => {
         const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
@@ -501,19 +524,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
         if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
             onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
-            setLayoutState({
-                isReady: false,
-                shouldFitView: false,
-            });
         }
     }, [currentEdges, initialEdges, onEdgesChange]);
-
-    const cleanUpLayout = useCallback(() => {
-        setLayoutState({
-            isReady: false,
-            shouldFitView: true,
-        });
-    }, [setLayoutState]);
 
     return (
         <Box h="100%">
@@ -531,6 +543,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 nodesConnectable={!viewOnly}
                 nodesDraggable={!viewOnly}
                 elementsSelectable={!viewOnly}
+                onInit={cleanUpLayout}
             >
                 {!viewOnly && (
                     <Panel position="bottom-left">
