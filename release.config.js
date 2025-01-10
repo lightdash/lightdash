@@ -1,13 +1,11 @@
-// order is important
 const packagesWithWorkspaceDependencies = [
-    'packages/backend/package.json',
     'packages/cli/package.json',
-    'packages/e2e/package.json',
     'packages/warehouses/package.json',
+    'packages/backend/package.json',
     'packages/frontend/package.json',
+    'packages/e2e/package.json',
 ];
 
-// order is important and should be in sync with `packagesWithWorkspaceDependencies`
 const expectedResults = [
     {
         file: 'packages/backend/package.json',
