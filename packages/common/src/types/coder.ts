@@ -1,6 +1,8 @@
 import type {
     Dashboard,
     DashboardChartTileProperties,
+    DashboardLoomTileProperties,
+    DashboardMarkdownTileProperties,
     DashboardTile,
     PromotionChanges,
     SavedChart,
@@ -44,10 +46,13 @@ export type ApiChartAsCodeUpsertResponse = {
 
 export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
     uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
-    properties: Pick<
-        DashboardChartTileProperties['properties'],
-        'title' | 'hideTitle' | 'chartSlug'
-    >;
+    properties:
+        | Pick<
+              DashboardChartTileProperties['properties'],
+              'title' | 'hideTitle' | 'chartSlug'
+          >
+        | DashboardMarkdownTileProperties['properties']
+        | DashboardLoomTileProperties['properties'];
 };
 
 export type DashboardAsCode = Pick<
