@@ -8442,7 +8442,38 @@
                     {
                         "properties": {
                             "properties": {
-                                "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_"
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "content": {
+                                                "type": "string"
+                                            },
+                                            "title": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["content", "title"],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "properties": {
+                                            "url": {
+                                                "type": "string"
+                                            },
+                                            "hideTitle": {
+                                                "type": "boolean"
+                                            },
+                                            "title": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["url", "title"],
+                                        "type": "object"
+                                    }
+                                ]
                             },
                             "uuid": {
                                 "type": "string"
@@ -12904,7 +12935,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1445.1",
+        "version": "0.1447.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
