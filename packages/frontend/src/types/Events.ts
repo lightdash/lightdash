@@ -89,6 +89,7 @@ export enum EventName {
     CREATE_PROJECT_MANUALLY_BUTTON_CLICKED = 'create_project_manually_click.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
+    LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     FORM_STATE_CHANGED = 'form-state.changed',
     ADD_FILTER_CLICKED = 'add_filter.click',
