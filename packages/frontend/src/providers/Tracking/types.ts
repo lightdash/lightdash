@@ -359,7 +359,8 @@ export type EventData =
     | MetricsCatalogExploreGranularityAppliedEvent
     | MetricsCatalogExploreSegmentByAppliedEvent
     | MetricsCatalogExploreTimeDimensionOverrideAppliedEvent
-    | MetricsCatalogSearchAppliedEvent;
+    | MetricsCatalogSearchAppliedEvent
+    | LandingRunQueryClickedEvent;
 
 export type IdentifyData = {
     id: string;

@@ -38,7 +38,7 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
                     trackingEvent={{
                         name: EventName.LANDING_RUN_QUERY_CLICKED,
                         properties: {
-                            organizationId: user.data?.organizationUuid,
+                            organizationId: user.data?.organizationUuid || '',
                             projectId: projectUuid,
                         },
                     }}
