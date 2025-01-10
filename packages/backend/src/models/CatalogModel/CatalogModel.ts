@@ -11,7 +11,6 @@ import {
     type ApiCatalogSearch,
     type ApiSort,
     type CatalogFieldMap,
-    type CatalogFieldWhere,
     type CatalogItem,
     type CatalogItemSummary,
     type CatalogItemWithTagUuids,
@@ -210,6 +209,7 @@ export class CatalogModel {
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
                 'description',
                 'type',
                 `${CachedExploreTableName}.explore`,

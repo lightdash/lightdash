@@ -2,6 +2,7 @@ import {
     CatalogType,
     Explore,
     FieldType,
+    friendlyName,
     getItemId,
     isExploreError,
     type CatalogFieldMap,
@@ -31,6 +32,7 @@ export const convertExploresToCatalog = (
                 project_uuid: projectUuid,
                 cached_explore_uuid: explore.cachedExploreUuid,
                 name: explore.name,
+                label: explore.label || null,
                 description: baseTable?.description || null,
                 type: CatalogType.Table,
                 required_attributes: baseTable.requiredAttributes ?? {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
@@ -57,6 +59,7 @@ export const convertExploresToCatalog = (
                     project_uuid: projectUuid,
                     cached_explore_uuid: explore.cachedExploreUuid,
                     name: field.name,
+                    label: field.label || friendlyName(field.name),
                     description: field.description || null,
                     type: CatalogType.Field,
                     field_type: field.fieldType,
