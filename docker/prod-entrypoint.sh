@@ -2,7 +2,7 @@
 set -e
 
 # Migrate db
-yarn workspace backend migrate-production
+pnpm -F backend migrate-production
 
 # Run prod
 exec "$@"

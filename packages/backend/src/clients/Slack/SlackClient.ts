@@ -443,4 +443,31 @@ export class SlackClient {
 
         return fileUrl;
     }
+
+    /**
+     * Helper method to try to upload an image to slack, so it can be used in blocks without expiration
+     * If it fails, we will keep using the same URL (s3)
+     */
+    async tryUploadingImageToSlack(
+        organizationUuid: string,
+        imageUrl: string | undefined,
+        name: string,
+    ) {
+        try {
+            if (!imageUrl) {
+                return { url: imageUrl, expiring: true };
+            }
+            const response = await fetch(imageUrl);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const slackFileUrl = await this.uploadFile({
+                organizationUuid,
+                file: buffer,
+                title: name,
+            });
+            return { url: slackFileUrl, expiring: false };
+        } catch (e) {
+            Logger.error(`Failed to upload image to slack: ${e}`);
+            return { url: imageUrl, expiring: true };
+        }
+    }
 }
