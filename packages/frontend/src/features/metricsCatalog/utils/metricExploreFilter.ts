@@ -37,10 +37,13 @@ export const getOperatorOptions = (
     return baseOperators;
 };
 
+export const doesDimensionRequireValues = (dimension: CompiledDimension) =>
+    dimension.type !== DimensionType.BOOLEAN;
+
 export const createFilterRule = (
     dimension: CompiledDimension,
     operator: FilterOperator,
-    values: string[],
+    values?: string[],
 ): FilterRule => {
     return getFilterRuleWithDefaultValue(
         dimension,
@@ -51,6 +54,6 @@ export const createFilterRule = (
             },
             operator,
         },
-        dimension.type === DimensionType.BOOLEAN ? [] : values,
+        doesDimensionRequireValues(dimension) ? values : [],
     );
 };

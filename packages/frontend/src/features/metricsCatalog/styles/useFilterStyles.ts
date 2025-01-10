@@ -79,19 +79,12 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
             borderTop: 0,
             paddingRight: 8,
             paddingLeft: 8,
-            '&[value=""]': {
-                border: `1px dashed ${theme.colors.gray[4]}`,
-            },
+
             '&[data-full-width="true"]': {
                 width: '100%',
                 maxWidth: '100%',
                 borderBottomRightRadius: theme.radius.md,
             },
-        },
-        inputReadOnly: {
-            backgroundColor: theme.colors.gray[0],
-            borderRight: 0,
-            pointerEvents: 'none',
         },
         item: base.baseItem,
         dropdown: {
@@ -99,7 +92,6 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
         },
         rightSection: {
             pointerEvents: 'none',
-            width: 20,
         },
     };
 });
@@ -121,11 +113,6 @@ export const useFilterTagInputStyles = createStyles((theme: MantineTheme) => {
         tagInput: {
             fontWeight: 500,
             fontSize: 14,
-            '&[readonly]': {
-                backgroundColor: theme.colors.gray[0],
-                borderRight: 0,
-                pointerEvents: 'none',
-            },
         },
         tagInputEmpty: {
             fontWeight: 500,
@@ -148,9 +135,6 @@ export const useFilterTagInputStyles = createStyles((theme: MantineTheme) => {
             borderLeft: 0,
             borderTop: 0,
             overflow: 'scroll',
-            '&:has(input[readonly])': {
-                backgroundColor: theme.colors.gray[0],
-            },
         },
         rightSection: {
             pointerEvents: 'none',

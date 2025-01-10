@@ -76,10 +76,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
         null,
     );
-
     const [timeDimensionOverride, setTimeDimensionOverride] = useState<
         TimeDimensionConfig | undefined
     >();
+    const [filter, setFilter] = useState<FilterRule | undefined>(undefined);
 
     const resetQueryState = useCallback(() => {
         setQuery({
@@ -88,6 +88,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         });
         setTimeDimensionOverride(undefined);
         setDateRange(null);
+        setFilter(undefined);
     }, [setQuery, setTimeDimensionOverride, setDateRange]);
 
     const currentMetricIndex = useMemo(() => {
@@ -107,12 +108,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const navigateToMetric = useCallback(
         (metric: CatalogField) => {
+            resetQueryState();
+
             void navigate({
                 pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
                 search: location.search,
             });
-
-            resetQueryState();
         },
         [navigate, projectUuid, resetQueryState, location.search],
     );
@@ -158,8 +159,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             query.metric.table === ''
         );
     }, [query]);
-
-    const [filter, setFilter] = useState<FilterRule | undefined>(undefined);
 
     const isQueryEnabled =
         (!!projectUuid &&
@@ -522,9 +521,9 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                             py="md"
                         >
                             <MetricExploreFilter
-                                // TODO: Get filters from the query instead of segmentByData
                                 dimensions={availableFilters}
                                 onFilterApply={handleFilterApply}
+                                key={`${tableName}-${metricName}`}
                             />
                             <MetricPeekSegmentationPicker
                                 query={query}
