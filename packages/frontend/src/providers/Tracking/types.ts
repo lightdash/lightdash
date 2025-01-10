@@ -95,6 +95,14 @@ export type OnboardingStepClickedEvent = {
     };
 };
 
+export type LandingRunQueryClickedEvent = {
+    name: EventName.LANDING_RUN_QUERY_CLICKED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 export type SetupStepClickedEvent = {
     name: EventName.SETUP_STEP_CLICKED;
     properties: {
