@@ -374,8 +374,8 @@ export const createDashboardFilterRuleFromField = ({
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
             target: {
                 fieldId: getItemId(field),
-                tableName: field.table,
-                fieldName: field.name,
+                tableName: field.tableLabel,
+                fieldName: field.label,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
             disabled: !isTemporary,
