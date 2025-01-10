@@ -14,10 +14,10 @@ tasks:
 
   - name: Run FE & BE
     init: |
-      pnpm install
-      pnpm common-build
-      pnpm warehouses-build
+      yarn install
+      yarn common-build
+      yarn warehouses-build
     command: |
       gp sync-await migration
       export SITE_ENV=3000-$GITPOD_WORKSPACE_URL
-      pnpm dev
+      yarn dev

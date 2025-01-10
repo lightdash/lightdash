@@ -5,7 +5,7 @@ import {
     type ApiError,
     type ApiResponse,
 } from '@lightdash/common';
-import { startSpan, spanToTraceHeader } from '@sentry/react';
+import * as Sentry from '@sentry/react';
 import fetch from 'isomorphic-fetch';
 
 export const BASE_API_URL =
@@ -60,7 +60,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
 
     let sentryTrace: string | undefined;
     // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.
-    startSpan(
+    Sentry.startSpan(
         {
             op: 'http.client',
             name: `API Request: ${method} ${url}`,
@@ -73,7 +73,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             },
         },
         (s) => {
-            sentryTrace = spanToTraceHeader(s);
+            sentryTrace = Sentry.spanToTraceHeader(s);
         },
     );
 

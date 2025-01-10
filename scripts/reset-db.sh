@@ -5,8 +5,8 @@ set -e
 psql -c 'drop schema public cascade; create schema public;'
 
 # migrate
-pnpm -F backend migrate
+yarn workspace backend migrate
 # seed
-pnpm -F backend seed
+yarn workspace backend seed
 
 echo "All done"
