@@ -1,3 +1,10 @@
+# [0.1449.0](https://github.com/lightdash/lightdash/compare/0.1448.1...0.1449.0) (2025-01-10)
+
+
+### Features
+
+* dbt cloud CLI ([#13167](https://github.com/lightdash/lightdash/issues/13167)) ([6d4e13f](https://github.com/lightdash/lightdash/commit/6d4e13f94d08ac84ac99f249b337d058dbe90a5f))
+
 ## [0.1448.1](https://github.com/lightdash/lightdash/compare/0.1448.0...0.1448.1) (2025-01-10)
 
 
