@@ -1,3 +1,17 @@
+## [0.1449.2](https://github.com/lightdash/lightdash/compare/0.1449.1...0.1449.2) (2025-01-10)
+
+
+### Bug Fixes
+
+* store label in catalog search to be searchable ([#13205](https://github.com/lightdash/lightdash/issues/13205)) ([3a8ef85](https://github.com/lightdash/lightdash/commit/3a8ef857f82f2c25edd926dc6c0225255ddbb52c))
+
+## [0.1449.1](https://github.com/lightdash/lightdash/compare/0.1449.0...0.1449.1) (2025-01-10)
+
+
+### Bug Fixes
+
+* remove extra properties from dashboard tiles and support markdown types  ([#13194](https://github.com/lightdash/lightdash/issues/13194)) ([29dbbe2](https://github.com/lightdash/lightdash/commit/29dbbe28b742c6058fd145f3c4b6fc46604889fb)), closes [#13196](https://github.com/lightdash/lightdash/issues/13196)
+
 # [0.1449.0](https://github.com/lightdash/lightdash/compare/0.1448.1...0.1449.0) (2025-01-10)
 
 

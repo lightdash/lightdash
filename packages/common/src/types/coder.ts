@@ -1,5 +1,8 @@
 import type {
     Dashboard,
+    DashboardChartTileProperties,
+    DashboardLoomTileProperties,
+    DashboardMarkdownTileProperties,
     DashboardTile,
     PromotionChanges,
     SavedChart,
@@ -41,22 +44,22 @@ export type ApiChartAsCodeUpsertResponse = {
     results: PromotionChanges;
 };
 
-export type DashboardTileWithoutUuids = Omit<
-    DashboardTile,
-    'properties' | 'uuid'
-> & {
+export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
     uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
-    properties: Omit<
-        DashboardTile['properties'],
-        'savedChartUuid' | 'savedSqlUuid' | 'savedSemanticViewerChartUuid'
-    >;
+    properties:
+        | Pick<
+              DashboardChartTileProperties['properties'],
+              'title' | 'hideTitle' | 'chartSlug'
+          >
+        | DashboardMarkdownTileProperties['properties']
+        | DashboardLoomTileProperties['properties'];
 };
 
 export type DashboardAsCode = Pick<
     Dashboard,
     'name' | 'description' | 'updatedAt' | 'filters' | 'tabs' | 'slug'
 > & {
-    tiles: DashboardTileWithoutUuids[];
+    tiles: DashboardTileAsCode[];
     version: number;
     spaceSlug: string;
     downloadedAt?: Date;
