@@ -18,7 +18,14 @@ import {
     Tooltip,
     type SelectProps,
 } from '@mantine/core';
-import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 
 interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
@@ -98,6 +105,7 @@ const FieldSelect = <T extends Item = Item>({
     ...rest
 }: FieldSelectProps<T>) => {
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
+    const [searchQuery, setSearchQuery] = useState<string | null>(null);
     useEffect(() => {
         if (focusOnRender) {
             // focus on the input after the component has rendered by throwing it to the end of the event loop first
@@ -160,6 +168,15 @@ const FieldSelect = <T extends Item = Item>({
                     map.set(b.table, b.tableLabel);
                 }
 
+                if (searchQuery) {
+                    const aIsExactMatch =
+                        a.name.toLowerCase() === searchQuery.toLowerCase();
+                    const bIsExactMatch =
+                        b.name.toLowerCase() === searchQuery.toLowerCase();
+                    if (aIsExactMatch !== bIsExactMatch)
+                        return aIsExactMatch ? -1 : 1;
+                }
+
                 // Prioritise items from the base table
                 if (baseTable) {
                     const aIsInTable = 'table' in a && a.table === baseTable;
@@ -201,7 +218,7 @@ const FieldSelect = <T extends Item = Item>({
                 );
             }),
         ];
-    }, [items, baseTable, hasGrouping]);
+    }, [items, baseTable, hasGrouping, searchQuery]);
 
     const selectedItemId = useMemo(() => {
         return item ? getItemId(item) : undefined;
@@ -254,6 +271,7 @@ const FieldSelect = <T extends Item = Item>({
                 disabled: inactiveItemIds.includes(getItemId(i)),
                 size: rest.size,
             }))}
+            onSearchChange={(query) => setSearchQuery(query)}
             onChange={handleChange}
         />
     );
