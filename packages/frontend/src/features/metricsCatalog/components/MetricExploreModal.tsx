@@ -41,8 +41,8 @@ import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsW
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
-import { MetricExploreFilter } from './visualization/MetricExploreFilter';
 import { MetricExploreComparison } from './visualization/MetricExploreComparison';
+import { MetricExploreFilter } from './visualization/MetricExploreFilter';
 import { MetricExploreSegmentationPicker } from './visualization/MetricExploreSegmentationPicker';
 import MetricsVisualization from './visualization/MetricsVisualization';
 

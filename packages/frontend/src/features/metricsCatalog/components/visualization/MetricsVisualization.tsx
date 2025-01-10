@@ -55,9 +55,9 @@ import {
     isInCurrentTimeFrame,
 } from '../../utils/metricExploreDate';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
+import { MetricExploreDatePicker } from './MetricExploreDatePicker';
 import { MetricExploreLegend } from './MetricExploreLegend';
 import { MetricExploreTooltip } from './MetricExploreTooltip';
-import { MetricExploreDatePicker } from './MetricExploreDatePicker';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { DATE_FORMATS, type MetricVisualizationFormatConfig } from './types';
 import { useChartZoom } from './useChartZoom';
