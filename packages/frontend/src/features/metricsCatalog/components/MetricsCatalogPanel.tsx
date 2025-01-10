@@ -31,7 +31,7 @@ import {
     setCategoryFilters,
     setOrganizationUuid,
     setProjectUuid,
-    toggleMetricPeekModal,
+    toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
@@ -270,10 +270,10 @@ export const MetricsCatalogPanel = () => {
     );
 
     useEffect(
-        function openMetricPeekModal() {
+        function openMetricExploreModal() {
             if (tableName && metricName) {
                 dispatch(
-                    toggleMetricPeekModal({
+                    toggleMetricExploreModal({
                         name: metricName,
                         tableName,
                     }),
