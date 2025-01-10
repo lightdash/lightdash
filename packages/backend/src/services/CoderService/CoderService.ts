@@ -6,15 +6,13 @@ import {
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
-    DashboardChartTileProperties,
     DashboardDAO,
     DashboardTile,
+    DashboardTileAsCode,
     DashboardTileTypes,
-    DashboardTileWithoutUuids,
     ForbiddenError,
     friendlyName,
     NotFoundError,
-    PromotedChart,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
@@ -42,6 +40,15 @@ type CoderServiceArguments = {
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
 };
+
+const isChartTile = (
+    tile: DashboardTileAsCode,
+): tile is DashboardTileAsCode & {
+    properties: { chartSlug: string };
+} =>
+    tile.type === DashboardTileTypes.SAVED_CHART ||
+    tile.type === DashboardTileTypes.SQL_CHART ||
+    tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -126,33 +133,37 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
         }
 
-        const tilesWithoutUuids: DashboardTileWithoutUuids[] =
-            dashboard.tiles.map((tile) => {
-                const tileWithoutUuid: DashboardTileWithoutUuids = {
-                    ...tile,
-                    properties: { ...tile.properties },
-                };
-                delete tileWithoutUuid.uuid;
-                if ('savedChartUuid' in tileWithoutUuid.properties) {
-                    delete tileWithoutUuid.properties.savedChartUuid;
-                }
-                if ('savedSqlUuid' in tileWithoutUuid.properties) {
-                    delete tileWithoutUuid.properties.savedSqlUuid;
-                }
-                if (
-                    'savedSemanticViewerChartUuid' in tileWithoutUuid.properties
-                ) {
-                    delete tileWithoutUuid.properties
-                        .savedSemanticViewerChartUuid;
-                }
-                return tileWithoutUuid;
-            });
+        const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.reduce<
+            DashboardTileAsCode[]
+        >((acc, tile) => {
+            // TODO support other tile types
+            const chartProperties = isChartTile(tile)
+                ? tile.properties
+                : undefined;
+            if (!chartProperties) {
+                console.info(
+                    `Skipped download dashboard tile with type: ${tile.type}`,
+                );
+                return acc;
+            }
+            const tileAsCode: DashboardTileAsCode = {
+                ...tile,
+                properties: {
+                    title: tile.properties.title,
+                    hideTitle: chartProperties.hideTitle,
+                    chartSlug: chartProperties.chartSlug,
+                },
+            };
+
+            return [...acc, tileAsCode];
+        }, []);
 
         return {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
             tiles: tilesWithoutUuids,
+
             filters: dashboard.filters,
             tabs: dashboard.tabs,
             slug: dashboard.slug,
@@ -165,17 +176,8 @@ export class CoderService extends BaseService {
 
     async convertTileWithSlugsToUuids(
         projectUuid: string,
-        tiles: DashboardTileWithoutUuids[],
+        tiles: DashboardTileAsCode[],
     ): Promise<DashboardTile[]> {
-        const isChartTile = (
-            tile: DashboardTileWithoutUuids,
-        ): tile is DashboardTileWithoutUuids & {
-            properties: { chartSlug: string };
-        } =>
-            tile.type === DashboardTileTypes.SAVED_CHART ||
-            tile.type === DashboardTileTypes.SQL_CHART ||
-            tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
-
         const chartSlugs: string[] = tiles.reduce<string[]>(
             (acc, tile) =>
                 isChartTile(tile) ? [...acc, tile.properties.chartSlug] : acc,

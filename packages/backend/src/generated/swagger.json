@@ -6573,6 +6573,9 @@
                     },
                     "environment_id": {
                         "type": "string"
+                    },
+                    "discovery_api_endpoint": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "api_key", "environment_id"],
@@ -8418,20 +8421,22 @@
                 "$ref": "#/components/schemas/Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__": {
+            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_": {
                 "properties": {
                     "title": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    },
+                    "chartSlug": {
                         "type": "string"
                     }
                 },
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_": {
-                "$ref": "#/components/schemas/Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "DashboardTileWithoutUuids": {
+            "DashboardTileAsCode": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/Omit_DashboardTile.properties-or-uuid_"
@@ -8439,7 +8444,7 @@
                     {
                         "properties": {
                             "properties": {
-                                "$ref": "#/components/schemas/Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_"
+                                "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_"
                             },
                             "uuid": {
                                 "type": "string"
@@ -8470,7 +8475,7 @@
                             },
                             "tiles": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTileWithoutUuids"
+                                    "$ref": "#/components/schemas/DashboardTileAsCode"
                                 },
                                 "type": "array"
                             }
@@ -12903,7 +12908,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1434.1",
+        "version": "0.1445.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
