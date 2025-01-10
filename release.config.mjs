@@ -65,7 +65,7 @@ export default {
         ],
 
         [
-            'semantic-release-replace-plugin',
+            '@google/semantic-release-replace-plugin',
             {
                 replacements: [
                     {
@@ -116,7 +116,7 @@ export default {
         ],
 
         [
-            'semantic-release-replace-plugin',
+            '@google/semantic-release-replace-plugin',
             {
                 replacements: [
                     {
