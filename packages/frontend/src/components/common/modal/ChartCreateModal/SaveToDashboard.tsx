@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { v4 as uuid4 } from 'uuid';
+import { uuid4 } from '@sentry/utils';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
