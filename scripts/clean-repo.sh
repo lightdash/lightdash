@@ -10,3 +10,4 @@ rm -rf packages/*/dist
 
 # Reinstall dependencies
 pnpm install
+pnpm build
