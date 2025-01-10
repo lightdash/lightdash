@@ -1,6 +1,6 @@
 import {
     ContentSortByColumns,
-    contentToResourceViewItems,
+    contentToResourceViewItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -319,13 +319,22 @@ const InfiniteResourceTable = ({
             },
             { keepPreviousData: true },
         );
-    const flatData = useMemo(
-        () =>
-            contentToResourceViewItems(
-                data?.pages.flatMap((page) => page.data) ?? [],
-            ),
-        [data],
-    );
+
+    const flatData = useMemo(() => {
+        if (!data) return [];
+        return data.pages.flatMap((page) =>
+            page.data.map(contentToResourceViewItem),
+        );
+    }, [data]);
+
+    // Temporary workaround to resolve a memoization issue with react-mantine-table.
+    // In certain scenarios, the content fails to render properly even when the data is updated.
+    // This issue may be addressed in a future library update.
+    const [tableData, setTableData] = useState<ResourceViewItem[]>([]);
+    useEffect(() => {
+        setTableData(flatData);
+    }, [flatData]);
+
     const totalResults = useMemo(() => {
         if (!data) return 0;
         // Return total results from the last page, this should be the same but still we want to have the latest value
@@ -359,7 +368,7 @@ const InfiniteResourceTable = ({
 
     const table = useMantineReactTable({
         columns: ResourceColumns,
-        data: flatData,
+        data: tableData,
         enableColumnResizing: true,
         enableRowNumbers: false,
         positionActionsColumn: 'last',
