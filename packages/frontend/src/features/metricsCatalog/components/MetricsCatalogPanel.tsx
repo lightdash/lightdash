@@ -34,7 +34,6 @@ import {
     setSearch,
     setTableSorting,
     toggleMetricExploreModal,
-    toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
 import { type MetricCatalogView } from '../types';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
