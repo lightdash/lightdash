@@ -350,14 +350,17 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         setCurrentEdges,
     ]);
 
-    const cleanUpLayout = useCallback(() => {
-        setLayoutState((prev) => ({
-            ...prev,
-            isReady: false,
-            shouldFitView: true,
-            renderTwice: true,
-        }));
-    }, [setLayoutState]);
+    const cleanUpLayout = useCallback(
+        (renderTwice = false) => {
+            setLayoutState((prev) => ({
+                ...prev,
+                isReady: false,
+                shouldFitView: true,
+                renderTwice,
+            }));
+        },
+        [setLayoutState],
+    );
 
     const handleNodePositionChange = useCallback(
         (changes: NodePositionChange[]) => {
@@ -543,14 +546,14 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 nodesConnectable={!viewOnly}
                 nodesDraggable={!viewOnly}
                 elementsSelectable={!viewOnly}
-                onInit={cleanUpLayout}
+                onInit={() => cleanUpLayout()}
             >
                 {!viewOnly && (
                     <Panel position="bottom-left">
                         <Button
                             variant="default"
                             radius="md"
-                            onClick={cleanUpLayout}
+                            onClick={() => cleanUpLayout(true)}
                             size="xs"
                             sx={{
                                 boxShadow: theme.shadows.subtle,
