@@ -58,6 +58,14 @@ export type Explore = {
     type?: ExploreType;
 };
 
+export type AllowedActions =
+    | 'update'
+    | 'manage'
+    | 'view'
+    | 'create'
+    | 'delete'
+    | 'promote';
+
 export enum InlineErrorType {
     METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
     NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
