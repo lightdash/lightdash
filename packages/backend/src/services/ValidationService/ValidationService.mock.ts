@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AllowedActions,
     Dashboard,
     DashboardTileTypes,
     DimensionType,
@@ -39,7 +40,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new Ability<[AllowedActions, any]>([
         {
             subject: 'Validation',
             action: ['manage'],
@@ -170,6 +171,10 @@ export const explore: Explore = {
         },
     },
 };
+
+if (!explore.tables.table) {
+    throw new Error('Table is undefined');
+}
 
 export const exploreWithoutDimension: Explore = {
     ...explore,
