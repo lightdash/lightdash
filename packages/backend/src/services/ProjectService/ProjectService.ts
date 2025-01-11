@@ -180,6 +180,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 
 type ProjectServiceArguments = {
@@ -1296,6 +1297,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         return this.runQueryAndFormatRows({
@@ -1376,6 +1378,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
+            explore_name: savedChart.tableName,
         };
 
         const { cacheMetadata, rows, fields } =
@@ -1502,6 +1505,7 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
+            explore_name: explore.name,
         };
 
         const exploreDimensions = getDimensions(explore);
@@ -1592,6 +1596,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         const explore = await this.getExplore(
@@ -1766,6 +1771,7 @@ export class ProjectService extends BaseService {
                     project_uuid: chart.projectUuid,
                     user_uuid: user.userUuid,
                     chart_uuid: chartUuid,
+                    explore_name: exploreId,
                 };
 
                 return this.runMetricQuery({
@@ -2725,6 +2731,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
+            explore_name: explore.name,
         };
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
@@ -3513,6 +3520,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: tableName,
         };
         let database = ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
@@ -4440,6 +4448,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
@@ -4473,6 +4482,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: explore.name,
         };
 
         const { rows, cacheMetadata } =

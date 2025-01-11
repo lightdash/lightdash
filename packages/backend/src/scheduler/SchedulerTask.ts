@@ -123,6 +123,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
@@ -1150,6 +1151,7 @@ export default class SchedulerTask {
                 project_uuid: payload.projectUuid,
                 user_uuid: payload.userUuid,
                 organization_uuid: payload.organizationUuid,
+                explore_name: payload.exploreId,
             };
 
             const { rows } = await this.projectService.runMetricQuery({
