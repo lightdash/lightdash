@@ -149,6 +149,18 @@ export const EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES: Explore = {
     },
 };
 
+if (!EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.orders) {
+    throw new Error('Orders are undefined');
+}
+
+if (!EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments) {
+    throw new Error('Orders are undefined');
+}
+
+if (!EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments.dimensions.name) {
+    throw new Error('Name is undefined');
+}
+
 export const EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES: Explore = {
     ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
     tables: {
@@ -190,6 +202,14 @@ export const EXPLORE_WITH_DIMENSION_REQUIRED_ATTRIBUTES: Explore = {
     },
 };
 
+if (!EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables.orders) {
+    throw new Error('Orders are undefined');
+}
+
+if (!EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables.payments) {
+    throw new Error('Payments are undefined');
+}
+
 export const EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES: Explore = {
     ...EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES,
     tables: {
@@ -203,7 +223,7 @@ export const EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES: Explore = {
                     .dimensions,
                 name: {
                     ...EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES.tables.payments
-                        .dimensions.name,
+                        .dimensions.name!,
                     requiredAttributes: {
                         access_level: '3',
                     },
@@ -212,6 +232,10 @@ export const EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES: Explore = {
         },
     },
 };
+
+if (!EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables.payments) {
+    throw new Error('Payments are undefined');
+}
 
 export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_2: Explore = {
     ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES,
@@ -223,15 +247,19 @@ export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_2: Explore = {
             metrics: {
                 total_revenue:
                     EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables
-                        .payments.metrics.total_revenue,
+                        .payments.metrics.total_revenue!,
             },
             dimensions: {
                 amount: EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES
-                    .tables.payments.dimensions.amount,
+                    .tables.payments.dimensions.amount!,
             },
         },
     },
 };
+
+if (!EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables.orders) {
+    throw new Error('Order are undefined');
+}
 
 export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_1_2: Explore = {
     ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES,
@@ -243,10 +271,10 @@ export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_1_2: Explore = {
                 .payments,
             dimensions: {
                 amount: EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES
-                    .tables.payments.dimensions.amount,
+                    .tables.payments.dimensions.amount!,
                 dim_amount_diff:
                     EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables
-                        .payments.dimensions.dim_amount_diff,
+                        .payments.dimensions.dim_amount_diff!,
             },
         },
     },
