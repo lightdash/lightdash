@@ -391,6 +391,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://parthiblol.netlify.app"><img src="https://avatars.githubusercontent.com/u/94271200?v=4?s=100" width="100px;" alt="Parthib Datta"/><br /><sub><b>Parthib Datta</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ptdatta" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://zhyd1997.eth.limo"><img src="https://avatars.githubusercontent.com/u/31362988?v=4?s=100" width="100px;" alt="Yadong Zhang"/><br /><sub><b>Yadong Zhang</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=zhyd1997" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
