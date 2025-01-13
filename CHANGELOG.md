@@ -1,3 +1,10 @@
+## [0.1450.2](https://github.com/lightdash/lightdash/compare/0.1450.1...0.1450.2) (2025-01-13)
+
+
+### Bug Fixes
+
+* dashboard content appearing blank ([#13200](https://github.com/lightdash/lightdash/issues/13200)) ([a911e37](https://github.com/lightdash/lightdash/commit/a911e377f8ec189f8515c8664800ab1b11f88e20))
+
 ## [0.1450.1](https://github.com/lightdash/lightdash/compare/0.1450.0...0.1450.1) (2025-01-13)
 
 
