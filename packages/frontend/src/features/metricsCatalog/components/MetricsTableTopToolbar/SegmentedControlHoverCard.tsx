@@ -69,7 +69,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
                 bg="#0A0D12"
                 maw={260}
                 sx={(theme) => ({
-                    boxShadow: theme.shadows.large,
+                    boxShadow: theme.shadows.heavy,
                 })}
             >
                 <Stack spacing="sm" w="100%">
