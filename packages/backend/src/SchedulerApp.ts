@@ -58,7 +58,7 @@ export default class SchedulerApp {
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
             dataPlaneUrl: this.lightdashConfig.rudder.dataPlaneUrl
-                ? `${this.lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+                ? this.lightdashConfig.rudder.dataPlaneUrl
                 : 'notrack',
             options: {
                 enable:
