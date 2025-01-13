@@ -4,8 +4,16 @@ import {
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
-import { Box, Button, useMantineTheme, type MantineTheme } from '@mantine/core';
-import { IconLayoutGridRemove } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Text,
+    useMantineTheme,
+    type MantineTheme,
+} from '@mantine/core';
+import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     addEdge,
     Background,
@@ -548,6 +556,25 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 elementsSelectable={!viewOnly}
                 onInit={() => cleanUpLayout()}
             >
+                <Panel position="top-left" style={{ margin: '14px 27px' }}>
+                    <Group spacing="xs">
+                        <Text fz={14} fw={600} c="gray.7">
+                            <Text span fw={500} c="gray.6">
+                                Canvas mode:
+                            </Text>{' '}
+                            Current month to date
+                        </Text>
+                        <ActionIcon
+                            component="a"
+                            href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
+                            target="_blank"
+                            variant="transparent"
+                            size="xs"
+                        >
+                            <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                        </ActionIcon>
+                    </Group>
+                </Panel>
                 {!viewOnly && (
                     <Panel position="bottom-left">
                         <Button
