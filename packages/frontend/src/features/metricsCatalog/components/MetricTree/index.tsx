@@ -26,6 +26,7 @@ import {
     type Connection,
     type Edge,
     type EdgeChange,
+    type EdgeTypes,
     type NodeChange,
     type NodePositionChange,
     type NodeReplaceChange,
@@ -43,9 +44,18 @@ import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
 import MetricTreeCollapsedNode, {
     type MetricTreeCollapsedNodeData,
 } from './MetricTreeCollapsedNode';
+import MetricTreeDefaultEdge from './MetricTreeDefaultEdge';
 import MetricTreeExpandedNode, {
     type MetricTreeExpandedNodeData,
 } from './MetricTreeExpandedNode';
+
+enum MetricTreeEdgeType {
+    DEFAULT = 'default',
+}
+
+const metricTreeEdgeTypes: EdgeTypes = {
+    [MetricTreeEdgeType.DEFAULT]: MetricTreeDefaultEdge,
+};
 
 enum MetricTreeNodeType {
     EXPANDED = 'expanded',
@@ -283,6 +293,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 id: getEdgeId(edge),
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
+                type: MetricTreeEdgeType.DEFAULT,
             }));
         }
 
@@ -551,6 +562,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 edgesReconnectable={false}
                 onEdgesDelete={handleEdgesDelete}
                 nodeTypes={metricTreeNodeTypes}
+                edgeTypes={metricTreeEdgeTypes}
                 nodesConnectable={!viewOnly}
                 nodesDraggable={!viewOnly}
                 elementsSelectable={!viewOnly}
