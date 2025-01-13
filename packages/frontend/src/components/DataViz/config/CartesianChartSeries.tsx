@@ -50,7 +50,10 @@ export const CartesianChartSeries = ({
         if (!currentConfig?.fieldConfig?.y) {
             return [];
         }
+        // Go through the selected fields
         return currentConfig?.fieldConfig?.y.map((f, index) => {
+
+            // Look for display associated with each selected field
             const foundSeries = Object.values(
                 currentConfig?.display?.series || {},
             ).find((s) => s.yAxisIndex === index);
