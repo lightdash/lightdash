@@ -213,69 +213,62 @@ export const MetricExploreFilter: FC<Props> = ({
                     borderRadius: theme.radius.md,
                 }}
             >
-                <Select
-                    placeholder="Filter by"
-                    icon={<MantineIcon icon={IconFilter} />}
-                    searchable
-                    radius="md"
-                    size="xs"
-                    data={
-                        dimensions?.map((dimension) => ({
-                            value: getItemId(dimension),
-                            label: dimension.label,
-                        })) ?? []
-                    }
-                    disabled={dimensions?.length === 0}
-                    value={filterState.fieldId}
-                    itemComponent={SelectItem}
-                    onChange={handleDimensionChange}
-                    data-selected={!!filterState.fieldId}
-                    classNames={filterSelectClasses}
-                />
+                <Group spacing={0} noWrap>
+                    <Select
+                        placeholder="Filter by"
+                        icon={<MantineIcon icon={IconFilter} />}
+                        searchable
+                        radius="md"
+                        size="xs"
+                        data={
+                            dimensions?.map((dimension) => ({
+                                value: getItemId(dimension),
+                                label: dimension.label,
+                            })) ?? []
+                        }
+                        disabled={dimensions?.length === 0}
+                        value={filterState.fieldId}
+                        itemComponent={SelectItem}
+                        onChange={handleDimensionChange}
+                        data-selected={!!filterState.fieldId}
+                        data-no-values={!showValuesSection}
+                        classNames={filterSelectClasses}
+                    />
 
-                {filterState.fieldId && (
-                    <Group spacing={0} noWrap>
+                    {filterState.fieldId && (
                         <Select
-                            w={showValuesSection ? 70 : '100%'}
-                            maw={showValuesSection ? 70 : '100%'}
                             placeholder="Condition"
                             data={operatorOptions}
                             value={filterState.operator}
                             onChange={handleOperatorChange}
                             size="xs"
                             radius="md"
-                            classNames={{
-                                input: operatorSelectClasses.input,
-                                item: operatorSelectClasses.item,
-                                dropdown: operatorSelectClasses.dropdown,
-                                rightSection:
-                                    operatorSelectClasses.rightSection,
-                            }}
+                            classNames={operatorSelectClasses}
+                            data-no-values={!showValuesSection}
                             data-full-width={
                                 !showValuesSection ? 'true' : 'false'
                             }
                         />
-                        {showValuesSection && (
-                            <TagInput
-                                placeholder={
-                                    filterState.operator
-                                        ? 'Type values...'
-                                        : undefined
-                                }
-                                value={filterState.values}
-                                disabled={!filterState.operator}
-                                onChange={(values) =>
-                                    setFilterState((prev) => ({
-                                        ...prev,
-                                        values,
-                                    }))
-                                }
-                                radius="md"
-                                size="xs"
-                                classNames={tagInputClasses}
-                            />
-                        )}
-                    </Group>
+                    )}
+                </Group>
+
+                {showValuesSection && filterState.fieldId && (
+                    <TagInput
+                        placeholder={
+                            filterState.operator ? 'Type values...' : undefined
+                        }
+                        value={filterState.values}
+                        disabled={!filterState.operator}
+                        onChange={(values) =>
+                            setFilterState((prev) => ({
+                                ...prev,
+                                values,
+                            }))
+                        }
+                        radius="md"
+                        size="xs"
+                        classNames={tagInputClasses}
+                    />
                 )}
             </Stack>
             {filterState.fieldId && dimensionMetadata?.requiresValues && (
