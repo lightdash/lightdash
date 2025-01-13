@@ -1232,7 +1232,8 @@ export class LightdashAnalytics extends Analytics {
         dataPlaneUrl,
         options,
     }: LightdashAnalyticsArguments) {
-        super(writeKey, dataPlaneUrl, options);
+        super(writeKey, { ...options, dataPlaneUrl });
+
         this.lightdashConfig = lightdashConfig;
         this.lightdashContext = {
             app: {
