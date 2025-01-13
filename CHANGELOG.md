@@ -1,3 +1,67 @@
+## [0.1451.1](https://github.com/lightdash/lightdash/compare/0.1451.0...0.1451.1) (2025-01-13)
+
+
+### Bug Fixes
+
+* create project with compile ([#13240](https://github.com/lightdash/lightdash/issues/13240)) ([7891aa5](https://github.com/lightdash/lightdash/commit/7891aa5ce1ab5d808b17ee7907a621fb8decc23a))
+
+# [0.1451.0](https://github.com/lightdash/lightdash/compare/0.1450.3...0.1451.0) (2025-01-13)
+
+
+### Features
+
+* **cli:** support argument `--project` on lightdash download/upload. ([#13185](https://github.com/lightdash/lightdash/issues/13185)) ([4dec56a](https://github.com/lightdash/lightdash/commit/4dec56af47ac0b9f0e16ac6213f13000e60fd78a))
+
+## [0.1450.3](https://github.com/lightdash/lightdash/compare/0.1450.2...0.1450.3) (2025-01-13)
+
+
+### Bug Fixes
+
+* upgrade @rudderstack/rudder-sdk-node from 1.1.5 to 2.0.6 ([#13218](https://github.com/lightdash/lightdash/issues/13218)) ([e2b6aa6](https://github.com/lightdash/lightdash/commit/e2b6aa66569d4cb6c7d399c09064cf981bd00da0))
+* upgrade snowflake-sdk from 1.14.0 to 2.0.0 ([#13217](https://github.com/lightdash/lightdash/issues/13217)) ([a6053f3](https://github.com/lightdash/lightdash/commit/a6053f3db4e780ccbd268d65f32a6b9e0ea3339d))
+
+## [0.1450.2](https://github.com/lightdash/lightdash/compare/0.1450.1...0.1450.2) (2025-01-13)
+
+
+### Bug Fixes
+
+* dashboard content appearing blank ([#13200](https://github.com/lightdash/lightdash/issues/13200)) ([a911e37](https://github.com/lightdash/lightdash/commit/a911e377f8ec189f8515c8664800ab1b11f88e20))
+
+## [0.1450.1](https://github.com/lightdash/lightdash/compare/0.1450.0...0.1450.1) (2025-01-13)
+
+
+### Bug Fixes
+
+* make tree container min height same as the table ([#13221](https://github.com/lightdash/lightdash/issues/13221)) ([ee75a41](https://github.com/lightdash/lightdash/commit/ee75a412695582f7b801757c4e2d5a13f5693f5d))
+
+# [0.1450.0](https://github.com/lightdash/lightdash/compare/0.1449.5...0.1450.0) (2025-01-13)
+
+
+### Features
+
+* allow tree urls to be shared ([#13198](https://github.com/lightdash/lightdash/issues/13198)) ([bf98fef](https://github.com/lightdash/lightdash/commit/bf98fef79f869b3acb27a7ec88b7a73d5f96ea02))
+
+## [0.1449.5](https://github.com/lightdash/lightdash/compare/0.1449.4...0.1449.5) (2025-01-13)
+
+
+### Bug Fixes
+
+* create first project using dbt cloud cli ([#13220](https://github.com/lightdash/lightdash/issues/13220)) ([a9c0762](https://github.com/lightdash/lightdash/commit/a9c0762c6b64b0a6189c3bdc831683d321da7d14))
+
+## [0.1449.4](https://github.com/lightdash/lightdash/compare/0.1449.3...0.1449.4) (2025-01-13)
+
+
+### Bug Fixes
+
+* overlapping free nodes ([#13199](https://github.com/lightdash/lightdash/issues/13199)) ([18f22ef](https://github.com/lightdash/lightdash/commit/18f22ef1676a744aeb3a292676db8f2ff98349f4))
+
+## [0.1449.3](https://github.com/lightdash/lightdash/compare/0.1449.2...0.1449.3) (2025-01-13)
+
+
+### Bug Fixes
+
+* auto-focus filter values input ([#13183](https://github.com/lightdash/lightdash/issues/13183)) ([06fefa3](https://github.com/lightdash/lightdash/commit/06fefa3e4f2c46e3edd2eb3c6e0b0a86526be468))
+
 ## [0.1449.2](https://github.com/lightdash/lightdash/compare/0.1449.1...0.1449.2) (2025-01-10)
 
 

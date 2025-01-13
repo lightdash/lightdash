@@ -3,12 +3,12 @@ import { Paper, Text } from '@mantine/core';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 
-export type MetricTreeUnconnectedNodeData = Node<{
+export type MetricTreeCollapsedNodeData = Node<{
     label: string;
 }>;
 
-const MetricTreeUnconnectedNode: React.FC<
-    NodeProps<MetricTreeUnconnectedNodeData>
+const MetricTreeCollapsedNode: React.FC<
+    NodeProps<MetricTreeCollapsedNodeData>
 > = ({ data, isConnectable }) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
@@ -59,4 +59,4 @@ const MetricTreeUnconnectedNode: React.FC<
     );
 };
 
-export default MetricTreeUnconnectedNode;
+export default MetricTreeCollapsedNode;

@@ -69,6 +69,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 <FilterWeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
+                                    autoFocus={true}
                                     value={
                                         rule.values && rule.values[0]
                                             ? parseDate(
@@ -110,6 +111,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                                 // @ts-ignore
                                 placeholder={placeholder}
+                                autoFocus={true}
                                 popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]
@@ -139,6 +141,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                                 // @ts-ignore
                                 placeholder={placeholder}
+                                autoFocus={true}
+                                defaultOpened={true}
                                 popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]
@@ -183,6 +187,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                         // @ts-ignore
                         placeholder={placeholder}
+                        autoFocus={true}
                         withSeconds
                         // FIXME: mantine v7
                         // mantine does not set the first day of the week based on the locale
@@ -210,6 +215,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     // so we need to do it manually and always pass it as a prop
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     popoverProps={popoverProps}
+                    autoFocus={true}
                     value={
                         rule.values
                             ? parseDate(
@@ -239,6 +245,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         sx={{ flexShrink: 1, flexGrow: 1 }}
                         placeholder={placeholder}
                         disabled={disabled}
+                        autoFocus={true}
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
                         onChange={(value) => {
@@ -290,6 +297,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     }
                     showOptionsInPlural={false}
                     showCompletedOptions={false}
+                    autoFocus={true}
                     completed={false}
                     withinPortal={popoverProps?.withinPortal}
                     onDropdownOpen={popoverProps?.onOpen}
@@ -310,6 +318,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 return (
                     <FilterDateTimeRangePicker
                         disabled={disabled}
+                        autoFocus={true}
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         value={
                             rule.values && rule.values[0] && rule.values[1]
@@ -338,6 +347,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             return (
                 <FilterDateRangePicker
                     disabled={disabled}
+                    autoFocus={true}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     value={
                         rule.values && rule.values[0] && rule.values[1]

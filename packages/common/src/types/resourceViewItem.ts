@@ -146,53 +146,53 @@ export type MostPopularAndRecentlyUpdated = {
     recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
 };
 
-export const contentToResourceViewItems = (content: SummaryContent[]) =>
-    content.map((c) => {
-        const updatedByUser = c.lastUpdatedBy || c.createdBy || undefined;
+export const contentToResourceViewItem = (content: SummaryContent) => {
+    const updatedByUser =
+        content.lastUpdatedBy || content.createdBy || undefined;
 
-        switch (c.contentType) {
-            case ContentType.CHART:
-                const chartViewItem: ResourceViewChartItem['data'] & {
-                    projectUuid: string;
-                    organizationUuid: string;
-                } = {
-                    ...c,
-                    description: c.description || undefined,
-                    spaceUuid: c.space.uuid,
-                    pinnedListUuid: c.pinnedList?.uuid || null,
-                    pinnedListOrder: null,
-                    updatedAt: c.lastUpdatedAt || c.createdAt,
-                    updatedByUser: updatedByUser && {
-                        ...updatedByUser,
-                        userUuid: updatedByUser.uuid,
-                    },
-                    projectUuid: c.project.uuid, // Required for permission checks in ResourceActionMenu
-                    organizationUuid: c.organization.uuid,
-                };
-                return wrapResource(chartViewItem, ResourceViewItemType.CHART);
-            case ContentType.DASHBOARD:
-                const dashboardViewItem: ResourceViewDashboardItem['data'] & {
-                    projectUuid: string;
-                    organizationUuid: string;
-                } = {
-                    ...c,
-                    description: c.description || undefined,
-                    spaceUuid: c.space.uuid,
-                    pinnedListUuid: c.pinnedList?.uuid || null,
-                    pinnedListOrder: null,
-                    updatedAt: c.lastUpdatedAt || c.createdAt,
-                    updatedByUser: updatedByUser && {
-                        ...updatedByUser,
-                        userUuid: updatedByUser.uuid,
-                    },
-                    projectUuid: c.project.uuid,
-                    organizationUuid: c.organization.uuid,
-                };
-                return wrapResource(
-                    dashboardViewItem,
-                    ResourceViewItemType.DASHBOARD,
-                );
-            default:
-                return assertUnreachable(c, `Unsupported content type`);
-        }
-    });
+    switch (content.contentType) {
+        case ContentType.CHART:
+            const chartViewItem: ResourceViewChartItem['data'] & {
+                projectUuid: string;
+                organizationUuid: string;
+            } = {
+                ...content,
+                description: content.description || undefined,
+                spaceUuid: content.space.uuid,
+                pinnedListUuid: content.pinnedList?.uuid || null,
+                pinnedListOrder: null,
+                updatedAt: content.lastUpdatedAt || content.createdAt,
+                updatedByUser: updatedByUser && {
+                    ...updatedByUser,
+                    userUuid: updatedByUser.uuid,
+                },
+                projectUuid: content.project.uuid, // Required for permission checks in ResourceActionMenu
+                organizationUuid: content.organization.uuid,
+            };
+            return wrapResource(chartViewItem, ResourceViewItemType.CHART);
+        case ContentType.DASHBOARD:
+            const dashboardViewItem: ResourceViewDashboardItem['data'] & {
+                projectUuid: string;
+                organizationUuid: string;
+            } = {
+                ...content,
+                description: content.description || undefined,
+                spaceUuid: content.space.uuid,
+                pinnedListUuid: content.pinnedList?.uuid || null,
+                pinnedListOrder: null,
+                updatedAt: content.lastUpdatedAt || content.createdAt,
+                updatedByUser: updatedByUser && {
+                    ...updatedByUser,
+                    userUuid: updatedByUser.uuid,
+                },
+                projectUuid: content.project.uuid,
+                organizationUuid: content.organization.uuid,
+            };
+            return wrapResource(
+                dashboardViewItem,
+                ResourceViewItemType.DASHBOARD,
+            );
+        default:
+            return assertUnreachable(content, `Unsupported content type`);
+    }
+};

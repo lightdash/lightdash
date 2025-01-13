@@ -34,6 +34,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type FC,
     type UIEvent,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -48,6 +49,8 @@ import {
 import { useMetricsTree } from '../hooks/useMetricsTree';
 import {
     setCategoryFilters,
+    setSearch,
+    setTableSorting,
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
@@ -56,7 +59,11 @@ import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import MetricTree from './MetricTree';
 
-export const MetricsTable = () => {
+type MetricsTableProps = {
+    metricCatalogView: MetricCatalogView;
+};
+
+export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
@@ -76,26 +83,19 @@ export const MetricsTable = () => {
     const isMetricExploreModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.metricExploreModal.isOpen,
     );
-    const metricCatalogView = useAppSelector(
-        (state) => state.metricsCatalog.view,
+    const search = useAppSelector((state) => state.metricsCatalog.search);
+    const stateTableSorting = useAppSelector(
+        (state) => state.metricsCatalog.tableSorting,
     );
+    const deferredSearch = useDeferredValue(search);
     const prevView = useRef(metricCatalogView);
-
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-    const [search, setSearch] = useState<string | undefined>(undefined);
-    const deferredSearch = useDeferredValue(search);
 
-    // Enable sorting by highest popularity(how many charts use the metric) by default
-    const initialSorting = [
-        {
-            id: 'chartUsage',
-            desc: true,
-        },
-    ];
-
-    const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
+    // We need internal state to handle non serializable state for the updater function
+    const [internalSorting, setInternalSorting] =
+        useState<MRT_SortingState>(stateTableSorting);
 
     const onCloseMetricExploreModal = () => {
         dispatch(toggleMetricExploreModal(undefined));
@@ -114,11 +114,15 @@ export const MetricsTable = () => {
         search: deferredSearch,
         categories: categoryFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
-        ...(sorting.length > 0 && {
-            sortBy: sorting[0].id as keyof CatalogItem,
-            sortDirection: sorting[0].desc ? 'desc' : 'asc',
+        ...(stateTableSorting.length > 0 && {
+            sortBy: stateTableSorting[0].id as keyof CatalogItem,
+            sortDirection: stateTableSorting[0].desc ? 'desc' : 'asc',
         }),
     });
+
+    useEffect(() => {
+        dispatch(setTableSorting(internalSorting));
+    }, [dispatch, internalSorting]);
 
     useEffect(() => {
         if (
@@ -300,13 +304,13 @@ export const MetricsTable = () => {
         enableHiding: false,
         enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
-            setSearch(s);
+            dispatch(setSearch(s));
         },
         manualFiltering: true,
         enableFilterMatchHighlighting: true,
         enableSorting: true,
         manualSorting: true,
-        onSortingChange: setSorting,
+        onSortingChange: setInternalSorting,
         enableTopToolbar: true,
         positionGlobalFilter: 'left',
         mantinePaperProps,
@@ -314,7 +318,7 @@ export const MetricsTable = () => {
             ref: tableContainerRef,
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
+                minHeight: 600,
                 display: 'flex',
                 flexDirection: 'column',
             },
@@ -463,7 +467,7 @@ export const MetricsTable = () => {
             <Box>
                 <MetricsTableTopToolbar
                     search={search}
-                    setSearch={setSearch}
+                    setSearch={(s) => dispatch(setSearch(s))}
                     totalResults={totalResults}
                     selectedCategories={categoryFilters}
                     setSelectedCategories={handleSetCategoryFilters}
@@ -472,6 +476,7 @@ export const MetricsTable = () => {
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     isValidMetricsTree={isValidMetricsTree}
                     segmentedControlTooltipLabel={segmentedControlTooltipLabel}
+                    metricCatalogView={metricCatalogView}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -540,7 +545,7 @@ export const MetricsTable = () => {
             ),
         },
         state: {
-            sorting,
+            sorting: stateTableSorting,
             showProgressBars: false,
             showLoadingOverlay, // show loading overlay when fetching (like search, category filtering), but hide when editing rows.
             showSkeletons: isLoading, // loading for the first time with no data
@@ -610,7 +615,7 @@ export const MetricsTable = () => {
                     <Box>
                         <MetricsTableTopToolbar
                             search={search}
-                            setSearch={setSearch}
+                            setSearch={(s) => dispatch(setSearch(s))}
                             totalResults={totalResults}
                             selectedCategories={categoryFilters}
                             setSelectedCategories={handleSetCategoryFilters}
@@ -623,10 +628,11 @@ export const MetricsTable = () => {
                             segmentedControlTooltipLabel={
                                 segmentedControlTooltipLabel
                             }
+                            metricCatalogView={metricCatalogView}
                         />
                         <Divider color="gray.2" />
                     </Box>
-                    <Box w="100%" h="calc(100dvh - 350px)">
+                    <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
                         <ReactFlowProvider>
                             {isValidMetricsTree ? (
                                 <MetricTree

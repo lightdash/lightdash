@@ -108,6 +108,7 @@ const schedulerWorkerFactory = (context: {
         semanticLayerService:
             context.serviceRepository.getSemanticLayerService(),
         catalogService: context.serviceRepository.getCatalogService(),
+        encryptionUtil: context.utils.getEncryptionUtil(),
     });
 
 const slackBotFactory = (context: {
@@ -177,7 +178,7 @@ export default class App {
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
             dataPlaneUrl: this.lightdashConfig.rudder.dataPlaneUrl
-                ? `${this.lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+                ? this.lightdashConfig.rudder.dataPlaneUrl
                 : 'notrack',
             options: {
                 enable:
@@ -218,6 +219,7 @@ export default class App {
             }),
             clients: this.clients,
             models: this.models,
+            utils: this.utils,
         });
         this.slackBotFactory = args.slackBotFactory || slackBotFactory;
         this.schedulerWorkerFactory =
