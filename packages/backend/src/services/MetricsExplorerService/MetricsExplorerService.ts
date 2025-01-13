@@ -138,7 +138,7 @@ export class MetricsExplorerService<
     private async runCompareDifferentMetricQuery(
         user: SessionUser,
         projectUuid: string,
-        baseMetricQuery: MetricQuery,
+        sourceMetricExploreName: string,
         query: MetricExplorerQuery,
         dateRange: MetricExplorerDateRange,
         timeDimensionOverride: TimeDimensionConfig | undefined,
@@ -186,8 +186,9 @@ export class MetricsExplorerService<
         });
 
         const metricQuery: MetricQuery = {
-            ...baseMetricQuery,
+            exploreName: sourceMetricExploreName, // Query must be run on the source metric explore, this is because of filters and references to source metric explore fields
             metrics: [getItemId(metric)],
+            dimensions: [dimensionFieldId],
             filters: {
                 dimensions: {
                     id: uuidv4(),
@@ -204,13 +205,16 @@ export class MetricsExplorerService<
                     ],
                 },
             },
+            sorts: [{ fieldId: dimensionFieldId, descending: false }],
+            tableCalculations: [],
+            limit: this.maxQueryLimit,
         };
 
         const { rows, fields } =
             await this.projectService.runMetricExplorerQuery(
                 user,
                 projectUuid,
-                baseMetricQuery.exploreName,
+                sourceMetricExploreName,
                 metricQuery,
             );
 
@@ -457,7 +461,7 @@ export class MetricsExplorerService<
                 } = await this.runCompareDifferentMetricQuery(
                     user,
                     projectUuid,
-                    baseQuery,
+                    exploreName,
                     query,
                     dateRange,
                     timeDimensionOverride,
