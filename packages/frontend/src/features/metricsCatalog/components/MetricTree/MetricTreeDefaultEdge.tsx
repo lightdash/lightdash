@@ -1,5 +1,5 @@
 import { useMantineTheme } from '@mantine/core';
-import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, getSimpleBezierPath, type EdgeProps } from '@xyflow/react';
 import type { FC } from 'react';
 
 const MetricTreeDefaultEdge: FC<EdgeProps> = ({
@@ -11,7 +11,7 @@ const MetricTreeDefaultEdge: FC<EdgeProps> = ({
     ...props
 }) => {
     const theme = useMantineTheme();
-    const [edgePath] = getBezierPath({
+    const [edgePath] = getSimpleBezierPath({
         sourceX,
         sourceY,
         targetX,
