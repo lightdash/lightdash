@@ -1,3 +1,10 @@
+## [0.1449.5](https://github.com/lightdash/lightdash/compare/0.1449.4...0.1449.5) (2025-01-13)
+
+
+### Bug Fixes
+
+* create first project using dbt cloud cli ([#13220](https://github.com/lightdash/lightdash/issues/13220)) ([a9c0762](https://github.com/lightdash/lightdash/commit/a9c0762c6b64b0a6189c3bdc831683d321da7d14))
+
 ## [0.1449.4](https://github.com/lightdash/lightdash/compare/0.1449.3...0.1449.4) (2025-01-13)
 
 
