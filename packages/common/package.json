@@ -27,7 +27,7 @@
         "moment-timezone": "^0.5.45",
         "pegjs": "^0.10.0",
         "sanitize-html": "^2.12.1",
-        "type-fest": "^3.10.0",
+        "type-fest": "^4.32.0",
         "uuid": "^11.0.3",
         "zod": "^3.23.3"
     },
