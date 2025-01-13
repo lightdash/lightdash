@@ -318,7 +318,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             ref: tableContainerRef,
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
+                minHeight: 600,
                 display: 'flex',
                 flexDirection: 'column',
             },
@@ -632,7 +632,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                         />
                         <Divider color="gray.2" />
                     </Box>
-                    <Box w="100%" h="calc(100dvh - 350px)">
+                    <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
                         <ReactFlowProvider>
                             {isValidMetricsTree ? (
                                 <MetricTree
