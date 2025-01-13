@@ -7,7 +7,7 @@ import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
-import MetricsMenu from './MetricsMenu';
+import { MetricsLink } from './MetricsLink';
 import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
@@ -44,7 +44,7 @@ export const MainNavBarContent: FC<Props> = ({
                         <Button.Group>
                             <ExploreMenu projectUuid={activeProjectUuid} />
                             <BrowseMenu projectUuid={activeProjectUuid} />
-                            <MetricsMenu projectUuid={activeProjectUuid} />
+                            <MetricsLink projectUuid={activeProjectUuid} />
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
                     </>
