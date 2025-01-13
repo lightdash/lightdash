@@ -1,3 +1,11 @@
+## [0.1450.3](https://github.com/lightdash/lightdash/compare/0.1450.2...0.1450.3) (2025-01-13)
+
+
+### Bug Fixes
+
+* upgrade @rudderstack/rudder-sdk-node from 1.1.5 to 2.0.6 ([#13218](https://github.com/lightdash/lightdash/issues/13218)) ([e2b6aa6](https://github.com/lightdash/lightdash/commit/e2b6aa66569d4cb6c7d399c09064cf981bd00da0))
+* upgrade snowflake-sdk from 1.14.0 to 2.0.0 ([#13217](https://github.com/lightdash/lightdash/issues/13217)) ([a6053f3](https://github.com/lightdash/lightdash/commit/a6053f3db4e780ccbd268d65f32a6b9e0ea3339d))
+
 ## [0.1450.2](https://github.com/lightdash/lightdash/compare/0.1450.1...0.1450.2) (2025-01-13)
 
 
