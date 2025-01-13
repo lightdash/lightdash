@@ -138,6 +138,7 @@ export class MetricsExplorerService<
     private async runCompareDifferentMetricQuery(
         user: SessionUser,
         projectUuid: string,
+        baseMetricQuery: MetricQuery,
         query: MetricExplorerQuery,
         dateRange: MetricExplorerDateRange,
         timeDimensionOverride: TimeDimensionConfig | undefined,
@@ -185,9 +186,8 @@ export class MetricsExplorerService<
         });
 
         const metricQuery: MetricQuery = {
-            exploreName: query.metric.table,
+            ...baseMetricQuery,
             metrics: [getItemId(metric)],
-            dimensions: [dimensionFieldId],
             filters: {
                 dimensions: {
                     id: uuidv4(),
@@ -204,16 +204,13 @@ export class MetricsExplorerService<
                     ],
                 },
             },
-            sorts: [{ fieldId: dimensionFieldId, descending: false }],
-            tableCalculations: [],
-            limit: this.maxQueryLimit,
         };
 
         const { rows, fields } =
             await this.projectService.runMetricExplorerQuery(
                 user,
                 projectUuid,
-                query.metric.table,
+                baseMetricQuery.exploreName,
                 metricQuery,
             );
 
@@ -460,6 +457,7 @@ export class MetricsExplorerService<
                 } = await this.runCompareDifferentMetricQuery(
                     user,
                     projectUuid,
+                    baseQuery,
                     query,
                     dateRange,
                     timeDimensionOverride,
