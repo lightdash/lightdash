@@ -14,7 +14,7 @@
         "lodash": "^4.17.21",
         "pg": "^8.13.1",
         "pg-cursor": "^2.10.0",
-        "snowflake-sdk": "~1.14.0",
+        "snowflake-sdk": "~2.0.0",
         "ssh2": "^1.14.0",
         "trino-client": "0.2.6"
     },
