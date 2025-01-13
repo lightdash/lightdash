@@ -63,15 +63,10 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
             styles={{
                 arrow: { border: 'none' },
             }}
+            shadow="heavy"
         >
             <HoverCard.Target>{children}</HoverCard.Target>
-            <HoverCard.Dropdown
-                bg="#0A0D12"
-                maw={260}
-                sx={(theme) => ({
-                    boxShadow: theme.shadows.heavy,
-                })}
-            >
+            <HoverCard.Dropdown bg="#0A0D12" maw={260}>
                 <Stack spacing="sm" w="100%">
                     <Group spacing="xs">
                         <Text fw={600} size={14} c="white">
