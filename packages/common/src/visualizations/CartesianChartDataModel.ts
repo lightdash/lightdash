@@ -489,8 +489,6 @@ export class CartesianChartDataModel {
     ): Record<string, any> {
         const transformedData = this.pivotedChartData;
 
-        console.log('transformedData', transformedData);
-
         if (!transformedData) {
             return {};
         }

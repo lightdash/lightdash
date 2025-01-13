@@ -2459,8 +2459,6 @@ export class ProjectService extends BaseService {
             }[];
         }>();
 
-        // here
-
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
         )(
@@ -2485,8 +2483,6 @@ export class ProjectService extends BaseService {
                             );
                         }
 
-                        console.log('rows>>>>>>>>>>>>>', rows);
-
                         rows.forEach((row) => {
                             // Write rows to file in order of row_index. This is so that we can pivot the data later
                             if (currentRowIndex !== row.row_index) {
@@ -2509,13 +2505,12 @@ export class ProjectService extends BaseService {
                                     valueColumnReference,
                                 );
                                 valuesColumnMetadata.add({
-                                    // Ideally this replaces values columns
                                     referenceField: col.reference, // The original y field name
                                     id: valueColumnReference, // The pivoted y field name eg amount_false
                                     aggregation: col.aggregation, // The aggregation type
-                                    pivotValues: groupByColumns?.map((col) => ({
-                                        field: col.reference,
-                                        value: row[col.reference],
+                                    pivotValues: groupByColumns?.map((c) => ({
+                                        field: c.reference,
+                                        value: row[c.reference],
                                     })),
                                 });
                                 currentTransformedRow =
@@ -2545,20 +2540,10 @@ export class ProjectService extends BaseService {
                 : valuesColumns.map(
                       (col) => `${col.reference}_${col.aggregation}`,
                   );
-
-        console.log('processedColumns', processedColumns);
-        console.log(
-            'valuesColumnMetadata',
-            JSON.stringify(Array.from(valuesColumnMetadata.values()), null, 2),
-        );
-
         return {
             fileUrl,
             valuesColumns: processedColumns,
-            vcMetadata: valuesColumns.map((col) => ({
-                reference: col.reference,
-                aggregation: col.aggregation,
-            })),
+            vcMetadata: Array.from(valuesColumnMetadata.values()),
             indexColumn,
         };
     }

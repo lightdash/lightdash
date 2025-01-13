@@ -97,8 +97,13 @@ export type PivotChartData = {
     indexColumn: PivotIndexColum;
     valuesColumns: string[]; // This type doesn't include the aggregation type
     vcMetadata: {
-        reference: string;
+        referenceField: string;
+        id: string;
         aggregation: VizAggregationOptions;
+        pivotValues: {
+            field: string;
+            value: string;
+        }[];
     }[];
     columns: VizColumn[];
 };
