@@ -117,47 +117,44 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
     };
 });
 
-export const useFilterTagInputStyles = createStyles((theme: MantineTheme) => {
-    const base = baseStyles(theme);
-    return {
-        root: {
-            flexGrow: 1,
-        },
-        input: {
-            ...base.baseInput,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderTopLeftRadius: 0,
-            borderTopRightRadius: 0,
-            height: 'auto',
-        },
-        tagInput: {
-            fontWeight: 500,
-            fontSize: 14,
-        },
-        tagInputEmpty: {
-            fontWeight: 500,
-        },
-        value: {
-            fontWeight: 500,
-            borderRadius: theme.radius.sm,
-            color: theme.colors.dark[7],
-            border: `1px solid ${theme.colors.gray[2]}`,
-        },
-        values: {
-            minHeight: 24,
-            height: 'auto',
-        },
-        tagInputContainer: {
-            ...base.baseInput,
-            borderRadius: theme.radius.md,
-            borderTopRightRadius: 0,
-            borderTopLeftRadius: 0,
-            borderLeft: `1px solid ${theme.colors.gray[2]}`,
-            borderTop: 0,
-            overflow: 'visible',
-        },
-        rightSection: {
-            pointerEvents: 'none',
-        },
-    };
-});
+export const useFilterAutoCompleteStyles = createStyles(
+    (theme: MantineTheme) => {
+        const base = baseStyles(theme);
+        return {
+            root: {
+                flexGrow: 1,
+            },
+            input: {
+                ...base.baseInput,
+                borderRadius: theme.radius.md,
+                padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
+                borderTop: 0,
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                height: 'auto',
+            },
+            item: {
+                ...base.baseItem,
+                // makes add new item button sticky to bottom
+                '&:last-child:not([value])': {
+                    position: 'sticky',
+                    bottom: 4,
+                    // casts shadow on the bottom of the list to avoid transparency
+                    boxShadow: '0 4px 0 0 white',
+                },
+                '&:last-child:not([value]):not(:hover)': {
+                    background: 'white',
+                },
+            },
+            searchInput: {
+                fontWeight: 500,
+            },
+            dropdown: {
+                minWidth: 100,
+            },
+            rightSection: {
+                pointerEvents: 'none',
+            },
+        };
+    },
+);
