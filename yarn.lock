@@ -3885,43 +3885,6 @@
   resolved "https://registry.npmjs.org/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz"
   integrity sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==
 
-"@lightdash/common@^0.1447.0":
-  version "0.1445.1"
-  resolved "https://registry.yarnpkg.com/@lightdash/common/-/common-0.1445.1.tgz#6c30de022de13deae270dc1d3ea15bf289528db8"
-  integrity sha512-KOgAOnKLDihvG8AaRyDb1PHd3yE6nnkF9Ksg63CxY2anDcfc7hfOimK2d3GCeiTp+q95sT8AG6U8KTz7EZ8IKg==
-  dependencies:
-    "@casl/ability" "^5.4.3"
-    "@types/lodash" "^4.14.202"
-    ajv "^8.3.0"
-    ajv-formats "^2.1.0"
-    cronstrue "^2.23.0"
-    dayjs "^1.11.9"
-    dependency-graph "^0.11.0"
-    liquidjs "^10.0.0"
-    lodash "^4.17.21"
-    moment "^2.29.4"
-    moment-timezone "^0.5.45"
-    pegjs "^0.10.0"
-    sanitize-html "^2.12.1"
-    type-fest "^3.10.0"
-    uuid "^8.3.2"
-    zod "^3.23.3"
-
-"@lightdash/warehouses@^0.1447.0":
-  version "0.1445.1"
-  resolved "https://registry.yarnpkg.com/@lightdash/warehouses/-/warehouses-0.1445.1.tgz#3318c28625e856e060d9b22fbc3c2224f528aa24"
-  integrity sha512-1Xw4VgszMD2B39F+k8S275VCmbNFy9En5KSyWn5a51FjB80+eXq/7+ev20ctHDolVEbaSOFJ6sP5MADvPAhqiw==
-  dependencies:
-    "@databricks/sql" "1.8.4"
-    "@google-cloud/bigquery" "^7.2.0"
-    "@lightdash/common" "^0.1447.0"
-    lodash "^4.17.21"
-    pg "^8.13.1"
-    pg-cursor "^2.10.0"
-    snowflake-sdk "~1.14.0"
-    ssh2 "^1.14.0"
-    trino-client "0.2.6"
-
 "@mantine/core@^6.0.21":
   version "6.0.21"
   resolved "https://registry.yarnpkg.com/@mantine/core/-/core-6.0.21.tgz#6e3a1b8d0f6869518a644d5f5e3d55a5db7e1e51"
