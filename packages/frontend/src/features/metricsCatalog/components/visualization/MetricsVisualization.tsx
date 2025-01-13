@@ -829,7 +829,12 @@ const MetricsVisualization: FC<Props> = ({
                                         data={
                                             compareMetricSplitSegment.incompletePeriodData
                                         }
-                                        stroke={colors.indigo[9]}
+                                        stroke={
+                                            query.comparison ===
+                                            MetricExplorerComparison.DIFFERENT_METRIC
+                                                ? colors.teal[9]
+                                                : colors.indigo[9]
+                                        }
                                         dot={false}
                                         legendType="none" // Don't render legend for the incomplete period line
                                         isAnimationActive={false}
