@@ -546,14 +546,14 @@ export class ValidationService extends BaseService {
             }`,
         );
 
-        const cachedExplores = await this.projectModel.findExploresFromCache(
-            projectUuid,
-        );
-
         const explores =
             compiledExplores !== undefined
                 ? compiledExplores
-                : Object.values(cachedExplores);
+                : Object.values(
+                      await this.projectModel.findExploresFromCache(
+                          projectUuid,
+                      ),
+                  );
 
         const exploreFields =
             explores?.reduce<
