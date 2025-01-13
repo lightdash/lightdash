@@ -53,11 +53,22 @@ const MetricTreeCollapsedNode: React.FC<
                 <Text size="xs" c="dark.3" fw={500} truncate ta="center">
                     {title}
                 </Text>
-                <Tooltip label={data.tableName}>
+                <Tooltip
+                    label={
+                        <>
+                            <Text size="xs" fw="bold">
+                                Table:{' '}
+                                <Text span fw="normal">
+                                    {data.tableName}
+                                </Text>
+                            </Text>
+                        </>
+                    }
+                >
                     <MantineIcon
                         icon={IconInfoCircle}
                         size={12}
-                        color="gray.7"
+                        color="dark.3"
                     />
                 </Tooltip>
             </Group>

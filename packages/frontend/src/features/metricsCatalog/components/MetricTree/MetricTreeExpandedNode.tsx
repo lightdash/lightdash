@@ -122,7 +122,18 @@ const MetricTreeExpandedNode: React.FC<
             <Stack key={data.label} spacing="sm">
                 <Group>
                     <Title order={6}>{title}</Title>
-                    <Tooltip label={data.tableName}>
+                    <Tooltip
+                        label={
+                            <>
+                                <Text size="xs" fw="bold">
+                                    Table:{' '}
+                                    <Text span fw="normal">
+                                        {data.tableName}
+                                    </Text>
+                                </Text>
+                            </>
+                        }
+                    >
                         <MantineIcon
                             icon={IconInfoCircle}
                             size={12}
