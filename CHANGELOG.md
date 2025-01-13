@@ -1,3 +1,10 @@
+# [0.1453.0](https://github.com/lightdash/lightdash/compare/0.1452.0...0.1453.0) (2025-01-13)
+
+
+### Features
+
+* move metrics-catalog link to nav bar  ([#13215](https://github.com/lightdash/lightdash/issues/13215)) ([8b6b362](https://github.com/lightdash/lightdash/commit/8b6b36264e272c9e45cb127f48fe38703e1cff0b))
+
 # [0.1452.0](https://github.com/lightdash/lightdash/compare/0.1451.1...0.1452.0) (2025-01-13)
 
 
