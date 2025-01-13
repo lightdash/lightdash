@@ -548,7 +548,11 @@ export class ValidationService extends BaseService {
         const explores =
             compiledExplores !== undefined
                 ? compiledExplores
-                : await this.projectModel.getExploresFromCache(projectUuid);
+                : Object.values(
+                      await this.projectModel.findExploresFromCache(
+                          projectUuid,
+                      ),
+                  );
 
         const exploreFields =
             explores?.reduce<
