@@ -9,6 +9,7 @@ import {
     type TimeFrames,
 } from '@lightdash/common';
 import {
+    Badge,
     Group,
     Loader,
     Paper,
@@ -17,17 +18,41 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowUp,
-    IconInfoCircle,
-} from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import React, { useMemo } from 'react';
+import React, { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../hooks/useRunMetricExplorerQuery';
+import { useChangeIndicatorStyles } from '../../styles/useChangeIndicatorStyles';
+
+const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
+    change,
+    formattedChange,
+}) => {
+    const { classes } = useChangeIndicatorStyles();
+    const indicatorClasses = useMemo(() => {
+        if (change === 0) {
+            return classes.neutral;
+        }
+        return change > 0 ? classes.positive : classes.negative;
+    }, [change, classes]);
+
+    return (
+        <Badge
+            fz={13}
+            fw={500}
+            size="lg"
+            radius="md"
+            py="two"
+            px="xs"
+            className={indicatorClasses}
+        >
+            {formattedChange}
+        </Badge>
+    );
+};
 
 export type MetricTreeExpandedNodeData = Node<{
     label: string;
@@ -88,14 +113,6 @@ const MetricTreeExpandedNode: React.FC<
         return '-';
     }, [change]);
 
-    const compareString = useMemo(
-        () =>
-            totalQuery.data?.value &&
-            totalQuery.data?.comparisonValue &&
-            `Compared to previous ${data.timeFrame.toLowerCase()}`,
-        [totalQuery.data, data.timeFrame],
-    ); // TODO: will it always be prev month?
-
     const formattedValue = useMemo(() => {
         if (totalQuery.data) {
             return formatItemValue(
@@ -127,7 +144,9 @@ const MetricTreeExpandedNode: React.FC<
             />
             <Stack key={data.label} spacing="xs">
                 <Group>
-                    <Title order={6}>{title}</Title>
+                    <Title fz={14} fw={500} c="gray.7">
+                        {title}
+                    </Title>
                     <Tooltip
                         label={
                             <>
@@ -153,35 +172,16 @@ const MetricTreeExpandedNode: React.FC<
                 ) : (
                     <Stack spacing="two">
                         <Group position="apart">
-                            <Text fz="md" fw={700}>
+                            <Text fz={24} fw={500} c="gray.8">
                                 {formattedValue}
                             </Text>
                             {change && (
-                                <Group
-                                    spacing={1}
-                                    c={change > 0 ? 'green.7' : 'red.6'}
-                                >
-                                    <Text fz="sm" fw={500}>
-                                        {formattedChange}
-                                    </Text>
-                                    <MantineIcon
-                                        icon={
-                                            change > 0
-                                                ? IconArrowUp
-                                                : IconArrowDown
-                                        }
-                                        size={12}
-                                        stroke={1.8}
-                                    />
-                                </Group>
+                                <ChangeIndicator
+                                    change={change}
+                                    formattedChange={formattedChange}
+                                />
                             )}
                         </Group>
-
-                        {change && (
-                            <Text fz={11} c="gray.6">
-                                {compareString}
-                            </Text>
-                        )}
                     </Stack>
                 )}
             </Stack>

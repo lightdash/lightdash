@@ -12,7 +12,7 @@ export type MetricTreeCollapsedNodeData = Node<{
 
 const MetricTreeCollapsedNode: React.FC<
     NodeProps<MetricTreeCollapsedNodeData>
-> = ({ data, isConnectable, selected }) => {
+> = ({ data, selected }) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
@@ -31,12 +31,6 @@ const MetricTreeCollapsedNode: React.FC<
                 },
             })}
         >
-            <Handle
-                type="target"
-                position={Position.Top}
-                hidden={!isConnectable}
-            />
-
             <Group>
                 <Text size="xs" c="gray.7" fw={500} truncate ta="center">
                     {title}
@@ -60,12 +54,6 @@ const MetricTreeCollapsedNode: React.FC<
                     />
                 </Tooltip>
             </Group>
-
-            <Handle
-                type="source"
-                position={Position.Bottom}
-                hidden={!isConnectable}
-            />
         </Paper>
     );
 };
