@@ -214,7 +214,7 @@ export const downloadHandler = async (
         );
     }
 
-    const projectId = config.context.project || options.project;
+    const projectId = options.project || config.context.project;
     if (!projectId) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
