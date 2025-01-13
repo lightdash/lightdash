@@ -8,10 +8,8 @@ import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { TagInput } from '../../../../components/common/TagInput/TagInput';
 import {
     useFilterSelectStyles,
-    useFilterTagInputStyles,
     useOperatorSelectStyles,
 } from '../../styles/useFilterStyles';
 import {
@@ -20,6 +18,7 @@ import {
     getOperatorOptions,
 } from '../../utils/metricExploreFilter';
 import SelectItem from '../SelectItem';
+import { MetricExploreFilterAutoComplete } from './MetricExploreFilterAutoComplete';
 
 type Props = {
     dimensions: CompiledDimension[] | undefined;
@@ -39,7 +38,6 @@ export const MetricExploreFilter: FC<Props> = ({
 }) => {
     const { classes: filterSelectClasses, theme } = useFilterSelectStyles();
     const { classes: operatorSelectClasses } = useOperatorSelectStyles();
-    const { classes: tagInputClasses } = useFilterTagInputStyles();
 
     const [filterState, setFilterState] = useState<FilterState>({
         dimension: null,
@@ -165,6 +163,13 @@ export const MetricExploreFilter: FC<Props> = ({
         [showValuesSection, selectedDimension, onFilterApply],
     );
 
+    const handleTagInputChange = useCallback((values: string[]) => {
+        setFilterState((prev) => ({
+            ...prev,
+            values,
+        }));
+    }, []);
+
     return (
         <Stack spacing="xs">
             <Group position="apart">
@@ -252,22 +257,15 @@ export const MetricExploreFilter: FC<Props> = ({
                     )}
                 </Group>
 
-                {showValuesSection && filterState.fieldId && (
-                    <TagInput
+                {showValuesSection && selectedDimension && (
+                    <MetricExploreFilterAutoComplete
+                        dimension={selectedDimension}
+                        values={filterState.values}
+                        onChange={handleTagInputChange}
                         placeholder={
                             filterState.operator ? 'Type values...' : undefined
                         }
-                        value={filterState.values}
                         disabled={!filterState.operator}
-                        onChange={(values) =>
-                            setFilterState((prev) => ({
-                                ...prev,
-                                values,
-                            }))
-                        }
-                        radius="md"
-                        size="xs"
-                        classNames={tagInputClasses}
                     />
                 )}
             </Stack>
