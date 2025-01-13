@@ -1,5 +1,6 @@
 import {
     DbtVersionOption,
+    DbtVersionOptionLatest,
     getLatestSupportDbtVersion,
     ParseError,
     SupportedDbtVersions,
@@ -10,6 +11,7 @@ import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 
 const DBT_CORE_VERSION_REGEX = /installed:.*/;
+export const DBT_CLOUD_CLI_REGEX = /dbt Cloud CLI.*/;
 
 const getDbtCLIVersion = async () => {
     try {
@@ -18,6 +20,10 @@ const getDbtCLIVersion = async () => {
             stdio: ['pipe', 'pipe', 'pipe'],
         });
         const logs = all || '';
+        const cloudVersion = logs.match(DBT_CLOUD_CLI_REGEX);
+        if (cloudVersion) {
+            return cloudVersion[0];
+        }
         const version = logs.match(DBT_CORE_VERSION_REGEX);
         if (version === null || version.length === 0)
             throw new ParseError(`Can't locate dbt --version: ${logs}`);
@@ -28,9 +34,14 @@ const getDbtCLIVersion = async () => {
     }
 };
 
+const isDbtCloudCLI = (version: string): boolean =>
+    version.match(DBT_CLOUD_CLI_REGEX) !== null;
+
 const getSupportedDbtVersionOption = (
     version: string,
 ): DbtVersionOption | null => {
+    if (version.match(DBT_CLOUD_CLI_REGEX))
+        return DbtVersionOptionLatest.LATEST;
     if (version.startsWith('1.4.')) return SupportedDbtVersions.V1_4;
     if (version.startsWith('1.5.')) return SupportedDbtVersions.V1_5;
     if (version.startsWith('1.6.')) return SupportedDbtVersions.V1_6;
@@ -50,6 +61,7 @@ const getFallbackDbtVersionOption = (version: string): DbtVersionOption => {
 type DbtVersion = {
     verboseVersion: string; // Verbose version returned by dbt --version
     versionOption: DbtVersionOption; // The supported version by Lightdash
+    isDbtCloudCLI: boolean; // Whether the version is dbt Cloud CLI
 };
 
 export const getDbtVersion = async (): Promise<DbtVersion> => {
@@ -81,17 +93,53 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
                 },
             ]);
             if (!answers.isConfirm) {
-                throw new Error(
-                    `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
+                console.error(
+                    styles.error(
+                        `Unsupported dbt version ${verboseVersion}. Please consider using a supported version (${supportedVersionsRangeMessage}).`,
+                    ),
                 );
+                process.exit(1);
             }
         }
         spinner?.start();
         GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
     }
 
+    if (
+        isDbtCloudCLI(verboseVersion) &&
+        !GlobalState.getSavedPromptAnswer('useExperimentalDbtCloudCLI')
+    ) {
+        const message = `Support for dbt Cloud CLI is still experimental and might not work as expected.`;
+        const spinner = GlobalState.getActiveSpinner();
+        spinner?.stop();
+        if (process.env.CI === 'true') {
+            console.error(styles.warning(message));
+        } else {
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `${styles.warning(
+                        message,
+                    )}\nDo you still want to continue?`,
+                },
+            ]);
+            if (!answers.isConfirm) {
+                console.error(
+                    styles.error(
+                        `Command using dbt cloud CLI has been canceled. Please consider using dbt core CLI for the best experience.`,
+                    ),
+                );
+                process.exit(1);
+            }
+        }
+        spinner?.start();
+        GlobalState.savePromptAnswer('useExperimentalDbtCloudCLI', true);
+    }
+
     return {
         verboseVersion,
+        isDbtCloudCLI: isDbtCloudCLI(verboseVersion),
         versionOption: supportedVersionOption ?? fallbackVersionOption,
     };
 };

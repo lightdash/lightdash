@@ -1,118 +1,122 @@
 name: CLI tests
-on: [deployment_status]
+on: [ deployment_status ]
 
 env:
-    NODE_ENV: 'development'
+  NODE_ENV: 'development'
 
 jobs:
-    files-changed:
-        if: github.ref != 'refs/heads/main'
-        name: Detect what files changed
-        runs-on: ubuntu-latest
-        # Map a step output to a job output
-        outputs:
-            cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
-        steps:
-            - uses: actions/checkout@v4
-            - name: Check for files changes
-              uses: dorny/paths-filter@v3
-              id: changes
-              with:
-                  token: ${{ github.token }}
-                  filters: .github/file-filters.yml
-            - uses: 8BitJonny/gh-get-current-pr@3.0.0
-              id: PR
-            - name: Get result with overides
-              id: overrides
-              run: |
-                  echo "PR ${{ steps.PR.outputs.number }}"
-                  echo "CLI override: ${{contains(steps.PR.outputs.pr_body, 'test-cli')}}"
-                  echo "cli=${{contains(steps.PR.outputs.pr_body, 'test-cli')}}" >> "$GITHUB_OUTPUT"
+  files-changed:
+    if: github.ref != 'refs/heads/main'
+    name: Detect what files changed
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for files changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          token: ${{ github.token }}
+          filters: .github/file-filters.yml
+      - uses: 8BitJonny/gh-get-current-pr@3.0.0
+        id: PR
+      - name: Get result with overides
+        id: overrides
+        run: |
+          echo "PR ${{ steps.PR.outputs.number }}"
+          echo "CLI override: ${{contains(steps.PR.outputs.pr_body, 'test-cli')}}"
+          echo "cli=${{contains(steps.PR.outputs.pr_body, 'test-cli')}}" >> "$GITHUB_OUTPUT"
 
-    prepare-preview:
-        # Only trigger for correct environment and status and if CLI files changed
-        if: needs.files-changed.outputs.cli == 'true'
-        needs: files-changed
-        runs-on: ubuntu-latest
-        outputs:
-            url: ${{ github.event.deployment_status.environment_url }}
-        steps:
-            - name: is render ready
-              if: ${{ !(github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null) }}
-              run: |
-                  echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
-                  exit 1
+  prepare-preview:
+    # Only trigger for correct environment and status and if CLI files changed
+    if: needs.files-changed.outputs.cli == 'true'
+    needs: files-changed
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ github.event.deployment_status.environment_url }}
+    steps:
+      - name: is render ready
+        if: ${{ !(github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null) }}
+        run: |
+          echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
+          exit 1
 
-    cli-tests:
-        timeout-minutes: 30
-        runs-on: ubuntu-latest
-        needs: prepare-preview
-        strategy:
-            fail-fast: false
-            matrix:
-                # Make sure we support the first and 2 latest versions
-                dbt: ['1.4', '1.8', '1.9']
-        name: dbt ${{ matrix.dbt }}
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-            - name: Setup Node, PNPM, and Cypress
-              uses: ./.github/workflows/_setup_node_pnpm_cypress
+  cli-tests:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: prepare-preview
+    strategy:
+      fail-fast: false
+      matrix:
+        # Make sure we support the first and 2 latest versions
+        dbt: ['1.4', '1.8', '1.9'] 
+    name: dbt ${{ matrix.dbt }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      ## Install pip
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9.x'
+      - run: pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
 
-            ## Install pip
-            - uses: actions/setup-python@v4
-              with:
-                  python-version: '3.9.x'
-            - run: pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
+      ## DBT seed
+      - name: Seed DBT
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+          PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle-${{strategy.job-index}}
 
-            ## DBT seed
-            - name: Seed DBT
-              run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
-              env:
-                  PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
-                  PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
-                  PGHOST: ${{secrets.PGHOST}}
-                  PGPASSWORD: ${{secrets.PGPASSWORD}}
-                  PGPORT: 5432
-                  PGUSER: postgres
-                  PGDATABASE: postgres
-                  SEED_SCHEMA: jaffle-${{strategy.job-index}}
+      ## DBT run
+      - name: Run DBT
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+        env:
+          PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+          PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle-${{strategy.job-index}}
+      # Install packages
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - name: Install packages
+        run: yarn install --frozen-lockfile
+      # Build packages
+      - name: Build packages/common module
+        run: yarn common-build
+      - name: Build packages/warehouses module
+        run: yarn warehouses-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && yarn build && npm i -g
+      - name: Test lightdash version
+        run: |
+          lightdash_version=$(lightdash --version)
+          package_version=$(yarn workspace @lightdash/cli versions | grep '@lightdash/cli' | cut -d"'" -f 4)
+          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
 
-            ## DBT run
-            - name: Run DBT
-              run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
-              env:
-                  PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
-                  PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
-                  PGHOST: ${{secrets.PGHOST}}
-                  PGPASSWORD: ${{secrets.PGPASSWORD}}
-                  PGPORT: 5432
-                  PGUSER: postgres
-                  PGDATABASE: postgres
-                  SEED_SCHEMA: jaffle-${{strategy.job-index}}
+      # Run cypress tests
+      - name: Cypress run
+        uses: cypress-io/github-action@v5
+        with:
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/cli/**/*
+          config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
+        env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_SEED_SCHEMA: jaffle-${{strategy.job-index}}
 
-            # Build packages
-            - name: Build packages/common module
-              run: pnpm common-build
-            - name: Build packages/warehouses module
-              run: pnpm warehouses-build
-            - name: Build and install packages/cli module
-              run: cd packages/cli && pnpm build && npm install -g
-            - name: Test lightdash version
-              run: |
-                  lightdash_version=$(lightdash --version)
-                  package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
-                  if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
 
-            # Run Cypress
-            - name: Run Cypress
-              uses: cypress-io/github-action@v6
-              with:
-                  install: false
-                  working-directory: packages/e2e
-                  spec: cypress/cli/**/*
-                  config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
-              env:
-                  CYPRESS_PGHOST: ${{secrets.PGHOST}}
-                  CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
-                  CYPRESS_SEED_SCHEMA: jaffle-${{strategy.job-index}}

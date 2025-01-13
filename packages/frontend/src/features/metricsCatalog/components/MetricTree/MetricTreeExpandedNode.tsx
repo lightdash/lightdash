@@ -8,7 +8,7 @@ import {
     MetricTotalComparisonType,
     type TimeFrames,
 } from '@lightdash/common';
-import { Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
@@ -17,7 +17,7 @@ import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../hooks/useRunMetricExplorerQuery';
 
-export type MetricTreeConnectedNodeData = Node<{
+export type MetricTreeExpandedNodeData = Node<{
     label: string;
     tableName: string;
     metricName: string;
@@ -26,8 +26,8 @@ export type MetricTreeConnectedNodeData = Node<{
     timeFrame: TimeFrames;
 }>;
 
-const MetricTreeConnectedNode: React.FC<
-    NodeProps<MetricTreeConnectedNodeData>
+const MetricTreeExpandedNode: React.FC<
+    NodeProps<MetricTreeExpandedNodeData>
 > = ({ data, isConnectable }) => {
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
@@ -117,36 +117,42 @@ const MetricTreeConnectedNode: React.FC<
                     )}
                 </Stack>
 
-                <Stack spacing="two">
-                    <Group position="apart">
-                        <Text fz="md" fw={700}>
-                            {formattedValue}
-                        </Text>
-                        {change && (
-                            <Group
-                                spacing={1}
-                                c={change > 0 ? 'green.7' : 'red.6'}
-                            >
-                                <Text fz="sm" fw={500}>
-                                    {formattedChange}
-                                </Text>
-                                <MantineIcon
-                                    icon={
-                                        change > 0 ? IconArrowUp : IconArrowDown
-                                    }
-                                    size={12}
-                                    stroke={1.8}
-                                />
-                            </Group>
-                        )}
-                    </Group>
+                {totalQuery.isFetching ? (
+                    <Loader size="xs" color="gray.5" />
+                ) : (
+                    <Stack spacing="two">
+                        <Group position="apart">
+                            <Text fz="md" fw={700}>
+                                {formattedValue}
+                            </Text>
+                            {change && (
+                                <Group
+                                    spacing={1}
+                                    c={change > 0 ? 'green.7' : 'red.6'}
+                                >
+                                    <Text fz="sm" fw={500}>
+                                        {formattedChange}
+                                    </Text>
+                                    <MantineIcon
+                                        icon={
+                                            change > 0
+                                                ? IconArrowUp
+                                                : IconArrowDown
+                                        }
+                                        size={12}
+                                        stroke={1.8}
+                                    />
+                                </Group>
+                            )}
+                        </Group>
 
-                    {change && (
-                        <Text fz={11} c="gray.6">
-                            {compareString}
-                        </Text>
-                    )}
-                </Stack>
+                        {change && (
+                            <Text fz={11} c="gray.6">
+                                {compareString}
+                            </Text>
+                        )}
+                    </Stack>
+                )}
             </Stack>
             <Handle
                 type="source"
@@ -157,4 +163,4 @@ const MetricTreeConnectedNode: React.FC<
     );
 };
 
-export default MetricTreeConnectedNode;
+export default MetricTreeExpandedNode;

@@ -6,21 +6,15 @@ import {
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
-    isWeekDay,
     ParseError,
     WarehouseCatalog,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
-import {
-    loadDbtTarget,
-    warehouseCredentialsFromDbtTarget,
-} from '../dbt/profile';
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -30,6 +24,7 @@ import {
     maybeCompileModelsAndJoins,
 } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
+import getWarehouseClient from './dbt/getWarehouseClient';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -57,36 +52,23 @@ export const compile = async (options: CompileHandlerOptions) => {
     });
 
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const absoluteProfilesPath = path.resolve(options.profilesDir);
 
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
-    GlobalState.debug(`> Compiling with profiles dir ${absoluteProfilesPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const { warehouseClient } = await getWarehouseClient({
+        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
+    });
 
     const compiledModelIds: string[] | undefined =
         await maybeCompileModelsAndJoins(
             { targetDir: context.targetDir },
             options,
         );
-
-    const profileName = options.profile || context.profileName;
-    const { target } = await loadDbtTarget({
-        profilesDir: absoluteProfilesPath,
-        profileName,
-        targetName: options.target,
-    });
-
-    GlobalState.debug(`> Compiling with profile ${profileName}`);
-    GlobalState.debug(`> Compiling with target ${target}`);
-
-    const credentials = await warehouseCredentialsFromDbtTarget(target);
-    const warehouseClient = warehouseClientFromCredentials({
-        ...credentials,
-        startOfWeek: isWeekDay(options.startOfWeek)
-            ? options.startOfWeek
-            : undefined,
-    });
 
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const manifestVersion = getDbtManifestVersion(manifest);

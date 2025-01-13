@@ -1,5 +1,4 @@
 import { ParseError } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
@@ -14,15 +13,13 @@ import {
     getModelsFromManifest,
     getWarehouseTableForModel,
 } from '../dbt/models';
-import {
-    loadDbtTarget,
-    warehouseCredentialsFromDbtTarget,
-} from '../dbt/profile';
 import { getFileHeadComments } from '../dbt/schema';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { CompileHandlerOptions } from './compile';
 import { checkLightdashVersion } from './dbt/apiClient';
+import { getDbtVersion } from './dbt/getDbtVersion';
+import getWarehouseClient from './dbt/getWarehouseClient';
 
 type GenerateHandlerOptions = CompileHandlerOptions & {
     select: string[] | undefined;
@@ -66,40 +63,33 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     });
 
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const absoluteProfilesPath = path.resolve(options.profilesDir);
 
     const context = await getDbtContext({
         projectDir: absoluteProjectPath,
     });
     const profileName = options.profile || context.profileName;
 
-    GlobalState.debug(
-        `> Loading profiles from directory: ${absoluteProfilesPath}`,
-    );
-
-    const { target } = await loadDbtTarget({
-        profilesDir: absoluteProfilesPath,
-        profileName,
-        targetName: options.target,
+    const dbtVersion = await getDbtVersion();
+    const { warehouseClient } = await getWarehouseClient({
+        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
     });
-
-    GlobalState.debug(`> Loaded target from profiles: ${target.type}`);
-
-    const credentials = await warehouseCredentialsFromDbtTarget(target);
-    const warehouseClient = warehouseClientFromCredentials(credentials);
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
-
     const compiledModels = await getCompiledModels(models, {
-        projectDir: absoluteProjectPath,
-        profilesDir: absoluteProfilesPath,
-        profile: profileName,
+        projectDir: dbtVersion.isDbtCloudCLI ? undefined : absoluteProjectPath,
+        profilesDir: dbtVersion.isDbtCloudCLI
+            ? undefined
+            : path.resolve(options.profilesDir),
+        profile: dbtVersion.isDbtCloudCLI ? undefined : profileName,
         target: options.target,
         select: options.select || options.models,
         exclude: options.exclude,
         vars: options.vars || undefined,
     });
-
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
 
     console.info(styles.info(`Generated .yml files:`));

@@ -1,13 +1,13 @@
 import type { CatalogField } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { MetricCatalogView } from '../types';
+import type { MRT_SortingState } from 'mantine-react-table';
 
 type MetricsCatalogState = {
     modals: {
         chartUsageModal: {
             isOpen: boolean;
         };
-        metricPeekModal: {
+        metricExploreModal: {
             isOpen: boolean;
             metric: Pick<CatalogField, 'name' | 'tableName'> | undefined;
         };
@@ -21,8 +21,9 @@ type MetricsCatalogState = {
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
-    view: MetricCatalogView;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
+    search: string | undefined;
+    tableSorting: MRT_SortingState;
     popovers: {
         category: {
             isClosing: boolean;
@@ -38,18 +39,24 @@ const initialState: MetricsCatalogState = {
     projectUuid: undefined,
     organizationUuid: undefined,
     categoryFilters: [],
+    search: undefined,
+    tableSorting: [
+        {
+            id: 'chartUsage',
+            desc: true,
+        },
+    ],
     abilities: {
         canManageTags: false,
         canRefreshCatalog: false,
         canManageExplore: false,
         canManageMetricsTree: false,
     },
-    view: MetricCatalogView.LIST,
     modals: {
         chartUsageModal: {
             isOpen: false,
         },
-        metricPeekModal: {
+        metricExploreModal: {
             isOpen: false,
             metric: undefined,
         },
@@ -89,6 +96,12 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.categoryFilters = action.payload;
         },
+        setSearch: (state, action: PayloadAction<string | undefined>) => {
+            state.search = action.payload;
+        },
+        setTableSorting: (state, action: PayloadAction<MRT_SortingState>) => {
+            state.tableSorting = action.payload;
+        },
         setAbility: (
             state,
             action: PayloadAction<{
@@ -109,20 +122,14 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.popovers.description.isClosing = action.payload;
         },
-        toggleMetricPeekModal: (
+        toggleMetricExploreModal: (
             state,
             action: PayloadAction<
                 Pick<CatalogField, 'name' | 'tableName'> | undefined
             >,
         ) => {
-            state.modals.metricPeekModal.isOpen = Boolean(action.payload);
-            state.modals.metricPeekModal.metric = action.payload;
-        },
-        setMetricCatalogView: (
-            state,
-            action: PayloadAction<MetricCatalogView>,
-        ) => {
-            state.view = action.payload;
+            state.modals.metricExploreModal.isOpen = Boolean(action.payload);
+            state.modals.metricExploreModal.metric = action.payload;
         },
     },
 });
@@ -135,6 +142,7 @@ export const {
     setAbility,
     setCategoryPopoverIsClosing,
     setDescriptionPopoverIsClosing,
-    toggleMetricPeekModal,
-    setMetricCatalogView,
+    toggleMetricExploreModal,
+    setSearch,
+    setTableSorting,
 } = metricsCatalogSlice.actions;

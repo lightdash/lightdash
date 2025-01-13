@@ -27,7 +27,7 @@ eg: `ligthdash test` Runs `dbt test`
 First build the package
 
 ```shell
-pnpm cli-build
+yarn cli-build
 ```
 
 Then run the cli commands with `node` and pointing to the `dist/index.js` file

@@ -7,10 +7,8 @@ export const rehypeRemoveHeaderLinks: React.ComponentProps<
     typeof MarkdownPreview
 >['rehypeRewrite'] = (node, _, parent) => {
     if (
-        node.type === 'element' &&
         node.tagName === 'a' &&
         parent &&
-        parent.type === 'element' &&
         /^h(1|2|3|4|5|6)/.test(parent.tagName as string)
     ) {
         parent.children = parent.children.slice(1);

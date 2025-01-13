@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from 'react-router';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { toggleMetricPeekModal } from '../store/metricsCatalogSlice';
+import { toggleMetricExploreModal } from '../store/metricsCatalogSlice';
 
 type Props = {
     row: MRT_Row<CatalogField>;
@@ -43,7 +43,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
         });
 
         dispatch(
-            toggleMetricPeekModal({
+            toggleMetricExploreModal({
                 name: row.original.name,
                 tableName: row.original.tableName,
             }),

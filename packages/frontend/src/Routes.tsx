@@ -8,6 +8,7 @@ import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
+import { MetricCatalogView } from './features/metricsCatalog/types';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -365,6 +366,19 @@ const METRICS_ROUTES: RouteObject[] = [
                 <NavBar />
                 <TrackPage name={PageName.METRICS_CATALOG}>
                     <MetricsCatalog />
+                </TrackPage>
+            </>
+        ),
+    },
+    {
+        path: '/projects/:projectUuid/metrics/tree',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.METRICS_CATALOG}>
+                    <MetricsCatalog
+                        metricCatalogView={MetricCatalogView.TREE}
+                    />
                 </TrackPage>
             </>
         ),
