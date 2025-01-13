@@ -1,7 +1,7 @@
 import { friendlyName } from '@lightdash/common';
 import { Group, Paper, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
