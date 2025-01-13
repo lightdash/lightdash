@@ -1,3 +1,10 @@
+# [0.1450.0](https://github.com/lightdash/lightdash/compare/0.1449.5...0.1450.0) (2025-01-13)
+
+
+### Features
+
+* allow tree urls to be shared ([#13198](https://github.com/lightdash/lightdash/issues/13198)) ([bf98fef](https://github.com/lightdash/lightdash/commit/bf98fef79f869b3acb27a7ec88b7a73d5f96ea02))
+
 ## [0.1449.5](https://github.com/lightdash/lightdash/compare/0.1449.4...0.1449.5) (2025-01-13)
 
 
