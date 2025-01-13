@@ -16,7 +16,6 @@ import {
     Text,
     type DefaultMantineColor,
 } from '@mantine/core';
-import { IconLineDashed, IconMinus } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { uniqBy } from 'lodash';
 import { memo, useMemo, type FC } from 'react';
@@ -25,13 +24,15 @@ import {
     type NameType,
     type ValueType,
 } from 'recharts/types/component/DefaultTooltipContent';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import {
     getGranularityLabel,
     getGranularitySublabel,
 } from '../../utils/metricExploreDate';
-import type { MetricVisualizationFormatConfig } from './types';
+import {
+    COMPARISON_OPACITY,
+    type MetricVisualizationFormatConfig,
+} from './types';
 
 type RechartsTooltipPropsPayload = NonNullable<
     TooltipProps<ValueType, NameType>['payload']
@@ -104,13 +105,15 @@ const TooltipBadge: FC<{
 export const SquareBadge: FC<{
     color?: DefaultMantineColor;
     size?: number;
-}> = ({ color, size = 10 }) => (
+    opacity?: number;
+}> = ({ color, size = 10, opacity = 1 }) => (
     <Box
         sx={{
             width: size,
             height: size,
             borderRadius: 2,
             backgroundColor: color ?? 'indigo.6',
+            opacity,
         }}
     />
 );
@@ -189,12 +192,15 @@ const PreviousPeriodTooltip: FC<{
                 : `${startYear - 1}-${currentPeriodYear - 1}`;
     }
 
+    const opacity = entry.name === 'compareMetric' ? COMPARISON_OPACITY : 1;
+
     return (
         <Group position="apart">
             <Group spacing={4}>
-                <MantineIcon
+                <SquareBadge
                     color={color ?? 'indigo.6'}
-                    icon={entry.name === 'metric' ? IconMinus : IconLineDashed}
+                    size={12}
+                    opacity={opacity}
                 />
                 <Text c="gray.8" fz={13} fw={500}>
                     {label}
@@ -271,14 +277,16 @@ const TooltipEntry: FC<{
             return (
                 <Group position="apart">
                     <Group spacing={4}>
-                        <MantineIcon
+                        <SquareBadge color={props.color} size={12} />
+                        {/* <MantineIcon
                             color={props.color ?? 'indigo.6'}
-                            icon={
-                                entry.name === 'metric'
-                                    ? IconMinus
-                                    : IconLineDashed
+                            icon={IconMinus}
+                            opacity={
+                                entry.name === 'compareMetric'
+                                    ? COMPARISON_OPACITY
+                                    : 1
                             }
-                        />
+                        /> */}
                         <Text c="gray.8" fz={13} fw={500}>
                             {entryData.label}
                         </Text>
