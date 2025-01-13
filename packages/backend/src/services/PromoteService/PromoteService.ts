@@ -645,6 +645,13 @@ export class PromoteService extends BaseService {
                 promotedChart,
                 upstreamChart,
             );
+
+            if (!promotionChanges.charts[0]) {
+                throw new NotFoundError(
+                    'Promotion changes did not include a chart',
+                );
+            }
+
             return promotionChanges.charts[0].data;
         } catch (e) {
             Logger.error(`Unable to promote chart`, e);
@@ -737,6 +744,10 @@ export class PromoteService extends BaseService {
         }
         const dashboardChange = promotionChanges.dashboards[0];
 
+        if (!dashboardChange) {
+            throw new NotFoundError('Dashboard changes not found');
+        }
+
         if (dashboardChange.action !== PromotionAction.CREATE) {
             // If UPDATE or NO_CHANGES, we don't need to return the same dashboard
             return promotionChanges;
@@ -788,14 +799,17 @@ export class PromoteService extends BaseService {
 
         // We assume there is only 1 dashboard to change,
         // Update this code if we introduce more than 1 dashboard change at a time
-        const dahsboardChange = promotionChanges.dashboards[0];
-        if (dahsboardChange.action === PromotionAction.NO_CHANGES) {
+        const dashboardChange = promotionChanges.dashboards[0];
+        if (!dashboardChange) {
+            throw new NotFoundError('Dashboard changes not found');
+        }
+        if (dashboardChange.action === PromotionAction.NO_CHANGES) {
             return promotionChanges;
         }
 
-        const promotedDashboard = dahsboardChange.data;
+        const promotedDashboard = dashboardChange.data;
 
-        if (dahsboardChange.action === PromotionAction.UPDATE) {
+        if (dashboardChange.action === PromotionAction.UPDATE) {
             // TODO Check if we need to update the dashboard
             // We also update dashboard name and description if they have changed
             await this.dashboardModel.update(promotedDashboard.uuid, {
@@ -816,7 +830,7 @@ export class PromoteService extends BaseService {
             ...promotionChanges,
             dashboards: [
                 {
-                    action: dahsboardChange.action,
+                    action: dashboardChange.action,
                     data: {
                         ...updatedDashboard,
                         spaceSlug: promotedDashboard.spaceSlug,
@@ -1268,10 +1282,15 @@ export class PromoteService extends BaseService {
 
             // Update or create charts
             // and return the list of dashboard.tiles updates with the new chart uuids
+            const changedDashboard = promotionChanges.dashboards[0];
+            if (!changedDashboard) {
+                throw new NotFoundError('Dashboard not found');
+            }
+
             promotionChanges = await this.upsertCharts(
                 user,
                 promotionChanges,
-                promotionChanges.dashboards[0].data.uuid,
+                changedDashboard.data.uuid,
             );
 
             promotionChanges = await this.updateDashboard(
@@ -1298,7 +1317,8 @@ export class PromoteService extends BaseService {
                 promotedDashboard,
                 upstreamDashboard,
             );
-            return promotionChanges.dashboards[0].data;
+
+            return changedDashboard.data;
         } catch (e) {
             Logger.error(`Unable to promote dashboard`, e);
             await this.trackAnalytics(
