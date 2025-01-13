@@ -25,7 +25,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
         if (totalMetricsCount === 0) {
             return (
                 <Text size="xs" c="white">
-                    There are no metrics to display in the canvas
+                    There are no metrics to display in canvas mode.
                 </Text>
             );
         }
@@ -33,11 +33,15 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
         if (!isValidMetricsNodeCount) {
             return (
                 <Text size="xs" c="white">
-                    Canvas view is only available for lists with fewer than{' '}
+                    Canvas mode is only available for lists with fewer than{' '}
                     <Text span fw="bold">
                         30 metrics
                     </Text>
-                    . Use categories to filter your list down to access it.
+                    . Use{' '}
+                    <Text span fw="bold">
+                        Categories
+                    </Text>{' '}
+                    to filter your list down to access it.
                 </Text>
             );
         }
@@ -45,7 +49,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
         if (!isValidMetricsEdgeCount) {
             return (
                 <Text size="xs" c="white">
-                    There are no connections between the selected metrics
+                    There are no connections between the selected metrics.
                 </Text>
             );
         }
