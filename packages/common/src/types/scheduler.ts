@@ -1,4 +1,3 @@
-import { type CreateProject } from '../index';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
@@ -420,7 +419,7 @@ export type SchedulerCreateProjectWithCompilePayload = {
     organizationUuid: string;
     requestMethod: string;
     isPreview: boolean;
-    data: CreateProject;
+    data: string; // base64 string (CreateProject)
     jobUuid: string;
 };
 
