@@ -48,6 +48,8 @@ export default class SchedulerApp {
 
     private readonly clients: ClientRepository;
 
+    private readonly utils: UtilRepository;
+
     private readonly prometheusMetrics: PrometheusMetrics;
 
     constructor(args: SchedulerAppArguments) {
@@ -102,10 +104,12 @@ export default class SchedulerApp {
             }),
             clients: this.clients,
             models,
+            utils,
         });
         this.prometheusMetrics = new PrometheusMetrics(
             this.lightdashConfig.prometheus,
         );
+        this.utils = utils;
     }
 
     public async start() {
@@ -159,6 +163,7 @@ export default class SchedulerApp {
                 schedulerClient: this.clients.getSchedulerClient(),
                 slackClient: this.clients.getSlackClient(),
             },
+            encryptionUtil: this.utils.getEncryptionUtil(),
         });
         await worker.run();
         return worker;

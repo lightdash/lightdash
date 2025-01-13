@@ -163,6 +163,7 @@ import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -206,6 +207,7 @@ type ProjectServiceArguments = {
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
     contentModel: ContentModel;
+    encryptionUtil: EncryptionUtil;
 };
 
 export class ProjectService extends BaseService {
@@ -257,6 +259,8 @@ export class ProjectService extends BaseService {
 
     contentModel: ContentModel;
 
+    encryptionUtil: EncryptionUtil;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -281,6 +285,7 @@ export class ProjectService extends BaseService {
         tagsModel,
         catalogModel,
         contentModel,
+        encryptionUtil,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -307,6 +312,7 @@ export class ProjectService extends BaseService {
         this.tagsModel = tagsModel;
         this.catalogModel = catalogModel;
         this.contentModel = contentModel;
+        this.encryptionUtil = encryptionUtil;
     }
 
     private async validateProjectCreationPermissions(
@@ -641,6 +647,15 @@ export class ProjectService extends BaseService {
 
         await this.validateProjectCreationPermissions(user, data);
 
+        let encryptedData: string;
+        try {
+            encryptedData = this.encryptionUtil
+                .encrypt(JSON.stringify(data))
+                .toString('base64');
+        } catch {
+            throw new UnexpectedServerError('Failed to load project data');
+        }
+
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.CREATE_PROJECT,
@@ -663,7 +678,7 @@ export class ProjectService extends BaseService {
             organizationUuid: user.organizationUuid,
             requestMethod: method,
             jobUuid: job.jobUuid,
-            data,
+            data: encryptedData,
         });
         return { jobUuid: job.jobUuid };
     }
