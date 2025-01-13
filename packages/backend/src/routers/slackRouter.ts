@@ -17,7 +17,7 @@ const analytics = new LightdashAnalytics({
     lightdashConfig,
     writeKey: lightdashConfig.rudder.writeKey || 'notrack',
     dataPlaneUrl: lightdashConfig.rudder.dataPlaneUrl
-        ? `${lightdashConfig.rudder.dataPlaneUrl}`
+        ? lightdashConfig.rudder.dataPlaneUrl
         : 'notrack',
     options: {
         enable:

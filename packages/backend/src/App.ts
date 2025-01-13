@@ -177,7 +177,7 @@ export default class App {
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
             dataPlaneUrl: this.lightdashConfig.rudder.dataPlaneUrl
-                ? `${this.lightdashConfig.rudder.dataPlaneUrl}`
+                ? this.lightdashConfig.rudder.dataPlaneUrl
                 : 'notrack',
             options: {
                 enable:
