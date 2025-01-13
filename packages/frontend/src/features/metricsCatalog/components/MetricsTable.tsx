@@ -259,20 +259,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [isValidMetricsNodeCount, isValidMetricsEdgeCount],
     );
 
-    const segmentedControlTooltipLabel = useMemo(() => {
-        if (totalResults === 0) {
-            return 'There are no metrics to display in the metrics tree';
-        }
-
-        if (!isValidMetricsNodeCount) {
-            return 'You can only select up to 30 metrics for the metrics tree';
-        }
-
-        if (!isValidMetricsEdgeCount) {
-            return 'There are no connections between the selected metrics';
-        }
-    }, [isValidMetricsEdgeCount, isValidMetricsNodeCount, totalResults]);
-
     const dataHasCategories = useMemo(() => {
         return flatData.some((item) => item.categories?.length);
     }, [flatData]);
@@ -475,7 +461,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     isValidMetricsTree={isValidMetricsTree}
-                    segmentedControlTooltipLabel={segmentedControlTooltipLabel}
+                    isValidMetricsNodeCount={isValidMetricsNodeCount}
+                    isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                     metricCatalogView={metricCatalogView}
                 />
                 <Divider color="gray.2" />
@@ -625,9 +612,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 canManageTags || dataHasCategories
                             }
                             isValidMetricsTree={isValidMetricsTree}
-                            segmentedControlTooltipLabel={
-                                segmentedControlTooltipLabel
-                            }
+                            isValidMetricsNodeCount={isValidMetricsNodeCount}
+                            isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                             metricCatalogView={metricCatalogView}
                         />
                         <Divider color="gray.2" />
