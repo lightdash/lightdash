@@ -8,8 +8,20 @@ import {
     MetricTotalComparisonType,
     type TimeFrames,
 } from '@lightdash/common';
-import { Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
-import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
+import {
+    Group,
+    Loader,
+    Paper,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowUp,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -108,14 +120,16 @@ const MetricTreeExpandedNode: React.FC<
                 hidden={!isConnectable && !data.isEdgeTarget}
             />
             <Stack key={data.label} spacing="sm">
-                <Stack spacing="2xs" align="flex-start">
+                <Group>
                     <Title order={6}>{title}</Title>
-                    {data.tableName && (
-                        <Text fz="xs" c="gray.7">
-                            {data.tableName}
-                        </Text>
-                    )}
-                </Stack>
+                    <Tooltip label={data.tableName}>
+                        <MantineIcon
+                            icon={IconInfoCircle}
+                            size={12}
+                            color="gray.7"
+                        />
+                    </Tooltip>
+                </Group>
 
                 {totalQuery.isFetching ? (
                     <Loader size="xs" color="gray.5" />

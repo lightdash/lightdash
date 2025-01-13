@@ -1,10 +1,13 @@
 import { friendlyName } from '@lightdash/common';
-import { Paper, Text } from '@mantine/core';
+import { Group, Paper, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 
 export type MetricTreeCollapsedNodeData = Node<{
     label: string;
+    tableName?: string;
 }>;
 
 const MetricTreeCollapsedNode: React.FC<
@@ -46,9 +49,18 @@ const MetricTreeCollapsedNode: React.FC<
                 hidden={!isConnectable}
             />
 
-            <Text size="xs" c="dark.3" fw={500} truncate ta="center">
-                {title}
-            </Text>
+            <Group>
+                <Text size="xs" c="dark.3" fw={500} truncate ta="center">
+                    {title}
+                </Text>
+                <Tooltip label={data.tableName}>
+                    <MantineIcon
+                        icon={IconInfoCircle}
+                        size={12}
+                        color="gray.7"
+                    />
+                </Tooltip>
+            </Group>
 
             <Handle
                 type="source"
