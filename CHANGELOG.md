@@ -1,3 +1,10 @@
+## [0.1450.1](https://github.com/lightdash/lightdash/compare/0.1450.0...0.1450.1) (2025-01-13)
+
+
+### Bug Fixes
+
+* make tree container min height same as the table ([#13221](https://github.com/lightdash/lightdash/issues/13221)) ([ee75a41](https://github.com/lightdash/lightdash/commit/ee75a412695582f7b801757c4e2d5a13f5693f5d))
+
 # [0.1450.0](https://github.com/lightdash/lightdash/compare/0.1449.5...0.1450.0) (2025-01-13)
 
 
