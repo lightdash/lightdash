@@ -40,7 +40,7 @@ export type MetricTreeExpandedNodeData = Node<{
 
 const MetricTreeExpandedNode: React.FC<
     NodeProps<MetricTreeExpandedNodeData>
-> = ({ data, isConnectable }) => {
+> = ({ data, isConnectable, selected }) => {
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
     const projectUuid = useAppSelector(
@@ -108,10 +108,16 @@ const MetricTreeExpandedNode: React.FC<
 
     return (
         <Paper
-            p="xs"
-            fz="xs"
+            p="md"
+            fz={14}
             sx={(theme) => ({
-                backgroundColor: theme.colors.gray[0],
+                '&[data-with-border]': {
+                    backgroundColor: 'white',
+                    borderRadius: theme.radius.md,
+                    border: `1px solid ${
+                        selected ? theme.colors.blue[5] : theme.colors.gray[3]
+                    }`,
+                },
             })}
         >
             <Handle
@@ -119,7 +125,7 @@ const MetricTreeExpandedNode: React.FC<
                 position={Position.Top}
                 hidden={!isConnectable && !data.isEdgeTarget}
             />
-            <Stack key={data.label} spacing="sm">
+            <Stack key={data.label} spacing="xs">
                 <Group>
                     <Title order={6}>{title}</Title>
                     <Tooltip
