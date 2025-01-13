@@ -25,7 +25,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
         if (totalMetricsCount === 0) {
             return (
                 <Text size="xs" c="white">
-                    There are no metrics to display in the metrics tree
+                    There are no metrics to display in the canvas
                 </Text>
             );
         }
@@ -33,7 +33,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
         if (!isValidMetricsNodeCount) {
             return (
                 <Text size="xs" c="white">
-                    Tree view is only available for lists with fewer than{' '}
+                    Canvas view is only available for lists with fewer than{' '}
                     <Text span fw="bold">
                         30 metrics
                     </Text>
