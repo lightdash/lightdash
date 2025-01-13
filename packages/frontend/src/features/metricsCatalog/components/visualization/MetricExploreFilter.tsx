@@ -224,6 +224,7 @@ export const MetricExploreFilter: FC<Props> = ({
                             dimensions?.map((dimension) => ({
                                 value: getItemId(dimension),
                                 label: dimension.label,
+                                group: dimension.tableLabel,
                             })) ?? []
                         }
                         disabled={dimensions?.length === 0}

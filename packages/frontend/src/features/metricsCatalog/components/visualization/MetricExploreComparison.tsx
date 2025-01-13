@@ -190,6 +190,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                             metric,
                                                         ),
                                                         label: metric.label,
+                                                        group: metric.tableLabel,
                                                     }),
                                                 ) ?? []
                                             }
