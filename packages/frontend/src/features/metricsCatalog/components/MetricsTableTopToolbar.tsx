@@ -23,12 +23,12 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
-import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useProjectTags } from '../hooks/useProjectTags';
-import { setMetricCatalogView } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
 import { CatalogCategory } from './CatalogCategory';
 
@@ -208,6 +208,7 @@ type MetricsTableTopToolbarProps = GroupProps & {
     segmentedControlTooltipLabel?: string;
     showCategoriesFilter?: boolean;
     isValidMetricsTree: boolean;
+    metricCatalogView: MetricCatalogView;
 };
 
 export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
@@ -220,12 +221,11 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         showCategoriesFilter,
         isValidMetricsTree,
         segmentedControlTooltipLabel,
+        metricCatalogView,
         ...props
     }) => {
-        const dispatch = useAppDispatch();
-        const metricCatalogView = useAppSelector(
-            (store) => store.metricsCatalog.view,
-        );
+        const location = useLocation();
+        const navigate = useNavigate();
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
         const isMetricTreesFeatureFlagEnabled = useFeatureFlagEnabled(
@@ -393,11 +393,26 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         },
                                     ]}
                                     onChange={(value) => {
-                                        dispatch(
-                                            setMetricCatalogView(
-                                                value as MetricCatalogView,
-                                            ),
-                                        );
+                                        const view = value as MetricCatalogView;
+
+                                        switch (view) {
+                                            case MetricCatalogView.LIST:
+                                                void navigate({
+                                                    pathname:
+                                                        location.pathname.replace(
+                                                            /\/tree/,
+                                                            '',
+                                                        ),
+                                                    search: location.search,
+                                                });
+                                                break;
+                                            case MetricCatalogView.TREE:
+                                                void navigate({
+                                                    pathname: `${location.pathname}/tree`,
+                                                    search: location.search,
+                                                });
+                                                break;
+                                        }
                                     }}
                                 />
                             </Tooltip>
