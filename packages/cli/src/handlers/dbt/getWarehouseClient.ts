@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    AuthorizationError,
     CreateWarehouseCredentials,
     isSupportedDbtAdapterType,
     isWeekDay,
@@ -183,9 +182,8 @@ export default async function getWarehouseClient(
             refs.reduce<Promise<WarehouseCatalog>>(async (accPromise, ref) => {
                 const acc = await accPromise; // Wait for the previous step's result
                 if (!config.context?.project) {
-                    throw new AuthorizationError(
-                        `No active Lightdash project.`,
-                    );
+                    // If the project is not set(eg: on first project create), we can't fetch the schema
+                    return acc;
                 }
                 try {
                     GlobalState.debug(
