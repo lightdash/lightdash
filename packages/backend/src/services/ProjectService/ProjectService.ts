@@ -2609,8 +2609,16 @@ export class ProjectService extends BaseService {
                 target: {
                     fieldId,
                 },
-                operator: FilterOperator.INCLUDE,
+                operator: FilterOperator.EQUALS,
                 values: [search],
+            },
+            {
+                id: uuidv4(),
+                target: {
+                    fieldId,
+                },
+                operator: FilterOperator.INCLUDE,
+                values: [`%${search}%`],
             },
         ];
         if (filters) {
@@ -2636,6 +2644,12 @@ export class ProjectService extends BaseService {
             },
             tableCalculations: [],
             sorts: [
+                {
+                    fieldId: `CASE WHEN LOWER(${getItemId(
+                        field,
+                    )}) = LOWER('${search}') THEN 0 ELSE 1 END`,
+                    descending: false,
+                },
                 {
                     fieldId: getItemId(field),
                     descending: false,
