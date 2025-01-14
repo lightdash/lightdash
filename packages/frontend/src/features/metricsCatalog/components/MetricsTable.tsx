@@ -628,7 +628,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 />
                             ) : (
                                 <SuboptimalState
-                                    title="Metrics tree not available"
+                                    title="Canvas mode not available"
                                     description={
                                         !isValidMetricsEdgeCount &&
                                         isValidMetricsNodeCount
