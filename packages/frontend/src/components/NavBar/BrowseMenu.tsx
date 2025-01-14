@@ -82,10 +82,10 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 ) : null}
 
                 <ScrollArea
-                    offsetScrollbars
                     variant="primary"
                     className="only-vertical"
-                    type="auto"
+                    scrollbarSize={6}
+                    type="hover"
                 >
                     <Box mah={300}>
                         {spaces
