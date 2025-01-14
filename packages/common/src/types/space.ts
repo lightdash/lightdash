@@ -31,7 +31,7 @@ export type SpaceSummary = Pick<
     | 'pinnedListOrder'
     | 'slug'
 > & {
-    userAccess: SpaceShare | never[];
+    userAccess: SpaceShare | undefined;
     access: string[];
     chartCount: number;
     dashboardCount: number;

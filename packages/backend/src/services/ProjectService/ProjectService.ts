@@ -4245,7 +4245,7 @@ export class ProjectService extends BaseService {
             )
             .map((spaceSummary) => ({
                 ...spaceSummary,
-                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? [],
+                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? undefined,
             }));
 
         return spacesWithUserAccess;
