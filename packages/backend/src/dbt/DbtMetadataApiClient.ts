@@ -75,6 +75,7 @@ export class DbtMetadataApiClient implements DbtClient {
     }
 
     async getDbtManifest() {
+        // TODO add selector to dbt cloud query
         try {
             const query = gql`
                 query ManifestQuery($environmentId: BigInt!) {

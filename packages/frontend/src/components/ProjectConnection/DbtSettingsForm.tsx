@@ -228,6 +228,14 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             name="Advanced"
                             isOpen={isAdvancedSettingsOpen}
                         >
+                            <Stack>
+                                <TextInput
+                                    {...register('dbt.selector')}
+                                    label="dbt selector"
+                                    disabled={disabled}
+                                    placeholder="--select --tag:lightdash"
+                                />
+                            </Stack>
                             <Stack style={{ marginTop: '8px' }}>
                                 <MultiKeyValuePairsInput
                                     name="dbt.environment"
