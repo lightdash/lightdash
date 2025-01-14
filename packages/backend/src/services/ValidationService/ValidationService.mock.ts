@@ -172,15 +172,11 @@ export const explore: Explore = {
     },
 };
 
-if (!explore.tables.table) {
-    throw new Error('Table is undefined');
-}
-
 export const exploreWithoutDimension: Explore = {
     ...explore,
     tables: {
         table: {
-            ...explore.tables.table,
+            ...explore.tables.table!,
             dimensions: {},
         },
     },
@@ -189,7 +185,7 @@ export const exploreWithoutMetric: Explore = {
     ...explore,
     tables: {
         table: {
-            ...explore.tables.table,
+            ...explore.tables.table!,
             metrics: {},
         },
     },
@@ -203,7 +199,7 @@ export const exploreWithJoin: Explore = {
     baseTable: 'another_table',
     joinedTables: [], // This would normally be set, but we don't need it for this test
     tables: {
-        table: explore.tables.table, // same as explore
+        table: explore.tables.table!, // same as explore
         another_table: {
             name: 'another_table',
             label: 'another_table',
