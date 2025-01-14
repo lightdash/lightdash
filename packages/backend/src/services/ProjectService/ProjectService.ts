@@ -3520,7 +3520,6 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
-            explore_name: tableName,
         };
         let database = ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
