@@ -98,6 +98,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                     flexGrow: 1,
                                     flexDirection: 'column',
                                     overflowY: 'auto',
+                                    scrollbarWidth: 'none',
                                 }}
                             >
                                 {children}
