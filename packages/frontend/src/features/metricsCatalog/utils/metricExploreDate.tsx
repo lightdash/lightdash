@@ -218,10 +218,18 @@ export const getDateRangePresets = (
                     ],
                 },
                 {
-                    label: 'Past 5 years',
-                    controlLabel: '5Y',
+                    label: 'Past 3 years',
+                    controlLabel: '3Y',
                     getValue: () =>
                         getDefaultDateRangeFromInterval(timeInterval),
+                },
+                {
+                    label: 'Past 5 years',
+                    controlLabel: '5Y',
+                    getValue: () => [
+                        today.subtract(5, 'year').startOf('year').toDate(),
+                        now.toDate(),
+                    ],
                 },
             ];
 

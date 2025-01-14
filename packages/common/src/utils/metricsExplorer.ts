@@ -398,7 +398,7 @@ export const getMetricExplorerDataPointsWithCompare = (
 
 /**
  * Get the date range for a given time interval, based on the current date and the time interval
- * Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
+ * Time grain Year: -> past 3 years (i.e. 3 completed years + this uncompleted year)
  * Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
  * Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
  * Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
@@ -428,7 +428,7 @@ export const getDefaultDateRangeFromInterval = (
             ];
         case TimeFrames.YEAR:
             return [
-                now.subtract(5, 'year').startOf('year').toDate(),
+                now.subtract(3, 'year').startOf('year').toDate(),
                 now.toDate(),
             ];
         default:
