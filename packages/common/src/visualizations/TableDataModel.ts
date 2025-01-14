@@ -111,7 +111,7 @@ export class TableDataModel {
             indexColumn: undefined,
             results: [],
             valuesColumns: [],
-            vcMetadata: [],
+            valuesColumnsMetadata: [],
         };
     }
 

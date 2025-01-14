@@ -2449,15 +2449,18 @@ export class ProjectService extends BaseService {
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
         const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
-        const valuesColumnMetadata = new Set<{
-            referenceField: string;
-            id: string;
-            aggregation: VizAggregationOptions;
-            pivotValues: {
-                field: string;
-                value: string;
-            }[];
-        }>();
+        const valuesColumnMetadata = new Map<
+            string,
+            {
+                referenceField: string;
+                id: string;
+                aggregation: VizAggregationOptions;
+                pivotValues: {
+                    field: string;
+                    value: string;
+                }[];
+            }
+        >();
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -2504,7 +2507,7 @@ export class ProjectService extends BaseService {
                                 valuesColumnReferences.add(
                                     valueColumnReference,
                                 );
-                                valuesColumnMetadata.add({
+                                valuesColumnMetadata.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
                                     id: valueColumnReference, // The pivoted y field name eg amount_false
                                     aggregation: col.aggregation, // The aggregation type
@@ -2534,6 +2537,11 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
+        console.log(
+            'valuesColumnMetadata-----------------------',
+            JSON.stringify(Array.from(valuesColumnMetadata.values()), null, 2),
+        );
+
         const processedColumns =
             groupByColumns && groupByColumns.length > 0
                 ? Array.from(valuesColumnReferences) // Here are the pivoted ones
@@ -2543,7 +2551,7 @@ export class ProjectService extends BaseService {
         return {
             fileUrl,
             valuesColumns: processedColumns,
-            vcMetadata: Array.from(valuesColumnMetadata.values()),
+            valuesColumnsMetadata: Array.from(valuesColumnMetadata.values()),
             indexColumn,
         };
     }
