@@ -66,7 +66,10 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED
         | EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED
         | EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED
-        | EventName.METRICS_CATALOG_SEARCH_APPLIED;
+        | EventName.METRICS_CATALOG_SEARCH_APPLIED
+        | EventName.METRICS_CATALOG_TREES_EDGE_CREATED
+        | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
+        | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED;
     properties?: {};
 };
 
@@ -332,6 +335,30 @@ type MetricsCatalogSearchAppliedEvent = {
     };
 };
 
+type MetricsCatalogTreesEdgeCreatedEvent = {
+    name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
+type MetricsCatalogTreesEdgeRemovedEvent = {
+    name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
+type MetricsCatalogTreesCanvasModeClickedEvent = {
+    name: EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -360,7 +387,10 @@ export type EventData =
     | MetricsCatalogExploreSegmentByAppliedEvent
     | MetricsCatalogExploreTimeDimensionOverrideAppliedEvent
     | MetricsCatalogSearchAppliedEvent
-    | LandingRunQueryClickedEvent;
+    | LandingRunQueryClickedEvent
+    | MetricsCatalogTreesEdgeCreatedEvent
+    | MetricsCatalogTreesEdgeRemovedEvent
+    | MetricsCatalogTreesCanvasModeClickedEvent;
 
 export type IdentifyData = {
     id: string;

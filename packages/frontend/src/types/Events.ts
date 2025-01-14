@@ -137,4 +137,9 @@ export enum EventName {
     METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED = 'metrics_catalog_explore_granularity.applied',
     METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED = 'metrics_catalog_explore_segment_by.applied',
     METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED = 'metrics_catalog_explore_time_dimension_override.applied',
+
+    // Metrics Catalog - Trees
+    METRICS_CATALOG_TREES_EDGE_CREATED = 'metrics_catalog_trees_edge.created',
+    METRICS_CATALOG_TREES_EDGE_REMOVED = 'metrics_catalog_trees_edge.removed',
+    METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED = 'metrics_catalog_trees_canvas_mode.clicked',
 }
