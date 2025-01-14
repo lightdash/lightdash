@@ -1,8 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
-    AllowedActions,
-    Dashboard,
-    DashboardTileTypes,
+    AbilityAction,
     DimensionType,
     Explore,
     ExploreError,
@@ -40,7 +38,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability<[AllowedActions, any]>([
+    ability: new Ability<[AbilityAction, any]>([
         {
             subject: 'Validation',
             action: ['manage'],
