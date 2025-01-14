@@ -566,7 +566,7 @@ importers:
         specifier: ^11.0.3
         version: 11.0.3
       zod:
-        specifier: ^3.23.3
+        specifier: ^3.22.4
         version: 3.23.3
     devDependencies:
       '@types/pegjs':
@@ -873,7 +873,7 @@ importers:
         specifier: ^5.16.1
         version: 5.16.1(vega@5.26.0)
       zod:
-        specifier: ^3.23.3
+        specifier: ^3.22.4
         version: 3.23.3
     devDependencies:
       '@mantine/styles':
