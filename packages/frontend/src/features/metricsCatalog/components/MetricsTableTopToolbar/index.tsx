@@ -210,7 +210,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 <Tooltip
                                                     withinPortal
                                                     variant="xs"
-                                                    label="Tree view"
+                                                    label="Canvas"
                                                 >
                                                     <Center>
                                                         <MantineIcon
