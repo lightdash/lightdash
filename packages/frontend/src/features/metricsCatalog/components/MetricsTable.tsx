@@ -6,6 +6,7 @@ import {
 import {
     Anchor,
     Box,
+    Button,
     Center,
     Divider,
     Group,
@@ -37,6 +38,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -67,6 +69,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -634,6 +638,21 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                         isValidMetricsNodeCount
                                             ? 'There are no connections between the selected metrics'
                                             : 'Please narrow your search to display up to 30 metrics'
+                                    }
+                                    action={
+                                        <Button
+                                            onClick={() => {
+                                                void navigate({
+                                                    pathname:
+                                                        location.pathname.replace(
+                                                            /\/tree/,
+                                                            '',
+                                                        ),
+                                                });
+                                            }}
+                                        >
+                                            Back to list view
+                                        </Button>
                                     }
                                 />
                             )}
