@@ -351,7 +351,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
             }
 
             setTimeout(() => {
-                void fitView();
+                void fitView({ maxZoom: 1.2 });
             }, 50); // Wait for nodes to be measured
         },
         [
