@@ -600,7 +600,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box w="100%" py="xl" px="xxl">
+                    <Box w="100%" px={40} py="lg">
                         <MetricsVisualization
                             query={query}
                             dateRange={dateRange ?? undefined}
