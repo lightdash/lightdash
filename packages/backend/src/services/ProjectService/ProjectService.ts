@@ -2449,7 +2449,7 @@ export class ProjectService extends BaseService {
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
         const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
-        const valuesColumnMetadata = new Map<
+        const columnMetadata = new Map<
             string,
             {
                 referenceField: string;
@@ -2507,7 +2507,7 @@ export class ProjectService extends BaseService {
                                 valuesColumnReferences.add(
                                     valueColumnReference,
                                 );
-                                valuesColumnMetadata.set(valueColumnReference, {
+                                columnMetadata.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
                                     id: valueColumnReference, // The pivoted y field name eg amount_false
                                     aggregation: col.aggregation, // The aggregation type
@@ -2537,21 +2537,29 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        console.log(
-            'valuesColumnMetadata-----------------------',
-            JSON.stringify(Array.from(valuesColumnMetadata.values()), null, 2),
-        );
-
         const processedColumns =
             groupByColumns && groupByColumns.length > 0
                 ? Array.from(valuesColumnReferences) // Here are the pivoted ones
                 : valuesColumns.map(
                       (col) => `${col.reference}_${col.aggregation}`,
                   );
+
+        // TODO: This extra metadata is being returned as a separate array for now,
+        // we could return it as part of the valuesColumns array.
+        const valuesColumnsMetadata =
+            groupByColumns && groupByColumns.length > 0
+                ? Array.from(columnMetadata.values())
+                : valuesColumns.map((col) => ({
+                      referenceField: col.reference,
+                      id: `${col.reference}_${col.aggregation}`,
+                      aggregation: col.aggregation,
+                      pivotValues: [],
+                  }));
+
         return {
             fileUrl,
             valuesColumns: processedColumns,
-            valuesColumnsMetadata: Array.from(valuesColumnMetadata.values()),
+            valuesColumnsMetadata,
             indexColumn,
         };
     }
