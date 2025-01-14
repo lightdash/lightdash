@@ -486,7 +486,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
         }
-    }, [initialNodes, currentNodes, onNodesChange]);
+    }, [currentNodes, initialNodes, onNodesChange]);
 
     useEffect(() => {
         const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
@@ -496,14 +496,12 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 type: 'add',
                 item: edge,
             }));
-
         const removeEdgeChanges: EdgeChange<Edge>[] = currentEdges
             .filter((edge) => !initialEdges.some((e) => e.id === edge.id))
             .map((edge) => ({
                 id: edge.id,
                 type: 'remove',
             }));
-
         if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
             onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
         }
@@ -516,6 +514,11 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
             applyLayout(true);
         }
     }, [applyLayout, nodesInitialized, isInitialLayoutReady]);
+
+    // Reset layout when initial edges or nodes change
+    useEffect(() => {
+        setIsInitialLayoutReady(false);
+    }, [initialNodes, initialEdges]);
 
     return (
         <Box h="100%">
