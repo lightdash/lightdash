@@ -35,7 +35,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     variant="default"
                     size="xs"
                     fz="sm"
-                    leftIcon={<MantineIcon icon={IconCategory} />}
+                    leftIcon={
+                        <MantineIcon color="#adb5bd" icon={IconCategory} />
+                    }
                 >
                     Browse
                 </Button>

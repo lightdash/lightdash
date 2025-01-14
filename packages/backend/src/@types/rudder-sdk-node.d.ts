@@ -27,11 +27,7 @@ declare module '@rudderstack/rudder-sdk-node' {
     }
 
     declare class Analytics {
-        constructor(
-            writeKey: string,
-            dataPlaneUrl: string,
-            options?: AnalyticsOptions,
-        );
+        constructor(writeKey: string, options?: AnalyticsOptions);
         identify(payload: Identify): void;
         track(payload: Track): void;
         group(payload: Group): void;

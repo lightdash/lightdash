@@ -139,7 +139,7 @@ describe('validation', () => {
             source: 'table',
         });
 
-        expect(errors[0].error).toEqual(
+        expect(errors[0]!.error).toEqual(
             'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
         );
     });
@@ -201,7 +201,7 @@ describe('validation', () => {
             source: 'table',
         });
 
-        expect(errors[0].error).toEqual(
+        expect(errors[0]!.error).toEqual(
             'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
         );
     });
