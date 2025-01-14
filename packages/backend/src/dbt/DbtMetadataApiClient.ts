@@ -1,7 +1,7 @@
 import {
     DbtError,
     DbtModelNode,
-    DbtNode,
+    DbtRpcGetManifestResults,
     getLatestSupportedDbtManifestVersion,
     isSupportedDbtAdapterType,
     ParseError,
@@ -18,6 +18,131 @@ const quoteChars: Record<SupportedDbtAdapter, string> = {
     postgres: `"`,
     trino: `"`,
 };
+
+const PAGE_SIZE = 500;
+
+type DbtCloudEnvironmentResponse = {
+    environment: {
+        adapterType: string | null;
+        applied: {
+            lastUpdatedAt: string;
+            models: {
+                totalCount: number;
+                pageInfo: {
+                    startCursor: string;
+                    hasNextPage: boolean;
+                    endCursor: string;
+                };
+                edges: {
+                    node: {
+                        resourceType: string;
+                        accountId: string;
+                        projectId: string;
+                        environmentId: string;
+                        uniqueId: string;
+                        name: string;
+                        description: string;
+                        meta: any;
+                        tags: string[];
+                        filePath: string;
+                        database: string;
+                        schema: string;
+                        alias: string;
+                        packageName: string;
+                        rawCode: string;
+                        compiledCode: string;
+                        materializedType: string;
+                        language: string;
+                        packages: string[];
+                        dbtVersion: string;
+                        group: string;
+                        access: string;
+                        deprecationDate: string;
+                        version: string;
+                        latestVersion: string;
+                        releaseVersion: string;
+                        contractEnforced: boolean;
+                        patchPath: string;
+                        config: any;
+                        catalog: {
+                            columns: {
+                                name: string;
+                                description: string;
+                                type: string;
+                                meta: any;
+                            };
+                        };
+                    };
+                }[];
+            };
+        };
+    };
+};
+
+const dbtCloudEnvironmentQuery = gql`
+    query EnvironmentQuery(
+        $environmentId: BigInt!
+        $first: Int!
+        $after: String
+        $filter: ModelAppliedFilter!
+    ) {
+        environment(id: $environmentId) {
+            adapterType
+            applied {
+                lastUpdatedAt
+                models(first: $first, after: $after, filter: $filter) {
+                    pageInfo {
+                        startCursor
+                        hasNextPage
+                        endCursor
+                    }
+                    totalCount
+                    edges {
+                        node {
+                            resourceType
+                            accountId
+                            projectId
+                            environmentId
+                            uniqueId
+                            name
+                            description
+                            meta
+                            tags
+                            filePath
+                            database
+                            schema
+                            alias
+                            packageName
+                            rawCode
+                            compiledCode
+                            materializedType
+                            language
+                            packages
+                            dbtVersion
+                            group
+                            access
+                            deprecationDate
+                            version
+                            latestVersion
+                            releaseVersion
+                            contractEnforced
+                            patchPath
+                            config
+                            catalog {
+                                columns {
+                                    name
+                                    description
+                                    type
+                                    meta
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
 
 export class DbtMetadataApiClient implements DbtClient {
     private readonly domain: string =
@@ -74,72 +199,51 @@ export class DbtMetadataApiClient implements DbtClient {
         );
     }
 
+    private async getModels(
+        prevResponse?: DbtCloudEnvironmentResponse,
+    ): Promise<DbtCloudEnvironmentResponse> {
+        const response = await this.client.request<DbtCloudEnvironmentResponse>(
+            dbtCloudEnvironmentQuery,
+            {
+                environmentId: this.environmentId,
+                first: PAGE_SIZE,
+                after: prevResponse?.environment.applied.models.pageInfo
+                    .endCursor,
+                filter: {
+                    lastRunStatus: 'success',
+                },
+            },
+        );
+
+        // Accumulate models
+        const responseWithNewModels = {
+            environment: {
+                ...response.environment,
+                applied: {
+                    ...response.environment.applied,
+                    models: {
+                        ...response.environment.applied.models,
+                        edges: [
+                            ...(prevResponse?.environment.applied.models
+                                .edges || []),
+                            ...response.environment.applied.models.edges,
+                        ],
+                    },
+                },
+            },
+        };
+
+        if (response.environment.applied.models.pageInfo.hasNextPage) {
+            // Recursively fetch more models
+            return this.getModels(responseWithNewModels);
+        }
+
+        return responseWithNewModels;
+    }
+
     async getDbtManifest() {
         try {
-            const query = gql`
-                query ManifestQuery($environmentId: BigInt!) {
-                    environment(id: $environmentId) {
-                        adapterType
-                        applied {
-                            models(first: 500) {
-                                edges {
-                                    node {
-                                        resourceType
-                                        accountId
-                                        projectId
-                                        environmentId
-                                        uniqueId
-                                        name
-                                        description
-                                        meta
-                                        tags
-                                        filePath
-                                        database
-                                        schema
-                                        alias
-                                        packageName
-                                        rawCode
-                                        compiledCode
-                                        materializedType
-                                        language
-                                        packages
-                                        dbtVersion
-                                        group
-                                        access
-                                        deprecationDate
-                                        version
-                                        latestVersion
-                                        releaseVersion
-                                        contractEnforced
-                                        patchPath
-                                        config
-                                        catalog {
-                                            columns {
-                                                name
-                                                description
-                                                type
-                                                meta
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            `;
-
-            type ManifestQueryQuery = {
-                environment: { adapterType: string; applied: any };
-            };
-            const results = await this.client.request<ManifestQueryQuery>(
-                query,
-                {
-                    environmentId: this.environmentId,
-                    first: 500,
-                },
-            );
-
+            const results = await this.getModels();
             const { adapterType } = results.environment;
             let fieldQuoteChar = '"';
             if (!adapterType) {
@@ -155,9 +259,9 @@ export class DbtMetadataApiClient implements DbtClient {
                 );
             }
 
-            const dbtModelNodes: Record<string, DbtNode> = Object.fromEntries(
-                results.environment.applied.models.edges.map(
-                    ({ node }: any) => [
+            const dbtModelNodes: Record<string, DbtModelNode> =
+                Object.fromEntries(
+                    results.environment.applied.models.edges.map(({ node }) => [
                         node.uniqueId,
                         <DbtModelNode>{
                             checksum: {
@@ -205,10 +309,9 @@ export class DbtMetadataApiClient implements DbtClient {
                             }${fieldQuoteChar}`,
                             config: node.config,
                         },
-                    ],
-                ),
-            );
-            return {
+                    ]),
+                );
+            return <DbtRpcGetManifestResults>{
                 manifest: {
                     nodes: dbtModelNodes,
                     metadata: {
