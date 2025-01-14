@@ -37,11 +37,6 @@ export enum FeatureFlags {
      * Enable dashboard comments
      */
     DashboardComments = 'dashboard-comments-enabled',
-
-    /**
-     * Enable metric trees
-     */
-    MetricTrees = 'metric-trees',
 }
 
 export type FeatureFlag = {
