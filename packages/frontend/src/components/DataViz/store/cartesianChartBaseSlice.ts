@@ -34,7 +34,18 @@ export type CartesianChartState = {
         | undefined;
     chartDataLoading: boolean;
     chartDataError: Error | null | undefined;
+
+    // TODO: its definitely possible this series data should not be per chart type
     series?: string[];
+    seriesMetadata?: {
+        referenceField: string;
+        id: string;
+        aggregation: VizAggregationOptions;
+        pivotValues: {
+            field: string;
+            value: string;
+        }[];
+    }[];
 };
 
 const initialState: CartesianChartState = {

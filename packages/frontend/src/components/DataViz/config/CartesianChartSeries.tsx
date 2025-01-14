@@ -46,14 +46,19 @@ export const CartesianChartSeries = ({
         selectCurrentCartesianChartState(state, selectedChartType),
     );
 
+    const seriesMetadata = useAppSelector((state) =>
+        selectCurrentCartesianChartState(state, selectedChartType),
+    )?.seriesMetadata;
+
     const series: ConfigurableSeries[] = useMemo(() => {
-        if (!currentConfig?.fieldConfig?.y) {
+        if (!seriesMetadata) {
             return [];
         }
-        return currentConfig?.fieldConfig?.y.map((f, index) => {
+
+        return seriesMetadata.map((s, index) => {
             const foundSeries = Object.values(
                 currentConfig?.display?.series || {},
-            ).find((s) => s.yAxisIndex === index);
+            ).find((displayProps) => displayProps.yAxisIndex === index);
 
             const seriesFormat = foundSeries?.format;
             const seriesLabel = foundSeries?.label;
@@ -62,18 +67,18 @@ export const CartesianChartSeries = ({
             const seriesValueLabelPosition = foundSeries?.valueLabelPosition;
             const seriesWhichYAxis = foundSeries?.whichYAxis;
             return {
-                reference: f.reference,
+                reference: s.id,
                 format: seriesFormat,
-                label:
-                    seriesLabel ??
-                    friendlyName(`${f.reference}_${f.aggregation}`),
+                label: seriesLabel ?? friendlyName(s.id),
                 color: seriesColor ?? colors[index],
                 type: seriesType,
                 valueLabelPosition: seriesValueLabelPosition,
                 whichYAxis: seriesWhichYAxis,
             };
         });
-    }, [colors, currentConfig?.display?.series, currentConfig?.fieldConfig?.y]);
+    }, [colors, currentConfig?.display?.series, seriesMetadata]);
+
+    console.log('series', series, seriesMetadata);
 
     return (
         <Stack mt="sm">

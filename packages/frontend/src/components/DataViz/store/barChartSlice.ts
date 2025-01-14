@@ -25,6 +25,7 @@ export const barChartConfigSlice = createSlice({
         builder.addCase(prepareAndFetchChartData.fulfilled, (state, action) => {
             state.chartDataLoading = false;
             state.series = action.payload?.valuesColumns;
+            state.seriesMetadata = action.payload?.valuesColumnsMetadata;
             state.chartData = action.payload;
         });
         builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
