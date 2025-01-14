@@ -363,7 +363,13 @@ describe('ProjectService', () => {
                 undefined,
             );
             expect(runQueryMock).toHaveBeenCalledTimes(1);
-            expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
+            const callArgs = runQueryMock.mock.calls[0];
+            if (!callArgs || callArgs.length < 1) {
+                fail(
+                    'Expected runQueryMock to be called with at least one argument, but it was not.',
+                );
+            }
+            expect(replaceWhitespace(callArgs[0])).toEqual(
                 replaceWhitespace(`SELECT AS "a_dim1"
                                    FROM test.table AS "a"
                                    WHERE (( LOWER() LIKE LOWER('%%') ))
@@ -420,7 +426,13 @@ describe('ProjectService', () => {
                 },
             );
             expect(runQueryMock).toHaveBeenCalledTimes(1);
-            expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
+            const callArgs = runQueryMock.mock.calls[0];
+            if (!callArgs || callArgs.length < 1) {
+                fail(
+                    'Expected runQueryMock to be called with at least one argument, but it was not.',
+                );
+            }
+            expect(replaceWhitespace(callArgs[0])).toEqual(
                 replaceWhitespace(`SELECT AS "a_dim1" 
                                         FROM test.table AS "a" 
                                         LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1) 
