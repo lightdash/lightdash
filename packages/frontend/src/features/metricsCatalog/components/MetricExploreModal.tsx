@@ -378,6 +378,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
             segmentDimensionsQuery.data?.map((dimension) => ({
                 value: getItemId(dimension),
                 label: dimension.label,
+                group: dimension.tableLabel,
             })) ?? []
         );
     }, [segmentDimensionsQuery.data]);

@@ -1,21 +1,22 @@
+import {
+    MetricExplorerComparison,
+    type MetricExplorerQuery,
+} from '@lightdash/common';
 import { ActionIcon, Flex, Group, Text, Tooltip } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import {
-    IconBackslash,
-    IconChevronLeft,
-    IconChevronRight,
-    IconLineDashed,
-} from '@tabler/icons-react';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type LegendProps } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { SquareBadge } from './MetricExploreTooltip';
+import { COMPARISON_OPACITY } from './types';
 
 interface MetricExploreLegendProps extends Pick<LegendProps, 'payload'> {
     legendConfig: Record<
         string | 'metric' | 'compareMetric',
         { name: string; label: string }
     > | null;
+    comparison: MetricExplorerQuery;
     getLegendProps: (value: string) => {
         opacity: number;
     };
@@ -24,50 +25,14 @@ interface MetricExploreLegendProps extends Pick<LegendProps, 'payload'> {
     onClick?: (value: string) => void;
 }
 
-enum LegendIconVariant {
-    SQUARE = 'square',
-    LINE = 'line',
-    DASHED = 'dashed',
-}
-
-const getLegendIconVariant = (value: string) => {
-    switch (value) {
-        case 'metric':
-            return LegendIconVariant.LINE;
-        case 'compareMetric':
-            return LegendIconVariant.DASHED;
-        default:
-            return LegendIconVariant.SQUARE;
-    }
-};
-
 const LegendIcon = ({
     color,
-    variant,
+    opacity,
 }: {
     color: string | undefined;
-    variant: LegendIconVariant;
+    opacity: number;
 }) => {
-    switch (variant) {
-        case LegendIconVariant.SQUARE:
-            return <SquareBadge color={color} size={12} />;
-        case LegendIconVariant.LINE:
-            return (
-                <MantineIcon
-                    icon={IconBackslash}
-                    color={color}
-                    size={12}
-                    // react-tabler doesn't have an horizontal line icon
-                    style={{ transform: 'rotate(125deg)' }}
-                />
-            );
-        case LegendIconVariant.DASHED:
-            return (
-                <MantineIcon icon={IconLineDashed} color={color} size={12} />
-            );
-        default:
-            return null;
-    }
+    return <SquareBadge color={color} size={12} opacity={opacity} />;
 };
 
 export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
@@ -151,6 +116,17 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
         [props.legendConfig],
     );
 
+    const getOpacity = useCallback(
+        (value: string) => {
+            return value === 'compareMetric' &&
+                props.comparison.comparison ===
+                    MetricExplorerComparison.PREVIOUS_PERIOD
+                ? COMPARISON_OPACITY
+                : 1;
+        },
+        [props.comparison],
+    );
+
     return (
         <Flex
             w="100%"
@@ -194,7 +170,7 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
                     <Group key={item.value} spacing={4} noWrap>
                         <LegendIcon
                             color={item.color}
-                            variant={getLegendIconVariant(item.value)}
+                            opacity={getOpacity(item.value)}
                         />
                         <Tooltip label={item.value}>
                             <Text

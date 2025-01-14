@@ -8,10 +8,8 @@ import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { TagInput } from '../../../../components/common/TagInput/TagInput';
 import {
     useFilterSelectStyles,
-    useFilterTagInputStyles,
     useOperatorSelectStyles,
 } from '../../styles/useFilterStyles';
 import {
@@ -20,6 +18,7 @@ import {
     getOperatorOptions,
 } from '../../utils/metricExploreFilter';
 import SelectItem from '../SelectItem';
+import { MetricExploreFilterAutoComplete } from './MetricExploreFilterAutoComplete';
 
 type Props = {
     dimensions: CompiledDimension[] | undefined;
@@ -39,7 +38,6 @@ export const MetricExploreFilter: FC<Props> = ({
 }) => {
     const { classes: filterSelectClasses, theme } = useFilterSelectStyles();
     const { classes: operatorSelectClasses } = useOperatorSelectStyles();
-    const { classes: tagInputClasses } = useFilterTagInputStyles();
 
     const [filterState, setFilterState] = useState<FilterState>({
         dimension: null,
@@ -165,6 +163,13 @@ export const MetricExploreFilter: FC<Props> = ({
         [showValuesSection, selectedDimension, onFilterApply],
     );
 
+    const handleTagInputChange = useCallback((values: string[]) => {
+        setFilterState((prev) => ({
+            ...prev,
+            values,
+        }));
+    }, []);
+
     return (
         <Stack spacing="xs">
             <Group position="apart">
@@ -213,69 +218,56 @@ export const MetricExploreFilter: FC<Props> = ({
                     borderRadius: theme.radius.md,
                 }}
             >
-                <Select
-                    placeholder="Filter by"
-                    icon={<MantineIcon icon={IconFilter} />}
-                    searchable
-                    radius="md"
-                    size="xs"
-                    data={
-                        dimensions?.map((dimension) => ({
-                            value: getItemId(dimension),
-                            label: dimension.label,
-                        })) ?? []
-                    }
-                    disabled={dimensions?.length === 0}
-                    value={filterState.fieldId}
-                    itemComponent={SelectItem}
-                    onChange={handleDimensionChange}
-                    data-selected={!!filterState.fieldId}
-                    classNames={filterSelectClasses}
-                />
+                <Group spacing={0} noWrap>
+                    <Select
+                        placeholder="Filter by"
+                        icon={<MantineIcon icon={IconFilter} />}
+                        searchable
+                        radius="md"
+                        size="xs"
+                        data={
+                            dimensions?.map((dimension) => ({
+                                value: getItemId(dimension),
+                                label: dimension.label,
+                                group: dimension.tableLabel,
+                            })) ?? []
+                        }
+                        disabled={dimensions?.length === 0}
+                        value={filterState.fieldId}
+                        itemComponent={SelectItem}
+                        onChange={handleDimensionChange}
+                        data-selected={!!filterState.fieldId}
+                        data-no-values={!showValuesSection}
+                        classNames={filterSelectClasses}
+                    />
 
-                {filterState.fieldId && (
-                    <Group spacing={0} noWrap>
+                    {filterState.fieldId && (
                         <Select
-                            w={showValuesSection ? 70 : '100%'}
-                            maw={showValuesSection ? 70 : '100%'}
                             placeholder="Condition"
                             data={operatorOptions}
                             value={filterState.operator}
                             onChange={handleOperatorChange}
                             size="xs"
                             radius="md"
-                            classNames={{
-                                input: operatorSelectClasses.input,
-                                item: operatorSelectClasses.item,
-                                dropdown: operatorSelectClasses.dropdown,
-                                rightSection:
-                                    operatorSelectClasses.rightSection,
-                            }}
+                            classNames={operatorSelectClasses}
+                            data-no-values={!showValuesSection}
                             data-full-width={
                                 !showValuesSection ? 'true' : 'false'
                             }
                         />
-                        {showValuesSection && (
-                            <TagInput
-                                placeholder={
-                                    filterState.operator
-                                        ? 'Type values...'
-                                        : undefined
-                                }
-                                value={filterState.values}
-                                disabled={!filterState.operator}
-                                onChange={(values) =>
-                                    setFilterState((prev) => ({
-                                        ...prev,
-                                        values,
-                                    }))
-                                }
-                                radius="md"
-                                size="xs"
-                                classNames={tagInputClasses}
-                            />
-                        )}
-                    </Group>
+                    )}
+                </Group>
+
+                {showValuesSection && selectedDimension && (
+                    <MetricExploreFilterAutoComplete
+                        dimension={selectedDimension}
+                        values={filterState.values}
+                        onChange={handleTagInputChange}
+                        placeholder={
+                            filterState.operator ? 'Type values...' : undefined
+                        }
+                        disabled={!filterState.operator}
+                    />
                 )}
             </Stack>
             {filterState.fieldId && dimensionMetadata?.requiresValues && (

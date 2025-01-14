@@ -2,200 +2,24 @@ import { FeatureFlags, type CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
-    Button,
     Center,
-    Checkbox,
     Divider,
     Group,
-    Popover,
     SegmentedControl,
-    Stack,
     Text,
     TextInput,
     Tooltip,
     type GroupProps,
 } from '@mantine/core';
-import {
-    IconList,
-    IconSearch,
-    IconSitemap,
-    IconTag,
-    IconX,
-} from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { IconList, IconSearch, IconSitemap, IconX } from '@tabler/icons-react';
+import { memo, useCallback, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useProjectTags } from '../hooks/useProjectTags';
-import { MetricCatalogView } from '../types';
-import { CatalogCategory } from './CatalogCategory';
-
-type CategoriesFilterProps = {
-    selectedCategories: CatalogField['categories'][number]['tagUuid'][];
-    setSelectedCategories: (
-        categories: CatalogField['categories'][number]['tagUuid'][],
-    ) => void;
-};
-
-const CategoriesFilter: FC<CategoriesFilterProps> = ({
-    selectedCategories,
-    setSelectedCategories,
-}) => {
-    const projectUuid = useAppSelector(
-        (state) => state.metricsCatalog.projectUuid,
-    );
-
-    // Categories are just tags
-    const { data: categories, isLoading } = useProjectTags(projectUuid);
-
-    const hasSelectedCategories = selectedCategories.length > 0;
-
-    const categoryNames = useMemo(
-        () =>
-            categories
-                ?.filter((category) =>
-                    selectedCategories.includes(category.tagUuid),
-                )
-                .map((category) => category.name)
-                .join(', '),
-        [categories, selectedCategories],
-    );
-
-    return (
-        <Group spacing="two">
-            <Popover width={300} position="bottom-start">
-                <Popover.Target>
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Filter metrics by category"
-                    >
-                        <Button
-                            h={32}
-                            c="gray.7"
-                            fw={500}
-                            fz="sm"
-                            variant="default"
-                            radius="md"
-                            py="xs"
-                            px="sm"
-                            leftIcon={
-                                <MantineIcon
-                                    icon={IconTag}
-                                    size="md"
-                                    color={
-                                        hasSelectedCategories
-                                            ? 'indigo.5'
-                                            : 'gray.5'
-                                    }
-                                />
-                            }
-                            loading={isLoading}
-                            styles={(theme) => ({
-                                root: {
-                                    border: hasSelectedCategories
-                                        ? `1px solid ${theme.colors.indigo[2]}`
-                                        : `1px dashed ${theme.colors.gray[3]}`,
-                                    backgroundColor: hasSelectedCategories
-                                        ? theme.colors.indigo[0]
-                                        : undefined,
-                                    textOverflow: 'ellipsis',
-                                    boxShadow: theme.shadows.subtle,
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.gray[0],
-                                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                    },
-                                },
-                                label: {
-                                    height: 24,
-                                },
-                            })}
-                        >
-                            {hasSelectedCategories
-                                ? categoryNames
-                                : 'All categories'}
-                        </Button>
-                    </Tooltip>
-                </Popover.Target>
-                <Popover.Dropdown p="sm">
-                    <Stack spacing={4}>
-                        <Text fz="xs" c="dark.3" fw={600}>
-                            Filter by categories:
-                        </Text>
-
-                        {categories?.length === 0 && (
-                            <Text fz="xs" fw={500} c="gray.6">
-                                No categories added yet. Click on the category
-                                cells to assign categories to your metrics.
-                            </Text>
-                        )}
-
-                        <Stack spacing="xs">
-                            {categories?.map((category) => (
-                                <Checkbox
-                                    key={category.tagUuid}
-                                    label={
-                                        <CatalogCategory category={category} />
-                                    }
-                                    checked={selectedCategories.includes(
-                                        category.tagUuid,
-                                    )}
-                                    size="xs"
-                                    styles={(theme) => ({
-                                        body: {
-                                            alignItems: 'center',
-                                        },
-                                        input: {
-                                            borderRadius: theme.radius.sm,
-                                            border: `1px solid ${theme.colors.gray[4]}`,
-                                        },
-                                        label: {
-                                            paddingLeft: theme.spacing.xs,
-                                        },
-                                    })}
-                                    onChange={() => {
-                                        if (
-                                            selectedCategories.includes(
-                                                category.tagUuid,
-                                            )
-                                        ) {
-                                            setSelectedCategories(
-                                                selectedCategories.filter(
-                                                    (c) =>
-                                                        c !== category.tagUuid,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedCategories([
-                                                ...selectedCategories,
-                                                category.tagUuid,
-                                            ]);
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </Stack>
-                    </Stack>
-                </Popover.Dropdown>
-            </Popover>
-            {hasSelectedCategories && (
-                <Tooltip variant="xs" label="Clear all categories">
-                    <ActionIcon
-                        size="xs"
-                        color="gray.5"
-                        onClick={() => {
-                            setSelectedCategories([]);
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </Group>
-    );
-};
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
+import { MetricCatalogView } from '../../types';
+import CategoriesFilter from './CategoriesFilter';
+import SegmentedControlHoverCard from './SegmentedControlHoverCard';
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -205,7 +29,8 @@ type MetricsTableTopToolbarProps = GroupProps & {
         categories: CatalogField['categories'][number]['tagUuid'][],
     ) => void;
     totalResults: number;
-    segmentedControlTooltipLabel?: string;
+    isValidMetricsNodeCount: boolean;
+    isValidMetricsEdgeCount: boolean;
     showCategoriesFilter?: boolean;
     isValidMetricsTree: boolean;
     metricCatalogView: MetricCatalogView;
@@ -220,7 +45,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         setSelectedCategories,
         showCategoriesFilter,
         isValidMetricsTree,
-        segmentedControlTooltipLabel,
+        isValidMetricsNodeCount,
+        isValidMetricsEdgeCount,
         metricCatalogView,
         ...props
     }) => {
@@ -333,11 +159,17 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     borderColor: '#DEE2E6',
                                 }}
                             />
-                            <Tooltip
+                            <SegmentedControlHoverCard
+                                totalMetricsCount={totalResults}
+                                isValidMetricsNodeCount={
+                                    isValidMetricsNodeCount
+                                }
+                                isValidMetricsEdgeCount={
+                                    isValidMetricsEdgeCount
+                                }
                                 withinPortal
-                                variant="xs"
-                                label={segmentedControlTooltipLabel}
-                                disabled={isValidMetricsTree}
+                                position="bottom-end"
+                                withArrow
                             >
                                 <SegmentedControl
                                     size="xs"
@@ -415,7 +247,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         }
                                     }}
                                 />
-                            </Tooltip>
+                            </SegmentedControlHoverCard>
                         </>
                     )}
                 </Group>
