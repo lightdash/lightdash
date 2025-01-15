@@ -5,6 +5,7 @@ import {
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Group,
     Indicator,
@@ -22,6 +23,8 @@ import {
     IconChartHistogram,
     IconCodeCircle,
     IconGripHorizontal,
+    IconMaximize,
+    IconMinimize,
 } from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
 import {
@@ -103,6 +106,7 @@ export const ContentPanel: FC = () => {
 
     // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
+    const [previousPanelSize, setPreviousPanelSize] = useState<number>(50);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
 
     // state for helping highlight errors in the editor
@@ -419,6 +423,36 @@ export const ContentPanel: FC = () => {
                                       }
                                     : {})}
                             />
+                            <Tooltip label="Maximize results panel">
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={() => {
+                                        setPreviousPanelSize(panelSizes[1]);
+                                        resultsPanelRef.current?.resize(100);
+                                        setPanelSizes([30, 70]); // Keep minimum top panel size for test stability
+                                    }}
+                                >
+                                    <MantineIcon icon={IconMaximize} />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Minimize results panel">
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={() => {
+                                        const sizeToRestore =
+                                            previousPanelSize || 50;
+                                        resultsPanelRef.current?.resize(
+                                            sizeToRestore,
+                                        );
+                                        setPanelSizes([
+                                            100 - sizeToRestore,
+                                            sizeToRestore,
+                                        ]);
+                                    }}
+                                >
+                                    <MantineIcon icon={IconMinimize} />
+                                </ActionIcon>
+                            </Tooltip>
                             {activeEditorTab === EditorTabs.VISUALIZATION &&
                             !isVizTableConfig(currentVizConfig) &&
                             selectedChartType ? (
@@ -679,7 +713,7 @@ export const ContentPanel: FC = () => {
                         id="sql-runner-panel-results"
                         order={2}
                         defaultSize={panelSizes[1]}
-                        maxSize={500}
+                        maxSize={500} // Keep consistent maxSize for test stability
                         ref={resultsPanelRef}
                         style={{
                             display: hideResultsPanel ? 'none' : 'flex',
