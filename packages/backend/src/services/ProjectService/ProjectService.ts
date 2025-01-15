@@ -76,6 +76,7 @@ import {
     MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
+    OrFilterGroup,
     ParameterError,
     PivotChartData,
     Project,
@@ -2603,22 +2604,27 @@ export class ProjectService extends BaseService {
                 `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
             );
         }
-        const autocompleteDimensionFilters: FilterGroupItem[] = [
+        const autocompleteDimensionFilters: OrFilterGroup[] = [
             {
                 id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [search],
-            },
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.INCLUDE,
-                values: [`%${search}%`],
+                or: [
+                    {
+                        id: uuidv4(),
+                        target: {
+                            fieldId,
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: [search],
+                    },
+                    {
+                        id: uuidv4(),
+                        target: {
+                            fieldId,
+                        },
+                        operator: FilterOperator.INCLUDE,
+                        values: [`%${search}%`],
+                    },
+                ],
             },
         ];
         if (filters) {
@@ -2630,7 +2636,10 @@ export class ProjectService extends BaseService {
                         filter.target.fieldId,
                     ),
             );
-            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
+            autocompleteDimensionFilters.push({
+                id: uuidv4(),
+                or: [...filtersCompatibleWithExplore],
+            });
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
