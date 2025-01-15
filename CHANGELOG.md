@@ -1,3 +1,21 @@
+# [0.1454.0](https://github.com/lightdash/lightdash/compare/0.1453.1...0.1454.0) (2025-01-15)
+
+
+### Bug Fixes
+
+* get all models from dbt cloud api ([#13278](https://github.com/lightdash/lightdash/issues/13278)) ([b19b1c5](https://github.com/lightdash/lightdash/commit/b19b1c5607b7267daf432689ed1be0841c7c2442))
+* interpolate string for title ([#13264](https://github.com/lightdash/lightdash/issues/13264)) ([2253bd6](https://github.com/lightdash/lightdash/commit/2253bd61c0cd02a8798a95641279b397940f3481))
+* reset layout when initial edges or nodes change ([#13253](https://github.com/lightdash/lightdash/issues/13253)) ([e743bda](https://github.com/lightdash/lightdash/commit/e743bda5418503df7d7f1b6b0b1aca84875e4b1a))
+* revert release 0.1454.0 ([#13285](https://github.com/lightdash/lightdash/issues/13285)) ([d311ca2](https://github.com/lightdash/lightdash/commit/d311ca2559d86fad0e9c54a61646dcc9a1824b7b))
+* set left yaxis display if not set when theres 2 ([#13262](https://github.com/lightdash/lightdash/issues/13262)) ([35cedaf](https://github.com/lightdash/lightdash/commit/35cedafa661731329965143fff74b7265588d515))
+* title move position ([#13159](https://github.com/lightdash/lightdash/issues/13159)) ([99d3211](https://github.com/lightdash/lightdash/commit/99d3211a956903db210db48ea519e19533e507ea))
+* use base query explore name when running comparison ([#13238](https://github.com/lightdash/lightdash/issues/13238)) ([673eda1](https://github.com/lightdash/lightdash/commit/673eda18ff35f79539531e7d50b94e4ed66097f2))
+
+
+### Features
+
+* add explore_name to query metadata ([#13212](https://github.com/lightdash/lightdash/issues/13212)) ([84fe555](https://github.com/lightdash/lightdash/commit/84fe555418243ed140ab0df21d813692f196dd72))
+
 ## [0.1453.1](https://github.com/lightdash/lightdash/compare/0.1453.0...0.1453.1) (2025-01-14)
 
 
