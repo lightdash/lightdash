@@ -9,7 +9,9 @@ import {
     Explore,
     ExploreError,
     friendlyName,
+    getCompiledModels,
     getDbtManifestVersion,
+    getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
@@ -76,7 +78,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
         Logger.debug('Get dbt manifest');
         const { manifest } = await this.dbtClient.getDbtManifest();
-
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(
@@ -84,10 +85,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 {},
             );
         }
+
+        const manifestModels = getModelsFromManifest(manifest);
+        const compiledModels = getCompiledModels(manifestModels, undefined);
         const adapterType = manifest.metadata.adapter_type;
 
         // Validate models in the manifest - models with invalid metadata will compile to failed Explores
-        const models = Object.values(manifest.nodes).filter(
+        const models = Object.values(compiledModels).filter(
             (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
         ) as DbtRawModelNode[];
         const manifestVersion = getDbtManifestVersion(manifest);

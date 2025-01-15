@@ -1,11 +1,7 @@
 import {
     DbtDoc,
-    DbtManifest,
     DbtModelNode,
-    DbtRawModelNode,
     DimensionType,
-    isSupportedDbtAdapter,
-    normaliseModelDatabase,
     ParseError,
     patchPathParts,
 } from '@lightdash/common';
@@ -303,31 +299,6 @@ export const findAndUpdateModelYaml = async ({
         updatedYml,
         outputFilePath,
     };
-};
-
-export const getModelsFromManifest = (
-    manifest: DbtManifest,
-): DbtModelNode[] => {
-    const models = Object.values(manifest.nodes).filter(
-        (node) =>
-            node.resource_type === 'model' &&
-            node.config?.materialized !== 'ephemeral',
-    ) as DbtRawModelNode[];
-
-    if (!isSupportedDbtAdapter(manifest.metadata)) {
-        throw new ParseError(
-            `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
-            {},
-        );
-    }
-    const adapterType = manifest.metadata.adapter_type;
-    return models
-        .filter(
-            (model) =>
-                model.config?.materialized &&
-                model.config.materialized !== 'ephemeral',
-        )
-        .map((model) => normaliseModelDatabase(model, adapterType));
 };
 
 export const getCompiledModels = async (

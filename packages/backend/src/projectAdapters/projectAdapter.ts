@@ -42,7 +42,9 @@ export const projectAdapterFromConfig = async (
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
                 warehouseClient,
-                projectDir: config.project_dir || '/usr/app/dbt',
+                projectDir:
+                    '/home/rephus/work/lightdash/examples/full-jaffle-shop-demo/dbt' ||
+                    '/usr/app/dbt',
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,

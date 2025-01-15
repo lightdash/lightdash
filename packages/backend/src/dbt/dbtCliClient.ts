@@ -226,6 +226,13 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
+    private static validateSelector(selector: string): boolean {
+        // eslint-disable-next-line no-useless-escape
+        const validSelectorPattern =
+            /^[a-zA-Z0-9_\-\.\+]+(?:\:[a-zA-Z0-9_\-\s\.\+]+)*$/;
+        return validSelectorPattern.test(selector);
+    }
+
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         return Sentry.startSpan(
             {
@@ -236,12 +243,17 @@ export class DbtCliClient implements DbtClient {
                 },
             },
             async () => {
-                const dbtCommand = [this.useDbtLs ? 'ls' : 'compile'];
-                if (this.selector) {
-                    dbtCommand.push('--select', `${this.selector}`);
+                const dbtCommand = [];
+                const selector = this.selector?.trim();
+                if (selector) {
+                    if (!DbtCliClient.validateSelector(selector)) {
+                        throw new ParseError('Invalid dbt selector format');
+                    }
+                    dbtCommand.push('compile', '--select', `${selector}`);
+                } else {
+                    dbtCommand.push('ls');
                 }
                 const logs = await this._runDbtCommand(...dbtCommand);
-
                 const rawManifest = {
                     manifest: await this.loadDbtTargetArtifact('manifest.json'),
                 };
