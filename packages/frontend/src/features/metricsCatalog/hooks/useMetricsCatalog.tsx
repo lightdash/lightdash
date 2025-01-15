@@ -5,7 +5,11 @@ import {
     type ApiSort,
     type KnexPaginateArgs,
 } from '@lightdash/common';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import {
+    useInfiniteQuery,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 type UseMetricsCatalogOptions = {
@@ -67,6 +71,7 @@ export const useMetricsCatalog = ({
     categories,
     pageSize,
 }: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
+    const queryClient = useQueryClient();
     return useInfiniteQuery<ApiMetricsCatalog['results'], ApiError>({
         queryKey: [
             'metrics-catalog',
@@ -103,6 +108,11 @@ export const useMetricsCatalog = ({
                 ? search.length > MIN_METRICS_CATALOG_SEARCH_LENGTH
                 : true),
         keepPreviousData: true,
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: ['metrics-tree', projectUuid],
+            });
+        },
     });
 };
 

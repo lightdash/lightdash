@@ -7,7 +7,6 @@ import type {
 import {
     useMutation,
     useQuery,
-    useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -55,7 +54,6 @@ const createMetricsTreeEdge = async (
 };
 
 export const useCreateMetricsTreeEdge = () => {
-    const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty,
         ApiError,
@@ -63,11 +61,6 @@ export const useCreateMetricsTreeEdge = () => {
     >({
         mutationKey: ['create-metrics-tree-edge'],
         mutationFn: createMetricsTreeEdge,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ['metrics-tree'],
-            });
-        },
     });
 };
 
@@ -82,7 +75,6 @@ const deleteMetricsTreeEdge = async (
 };
 
 export const useDeleteMetricsTreeEdge = () => {
-    const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty,
         ApiError,
@@ -90,10 +82,5 @@ export const useDeleteMetricsTreeEdge = () => {
     >({
         mutationKey: ['delete-metrics-tree-edge'],
         mutationFn: deleteMetricsTreeEdge,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ['metrics-tree'],
-            });
-        },
     });
 };
