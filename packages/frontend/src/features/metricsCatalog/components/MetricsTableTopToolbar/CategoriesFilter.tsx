@@ -12,8 +12,6 @@ import {
 import { IconTag, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import useTracking from '../../../../providers/Tracking/useTracking';
-import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useProjectTags } from '../../hooks/useProjectTags';
 import { CatalogCategory } from '../CatalogCategory';
@@ -32,9 +30,6 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const organizationUuid = useAppSelector(
-        (state) => state.metricsCatalog.organizationUuid,
-    );
 
     // Categories are just tags
     const { data: categories, isLoading } = useProjectTags(projectUuid);
@@ -51,18 +46,6 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 .join(', '),
         [categories, selectedCategories],
     );
-
-    const { track } = useTracking();
-
-    const trackCategoryFilter = () => {
-        track({
-            name: EventName.METRICS_CATALOG_FILTER_APPLIED,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-            },
-        });
-    };
 
     return (
         <Group spacing="two">
@@ -174,7 +157,6 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                                 category.tagUuid,
                                             ]);
                                         }
-                                        trackCategoryFilter();
                                     }}
                                 />
                             ))}
