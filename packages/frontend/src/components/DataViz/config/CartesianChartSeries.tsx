@@ -1,31 +1,26 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
-    getEChartsChartTypeFromChartKind,
-    ValueLabelPositionOptions,
     type CartesianChartDisplay,
     type ChartKind,
     type PivotChartLayout,
 } from '@lightdash/common';
-import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
-import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
+import { Accordion, SegmentedControl, Stack, Text } from '@mantine/core';
 import { useMemo } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector,
 } from '../../../features/sqlRunner/store/hooks';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import MantineIcon from '../../common/MantineIcon';
-import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
-import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
-import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig';
+import { SingleSeriesConfiguration } from './SingleSeriesConfiguration';
 
 type ConfigurableSeries = {
     reference: PivotChartLayout['y'][number]['reference'];
+    seriesIndex: number;
 } & Pick<
     NonNullable<CartesianChartDisplay['series']>[number],
     'format' | 'label' | 'color' | 'type' | 'valueLabelPosition' | 'whichYAxis'
@@ -50,218 +45,173 @@ export const CartesianChartSeries = ({
         selectCurrentCartesianChartState(state, selectedChartType),
     )?.seriesMetadata;
 
-    const series: ConfigurableSeries[] = useMemo(() => {
+    const groupedSeries: Record<string, ConfigurableSeries[]> = useMemo(() => {
         if (!seriesMetadata) {
-            return [];
+            return {};
         }
 
-        return seriesMetadata.map((s, index) => {
-            const foundSeries = Object.values(
-                currentConfig?.display?.series || {},
-            ).find((displayProps) => displayProps.yAxisIndex === index);
+        return seriesMetadata.reduce<Record<string, ConfigurableSeries[]>>(
+            (acc, s, index) => {
+                const foundSeries = Object.values(
+                    currentConfig?.display?.series || {},
+                ).find((displayProps) => displayProps.yAxisIndex === index);
 
-            const seriesFormat = foundSeries?.format;
-            const seriesLabel = foundSeries?.label;
-            const seriesColor = foundSeries?.color;
-            const seriesType = foundSeries?.type;
-            const seriesValueLabelPosition = foundSeries?.valueLabelPosition;
-            const seriesWhichYAxis = foundSeries?.whichYAxis;
-            return {
-                reference: s.id,
-                format: seriesFormat,
-                label: seriesLabel ?? friendlyName(s.id),
-                color: seriesColor ?? colors[index],
-                type: seriesType,
-                valueLabelPosition: seriesValueLabelPosition,
-                whichYAxis: seriesWhichYAxis,
-            };
-        });
+                const seriesFormat = foundSeries?.format;
+                const seriesLabel = foundSeries?.label;
+                const seriesColor = foundSeries?.color;
+                const seriesType = foundSeries?.type;
+                const seriesValueLabelPosition =
+                    foundSeries?.valueLabelPosition;
+                const seriesWhichYAxis = foundSeries?.whichYAxis;
+
+                const config = {
+                    reference: s.id,
+                    format: seriesFormat,
+                    label: seriesLabel ?? friendlyName(s.id),
+                    color: seriesColor ?? colors[index],
+                    type: seriesType,
+                    valueLabelPosition: seriesValueLabelPosition,
+                    whichYAxis: seriesWhichYAxis,
+                    // TODO: for now tracking the index in the series array.
+                    // This makes it so we don't need to make a breaking change to
+                    // the saved format, which applies styles by index, but is less
+                    // readable and less performant than if we used the reference.
+                    seriesIndex: index,
+                };
+
+                if (!acc[s.referenceField]) {
+                    acc[s.referenceField] = [];
+                }
+
+                acc[s.referenceField].push(config);
+
+                return acc;
+            },
+            {},
+        );
     }, [colors, currentConfig?.display?.series, seriesMetadata]);
 
-    console.log('series', series, seriesMetadata);
+    const isGrouped = useMemo(() => {
+        return (
+            currentConfig?.fieldConfig?.groupBy !== undefined &&
+            currentConfig?.fieldConfig?.groupBy.length > 0
+        );
+    }, [currentConfig?.fieldConfig?.groupBy]);
+
+    console.log('series', seriesMetadata, groupedSeries);
 
     return (
-        <Stack mt="sm">
-            {series.length === 0 && (
+        <Stack mt="sm" spacing="xs">
+            {Object.keys(groupedSeries).length === 0 && (
                 <Text>No series found. Add a metric to create a series.</Text>
             )}
-            {series.length > 0 && (
-                <Config>
-                    <Config.Group>
-                        <Config.Label>{`Stacking`}</Config.Label>
-                        <SegmentedControl
-                            radius="md"
-                            disabled={series.length === 1}
-                            data={[
-                                {
-                                    value: 'None',
-                                    label: 'None',
-                                },
-                                {
-                                    value: 'Stacked',
-                                    label: 'Stacked',
-                                },
-                            ]}
-                            defaultValue={
-                                currentConfig?.display?.stack
-                                    ? 'Stacked'
-                                    : 'None'
-                            }
-                            onChange={(value) =>
-                                dispatch(
-                                    actions.setStacked(value === 'Stacked'),
-                                )
-                            }
-                        />
-                    </Config.Group>
-                </Config>
+            {Object.keys(groupedSeries).length > 0 && (
+                <>
+                    <Config>
+                        <Config.Group>
+                            <Config.Label>{`Stacking`}</Config.Label>
+                            <SegmentedControl
+                                radius="md"
+                                // TODO: disabled for grouped series. Re-enable when
+                                // stacking series is enabled.
+                                disabled={
+                                    Object.keys(groupedSeries).length === 1 ||
+                                    isGrouped
+                                }
+                                data={[
+                                    {
+                                        value: 'None',
+                                        label: 'None',
+                                    },
+                                    {
+                                        value: 'Stacked',
+                                        label: 'Stacked',
+                                    },
+                                ]}
+                                defaultValue={
+                                    currentConfig?.display?.stack
+                                        ? 'Stacked'
+                                        : 'None'
+                                }
+                                onChange={(value) =>
+                                    dispatch(
+                                        actions.setStacked(value === 'Stacked'),
+                                    )
+                                }
+                            />
+                        </Config.Group>
+                    </Config>
+                </>
             )}
-            {series.map(
-                (
-                    {
-                        reference,
-                        label,
-                        color,
-                        type,
-                        whichYAxis,
-                        valueLabelPosition,
-                    },
-                    index,
-                ) => (
-                    <Stack key={reference} spacing="xs">
-                        <Stack
-                            pl="sm"
-                            spacing="xs"
-                            sx={(theme) => ({
-                                borderLeft: `1px solid ${theme.colors.gray[2]}`,
-                            })}
-                        >
-                            <Config.Subheading>{reference}</Config.Subheading>
-                            <Config.Group>
-                                <Config.Label>Label</Config.Label>
-
-                                <Group spacing="xs" noWrap>
-                                    <ColorSelector
-                                        color={color ?? colors[index]}
-                                        onColorChange={(c) => {
-                                            dispatch(
-                                                actions.setSeriesColor({
-                                                    index,
-                                                    color: c,
-                                                    reference,
-                                                }),
-                                            );
-                                        }}
-                                        swatches={colors}
-                                    />
-                                    <TextInput
-                                        radius="md"
-                                        value={label}
-                                        onChange={(e) => {
-                                            dispatch(
-                                                actions.setSeriesLabel({
-                                                    label: e.target.value,
-                                                    reference,
-                                                    index,
-                                                }),
-                                            );
-                                        }}
-                                    />
-                                </Group>
-                            </Config.Group>
-                            <Config.Group>
-                                <Config.Label>Chart Type</Config.Label>
-                                <CartesianChartTypeConfig
-                                    canSelectDifferentTypeFromBaseChart={true}
-                                    type={
-                                        type ??
-                                        getEChartsChartTypeFromChartKind(
-                                            selectedChartType,
-                                        )
-                                    }
-                                    onChangeType={(
-                                        value: NonNullable<
-                                            CartesianChartDisplay['series']
-                                        >[number]['type'],
-                                    ) => {
-                                        dispatch(
-                                            actions.setSeriesChartType({
-                                                index,
-                                                type: value,
-                                                reference,
-                                            }),
-                                        );
-                                    }}
-                                />
-                            </Config.Group>
-                            <Config.Group>
-                                <Config.Label>Y Axis</Config.Label>
-                                <SegmentedControl
-                                    sx={{ alignSelf: 'center' }}
-                                    radius="md"
-                                    data={[
-                                        {
-                                            value: 'left',
-                                            label: (
-                                                <Group spacing="xs" noWrap>
-                                                    <MantineIcon
-                                                        icon={IconAlignLeft}
-                                                    />
-                                                    <Text>Left</Text>
-                                                </Group>
-                                            ),
-                                        },
-                                        {
-                                            value: 'right',
-                                            label: (
-                                                <Group spacing="xs" noWrap>
-                                                    <Text>Right</Text>
-                                                    <MantineIcon
-                                                        icon={IconAlignRight}
-                                                    />
-                                                </Group>
-                                            ),
-                                        },
-                                    ]}
-                                    value={whichYAxis === 1 ? 'right' : 'left'}
-                                    onChange={(value) =>
-                                        dispatch(
-                                            actions.setSeriesYAxis({
-                                                index,
-                                                // whichYAxis is an index, but this input uses string values
-                                                whichYAxis:
-                                                    value === 'left' ? 0 : 1,
-                                                reference,
-                                            }),
-                                        )
-                                    }
-                                />
-                            </Config.Group>
-
-                            <Config.Group>
-                                <Config.Label>Value labels</Config.Label>
-                                <CartesianChartValueLabelConfig
-                                    valueLabelPosition={
-                                        valueLabelPosition ??
-                                        ValueLabelPositionOptions.HIDDEN
-                                    }
-                                    onChangeValueLabelPosition={(value) => {
-                                        dispatch(
-                                            actions.setSeriesValueLabelPosition(
-                                                {
-                                                    index,
-                                                    valueLabelPosition: value,
-                                                    reference,
-                                                },
-                                            ),
-                                        );
-                                    }}
-                                />
-                            </Config.Group>
-                        </Stack>
-                    </Stack>
-                ),
-            )}
+            {isGrouped
+                ? Object.entries(groupedSeries).map(
+                      ([referenceField, seriesArray]) => (
+                          <Accordion key={referenceField} variant="contained">
+                              <Accordion.Item value={referenceField} m={0}>
+                                  <Accordion.Control>
+                                      <Config.Subheading>
+                                          {friendlyName(referenceField)}
+                                      </Config.Subheading>
+                                  </Accordion.Control>
+                                  {seriesArray.map((s, index) => (
+                                      <Accordion.Panel
+                                          key={`${s.reference}-${index}`}
+                                      >
+                                          <SingleSeriesConfiguration
+                                              key={`${s.reference}-${index}`}
+                                              reference={s.reference}
+                                              seriesIndex={s.seriesIndex}
+                                              color={s.color}
+                                              colors={colors}
+                                              label={s.label}
+                                              type={s.type}
+                                              whichYAxis={s.whichYAxis}
+                                              valueLabelPosition={
+                                                  s.valueLabelPosition
+                                              }
+                                              selectedChartType={
+                                                  selectedChartType
+                                              }
+                                              dispatch={dispatch}
+                                              actions={actions}
+                                          />
+                                      </Accordion.Panel>
+                                  ))}
+                              </Accordion.Item>
+                          </Accordion>
+                      ),
+                  )
+                : Object.values(groupedSeries)
+                      .flat()
+                      .map(
+                          (
+                              {
+                                  reference,
+                                  label,
+                                  color,
+                                  type,
+                                  whichYAxis,
+                                  valueLabelPosition,
+                                  seriesIndex,
+                              },
+                              index,
+                          ) => (
+                              <SingleSeriesConfiguration
+                                  key={`${reference}-${index}`}
+                                  reference={reference}
+                                  color={color}
+                                  colors={colors}
+                                  label={label}
+                                  seriesIndex={seriesIndex}
+                                  type={type}
+                                  whichYAxis={whichYAxis}
+                                  valueLabelPosition={valueLabelPosition}
+                                  selectedChartType={selectedChartType}
+                                  dispatch={dispatch}
+                                  actions={actions}
+                              />
+                          ),
+                      )}
         </Stack>
     );
 };
