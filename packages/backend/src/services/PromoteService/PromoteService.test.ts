@@ -41,6 +41,13 @@ const spaceModel = {
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
 };
+
+function assertNonEmpty<T>(arr: T[]): asserts arr is [T, ...T[]] {
+    if (arr.length === 0) {
+        throw new Error('Array is empty');
+    }
+}
+
 describe('PromoteService chart changes', () => {
     test('getChartChanges create chart and space', async () => {
         const changes = PromoteService.getChartChanges(
@@ -51,6 +58,9 @@ describe('PromoteService chart changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(0);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
 
         expect(changes.charts[0].action).toBe('create');
         expect(changes.spaces[0].action).toBe('create');
@@ -76,6 +86,9 @@ describe('PromoteService chart changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(0);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
 
         expect(changes.charts[0].action).toBe('create');
         expect(changes.spaces[0].action).toBe('no changes');
@@ -103,6 +116,9 @@ describe('PromoteService chart changes', () => {
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(0);
 
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
+
         expect(changes.charts[0].action).toBe('no changes');
         expect(changes.spaces[0].action).toBe('no changes');
     });
@@ -123,6 +139,9 @@ describe('PromoteService chart changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(0);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
 
         expect(changes.charts[0].action).toBe('update');
         expect(changes.spaces[0].action).toBe('no changes');
@@ -166,6 +185,9 @@ describe('PromoteService chart changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(0);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
 
         expect(changes.charts[0].action).toBe('update');
         expect(changes.spaces[0].action).toBe('create');
@@ -219,6 +241,9 @@ describe('PromoteService dashboard changes', () => {
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(1);
 
+        assertNonEmpty(changes.dashboards);
+        assertNonEmpty(changes.spaces);
+
         expect(changes.dashboards[0].action).toBe('create');
         expect(changes.spaces[0].action).toBe('create');
 
@@ -254,6 +279,10 @@ describe('PromoteService dashboard changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1); // Chart and dashboard are in the same space
         expect(changes.dashboards.length).toBe(1);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
+        assertNonEmpty(changes.dashboards);
 
         expect(changes.dashboards[0].action).toBe('create');
         expect(changes.spaces[0].action).toBe('create');
@@ -302,6 +331,9 @@ describe('PromoteService dashboard changes', () => {
         expect(changes.spaces.length).toBe(2); // Chart and dashboard are in different spaces
         expect(changes.dashboards.length).toBe(1);
 
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.dashboards);
+
         expect(changes.dashboards[0].action).toBe('create');
         expect(changes.spaces.map((s) => s.action)).toStrictEqual([
             'create',
@@ -340,6 +372,10 @@ describe('PromoteService dashboard changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1); // Chart and dashboard are in the same space
         expect(changes.dashboards.length).toBe(1);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
+        assertNonEmpty(changes.dashboards);
 
         expect(changes.dashboards[0].action).toBe('update');
         expect(changes.spaces[0].action).toBe('no changes');
@@ -381,6 +417,10 @@ describe('PromoteService dashboard changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1); // Chart and dashboard are in the same space
         expect(changes.dashboards.length).toBe(1);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
+        assertNonEmpty(changes.dashboards);
 
         expect(changes.dashboards[0].action).toBe('create');
         expect(changes.spaces[0].action).toBe('create');
@@ -437,6 +477,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(1);
+        assertNonEmpty(changes.spaces);
         expect(changes.spaces[0].action).toBe('no changes');
 
         const newChanges = await service.upsertSpaces(user, changes);
@@ -455,9 +496,11 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(1);
+        assertNonEmpty(changes.spaces);
         expect(changes.spaces[0].action).toBe('create');
 
         // Right now the dashboard is pointing to wrong space uuid, this will be updated after creating new spaces
+        assertNonEmpty(changes.dashboards);
         expect(changes.dashboards[0].data.spaceUuid).toEqual(
             promotedDashboard.dashboard.spaceUuid,
         );
@@ -467,6 +510,9 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.spaces);
+        assertNonEmpty(changes.dashboards);
 
         expect(newChanges).toEqual({
             ...changes,
@@ -508,6 +554,7 @@ describe('PromoteService promoting and mutating changes', () => {
         );
 
         expect(changes.spaces.length).toBe(1);
+        assertNonEmpty(changes.spaces);
         expect(changes.spaces[0].action).toBe('create');
         expect(changes.spaces[0].data.isPrivate).toBe(true);
 
@@ -540,6 +587,7 @@ describe('PromoteService promoting and mutating changes', () => {
             );
 
         expect(changes.spaces.length).toBe(1);
+        assertNonEmpty(changes.spaces);
         expect(changes.spaces[0].action).toBe('update');
         expect(changes.spaces[0].data.isPrivate).toBe(false); // Existing space is not private, so it should be kept that way
 
@@ -563,6 +611,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(1);
+        assertNonEmpty(changes.dashboards);
         expect(changes.dashboards[0].action).toBe('update');
 
         const newChanges = await service.getOrCreateDashboard(user, changes);
@@ -581,6 +630,9 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(1);
+
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.dashboards);
         expect(changes.dashboards[0].action).toBe('create');
 
         // Right now the dashboard is pointing to wrong dashboard uuid, this will be updated after creating new dsahboard
@@ -592,6 +644,9 @@ describe('PromoteService promoting and mutating changes', () => {
         const newChanges = await service.getOrCreateDashboard(user, changes);
 
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
+
+        assertNonEmpty(newChanges.charts);
+        assertNonEmpty(newChanges.dashboards);
 
         expect(newChanges.dashboards[0].data.uuid).toEqual(
             existingUpstreamDashboard.dashboard?.uuid,
@@ -617,6 +672,8 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
         expect(changes.dashboards.length).toBe(1);
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.dashboards);
         expect(changes.dashboards[0].action).toBe('create');
 
         // Right now the chart within dashboard is pointing to wrong dashboard uuid, this will be updated after creating new dsahboard
@@ -625,6 +682,7 @@ describe('PromoteService promoting and mutating changes', () => {
         );
         const newChanges = await service.getOrCreateDashboard(user, changes);
 
+        assertNonEmpty(newChanges.charts);
         expect(newChanges.charts[0].data.dashboardUuid).toEqual(
             existingUpstreamDashboard.dashboard?.uuid,
         );
@@ -639,6 +697,7 @@ describe('PromoteService promoting and mutating changes', () => {
             );
 
         expect(changes.charts.length).toBe(1);
+        assertNonEmpty(changes.charts);
         expect(changes.charts[0].action).toBe('no changes');
 
         expect(changes.charts[0].data.uuid).toEqual(
@@ -648,6 +707,7 @@ describe('PromoteService promoting and mutating changes', () => {
 
         expect(dashboardModel.create).toHaveBeenCalledTimes(0);
 
+        assertNonEmpty(newChanges.charts);
         expect(newChanges.charts[0].data.uuid).toEqual(
             existingUpstreamChart.chart?.uuid,
         );
@@ -676,26 +736,37 @@ describe('PromoteService promoting and mutating changes', () => {
             );
 
         expect(changes.charts.length).toBe(1);
+        assertNonEmpty(changes.charts);
+        assertNonEmpty(changes.dashboards);
         expect(changes.dashboards[0].action).toBe('create');
 
         expect(changes.charts[0].data.uuid).toEqual(
             promotedChartWithinDashboard.chart?.uuid,
         );
         const tile = changes.dashboards[0].data.tiles[0];
-        expect(
-            tile.type === DashboardTileTypes.SAVED_CHART &&
-                tile.properties.savedChartUuid,
-        ).toEqual(promotedChartWithinDashboard.chart?.uuid);
+        if (tile && tile.type === DashboardTileTypes.SAVED_CHART) {
+            expect(tile.properties.savedChartUuid).toEqual(
+                promotedChartWithinDashboard.chart?.uuid,
+            );
+        } else {
+            fail('Tile is undefined or not of type SAVED_CHART');
+        }
         const newChanges = await service.upsertCharts(user, changes);
 
         expect(savedChartModel.create).toHaveBeenCalledTimes(1);
 
+        assertNonEmpty(newChanges.charts);
+        assertNonEmpty(newChanges.dashboards);
+
         expect(newChanges.charts[0].data.uuid).toEqual(createdChart.uuid);
 
         const newTile = newChanges.dashboards[0].data.tiles[0];
-        expect(
-            newTile.type === DashboardTileTypes.SAVED_CHART &&
-                newTile.properties.savedChartUuid,
-        ).toEqual(createdChart.uuid);
+        if (newTile && newTile.type === DashboardTileTypes.SAVED_CHART) {
+            expect(newTile.properties.savedChartUuid).toEqual(
+                createdChart.uuid,
+            );
+        } else {
+            fail('newTile is either undefined or not of type SAVED_CHART');
+        }
     });
 });
