@@ -42,9 +42,7 @@ export const projectAdapterFromConfig = async (
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
                 warehouseClient,
-                projectDir:
-                    '/home/rephus/work/lightdash/examples/full-jaffle-shop-demo/dbt' ||
-                    '/usr/app/dbt',
+                projectDir: config.project_dir || '/usr/app/dbt',
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
@@ -66,6 +64,7 @@ export const projectAdapterFromConfig = async (
                 apiKey: config.api_key,
                 cachedWarehouse,
                 dbtVersion,
+                // TODO add selector to dbt cloud
             });
         case DbtProjectType.GITHUB:
             return new DbtGithubProjectAdapter({
@@ -81,6 +80,7 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 useDbtLs,
+                selector: config.selector,
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -96,6 +96,7 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 useDbtLs,
+                selector: config.selector,
             });
         case DbtProjectType.BITBUCKET:
             return new DbtBitBucketProjectAdapter({
@@ -112,6 +113,7 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 useDbtLs,
+                selector: config.selector,
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -128,6 +130,7 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 useDbtLs,
+                selector: config.selector,
             });
         default:
             const never: never = config;

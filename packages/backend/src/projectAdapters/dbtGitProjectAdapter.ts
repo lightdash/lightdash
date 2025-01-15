@@ -32,6 +32,7 @@ export type DbtGitProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -88,6 +89,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
@@ -103,6 +105,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
