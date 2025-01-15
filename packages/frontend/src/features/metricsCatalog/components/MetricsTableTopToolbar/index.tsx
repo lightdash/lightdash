@@ -15,7 +15,10 @@ import { IconList, IconSearch, IconSitemap, IconX } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
+import { EventName } from '../../../../types/Events';
+import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
@@ -49,6 +52,16 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         metricCatalogView,
         ...props
     }) => {
+        const userUuid = useAppSelector(
+            (state) => state.metricsCatalog.user?.userUuid,
+        );
+        const organizationUuid = useAppSelector(
+            (state) => state.metricsCatalog.organizationUuid,
+        );
+        const projectUuid = useAppSelector(
+            (state) => state.metricsCatalog.projectUuid,
+        );
+        const { track } = useTracking();
         const location = useLocation();
         const navigate = useNavigate();
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
@@ -241,6 +254,14 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     });
                                     break;
                                 case MetricCatalogView.TREE:
+                                    track({
+                                        name: EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED,
+                                        properties: {
+                                            userId: userUuid,
+                                            organizationId: organizationUuid,
+                                            projectId: projectUuid,
+                                        },
+                                    });
                                     void navigate({
                                         pathname: `${location.pathname}/tree`,
                                         search: location.search,

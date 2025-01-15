@@ -43,6 +43,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
     ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
         const { track } = useTracking();
         const { colors } = useMantineTheme();
+        const userUuid = useAppSelector(
+            (state) => state.metricsCatalog.user?.userUuid,
+        );
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
         );
@@ -107,6 +110,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     track({
                         name: EventName.METRICS_CATALOG_CATEGORY_CLICKED,
                         properties: {
+                            userId: userUuid,
                             organizationId: organizationUuid,
                             projectId: projectUuid,
                             tagName,
@@ -122,6 +126,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 projectUuid,
                 tags,
                 track,
+                userUuid,
                 organizationUuid,
                 tagCatalogItemMutation,
                 catalogSearchUuid,

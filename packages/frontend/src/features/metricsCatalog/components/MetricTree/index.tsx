@@ -255,6 +255,9 @@ const getNodeLayout = (
 const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -455,6 +458,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 track({
                     name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
                     properties: {
+                        userId: userUuid,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                     },
@@ -464,9 +468,10 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [
             projectUuid,
             createMetricsTreeEdge,
-            setCurrentEdges,
             track,
+            userUuid,
             organizationUuid,
+            setCurrentEdges,
         ],
     );
 
@@ -483,6 +488,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     track({
                         name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED,
                         properties: {
+                            userId: userUuid,
                             organizationId: organizationUuid,
                             projectId: projectUuid,
                         },
@@ -492,7 +498,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 await Promise.all(promises);
             }
         },
-        [projectUuid, deleteMetricsTreeEdge, track, organizationUuid],
+        [projectUuid, deleteMetricsTreeEdge, track, organizationUuid, userUuid],
     );
 
     // Reset layout when initial edges or nodes change
