@@ -6548,6 +6548,9 @@
                         },
                         "type": "array"
                     },
+                    "selector": {
+                        "type": "string"
+                    },
                     "profiles_dir": {
                         "type": "string"
                     },
@@ -6600,6 +6603,9 @@
                         },
                         "type": "array"
                     },
+                    "selector": {
+                        "type": "string"
+                    },
                     "personal_access_token": {
                         "type": "string"
                     },
@@ -6643,6 +6649,9 @@
                             "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
                         },
                         "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
                     },
                     "username": {
                         "type": "string"
@@ -6692,6 +6701,9 @@
                         },
                         "type": "array"
                     },
+                    "selector": {
+                        "type": "string"
+                    },
                     "personal_access_token": {
                         "type": "string"
                     },
@@ -6735,6 +6747,9 @@
                             "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
                         },
                         "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
                     },
                     "personal_access_token": {
                         "type": "string"
@@ -6784,6 +6799,9 @@
                             "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
                         },
                         "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
                     },
                     "hideRefreshButton": {
                         "type": "boolean"

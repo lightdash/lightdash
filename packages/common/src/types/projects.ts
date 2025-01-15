@@ -219,6 +219,7 @@ export const DefaultSupportedDbtVersion = DbtVersionOptionLatest.LATEST;
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
     environment?: DbtProjectEnvironmentVariable[];
+    selector?: string;
 }
 
 export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {

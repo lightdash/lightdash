@@ -25,6 +25,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -39,6 +40,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -79,6 +81,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
         });
         this.profilesDir = profilesDir;
     }

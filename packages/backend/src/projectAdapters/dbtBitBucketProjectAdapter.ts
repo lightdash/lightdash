@@ -23,6 +23,7 @@ type Args = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
@@ -40,6 +41,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
     }: Args) {
         const remoteRepositoryUrl = `https://${username}:${personalAccessToken}@${
             hostDomain || DEFAULT_HOST_DOMAIN
@@ -56,6 +58,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
         });
     }
 }

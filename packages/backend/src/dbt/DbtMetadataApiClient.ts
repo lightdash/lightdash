@@ -242,6 +242,7 @@ export class DbtMetadataApiClient implements DbtClient {
     }
 
     async getDbtManifest() {
+        // TODO add selector to dbt cloud query
         try {
             const results = await this.getModels();
             const { adapterType } = results.environment;

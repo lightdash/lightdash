@@ -96,3 +96,42 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
         });
     });
 });
+
+describe('DbtCliClient', () => {
+    describe('validateSelector', () => {
+        it('should allow valid selectors', () => {
+            const validSelectors = [
+                'model_name',
+                'tag:daily',
+                'my_model+',
+                'folder.model',
+                'model_123',
+                'model-name',
+                'model:staging',
+                'model_name_with_underscore',
+                'events +customers tag:lightdash', // Complex selector with multiple parts
+            ];
+
+            validSelectors.forEach((selector) => {
+                expect(DbtCliClient.validateSelector(selector)).toBe(true);
+            });
+        });
+
+        it('should reject invalid selectors', () => {
+            const invalidSelectors = [
+                'model/name', // forward slash
+                'model\\name', // backslash
+                'model$name', // special character
+                'model@name', // special character
+                'model*name', // wildcard
+                'model;name', // semicolon
+                'model`name', // backtick
+                'model"name', // quotes
+            ];
+
+            invalidSelectors.forEach((selector) => {
+                expect(DbtCliClient.validateSelector(selector)).toBe(false);
+            });
+        });
+    });
+});
