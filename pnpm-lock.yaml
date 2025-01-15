@@ -672,7 +672,7 @@ importers:
         specifier: ^2.2.6
         version: 2.2.6(react-redux@9.2.0(@types/react@19.0.2)(react@19.0.0)(redux@5.0.1))(react@19.0.0)
       '@sentry/react':
-        specifier: ^8.47.0
+        specifier: ^8.9.2
         version: 8.47.0(react@19.0.0)
       '@shopify/react-web-worker':
         specifier: ^5.0.13
