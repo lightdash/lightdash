@@ -474,14 +474,6 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         async (edgesToDelete: Edge[]) => {
             if (projectUuid) {
                 const promises = edgesToDelete.map((edge) => {
-                    track({
-                        name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED,
-                        properties: {
-                            organizationId: organizationUuid,
-                            projectId: projectUuid,
-                        },
-                    });
-
                     return deleteMetricsTreeEdge({
                         projectUuid,
                         sourceCatalogSearchUuid: edge.source,
@@ -490,6 +482,14 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 });
 
                 await Promise.all(promises);
+
+                track({
+                    name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                    },
+                });
             }
         },
         [projectUuid, deleteMetricsTreeEdge, track, organizationUuid],
