@@ -1,3 +1,10 @@
+## [0.1455.3](https://github.com/lightdash/lightdash/compare/0.1455.2...0.1455.3) (2025-01-15)
+
+
+### Bug Fixes
+
+* clear dashboard storage after moving chart to space ([#13289](https://github.com/lightdash/lightdash/issues/13289)) ([5caf045](https://github.com/lightdash/lightdash/commit/5caf04579d2d4358c3a37db77dc2db4931d67211))
+
 ## [0.1455.2](https://github.com/lightdash/lightdash/compare/0.1455.1...0.1455.2) (2025-01-15)
 
 
