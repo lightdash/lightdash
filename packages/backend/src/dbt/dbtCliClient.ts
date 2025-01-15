@@ -228,8 +228,7 @@ export class DbtCliClient implements DbtClient {
 
     private static validateSelector(selector: string): boolean {
         // eslint-disable-next-line no-useless-escape
-        const validSelectorPattern =
-            /^[a-zA-Z0-9_\-\.\+]+(?:\:[a-zA-Z0-9_\-\s\.\+]+)*$/;
+        const validSelectorPattern = /^[a-zA-Z0-9\s\-\.\+:_]+$/;
         return validSelectorPattern.test(selector);
     }
 
@@ -245,13 +244,14 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 const dbtCommand = [];
                 const selector = this.selector?.trim();
+
                 if (selector) {
                     if (!DbtCliClient.validateSelector(selector)) {
                         throw new ParseError('Invalid dbt selector format');
                     }
                     dbtCommand.push('compile', '--select', `${selector}`);
                 } else {
-                    dbtCommand.push('ls');
+                    dbtCommand.push(this.useDbtLs ? 'ls' : 'compile');
                 }
                 const logs = await this._runDbtCommand(...dbtCommand);
                 const rawManifest = {
