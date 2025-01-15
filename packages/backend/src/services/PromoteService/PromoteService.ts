@@ -1317,7 +1317,11 @@ export class PromoteService extends BaseService {
                 upstreamDashboard,
             );
 
-            return promotionChanges.dashboards[0]!.data;
+            if (!promotionChanges.dashboards[0]) {
+                throw new NotFoundError('Updated dashboard not found');
+            }
+
+            return promotionChanges.dashboards[0].data;
         } catch (e) {
             Logger.error(`Unable to promote dashboard`, e);
             await this.trackAnalytics(
