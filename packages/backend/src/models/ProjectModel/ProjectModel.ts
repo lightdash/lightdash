@@ -796,17 +796,6 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
-    async getExploresFromCache(
-        projectUuid: string,
-    ): Promise<(Explore | ExploreError)[] | undefined> {
-        const explores = await this.database(CachedExploresTableName)
-            .select(['explores'])
-            .where('project_uuid', projectUuid)
-            .limit(1);
-        if (explores.length > 0) return explores[0].explores;
-        return undefined;
-    }
-
     static convertMetricFiltersFieldIdsToFieldRef = (
         explore: Explore | ExploreError,
     ) => {
@@ -883,63 +872,26 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        return wrapSentryTransaction(
-            'ProjectModel.getExploreFromCache',
-            {},
-            async (span) => {
-                // check individually cached explore
-                let exploreCache = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('name', exploreName)
-                    .andWhere('project_uuid', projectUuid)
-                    .first();
-
-                span.setAttribute(
-                    'foundIndividualExploreCache',
-                    !!exploreCache,
-                );
-                if (!exploreCache) {
-                    // fallback: check all cached explores
-                    exploreCache = await this.getExploreQueryBuilder(
-                        projectUuid,
-                    ).andWhereRaw("explore->>'name' = ?", [exploreName]);
-                    if (exploreCache === undefined) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" does not exist.`,
-                        );
-                    }
-                }
-                return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                    exploreCache.explore,
-                );
-            },
-        );
+        const cachedExplores = await this.findExploresFromCache(projectUuid, [
+            exploreName,
+        ]);
+        const cachedExplore = cachedExplores[exploreName];
+        if (cachedExplore === undefined) {
+            throw new NotExistsError(
+                `Explore "${exploreName}" does not exist.`,
+            );
+        }
+        return cachedExplore;
     }
 
     async findExploreByTableName(
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
-        return wrapSentryTransaction(
-            'ProjectModel.findExploreByTableName',
-            {},
-            async (span) => {
-                const exploreCache = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('name', tableName)
-                    .andWhere('project_uuid', projectUuid)
-                    .first();
-                span.setAttribute(
-                    'foundIndividualExploreCache',
-                    !!exploreCache,
-                );
-                return exploreCache
-                    ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                          exploreCache.explore,
-                      )
-                    : undefined;
-            },
-        );
+        const cachedExplores = await this.findExploresFromCache(projectUuid, [
+            tableName,
+        ]);
+        return cachedExplores[tableName];
     }
 
     // Returns explore based on the join original name rather than the explore with the join.
