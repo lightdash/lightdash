@@ -1,3 +1,10 @@
+# [0.1455.0](https://github.com/lightdash/lightdash/compare/0.1454.1...0.1455.0) (2025-01-15)
+
+
+### Features
+
+* render metrics link depending on metrics count ([#13287](https://github.com/lightdash/lightdash/issues/13287)) ([a71698c](https://github.com/lightdash/lightdash/commit/a71698cfe12ea92bff75e189b94e943077a9f50a))
+
 ## [0.1454.1](https://github.com/lightdash/lightdash/compare/0.1454.0...0.1454.1) (2025-01-15)
 
 
