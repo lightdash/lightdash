@@ -97,6 +97,10 @@ export class PersonalAccessTokenModel {
             })
             .where('personal_access_token_uuid', personalAccessTokenUuid)
             .returning('*');
+
+        if (!row) {
+            throw new NotFoundError('Personal access token not found');
+        }
         return {
             ...PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
             token,

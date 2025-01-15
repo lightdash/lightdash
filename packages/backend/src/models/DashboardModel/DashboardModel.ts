@@ -143,6 +143,12 @@ export class DashboardModel {
             ['dashboard_version_id', 'updated_by_user_uuid'],
         );
 
+        if (!versionId) {
+            throw new UnexpectedServerError(
+                'Failed to create dashboard version',
+            );
+        }
+
         await trx(DashboardViewsTableName).insert({
             dashboard_version_id: versionId.dashboard_version_id,
             name: 'Default',
@@ -291,9 +297,11 @@ export class DashboardModel {
         // TODO: remove after resolving a problem with importing lodash-es in the backend
         const pick = <T>(object: Record<string, T>, keys: string[]) =>
             Object.keys(object)
-                .filter((key) => keys.includes(key))
+                .filter(
+                    (key) => keys.includes(key) && object[key] !== undefined,
+                )
                 .reduce<typeof object>(
-                    (obj, key) => ({ ...obj, [key]: object[key] }),
+                    (obj, key) => ({ ...obj, [key]: object[key]! }),
                     {},
                 );
 
@@ -745,6 +753,10 @@ export class DashboardModel {
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
             .where(`dashboard_version_id`, dashboard.dashboard_version_id);
 
+        if (!view) {
+            throw new NotFoundError('Dashboard view not found');
+        }
+
         const tiles = await this.database(DashboardTilesTableName)
             .select<
                 {
@@ -1088,6 +1100,10 @@ export class DashboardModel {
                           ),
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
+
+            if (!newDashboard) {
+                throw new UnexpectedServerError('Dashboard not created');
+            }
 
             await DashboardModel.createVersion(trx, newDashboard.dashboard_id, {
                 ...dashboard,
