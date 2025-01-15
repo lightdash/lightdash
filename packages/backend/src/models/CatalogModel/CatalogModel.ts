@@ -7,6 +7,7 @@ import {
     FieldType,
     NotFoundError,
     TableSelectionType,
+    UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
     type ApiCatalogSearch,
     type ApiSort,
@@ -334,17 +335,61 @@ export class CatalogModel {
         }
 
         if (catalogTags) {
-            catalogItemsQuery = catalogItemsQuery.whereExists(
-                function getAllCatalogCategoriesThatMatchTags() {
-                    void this.select('*')
-                        .from(CatalogTagsTableName)
-                        .whereRaw(
-                            `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                        )
-                        .whereIn(
-                            `${CatalogTagsTableName}.tag_uuid`,
-                            catalogTags,
-                        );
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                function getCatalogItemsWithTags() {
+                    const regularTags = catalogTags.filter(
+                        (tag) => tag !== UNCATEGORIZED_TAG_UUID,
+                    );
+                    const includeUncategorized = catalogTags.includes(
+                        UNCATEGORIZED_TAG_UUID,
+                    );
+
+                    if (regularTags.length > 0 && includeUncategorized) {
+                        // Show items that either:
+                        // 1. Have no tags OR
+                        // 2. Have any of the specified tags
+                        void this.where(function getUncategorizedItems() {
+                            void this.whereNotExists(function noTags() {
+                                void this.select('*')
+                                    .from(CatalogTagsTableName)
+                                    .whereRaw(
+                                        `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                    );
+                            }).orWhereExists(function hasSpecificTags() {
+                                void this.select('*')
+                                    .from(CatalogTagsTableName)
+                                    .whereRaw(
+                                        `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                    )
+                                    .whereIn(
+                                        `${CatalogTagsTableName}.tag_uuid`,
+                                        regularTags,
+                                    );
+                            });
+                        });
+                    } else if (includeUncategorized) {
+                        // Show only items with no tags
+                        void this.whereNotExists(function noTags() {
+                            void this.select('*')
+                                .from(CatalogTagsTableName)
+                                .whereRaw(
+                                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                );
+                        });
+                    } else {
+                        // Show only items with specified tags
+                        void this.whereExists(function hasSpecificTags() {
+                            void this.select('*')
+                                .from(CatalogTagsTableName)
+                                .whereRaw(
+                                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                )
+                                .whereIn(
+                                    `${CatalogTagsTableName}.tag_uuid`,
+                                    regularTags,
+                                );
+                        });
+                    }
                 },
             );
         }

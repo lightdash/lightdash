@@ -53,6 +53,8 @@ type CustomIcon = {
 
 export type CatalogItemIcon = EmojiIcon | CustomIcon;
 
+export const UNCATEGORIZED_TAG_UUID = '__uncategorized__';
+
 export const isEmojiIcon = (icon: CatalogItemIcon | null): icon is EmojiIcon =>
     Boolean(icon && 'unicode' in icon);
 
