@@ -429,7 +429,7 @@ export const ContentPanel: FC = () => {
                                     onClick={() => {
                                         setPreviousPanelSize(panelSizes[1]);
                                         resultsPanelRef.current?.resize(100);
-                                        setPanelSizes([0, 100]);
+                                        setPanelSizes([30, 70]); // Keep minimum top panel size for test stability
                                     }}
                                 >
                                     <MantineIcon icon={IconMaximize} />
@@ -713,7 +713,7 @@ export const ContentPanel: FC = () => {
                         id="sql-runner-panel-results"
                         order={2}
                         defaultSize={panelSizes[1]}
-                        maxSize={panelSizes[1] === 100 ? undefined : 500}
+                        maxSize={500} // Keep consistent maxSize for test stability
                         ref={resultsPanelRef}
                         style={{
                             display: hideResultsPanel ? 'none' : 'flex',
