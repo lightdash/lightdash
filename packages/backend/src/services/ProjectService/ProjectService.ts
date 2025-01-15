@@ -1124,6 +1124,11 @@ export class ProjectService extends BaseService {
                 const { baseDimensionId } = getDateDimension(
                     firstTimeDimensionIdInMetricQuery,
                 );
+                if (!dimToOverride) {
+                    throw new NotFoundError(
+                        `Could not find dimension ${baseDimensionId} in explore ${explore.name}`,
+                    );
+                }
                 const baseTimeDimension =
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
@@ -1131,7 +1136,7 @@ export class ProjectService extends BaseService {
                 const dimWithGranularityOverride =
                     createDimensionWithGranularity(
                         dimToOverride.name,
-                        baseTimeDimension,
+                        baseTimeDimension!,
                         explore,
                         warehouseClient,
                         granularity,
@@ -1139,7 +1144,7 @@ export class ProjectService extends BaseService {
                 return replaceDimensionInExplore(
                     explore,
                     dimWithGranularityOverride,
-                );
+                ) as Explore;
             }
         }
         return explore;
@@ -2304,7 +2309,7 @@ export class ProjectService extends BaseService {
                             columns.push(
                                 ...Object.keys(fields).map((fieldName) => ({
                                     reference: fieldName,
-                                    type: fields[fieldName].type,
+                                    type: fields[fieldName]!.type,
                                 })),
                             );
                         }
@@ -2487,7 +2492,7 @@ export class ProjectService extends BaseService {
                             columns.push(
                                 ...Object.keys(fields).map((fieldName) => ({
                                     reference: fieldName,
-                                    type: fields[fieldName].type,
+                                    type: fields[fieldName]!.type,
                                 })),
                             );
                         }
@@ -2862,23 +2867,24 @@ export class ProjectService extends BaseService {
                         (acc, explore) => {
                             try {
                                 if (!isExploreError(explore)) {
-                                    const filteredExplore = {
-                                        ...explore,
-                                        tables: {
-                                            [explore.baseTable]:
-                                                explore.tables[
-                                                    explore.baseTable
-                                                ],
-                                        },
-                                    };
+                                    const baseTable =
+                                        explore.tables[explore.baseTable];
+                                    if (baseTable) {
+                                        const filteredExplore = {
+                                            ...explore,
+                                            tables: {
+                                                [explore.baseTable]: baseTable,
+                                            },
+                                        };
 
-                                    return (
-                                        acc +
-                                        getFields(filteredExplore).filter(
-                                            ({ format }) =>
-                                                format !== undefined,
-                                        ).length
-                                    );
+                                        return (
+                                            acc +
+                                            getFields(filteredExplore).filter(
+                                                ({ format }) =>
+                                                    format !== undefined,
+                                            ).length
+                                        );
+                                    }
                                 }
                             } catch (e) {
                                 this.logger.error(
@@ -2894,7 +2900,7 @@ export class ProjectService extends BaseService {
                             if (
                                 explore.tables &&
                                 explore.baseTable &&
-                                explore.tables[explore.baseTable].sqlWhere !==
+                                explore.tables[explore.baseTable]!.sqlWhere !==
                                     undefined
                             )
                                 return acc + 1;
@@ -2923,7 +2929,7 @@ export class ProjectService extends BaseService {
                                 return (
                                     acc +
                                     Object.values(
-                                        explore.tables[explore.baseTable]
+                                        explore.tables[explore.baseTable]!
                                             .dimensions,
                                     ).filter(
                                         (field) => field.isAdditionalDimension,
@@ -3189,11 +3195,11 @@ export class ProjectService extends BaseService {
                             tags: explore.tags,
                             groupLabel: explore.groupLabel,
                             databaseName:
-                                explore.tables[explore.baseTable].database,
+                                explore.tables[explore.baseTable]!.database,
                             schemaName:
-                                explore.tables[explore.baseTable].schema,
+                                explore.tables[explore.baseTable]!.schema,
                             description:
-                                explore.tables[explore.baseTable].description,
+                                explore.tables[explore.baseTable]?.description,
                             type: explore.type ?? ExploreType.DEFAULT,
                         },
                     ];
@@ -3561,7 +3567,7 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        return warehouseCatalog[database][schemaName][tableName];
+        return warehouseCatalog[database]![schemaName]![tableName]!;
     }
 
     async getTablesConfiguration(
@@ -3629,6 +3635,12 @@ export class ProjectService extends BaseService {
                         savedChartUuid,
                     ]);
 
+                if (!savedChart) {
+                    throw new NotFoundError(
+                        `Saved chart ${savedChartUuid} not found`,
+                    );
+                }
+
                 const space = await this.spaceModel.getSpaceSummary(
                     savedChart.spaceUuid,
                 );
@@ -3687,6 +3699,10 @@ export class ProjectService extends BaseService {
                     await this.savedChartModel.getInfoForAvailableFilters(
                         savedQueryUuids,
                     );
+
+                if (savedCharts.length === 0) {
+                    throw new NotFoundError(`Saved charts not found`);
+                }
                 const uniqueSpaceUuids = [
                     ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
                 ];
@@ -3702,7 +3718,7 @@ export class ProjectService extends BaseService {
                         ),
                         this.findExplores({
                             user,
-                            projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                            projectUuid: savedCharts[0]!.projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
                             exploreNames: savedCharts.map(
                                 (chart) => chart.tableName,
                             ),
@@ -3771,9 +3787,9 @@ export class ProjectService extends BaseService {
             );
             if (!filterResult || !filterResult.filters.length) return acc;
 
-            const filterIndexes = filterResult.filters.map(
-                (filter) => filterIndexMap[getItemId(filter)],
-            );
+            const filterIndexes = filterResult.filters
+                .map((filter) => filterIndexMap[getItemId(filter)])
+                .filter((index): index is number => index !== undefined);
             return {
                 ...acc,
                 [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
@@ -4247,11 +4263,11 @@ export class ProjectService extends BaseService {
 
         const spacesWithUserAccess = spaces
             .filter((space) =>
-                hasViewAccessToSpace(user, space, spacesAccess[space.uuid]),
+                hasViewAccessToSpace(user, space, spacesAccess[space.uuid]!),
             )
             .map((spaceSummary) => ({
                 ...spaceSummary,
-                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? [],
+                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? undefined,
             }));
 
         return spacesWithUserAccess;
@@ -5087,7 +5103,7 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return { tagUuid: createdTagUuid.tag_uuid };
+        return { tagUuid: createdTagUuid!.tag_uuid };
     }
 
     async deleteTag(user: SessionUser, tagUuid: string) {
