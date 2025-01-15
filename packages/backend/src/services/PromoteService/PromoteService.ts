@@ -1282,15 +1282,14 @@ export class PromoteService extends BaseService {
 
             // Update or create charts
             // and return the list of dashboard.tiles updates with the new chart uuids
-            const changedDashboard = promotionChanges.dashboards[0];
-            if (!changedDashboard) {
+            if (!promotionChanges.dashboards[0]) {
                 throw new NotFoundError('Dashboard not found');
             }
 
             promotionChanges = await this.upsertCharts(
                 user,
                 promotionChanges,
-                changedDashboard.data.uuid,
+                promotionChanges.dashboards[0].data.uuid,
             );
 
             promotionChanges = await this.updateDashboard(
@@ -1318,7 +1317,7 @@ export class PromoteService extends BaseService {
                 upstreamDashboard,
             );
 
-            return changedDashboard.data;
+            return promotionChanges.dashboards[0]!.data;
         } catch (e) {
             Logger.error(`Unable to promote dashboard`, e);
             await this.trackAnalytics(
