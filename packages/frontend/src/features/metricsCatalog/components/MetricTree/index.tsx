@@ -36,6 +36,8 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateMetricsTreeEdge,
@@ -251,9 +253,16 @@ const getNodeLayout = (
 };
 
 const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
+    const { track } = useTracking();
     const theme = useMantineTheme();
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
+    );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
     );
 
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
@@ -446,26 +455,50 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 });
 
                 setCurrentEdges((edg) => addEdge(params, edg));
+                track({
+                    name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
+                    properties: {
+                        userId: userUuid,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                    },
+                });
             }
         },
-        [projectUuid, createMetricsTreeEdge, setCurrentEdges],
+        [
+            projectUuid,
+            createMetricsTreeEdge,
+            track,
+            userUuid,
+            organizationUuid,
+            setCurrentEdges,
+        ],
     );
 
     const handleEdgesDelete = useCallback(
         async (edgesToDelete: Edge[]) => {
             if (projectUuid) {
-                const promises = edgesToDelete.map((edge) => {
-                    return deleteMetricsTreeEdge({
+                const promises = edgesToDelete.map(async (edge) => {
+                    await deleteMetricsTreeEdge({
                         projectUuid,
                         sourceCatalogSearchUuid: edge.source,
                         targetCatalogSearchUuid: edge.target,
+                    });
+
+                    track({
+                        name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED,
+                        properties: {
+                            userId: userUuid,
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                        },
                     });
                 });
 
                 await Promise.all(promises);
             }
         },
-        [projectUuid, deleteMetricsTreeEdge],
+        [projectUuid, deleteMetricsTreeEdge, track, organizationUuid, userUuid],
     );
 
     // Reset layout when initial edges or nodes change

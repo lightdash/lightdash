@@ -72,6 +72,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -137,12 +140,13 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             track({
                 name: EventName.METRICS_CATALOG_SEARCH_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
             });
         }
-    }, [deferredSearch, track, organizationUuid, projectUuid, data]);
+    }, [deferredSearch, track, organizationUuid, projectUuid, data, userUuid]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
@@ -196,6 +200,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             track({
                 name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
