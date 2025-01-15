@@ -25,7 +25,9 @@ const savedChartModel = {
     findChartsForValidation: jest.fn(async () => [chartForValidation]),
 };
 const projectModel = {
-    getExploresFromCache: jest.fn(async () => [explore]),
+    findExploresFromCache: jest.fn(async () => ({
+        [explore.name]: explore,
+    })),
     get: jest.fn(async () => project),
     getTablesConfiguration: jest.fn(async () => tableConfiguration),
 };
@@ -59,9 +61,9 @@ describe('validation', () => {
         ).toEqual([]);
     });
     it('Should validate project with dimension errors', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreWithoutDimension],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [exploreWithoutDimension]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -90,9 +92,9 @@ describe('validation', () => {
     });
 
     it('Should validate project with metric errors', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreWithoutMetric],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [exploreWithoutMetric]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -119,9 +121,9 @@ describe('validation', () => {
     });
 
     it('Should validate project with table errors', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreError],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [exploreError]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -145,9 +147,9 @@ describe('validation', () => {
     });
 
     it('Should not show unselected table errors', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreError],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [exploreError]);
 
         (
             projectModel.getTablesConfiguration as jest.Mock
@@ -166,15 +168,15 @@ describe('validation', () => {
     });
 
     it('Should show unselected table errors on joins', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [
-                exploreError,
-                {
-                    name: 'joined_explore',
-                    joinedTables: [{ table: 'valid_explore' }],
-                },
-            ],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            exploreError,
+            {
+                name: 'joined_explore',
+                joinedTables: [{ table: 'valid_explore' }],
+            },
+        ]);
 
         (
             projectModel.getTablesConfiguration as jest.Mock
@@ -207,9 +209,12 @@ describe('validation', () => {
     });
 
     it('Should validate only tables in project', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreError, exploreWithoutDimension],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            exploreError,
+            exploreWithoutDimension,
+        ]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -225,9 +230,12 @@ describe('validation', () => {
     });
 
     it('Should validate only charts in project', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreError, exploreWithoutDimension],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            exploreError,
+            exploreWithoutDimension,
+        ]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -246,9 +254,12 @@ describe('validation', () => {
     });
 
     it('Should validate only dashboards in project', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreError, exploreWithoutDimension],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            exploreError,
+            exploreWithoutDimension,
+        ]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -268,9 +279,12 @@ describe('validation', () => {
     });
 
     it('Should validate only tables and charts in project', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [exploreError, exploreWithoutDimension],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            exploreError,
+            exploreWithoutDimension,
+        ]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -290,9 +304,9 @@ describe('validation', () => {
     });
 
     it('Should validate fields from joined explores', async () => {
-        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
-            async () => [explore, exploreWithJoin],
-        );
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore, exploreWithJoin]);
         (
             savedChartModel.findChartsForValidation as jest.Mock
         ).mockImplementationOnce(async () => [
