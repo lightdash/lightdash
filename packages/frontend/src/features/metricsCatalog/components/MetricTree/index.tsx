@@ -11,7 +11,6 @@ import {
     Group,
     Text,
     useMantineTheme,
-    type MantineTheme,
 } from '@mantine/core';
 import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
 import {
@@ -49,6 +48,9 @@ import MetricTreeDefaultEdge from './MetricTreeDefaultEdge';
 import MetricTreeExpandedNode, {
     type MetricTreeExpandedNodeData,
 } from './MetricTreeExpandedNode';
+import MetricTreeFreeGroupNode, {
+    type MetricTreeFreeGroupNodeData,
+} from './MetricTreeFreeGroupNode';
 
 enum MetricTreeEdgeType {
     DEFAULT = 'default',
@@ -61,11 +63,13 @@ const metricTreeEdgeTypes: EdgeTypes = {
 enum MetricTreeNodeType {
     EXPANDED = 'expanded',
     COLLAPSED = 'collapsed',
+    FREE_GROUP = 'free_group',
 }
 
 const metricTreeNodeTypes: NodeTypes = {
     [MetricTreeNodeType.EXPANDED]: MetricTreeExpandedNode,
     [MetricTreeNodeType.COLLAPSED]: MetricTreeCollapsedNode,
+    [MetricTreeNodeType.FREE_GROUP]: MetricTreeFreeGroupNode,
 };
 
 type Props = {
@@ -80,7 +84,10 @@ enum STATIC_NODE_TYPES {
 
 const DEFAULT_TIME_FRAME = DEFAULT_METRICS_EXPLORER_TIME_INTERVAL; // TODO: this should be dynamic
 
-type MetricTreeNode = MetricTreeExpandedNodeData | MetricTreeCollapsedNodeData;
+type MetricTreeNode =
+    | MetricTreeExpandedNodeData
+    | MetricTreeCollapsedNodeData
+    | MetricTreeFreeGroupNodeData;
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
@@ -94,12 +101,15 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
         connectedNodeIds.add(edge.target);
     });
 
-    const connectedNodes = nodes.filter((node) =>
-        connectedNodeIds.has(node.id),
+    const connectedNodes = nodes.filter(
+        (node): node is MetricTreeExpandedNodeData =>
+            connectedNodeIds.has(node.id),
     );
 
     const freeNodes = nodes.filter(
-        (node) => !connectedNodeIds.has(node.id) && node.type !== 'group',
+        (node): node is MetricTreeCollapsedNodeData =>
+            !connectedNodeIds.has(node.id) &&
+            node.id !== STATIC_NODE_TYPES.UNCONNECTED,
     );
 
     return {
@@ -111,7 +121,6 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
 const getNodeLayout = (
     nodes: MetricTreeNode[],
     edges: Edge[],
-    theme: MantineTheme,
 ): {
     nodes: MetricTreeNode[];
     edges: Edge[];
@@ -123,22 +132,23 @@ const getNodeLayout = (
     treeGraph.setGraph({ rankdir: 'TB' });
 
     // Main padding
-    const mainPadding = 15;
+    const mainPadding = 8;
+    const freeGroupTextHeight = 50;
 
     // Organize nodes into a 2D grid array first
-    const GRID_COLUMNS = 3;
-    const gridArray: MetricTreeNode[][] = [];
+    const GRID_COLUMNS = 2;
+    const freeNodesGridArray: MetricTreeCollapsedNodeData[][] = [];
 
     freeNodes.forEach((node, index) => {
         const row = Math.floor(index / GRID_COLUMNS);
-        if (!gridArray[row]) {
-            gridArray[row] = [];
+        if (!freeNodesGridArray[row]) {
+            freeNodesGridArray[row] = [];
         }
-        gridArray[row].push(node);
+        freeNodesGridArray[row].push(node);
     });
 
     // Draw the unconnected grid
-    const free = gridArray.flatMap((row, rowIndex) =>
+    const free = freeNodesGridArray.flatMap((row, rowIndex) =>
         row.map<MetricTreeCollapsedNodeData>((node, colIndex) => {
             // Calculate x position based on widths of nodes in same row
             const allPrevNodesInRowWidths = row
@@ -149,35 +159,40 @@ const getNodeLayout = (
             const x = 1 * colIndex + allPrevNodesInRowWidths;
 
             // Calculate y position based on sum of previous rows' max height
-            const allPrevRowsMaxHeights = gridArray
+            const allPrevRowsMaxHeights = freeNodesGridArray
                 .slice(0, rowIndex)
                 .map((r) => Math.max(...r.map((n) => n.measured?.height ?? 0)))
                 .reduce((acc, height) => acc + height + mainPadding, 0);
 
-            const y = 1 * rowIndex + allPrevRowsMaxHeights;
+            const y =
+                1 * rowIndex +
+                allPrevRowsMaxHeights +
+                freeGroupTextHeight +
+                mainPadding;
 
             return {
                 ...node,
                 type: MetricTreeNodeType.COLLAPSED,
                 position: { x, y },
-                id: `${node.id}`,
-            };
+            } satisfies MetricTreeCollapsedNodeData;
         }),
     );
 
-    let unconnectedGroup: MetricTreeNode | undefined;
+    let unconnectedGroup: MetricTreeFreeGroupNodeData | undefined;
     let unconnectedGroupWidth = 0;
     let unconnectedGroupHeight = 0;
 
     if (free.length) {
         // Group bounds
-        unconnectedGroupWidth =
+        unconnectedGroupWidth = Math.max(
             Math.max(
                 ...free.map(
                     (node) => node.position.x + (node.measured?.width ?? 0),
                 ),
             ) +
-            mainPadding * 2;
+                mainPadding * 2,
+            300, // Don't allow the free group to be too small, otherwise it will make the text overflow too much
+        );
 
         unconnectedGroupHeight =
             Math.max(
@@ -190,23 +205,15 @@ const getNodeLayout = (
         unconnectedGroup = free.length
             ? ({
                   id: STATIC_NODE_TYPES.UNCONNECTED,
-                  data: { label: 'Unconnected nodes' },
                   position: { x: -mainPadding, y: -mainPadding },
+                  data: {},
                   style: {
-                      backgroundColor: theme.fn.lighten(
-                          theme.colors.gray[0],
-                          0.7,
-                      ),
-                      border: `1px solid ${theme.colors.gray[3]}`,
-                      boxShadow: theme.shadows.subtle,
                       height: unconnectedGroupHeight,
                       width: unconnectedGroupWidth,
-                      pointerEvents: 'none' as const,
-                      borderRadius: theme.radius.md,
-                      padding: theme.spacing.md,
                   },
-                  type: 'group',
-              } satisfies MetricTreeNode)
+                  type: MetricTreeNodeType.FREE_GROUP,
+                  selectable: false,
+              } satisfies MetricTreeFreeGroupNodeData)
             : undefined;
     }
 
@@ -340,7 +347,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const applyLayout = useCallback(
         ({ renderTwice = true }: { renderTwice?: boolean } = {}) => {
-            const layout = getNodeLayout(currentNodes, currentEdges, theme);
+            const layout = getNodeLayout(currentNodes, currentEdges);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
@@ -359,49 +366,44 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
             setIsLayoutReady(true);
         },
-        [
-            currentNodes,
-            currentEdges,
-            theme,
-            setCurrentNodes,
-            setCurrentEdges,
-            fitView,
-        ],
+        [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, fitView],
     );
 
     const handleNodePositionChange = useCallback(
         (changes: NodePositionChange[]) => {
-            const changesToApply = changes.map((c) => {
-                const node = getNode(c.id);
+            const changesToApply = changes
+                .filter((c) => c.id !== STATIC_NODE_TYPES.UNCONNECTED)
+                .map((c) => {
+                    const node = getNode(c.id);
 
-                if (!node) {
-                    return c;
-                }
+                    if (!node) {
+                        return c;
+                    }
 
-                const nodeEdges = getNodeEdges(c.id);
+                    const nodeEdges = getNodeEdges(c.id);
 
-                if (unconnectGroupContainsNode(c.id) && !nodeEdges.length) {
+                    if (unconnectGroupContainsNode(c.id) && !nodeEdges.length) {
+                        return {
+                            id: c.id,
+                            type: 'replace',
+                            item: {
+                                ...node,
+                                type: MetricTreeNodeType.COLLAPSED,
+                                position: c.position ?? node.position,
+                            },
+                        } satisfies NodeReplaceChange<MetricTreeNode>;
+                    }
+
                     return {
                         id: c.id,
                         type: 'replace',
                         item: {
                             ...node,
-                            type: MetricTreeNodeType.COLLAPSED,
+                            type: MetricTreeNodeType.EXPANDED,
                             position: c.position ?? node.position,
                         },
                     } satisfies NodeReplaceChange<MetricTreeNode>;
-                }
-
-                return {
-                    id: c.id,
-                    type: 'replace',
-                    item: {
-                        ...node,
-                        type: MetricTreeNodeType.EXPANDED,
-                        position: c.position ?? node.position,
-                    },
-                } satisfies NodeReplaceChange<MetricTreeNode>;
-            });
+                });
 
             return changesToApply;
         },
