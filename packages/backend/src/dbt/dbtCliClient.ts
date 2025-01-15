@@ -226,7 +226,7 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
-    private static validateSelector(selector: string): boolean {
+    static validateSelector(selector: string): boolean {
         // eslint-disable-next-line no-useless-escape
         const validSelectorPattern = /^[a-zA-Z0-9\s\-\.\+:_]+$/;
         return validSelectorPattern.test(selector);
