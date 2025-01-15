@@ -1,3 +1,10 @@
+## [0.1455.1](https://github.com/lightdash/lightdash/compare/0.1455.0...0.1455.1) (2025-01-15)
+
+
+### Bug Fixes
+
+* sidebar and fixed page scrollbars ([#13282](https://github.com/lightdash/lightdash/issues/13282)) ([83b25e4](https://github.com/lightdash/lightdash/commit/83b25e4a39dc4c8fdcc660953cedadf50e20a5d8))
+
 # [0.1455.0](https://github.com/lightdash/lightdash/compare/0.1454.1...0.1455.0) (2025-01-15)
 
 
