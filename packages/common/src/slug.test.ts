@@ -28,4 +28,22 @@ describe('Slug', () => {
             generateSlug('a DASHBOARD_NAME.with!special?chars/and\\slashes'),
         ).toEqual('a-dashboard-name-with-special-chars-and-slashes');
     });
+
+    test('should handle emojis and special characters properly', () => {
+        expect(
+            generateSlug(':control_knobs: Usage Dashboard (demo Swappie)'),
+        ).toEqual('usage-dashboard-demo-swappie');
+
+        // Test multiple emojis and special characters
+        expect(generateSlug('🎉 Party 🎊 Time! 🎈 (Special Event)')).toEqual(
+            'party-time-special-event',
+        );
+
+        // Test emoji at the end
+        expect(generateSlug('My Dashboard 🚀')).toEqual('my-dashboard');
+
+        // Ensure backwards compatibility with existing test cases
+        expect(generateSlug('my dashboard name')).toEqual('my-dashboard-name');
+        expect(generateSlug('!special.chars!')).toEqual('special-chars');
+    });
 });
