@@ -6,7 +6,7 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
-import { uuid4 } from '@sentry/utils';
+import { v4 as uuid4 } from 'uuid';
 import { useCallback, type ReactNode } from 'react';
 import Context, { type DefaultFieldsMap } from './context';
 
