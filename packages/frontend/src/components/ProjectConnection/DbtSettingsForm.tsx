@@ -9,7 +9,7 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Select, Stack, TextInput } from '@mantine/core';
+import { Anchor, Select, Stack, TextInput } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
@@ -228,15 +228,31 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             name="Advanced"
                             isOpen={isAdvancedSettingsOpen}
                         >
-                            <Stack>
-                                <TextInput
-                                    {...register('dbt.selector')}
-                                    label="dbt selector"
-                                    disabled={disabled}
-                                    placeholder="--select --tag:lightdash"
-                                />
-                            </Stack>
                             <Stack style={{ marginTop: '8px' }}>
+                                {type !== DbtProjectType.DBT_CLOUD_IDE && (
+                                    <TextInput
+                                        {...register('dbt.selector')}
+                                        label="dbt selector"
+                                        description={
+                                            <p>
+                                                Add dbt selectors to filter out
+                                                models from your dbt project.
+                                                You can see more details in{' '}
+                                                <Anchor
+                                                    href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    our docs
+                                                </Anchor>
+                                                .
+                                            </p>
+                                        }
+                                        disabled={disabled}
+                                        placeholder="tag:lightdash"
+                                    />
+                                )}
+
                                 <MultiKeyValuePairsInput
                                     name="dbt.environment"
                                     label="Environment variables"
