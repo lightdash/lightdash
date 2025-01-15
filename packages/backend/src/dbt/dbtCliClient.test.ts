@@ -99,26 +99,22 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
 
 describe('DbtCliClient', () => {
     describe('validateSelector', () => {
-        const validSelectors = [
-            'model_name',
-            'tag:daily',
-            'my_model+',
-            'folder.model',
-            'model_123',
-            'model-name',
-            'model:staging',
-            'model_name_with_underscore',
-        ];
-
         it('should allow valid selectors', () => {
+            const validSelectors = [
+                'model_name',
+                'tag:daily',
+                'my_model+',
+                'folder.model',
+                'model_123',
+                'model-name',
+                'model:staging',
+                'model_name_with_underscore',
+                'events +customers tag:lightdash', // Complex selector with multiple parts
+            ];
+
             validSelectors.forEach((selector) => {
                 expect(DbtCliClient.validateSelector(selector)).toBe(true);
             });
-        });
-        it('should allow multiple selectors', () => {
-            expect(
-                DbtCliClient.validateSelector(validSelectors.join(' ')),
-            ).toBe(true);
         });
 
         it('should reject invalid selectors', () => {
