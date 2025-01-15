@@ -6,6 +6,7 @@ import {
 import {
     Anchor,
     Box,
+    Button,
     Center,
     Divider,
     Group,
@@ -37,6 +38,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -67,7 +69,12 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const location = useLocation();
+    const navigate = useNavigate();
 
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -133,12 +140,13 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             track({
                 name: EventName.METRICS_CATALOG_SEARCH_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
             });
         }
-    }, [deferredSearch, track, organizationUuid, projectUuid, data]);
+    }, [deferredSearch, track, organizationUuid, projectUuid, data, userUuid]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
@@ -192,6 +200,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             track({
                 name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
@@ -628,12 +637,27 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 />
                             ) : (
                                 <SuboptimalState
-                                    title="Metrics tree not available"
+                                    title="Canvas mode not available"
                                     description={
                                         !isValidMetricsEdgeCount &&
                                         isValidMetricsNodeCount
                                             ? 'There are no connections between the selected metrics'
                                             : 'Please narrow your search to display up to 30 metrics'
+                                    }
+                                    action={
+                                        <Button
+                                            onClick={() => {
+                                                void navigate({
+                                                    pathname:
+                                                        location.pathname.replace(
+                                                            /\/tree/,
+                                                            '',
+                                                        ),
+                                                });
+                                            }}
+                                        >
+                                            Back to list view
+                                        </Button>
                                     }
                                 />
                             )}
