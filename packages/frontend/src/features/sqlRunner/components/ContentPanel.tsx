@@ -713,6 +713,7 @@ export const ContentPanel: FC = () => {
                         id="sql-runner-panel-results"
                         order={2}
                         defaultSize={panelSizes[1]}
+                        maxSize={panelSizes[1] === 100 ? undefined : 500}
                         ref={resultsPanelRef}
                         style={{
                             display: hideResultsPanel ? 'none' : 'flex',
