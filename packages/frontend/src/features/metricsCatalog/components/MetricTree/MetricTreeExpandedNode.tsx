@@ -40,17 +40,19 @@ const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
     }, [change, classes]);
 
     return (
-        <Badge
-            fz={13}
-            fw={500}
-            size="lg"
-            radius="md"
-            py="two"
-            px="xs"
-            className={indicatorClasses}
-        >
-            {formattedChange}
-        </Badge>
+        <Tooltip position="bottom" label={'Current vs. Last Month-to-date'}>
+            <Badge
+                fz={13}
+                fw={500}
+                size="lg"
+                radius="md"
+                py="two"
+                px="xs"
+                className={indicatorClasses}
+            >
+                {formattedChange}
+            </Badge>
+        </Tooltip>
     );
 };
 

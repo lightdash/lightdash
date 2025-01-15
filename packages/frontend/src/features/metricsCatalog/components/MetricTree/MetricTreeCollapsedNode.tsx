@@ -31,7 +31,7 @@ const MetricTreeCollapsedNode: React.FC<
                 },
             })}
         >
-            <Group>
+            <Group position="apart">
                 <Text size="xs" c="gray.7" fw={500} truncate ta="center">
                     {title}
                 </Text>
