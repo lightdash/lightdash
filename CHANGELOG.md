@@ -1,3 +1,128 @@
+## [0.1455.1](https://github.com/lightdash/lightdash/compare/0.1455.0...0.1455.1) (2025-01-15)
+
+
+### Bug Fixes
+
+* sidebar and fixed page scrollbars ([#13282](https://github.com/lightdash/lightdash/issues/13282)) ([83b25e4](https://github.com/lightdash/lightdash/commit/83b25e4a39dc4c8fdcc660953cedadf50e20a5d8))
+
+# [0.1455.0](https://github.com/lightdash/lightdash/compare/0.1454.1...0.1455.0) (2025-01-15)
+
+
+### Features
+
+* render metrics link depending on metrics count ([#13287](https://github.com/lightdash/lightdash/issues/13287)) ([a71698c](https://github.com/lightdash/lightdash/commit/a71698cfe12ea92bff75e189b94e943077a9f50a))
+
+## [0.1454.1](https://github.com/lightdash/lightdash/compare/0.1454.0...0.1454.1) (2025-01-15)
+
+
+### Bug Fixes
+
+* hide tooltip if PoP comparison ([#13274](https://github.com/lightdash/lightdash/issues/13274)) ([77c9770](https://github.com/lightdash/lightdash/commit/77c9770b93a55e11e390f9d4e8b2fc7eefd7240f))
+* only disable date range selection when fetching ([#13271](https://github.com/lightdash/lightdash/issues/13271)) ([a2df7a6](https://github.com/lightdash/lightdash/commit/a2df7a689d606410ea28387b742e7a643a4cc0d2))
+
+# [0.1454.0](https://github.com/lightdash/lightdash/compare/0.1453.1...0.1454.0) (2025-01-15)
+
+
+### Bug Fixes
+
+* get all models from dbt cloud api ([#13278](https://github.com/lightdash/lightdash/issues/13278)) ([b19b1c5](https://github.com/lightdash/lightdash/commit/b19b1c5607b7267daf432689ed1be0841c7c2442))
+* interpolate string for title ([#13264](https://github.com/lightdash/lightdash/issues/13264)) ([2253bd6](https://github.com/lightdash/lightdash/commit/2253bd61c0cd02a8798a95641279b397940f3481))
+* reset layout when initial edges or nodes change ([#13253](https://github.com/lightdash/lightdash/issues/13253)) ([e743bda](https://github.com/lightdash/lightdash/commit/e743bda5418503df7d7f1b6b0b1aca84875e4b1a))
+* revert release 0.1454.0 ([#13285](https://github.com/lightdash/lightdash/issues/13285)) ([d311ca2](https://github.com/lightdash/lightdash/commit/d311ca2559d86fad0e9c54a61646dcc9a1824b7b))
+* set left yaxis display if not set when theres 2 ([#13262](https://github.com/lightdash/lightdash/issues/13262)) ([35cedaf](https://github.com/lightdash/lightdash/commit/35cedafa661731329965143fff74b7265588d515))
+* title move position ([#13159](https://github.com/lightdash/lightdash/issues/13159)) ([99d3211](https://github.com/lightdash/lightdash/commit/99d3211a956903db210db48ea519e19533e507ea))
+* use base query explore name when running comparison ([#13238](https://github.com/lightdash/lightdash/issues/13238)) ([673eda1](https://github.com/lightdash/lightdash/commit/673eda18ff35f79539531e7d50b94e4ed66097f2))
+
+
+### Features
+
+* add explore_name to query metadata ([#13212](https://github.com/lightdash/lightdash/issues/13212)) ([84fe555](https://github.com/lightdash/lightdash/commit/84fe555418243ed140ab0df21d813692f196dd72))
+
+## [0.1453.1](https://github.com/lightdash/lightdash/compare/0.1453.0...0.1453.1) (2025-01-14)
+
+
+### Bug Fixes
+
+* fix rudderstack custom type ([#13234](https://github.com/lightdash/lightdash/issues/13234)) ([96afb15](https://github.com/lightdash/lightdash/commit/96afb15565b088e65d434fd3cc719d23e1b380e7))
+
+# [0.1453.0](https://github.com/lightdash/lightdash/compare/0.1452.0...0.1453.0) (2025-01-13)
+
+
+### Features
+
+* move metrics-catalog link to nav bar  ([#13215](https://github.com/lightdash/lightdash/issues/13215)) ([8b6b362](https://github.com/lightdash/lightdash/commit/8b6b36264e272c9e45cb127f48fe38703e1cff0b))
+
+# [0.1452.0](https://github.com/lightdash/lightdash/compare/0.1451.1...0.1452.0) (2025-01-13)
+
+
+### Features
+
+* add autocomplete on filter selection for typing values ([#13235](https://github.com/lightdash/lightdash/issues/13235)) ([9153653](https://github.com/lightdash/lightdash/commit/9153653add05e960ab2908e2009e1bc5d7b9db1a))
+
+## [0.1451.1](https://github.com/lightdash/lightdash/compare/0.1451.0...0.1451.1) (2025-01-13)
+
+
+### Bug Fixes
+
+* create project with compile ([#13240](https://github.com/lightdash/lightdash/issues/13240)) ([7891aa5](https://github.com/lightdash/lightdash/commit/7891aa5ce1ab5d808b17ee7907a621fb8decc23a))
+
+# [0.1451.0](https://github.com/lightdash/lightdash/compare/0.1450.3...0.1451.0) (2025-01-13)
+
+
+### Features
+
+* **cli:** support argument `--project` on lightdash download/upload. ([#13185](https://github.com/lightdash/lightdash/issues/13185)) ([4dec56a](https://github.com/lightdash/lightdash/commit/4dec56af47ac0b9f0e16ac6213f13000e60fd78a))
+
+## [0.1450.3](https://github.com/lightdash/lightdash/compare/0.1450.2...0.1450.3) (2025-01-13)
+
+
+### Bug Fixes
+
+* upgrade @rudderstack/rudder-sdk-node from 1.1.5 to 2.0.6 ([#13218](https://github.com/lightdash/lightdash/issues/13218)) ([e2b6aa6](https://github.com/lightdash/lightdash/commit/e2b6aa66569d4cb6c7d399c09064cf981bd00da0))
+* upgrade snowflake-sdk from 1.14.0 to 2.0.0 ([#13217](https://github.com/lightdash/lightdash/issues/13217)) ([a6053f3](https://github.com/lightdash/lightdash/commit/a6053f3db4e780ccbd268d65f32a6b9e0ea3339d))
+
+## [0.1450.2](https://github.com/lightdash/lightdash/compare/0.1450.1...0.1450.2) (2025-01-13)
+
+
+### Bug Fixes
+
+* dashboard content appearing blank ([#13200](https://github.com/lightdash/lightdash/issues/13200)) ([a911e37](https://github.com/lightdash/lightdash/commit/a911e377f8ec189f8515c8664800ab1b11f88e20))
+
+## [0.1450.1](https://github.com/lightdash/lightdash/compare/0.1450.0...0.1450.1) (2025-01-13)
+
+
+### Bug Fixes
+
+* make tree container min height same as the table ([#13221](https://github.com/lightdash/lightdash/issues/13221)) ([ee75a41](https://github.com/lightdash/lightdash/commit/ee75a412695582f7b801757c4e2d5a13f5693f5d))
+
+# [0.1450.0](https://github.com/lightdash/lightdash/compare/0.1449.5...0.1450.0) (2025-01-13)
+
+
+### Features
+
+* allow tree urls to be shared ([#13198](https://github.com/lightdash/lightdash/issues/13198)) ([bf98fef](https://github.com/lightdash/lightdash/commit/bf98fef79f869b3acb27a7ec88b7a73d5f96ea02))
+
+## [0.1449.5](https://github.com/lightdash/lightdash/compare/0.1449.4...0.1449.5) (2025-01-13)
+
+
+### Bug Fixes
+
+* create first project using dbt cloud cli ([#13220](https://github.com/lightdash/lightdash/issues/13220)) ([a9c0762](https://github.com/lightdash/lightdash/commit/a9c0762c6b64b0a6189c3bdc831683d321da7d14))
+
+## [0.1449.4](https://github.com/lightdash/lightdash/compare/0.1449.3...0.1449.4) (2025-01-13)
+
+
+### Bug Fixes
+
+* overlapping free nodes ([#13199](https://github.com/lightdash/lightdash/issues/13199)) ([18f22ef](https://github.com/lightdash/lightdash/commit/18f22ef1676a744aeb3a292676db8f2ff98349f4))
+
+## [0.1449.3](https://github.com/lightdash/lightdash/compare/0.1449.2...0.1449.3) (2025-01-13)
+
+
+### Bug Fixes
+
+* auto-focus filter values input ([#13183](https://github.com/lightdash/lightdash/issues/13183)) ([06fefa3](https://github.com/lightdash/lightdash/commit/06fefa3e4f2c46e3edd2eb3c6e0b0a86526be468))
+
 ## [0.1449.2](https://github.com/lightdash/lightdash/compare/0.1449.1...0.1449.2) (2025-01-10)
 
 

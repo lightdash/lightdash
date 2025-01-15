@@ -88,6 +88,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 
 const isRowValueTimestamp = (
@@ -583,6 +584,7 @@ This method can be memory intensive
             user_uuid: user.userUuid,
             organization_uuid: user.organizationUuid,
             chart_uuid: chartUuid,
+            explore_name: exploreId,
         };
 
         const { rows, fields } = await this.projectService.runMetricQuery({
@@ -1165,6 +1167,7 @@ This method can be memory intensive
                 project_uuid: projectUuid,
                 user_uuid: user.userUuid,
                 organization_uuid: user.organizationUuid,
+                explore_name: exploreId,
             };
 
             const { rows, fields } = await this.projectService.runMetricQuery({

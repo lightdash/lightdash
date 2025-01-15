@@ -1218,7 +1218,7 @@ type LightdashAnalyticsArguments = {
     lightdashConfig: LightdashConfig;
     writeKey: string;
     dataPlaneUrl: string;
-    options?: ConstructorParameters<typeof Analytics>[2];
+    options?: ConstructorParameters<typeof Analytics>[1];
 };
 
 export class LightdashAnalytics extends Analytics {
@@ -1232,7 +1232,8 @@ export class LightdashAnalytics extends Analytics {
         dataPlaneUrl,
         options,
     }: LightdashAnalyticsArguments) {
-        super(writeKey, dataPlaneUrl, options);
+        super(writeKey, { ...options, dataPlaneUrl });
+
         this.lightdashConfig = lightdashConfig;
         this.lightdashContext = {
             app: {

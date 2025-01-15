@@ -6,14 +6,12 @@ import {
     IconFolders,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router';
-import { useProject } from '../../hooks/useProject';
+import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
-import useTracking from '../../providers/Tracking/useTracking';
-import { Hash } from '../../svgs/metricsCatalog';
-import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { MetricsLink } from './MetricsLink';
 
 interface Props {
     projectUuid: string;
@@ -24,21 +22,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         projectUuid,
         true,
     );
-
-    const { data: project } = useProject(projectUuid);
-    const { track } = useTracking();
-
-    const handleMetricsCatalogClick = useCallback(() => {
-        if (project) {
-            track({
-                name: EventName.METRICS_CATALOG_CLICKED,
-                properties: {
-                    organizationId: project.organizationUuid,
-                    projectId: projectUuid,
-                },
-            });
-        }
-    }, [project, projectUuid, track]);
+    const { data: hasMetrics } = useHasMetricsInCatalog({
+        projectUuid,
+    });
 
     return (
         <Menu
@@ -54,7 +40,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     variant="default"
                     size="xs"
                     fz="sm"
-                    leftIcon={<MantineIcon icon={IconCategory} />}
+                    leftIcon={
+                        <MantineIcon color="#adb5bd" icon={IconCategory} />
+                    }
                 >
                     Browse
                 </Button>
@@ -85,14 +73,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     All saved charts
                 </Menu.Item>
 
-                <Menu.Item
-                    component={Link}
-                    to={`/projects/${projectUuid}/metrics`}
-                    icon={<Hash />}
-                    onClick={handleMetricsCatalogClick}
-                >
-                    Metrics Catalog
-                </Menu.Item>
+                {!hasMetrics && (
+                    <MetricsLink projectUuid={projectUuid} asMenu />
+                )}
 
                 {isInitialLoading || (spaces && spaces.length > 0) ? (
                     <>

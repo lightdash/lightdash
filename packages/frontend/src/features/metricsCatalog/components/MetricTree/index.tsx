@@ -4,8 +4,16 @@ import {
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
-import { Box, Button, useMantineTheme, type MantineTheme } from '@mantine/core';
-import { IconLayoutGridRemove } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Text,
+    useMantineTheme,
+    type MantineTheme,
+} from '@mantine/core';
+import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     addEdge,
     Background,
@@ -18,6 +26,7 @@ import {
     type Connection,
     type Edge,
     type EdgeChange,
+    type EdgeTypes,
     type NodeChange,
     type NodePositionChange,
     type NodeReplaceChange,
@@ -32,21 +41,30 @@ import {
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
 import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
-import MetricTreeConnectedNode, {
-    type MetricTreeConnectedNodeData,
-} from './MetricTreeConnectedNode';
-import MetricTreeUnconnectedNode, {
-    type MetricTreeUnconnectedNodeData,
-} from './MetricTreeUnconnectedNode';
+import MetricTreeCollapsedNode, {
+    type MetricTreeCollapsedNodeData,
+} from './MetricTreeCollapsedNode';
+import MetricTreeDefaultEdge from './MetricTreeDefaultEdge';
+import MetricTreeExpandedNode, {
+    type MetricTreeExpandedNodeData,
+} from './MetricTreeExpandedNode';
+
+enum MetricTreeEdgeType {
+    DEFAULT = 'default',
+}
+
+const metricTreeEdgeTypes: EdgeTypes = {
+    [MetricTreeEdgeType.DEFAULT]: MetricTreeDefaultEdge,
+};
 
 enum MetricTreeNodeType {
-    CONNECTED = 'connected',
-    FREE = 'free',
+    EXPANDED = 'expanded',
+    COLLAPSED = 'collapsed',
 }
 
 const metricTreeNodeTypes: NodeTypes = {
-    [MetricTreeNodeType.CONNECTED]: MetricTreeConnectedNode,
-    [MetricTreeNodeType.FREE]: MetricTreeUnconnectedNode,
+    [MetricTreeNodeType.EXPANDED]: MetricTreeExpandedNode,
+    [MetricTreeNodeType.COLLAPSED]: MetricTreeCollapsedNode,
 };
 
 type Props = {
@@ -61,9 +79,7 @@ enum STATIC_NODE_TYPES {
 
 const DEFAULT_TIME_FRAME = DEFAULT_METRICS_EXPLORER_TIME_INTERVAL; // TODO: this should be dynamic
 
-type MetricTreeNode =
-    | MetricTreeConnectedNodeData
-    | MetricTreeUnconnectedNodeData;
+type MetricTreeNode = MetricTreeExpandedNodeData | MetricTreeCollapsedNodeData;
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
@@ -80,6 +96,7 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
     const connectedNodes = nodes.filter((node) =>
         connectedNodeIds.has(node.id),
     );
+
     const freeNodes = nodes.filter(
         (node) => !connectedNodeIds.has(node.id) && node.type !== 'group',
     );
@@ -104,13 +121,107 @@ const getNodeLayout = (
     );
     treeGraph.setGraph({ rankdir: 'TB' });
 
+    // Main padding
+    const mainPadding = 15;
+
+    // Organize nodes into a 2D grid array first
+    const GRID_COLUMNS = 3;
+    const gridArray: MetricTreeNode[][] = [];
+
+    freeNodes.forEach((node, index) => {
+        const row = Math.floor(index / GRID_COLUMNS);
+        if (!gridArray[row]) {
+            gridArray[row] = [];
+        }
+        gridArray[row].push(node);
+    });
+
+    // Draw the unconnected grid
+    const free = gridArray.flatMap((row, rowIndex) =>
+        row.map<MetricTreeCollapsedNodeData>((node, colIndex) => {
+            // Calculate x position based on widths of nodes in same column
+            const allPrevNodesInRowWidths = row
+                .slice(0, colIndex)
+                .map((n) => n.measured?.width ?? 0)
+                .reduce((acc, width) => acc + width + mainPadding, 0);
+
+            const x = 1 * colIndex + allPrevNodesInRowWidths;
+
+            // Calculate y position based on sum of previous rows' max height
+            const prevRowMaxHeight = gridArray[rowIndex - 1]
+                ? Math.max(
+                      ...gridArray[rowIndex - 1].map(
+                          (n) => n.measured?.height ?? 0,
+                      ),
+                  ) + mainPadding
+                : 0;
+
+            const y = 1 * rowIndex + prevRowMaxHeight;
+
+            return {
+                ...node,
+                type: MetricTreeNodeType.COLLAPSED,
+                position: { x, y },
+                id: `${node.id}`,
+            };
+        }),
+    );
+
+    let unconnectedGroup: MetricTreeNode | undefined;
+    let unconnectedGroupWidth = 0;
+    let unconnectedGroupHeight = 0;
+
+    if (free.length) {
+        // Group bounds
+        unconnectedGroupWidth =
+            Math.max(
+                ...free.map(
+                    (node) => node.position.x + (node.measured?.width ?? 0),
+                ),
+            ) +
+            mainPadding * 2;
+
+        unconnectedGroupHeight =
+            Math.max(
+                ...free.map(
+                    (node) => node.position.y + (node.measured?.height ?? 0),
+                ),
+            ) +
+            mainPadding * 2;
+
+        unconnectedGroup = free.length
+            ? ({
+                  id: STATIC_NODE_TYPES.UNCONNECTED,
+                  data: { label: 'Unconnected nodes' },
+                  position: { x: -mainPadding, y: -mainPadding },
+                  style: {
+                      backgroundColor: theme.fn.lighten(
+                          theme.colors.gray[0],
+                          0.7,
+                      ),
+                      border: `1px solid ${theme.colors.gray[3]}`,
+                      boxShadow: theme.shadows.subtle,
+                      height: unconnectedGroupHeight,
+                      width: unconnectedGroupWidth,
+                      pointerEvents: 'none' as const,
+                      borderRadius: theme.radius.md,
+                      padding: theme.spacing.md,
+                  },
+                  type: 'group',
+              } satisfies MetricTreeNode)
+            : undefined;
+    }
+
+    const groups = unconnectedGroup ? [unconnectedGroup] : [];
+
+    // Draw the connected tree
     edges.forEach((edge) => treeGraph.setEdge(edge.source, edge.target));
+
     connectedNodes.forEach((node) =>
         treeGraph.setNode(node.id, {
             ...node,
-            // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
-            width: 200,
-            height: 110,
+            width: node.measured?.width ?? 0,
+            height: node.measured?.height ?? 0,
         }),
     );
 
@@ -121,91 +232,19 @@ const getNodeLayout = (
         const position = treeGraph.node(node.id);
         const x = position.x - (node.measured?.width ?? 0) / 2;
         const y = position.y - (node.measured?.height ?? 0) / 2;
-        return { ...node, type: 'connected', position: { x, y } };
-    });
-
-    // Main padding
-    const mainPadding = 15;
-
-    // Bounds of grid
-    let top = Infinity;
-    let left = Infinity;
-    let bottom = -Infinity;
-    let right = -Infinity;
-
-    // Draw the unconnected grid
-    const free = freeNodes.map<MetricTreeUnconnectedNodeData>((node, index) => {
-        // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
-        const nodeWidth = 170;
-        const nodeHeight = 38;
-
-        // TODO: this is an arbitrary offset that looks ok with the
-        // basic setup. Placement of the grid will probably need to be
-        // more robust and include the tree size
-        const leftOffset = -1 * nodeWidth - 70;
-
-        // 3 column grid
-        const column = index % 3;
-        const row = Math.floor(index / 3);
-        const x = leftOffset - column * (nodeWidth + mainPadding);
-        const y = row * (nodeHeight + mainPadding);
-
-        // Update bounds
-        top = Math.min(top, y);
-        left = Math.min(left, x);
-        bottom = Math.max(bottom, y + nodeHeight);
-        right = Math.max(right, x + nodeWidth);
+        const xFromUnconnectedGroup =
+            unconnectedGroupWidth + x + 3 * mainPadding;
+        const yFromUnconnectedGroup = -mainPadding + y;
 
         return {
             ...node,
-            type: 'free',
-            position: { x, y },
-            id: `${node.id}`,
+            type: MetricTreeNodeType.EXPANDED,
+            position: {
+                x: xFromUnconnectedGroup,
+                y: yFromUnconnectedGroup,
+            },
         };
     });
-
-    const unconnectedGroupX = left - mainPadding;
-    const unconnectedGroupY = top - mainPadding;
-    const unconnectedGroupWidth = right - left + mainPadding * 2;
-    const unconnectedGroupHeight = bottom - top + mainPadding * 2;
-
-    const groups =
-        free.length > 0
-            ? ([
-                  {
-                      id: STATIC_NODE_TYPES.UNCONNECTED,
-                      data: {
-                          label: 'Unconnected nodes',
-                      },
-                      position: {
-                          x: isFinite(unconnectedGroupX)
-                              ? unconnectedGroupX
-                              : 0,
-                          y: isFinite(unconnectedGroupY)
-                              ? unconnectedGroupY
-                              : 0,
-                      },
-                      style: {
-                          backgroundColor: theme.fn.lighten(
-                              theme.colors.gray[0],
-                              0.7,
-                          ),
-                          border: `1px solid ${theme.colors.gray[3]}`,
-                          boxShadow: theme.shadows.subtle,
-                          height: isFinite(unconnectedGroupHeight)
-                              ? unconnectedGroupHeight
-                              : 0,
-                          width: isFinite(unconnectedGroupWidth)
-                              ? unconnectedGroupWidth
-                              : 0,
-                          pointerEvents: 'none' as const,
-                          borderRadius: theme.radius.md,
-                          padding: theme.spacing.md,
-                      },
-                      type: 'group',
-                  },
-              ] satisfies MetricTreeNode[])
-            : [];
 
     return {
         nodes: [...groups, ...tree, ...free],
@@ -222,11 +261,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
     const { fitView, getNode } = useReactFlow<MetricTreeNode, Edge>();
-    const nodesInitialized = useNodesInitialized();
-    const [layoutState, setLayoutState] = useState({
-        isReady: false,
-        shouldFitView: true,
-    });
+    const [isInitialLayoutReady, setIsInitialLayoutReady] = useState(false);
+    const nodesInitialized = useNodesInitialized({ includeHiddenNodes: false });
     const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
         STATIC_NODE_TYPES.UNCONNECTED,
     );
@@ -253,6 +289,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 id: getEdgeId(edge),
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
+                type: MetricTreeEdgeType.DEFAULT,
             }));
         }
 
@@ -298,6 +335,35 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [currentEdges],
     );
 
+    const applyLayout = useCallback(
+        (renderTwice?: boolean) => {
+            const layout = getNodeLayout(currentNodes, currentEdges, theme);
+
+            setCurrentNodes(layout.nodes);
+            setCurrentEdges(layout.edges);
+            setIsInitialLayoutReady(true); // Stop applying layout changes as soon as the initial layout is ready
+
+            if (renderTwice) {
+                setTimeout(() => {
+                    applyLayout(false);
+                }, 0); // Wait for nodes to be measured
+                return;
+            }
+
+            setTimeout(() => {
+                void fitView();
+            }, 50); // Wait for nodes to be measured
+        },
+        [
+            currentNodes,
+            currentEdges,
+            theme,
+            setCurrentNodes,
+            setCurrentEdges,
+            fitView,
+        ],
+    );
+
     const handleNodePositionChange = useCallback(
         (changes: NodePositionChange[]) => {
             const changesToApply = changes.map((c) => {
@@ -315,7 +381,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                         type: 'replace',
                         item: {
                             ...node,
-                            type: MetricTreeNodeType.FREE,
+                            type: MetricTreeNodeType.COLLAPSED,
                             position: c.position ?? node.position,
                         },
                     } satisfies NodeReplaceChange<MetricTreeNode>;
@@ -326,7 +392,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     type: 'replace',
                     item: {
                         ...node,
-                        type: MetricTreeNodeType.CONNECTED,
+                        type: MetricTreeNodeType.EXPANDED,
                         position: c.position ?? node.position,
                     },
                 } satisfies NodeReplaceChange<MetricTreeNode>;
@@ -397,41 +463,6 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [projectUuid, deleteMetricsTreeEdge],
     );
 
-    const onLayout = useCallback(() => {
-        const layout = getNodeLayout(currentNodes, currentEdges, theme);
-
-        setCurrentNodes(layout.nodes);
-        setCurrentEdges(layout.edges);
-
-        setLayoutState((prev) => ({
-            ...prev,
-            isReady: true,
-        }));
-    }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, theme]);
-
-    // Runs layout when the nodes are initialized
-    useEffect(() => {
-        if (!nodesInitialized || layoutState.isReady) {
-            return;
-        }
-
-        onLayout();
-    }, [onLayout, layoutState.isReady, nodesInitialized, fitView]);
-
-    // Fits the view when the layout is ready
-    useEffect(() => {
-        if (layoutState.isReady && layoutState.shouldFitView) {
-            window.requestAnimationFrame(async () => {
-                await fitView();
-            });
-
-            setLayoutState((prev) => ({
-                ...prev,
-                shouldFitView: false,
-            }));
-        }
-    }, [layoutState, fitView]);
-
     useEffect(() => {
         const addNodeChanges: NodeChange<MetricTreeNode>[] = initialNodes
             .filter((node) => !currentNodes.some((n) => n.id === node.id))
@@ -454,12 +485,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
-            setLayoutState({
-                isReady: false,
-                shouldFitView: true,
-            });
         }
-    }, [initialNodes, currentNodes, onNodesChange]);
+    }, [currentNodes, initialNodes, onNodesChange]);
 
     useEffect(() => {
         const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
@@ -469,29 +496,29 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 type: 'add',
                 item: edge,
             }));
-
         const removeEdgeChanges: EdgeChange<Edge>[] = currentEdges
             .filter((edge) => !initialEdges.some((e) => e.id === edge.id))
             .map((edge) => ({
                 id: edge.id,
                 type: 'remove',
             }));
-
         if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
             onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
-            setLayoutState({
-                isReady: false,
-                shouldFitView: false,
-            });
         }
     }, [currentEdges, initialEdges, onEdgesChange]);
 
-    const cleanUpLayout = useCallback(() => {
-        setLayoutState({
-            isReady: false,
-            shouldFitView: true,
-        });
-    }, [setLayoutState]);
+    // Only apply layout when nodes are initialized and the initial layout is not ready
+    useEffect(() => {
+        if (nodesInitialized && !isInitialLayoutReady) {
+            // Render twice needed because nodes can change from expanded to collapsed on layout function so they need to be measured again
+            applyLayout(true);
+        }
+    }, [applyLayout, nodesInitialized, isInitialLayoutReady]);
+
+    // Reset layout when initial edges or nodes change
+    useEffect(() => {
+        setIsInitialLayoutReady(false);
+    }, [initialNodes, initialEdges]);
 
     return (
         <Box h="100%">
@@ -506,16 +533,36 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 edgesReconnectable={false}
                 onEdgesDelete={handleEdgesDelete}
                 nodeTypes={metricTreeNodeTypes}
+                edgeTypes={metricTreeEdgeTypes}
                 nodesConnectable={!viewOnly}
                 nodesDraggable={!viewOnly}
                 elementsSelectable={!viewOnly}
             >
+                <Panel position="top-left" style={{ margin: '14px 27px' }}>
+                    <Group spacing="xs">
+                        <Text fz={14} fw={600} c="gray.7">
+                            <Text span fw={500} c="gray.6">
+                                Canvas mode:
+                            </Text>{' '}
+                            Current month to date
+                        </Text>
+                        <ActionIcon
+                            component="a"
+                            href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
+                            target="_blank"
+                            variant="transparent"
+                            size="xs"
+                        >
+                            <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                        </ActionIcon>
+                    </Group>
+                </Panel>
                 {!viewOnly && (
                     <Panel position="bottom-left">
                         <Button
                             variant="default"
                             radius="md"
-                            onClick={cleanUpLayout}
+                            onClick={() => applyLayout(true)}
                             size="xs"
                             sx={{
                                 boxShadow: theme.shadows.subtle,

@@ -1288,4 +1288,25 @@ export class CatalogService<
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
         });
     }
+
+    async hasMetricsInCatalog(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // NOTE: No need to add user attribute filtering here since the catalog search already handles this for us. This is project-wide, not user-specific.
+        return this.catalogModel.hasMetricsInCatalog(projectUuid);
+    }
 }

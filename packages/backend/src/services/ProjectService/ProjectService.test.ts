@@ -30,6 +30,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -137,6 +138,7 @@ describe('ProjectService', () => {
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
         contentModel: {} as ContentModel,
+        encryptionUtil: {} as EncryptionUtil,
     });
     afterEach(() => {
         jest.clearAllMocks();

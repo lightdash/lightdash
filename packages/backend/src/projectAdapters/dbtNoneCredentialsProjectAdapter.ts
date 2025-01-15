@@ -13,6 +13,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 
 export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
