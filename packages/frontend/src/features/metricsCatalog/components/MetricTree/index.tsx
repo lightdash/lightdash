@@ -26,8 +26,10 @@ import {
     type Connection,
     type Edge,
     type EdgeTypes,
+    type NodeAddChange,
     type NodeChange,
     type NodePositionChange,
+    type NodeRemoveChange,
     type NodeReplaceChange,
     type NodeTypes,
 } from '@xyflow/react';
@@ -479,16 +481,18 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         }
     }, [applyLayout, nodesInitialized, isLayoutReady]);
 
-    useEffect(() => {
-        const addNodeChanges: NodeChange<MetricTreeNode>[] = initialNodes
+    const addNodeChanges = useMemo<NodeAddChange<MetricTreeNode>[]>(() => {
+        return initialNodes
             .filter((node) => !currentNodes.some((n) => n.id === node.id))
             .map((node) => ({
                 id: node.id,
                 type: 'add',
                 item: node,
             }));
+    }, [initialNodes, currentNodes]);
 
-        const removeNodeChanges: NodeChange<MetricTreeNode>[] = currentNodes
+    const removeNodeChanges = useMemo<NodeRemoveChange[]>(() => {
+        return currentNodes
             .filter(
                 (node) =>
                     node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
@@ -498,11 +502,13 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 id: node.id,
                 type: 'remove',
             }));
+    }, [currentNodes, initialNodes]);
 
+    useEffect(() => {
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
         }
-    }, [currentNodes, fitView, initialNodes, onNodesChange]);
+    }, [addNodeChanges, removeNodeChanges, onNodesChange]);
 
     return (
         <Box h="100%">
