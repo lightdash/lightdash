@@ -32,14 +32,7 @@ import {
     type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
@@ -161,18 +154,6 @@ const getNodeLayout = (
 
             const y = 1 * rowIndex + allPrevRowsMaxHeights;
 
-            // console.log({
-            //     name: node.data.label,
-            //     nodeHeight: node.measured?.height,
-            //     nodeWidth: node.measured?.width,
-            //     rowIndex,
-            //     colIndex,
-            //     x,
-            //     y,
-            //     allPrevNodesInRowWidths,
-            //     allPrevRowsMaxHeights,
-            // });
-
             return {
                 ...node,
                 type: MetricTreeNodeType.COLLAPSED,
@@ -276,9 +257,9 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
     const { fitView, getNode } = useReactFlow<MetricTreeNode, Edge>();
+    const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
 
-    const nodesInitialized = useNodesInitialized({ includeHiddenNodes: false });
     const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
         STATIC_NODE_TYPES.UNCONNECTED,
     );
@@ -356,33 +337,23 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     );
 
     const applyLayout = useCallback(
-        ({
-            renderTwice = false,
-            shouldFitView = false,
-        }: {
-            renderTwice?: boolean;
-            shouldFitView?: boolean;
-        }) => {
+        ({ renderTwice = true }: { renderTwice?: boolean } = {}) => {
             const layout = getNodeLayout(currentNodes, currentEdges, theme);
-
-            console.log('layout', layout);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
 
             if (renderTwice) {
                 setTimeout(() => {
-                    applyLayout({ renderTwice: false, shouldFitView });
-                });
+                    applyLayout({ renderTwice: false });
+                }, 10);
 
                 return;
             }
 
-            if (shouldFitView) {
-                window.requestAnimationFrame(() => {
-                    void fitView({ maxZoom: 1.2 });
-                });
-            }
+            window.requestAnimationFrame(() => {
+                void fitView({ maxZoom: 1.2 });
+            });
 
             setIsLayoutReady(true);
         },
@@ -495,6 +466,19 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [projectUuid, deleteMetricsTreeEdge],
     );
 
+    // Reset layout when initial edges or nodes change
+    useEffect(() => {
+        setCurrentEdges(initialEdges);
+        setIsLayoutReady(false);
+    }, [initialEdges, setCurrentEdges]);
+
+    // Only apply layout when nodes are initialized and the initial layout is not ready
+    useEffect(() => {
+        if (nodesInitialized && !isLayoutReady) {
+            applyLayout();
+        }
+    }, [applyLayout, nodesInitialized, isLayoutReady]);
+
     useEffect(() => {
         const addNodeChanges: NodeChange<MetricTreeNode>[] = initialNodes
             .filter((node) => !currentNodes.some((n) => n.id === node.id))
@@ -518,29 +502,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
         }
-    }, [currentNodes, initialNodes, onNodesChange]);
-
-    // Only apply layout when nodes are initialized and the initial layout is not ready
-    useLayoutEffect(() => {
-        console.log({ nodesInitialized, isLayoutReady });
-
-        if (nodesInitialized && !isLayoutReady) {
-            console.log('call apply layout');
-            applyLayout({ renderTwice: true, shouldFitView: false });
-        }
-    }, [applyLayout, nodesInitialized, isLayoutReady]);
-
-    // Reset layout when initial edges or nodes change
-    useEffect(() => {
-        console.log(
-            'initial nodes or edges changed - setting layout to false',
-            initialNodes,
-            initialEdges,
-        );
-        setCurrentEdges(initialEdges);
-        setCurrentNodes(initialNodes);
-        setIsLayoutReady(false);
-    }, [initialNodes, initialEdges, setCurrentEdges, setCurrentNodes]);
+    }, [currentNodes, fitView, initialNodes, onNodesChange]);
 
     return (
         <Box h="100%">
@@ -584,13 +546,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                         <Button
                             variant="default"
                             radius="md"
-                            onClick={() => {
-                                console.log('call onClick applyLayout');
-                                applyLayout({
-                                    renderTwice: true,
-                                    shouldFitView: true,
-                                });
-                            }}
+                            onClick={applyLayout}
                             size="xs"
                             sx={{
                                 boxShadow: theme.shadows.subtle,
