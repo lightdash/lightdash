@@ -8,8 +8,10 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import MantineIcon from '../common/MantineIcon';
+import { MetricsLink } from './MetricsLink';
 
 interface Props {
     projectUuid: string;
@@ -20,6 +22,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         projectUuid,
         true,
     );
+    const { data: hasMetrics } = useHasMetricsInCatalog({
+        projectUuid,
+    });
 
     return (
         <Menu
@@ -67,6 +72,10 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 >
                     All saved charts
                 </Menu.Item>
+
+                {!hasMetrics && (
+                    <MetricsLink projectUuid={projectUuid} asMenu />
+                )}
 
                 {isInitialLoading || (spaces && spaces.length > 0) ? (
                     <>

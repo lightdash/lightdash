@@ -911,4 +911,16 @@ export class CatalogModel {
             metricTreeEdgesMigrateIn,
         );
     }
+
+    async hasMetricsInCatalog(projectUuid: string): Promise<boolean> {
+        const result = await this.database(CatalogTableName)
+            .where({
+                project_uuid: projectUuid,
+                type: CatalogType.Field,
+                field_type: FieldType.METRIC,
+            })
+            .first();
+
+        return result !== undefined;
+    }
 }

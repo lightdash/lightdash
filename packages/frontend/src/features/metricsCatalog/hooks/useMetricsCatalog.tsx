@@ -145,3 +145,27 @@ export const useMetric = ({
         enabled: enabled && !!projectUuid && !!tableName && !!metricName,
     });
 };
+
+const hasMetricsInCatalog = async ({
+    projectUuid,
+}: {
+    projectUuid: string;
+}) => {
+    return lightdashApi<boolean>({
+        url: `/projects/${projectUuid}/dataCatalog/metrics/has`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useHasMetricsInCatalog = ({
+    projectUuid,
+}: {
+    projectUuid: string | undefined;
+}) => {
+    return useQuery<boolean, ApiError>({
+        queryKey: ['has-metrics', projectUuid],
+        queryFn: () => hasMetricsInCatalog({ projectUuid: projectUuid! }),
+        enabled: !!projectUuid,
+    });
+};

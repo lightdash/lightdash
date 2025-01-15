@@ -441,5 +441,30 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Check if there are any metrics in catalog
+     * @param projectUuid
+     * @returns boolean indicating if there are metrics
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/has')
+    @OperationId('hasMetricsInCatalog')
+    async hasMetricsInCatalog(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: boolean }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .hasMetricsInCatalog(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     // TODO: handle metrics tree node position
 }
