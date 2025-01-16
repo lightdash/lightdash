@@ -1,4 +1,4 @@
 export enum MetricCatalogView {
     LIST = 'list',
-    TREE = 'tree',
+    CANVAS = 'canvas',
 }

@@ -371,13 +371,13 @@ const METRICS_ROUTES: RouteObject[] = [
         ),
     },
     {
-        path: '/projects/:projectUuid/metrics/tree',
+        path: '/projects/:projectUuid/metrics/canvas',
         element: (
             <>
                 <NavBar />
                 <TrackPage name={PageName.METRICS_CATALOG}>
                     <MetricsCatalog
-                        metricCatalogView={MetricCatalogView.TREE}
+                        metricCatalogView={MetricCatalogView.CANVAS}
                     />
                 </TrackPage>
             </>

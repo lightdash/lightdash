@@ -43,23 +43,23 @@ import {
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
 import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
-import MetricTreeCollapsedNode, {
-    type MetricTreeCollapsedNodeData,
-} from './MetricTreeCollapsedNode';
-import MetricTreeDefaultEdge from './MetricTreeDefaultEdge';
-import MetricTreeExpandedNode, {
-    type MetricTreeExpandedNodeData,
-} from './MetricTreeExpandedNode';
-import MetricTreeFreeGroupNode, {
-    type MetricTreeFreeGroupNodeData,
-} from './MetricTreeFreeGroupNode';
+import CollapsedNode, {
+    type CollapsedNodeData,
+} from './TreeComponents/nodes/CollapsedNode';
+import DefaultEdge from './TreeComponents/edges/DefaultEdge';
+import ExpandedNode, {
+    type ExpandedNodeData,
+} from './TreeComponents/nodes/ExpandedNode';
+import FreeGroupNode, {
+    type FreeGroupNodeData,
+} from './TreeComponents/nodes/FreeGroupNode';
 
 enum MetricTreeEdgeType {
     DEFAULT = 'default',
 }
 
 const metricTreeEdgeTypes: EdgeTypes = {
-    [MetricTreeEdgeType.DEFAULT]: MetricTreeDefaultEdge,
+    [MetricTreeEdgeType.DEFAULT]: DefaultEdge,
 };
 
 enum MetricTreeNodeType {
@@ -69,9 +69,9 @@ enum MetricTreeNodeType {
 }
 
 const metricTreeNodeTypes: NodeTypes = {
-    [MetricTreeNodeType.EXPANDED]: MetricTreeExpandedNode,
-    [MetricTreeNodeType.COLLAPSED]: MetricTreeCollapsedNode,
-    [MetricTreeNodeType.FREE_GROUP]: MetricTreeFreeGroupNode,
+    [MetricTreeNodeType.EXPANDED]: ExpandedNode,
+    [MetricTreeNodeType.COLLAPSED]: CollapsedNode,
+    [MetricTreeNodeType.FREE_GROUP]: FreeGroupNode,
 };
 
 type Props = {
@@ -86,10 +86,7 @@ enum STATIC_NODE_TYPES {
 
 const DEFAULT_TIME_FRAME = DEFAULT_METRICS_EXPLORER_TIME_INTERVAL; // TODO: this should be dynamic
 
-type MetricTreeNode =
-    | MetricTreeExpandedNodeData
-    | MetricTreeCollapsedNodeData
-    | MetricTreeFreeGroupNodeData;
+type MetricTreeNode = ExpandedNodeData | CollapsedNodeData | FreeGroupNodeData;
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
@@ -103,13 +100,12 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
         connectedNodeIds.add(edge.target);
     });
 
-    const connectedNodes = nodes.filter(
-        (node): node is MetricTreeExpandedNodeData =>
-            connectedNodeIds.has(node.id),
+    const connectedNodes = nodes.filter((node): node is ExpandedNodeData =>
+        connectedNodeIds.has(node.id),
     );
 
     const freeNodes = nodes.filter(
-        (node): node is MetricTreeCollapsedNodeData =>
+        (node): node is CollapsedNodeData =>
             !connectedNodeIds.has(node.id) &&
             node.id !== STATIC_NODE_TYPES.UNCONNECTED,
     );
@@ -139,7 +135,7 @@ const getNodeLayout = (
 
     // Organize nodes into a 2D grid array first
     const GRID_COLUMNS = 2;
-    const freeNodesGridArray: MetricTreeCollapsedNodeData[][] = [];
+    const freeNodesGridArray: CollapsedNodeData[][] = [];
 
     freeNodes.forEach((node, index) => {
         const row = Math.floor(index / GRID_COLUMNS);
@@ -151,7 +147,7 @@ const getNodeLayout = (
 
     // Draw the unconnected grid
     const free = freeNodesGridArray.flatMap((row, rowIndex) =>
-        row.map<MetricTreeCollapsedNodeData>((node, colIndex) => {
+        row.map<CollapsedNodeData>((node, colIndex) => {
             // Calculate x position based on widths of nodes in same row
             const allPrevNodesInRowWidths = row
                 .slice(0, colIndex)
@@ -176,11 +172,11 @@ const getNodeLayout = (
                 ...node,
                 type: MetricTreeNodeType.COLLAPSED,
                 position: { x, y },
-            } satisfies MetricTreeCollapsedNodeData;
+            } satisfies CollapsedNodeData;
         }),
     );
 
-    let unconnectedGroup: MetricTreeFreeGroupNodeData | undefined;
+    let unconnectedGroup: FreeGroupNodeData | undefined;
     let unconnectedGroupWidth = 0;
     let unconnectedGroupHeight = 0;
 
@@ -215,7 +211,7 @@ const getNodeLayout = (
                   },
                   type: MetricTreeNodeType.FREE_GROUP,
                   selectable: false,
-              } satisfies MetricTreeFreeGroupNodeData)
+              } satisfies FreeGroupNodeData)
             : undefined;
     }
 
@@ -259,7 +255,7 @@ const getNodeLayout = (
     };
 };
 
-const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
+const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
     const userUuid = useAppSelector(
@@ -609,4 +605,4 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     );
 };
 
-export default MetricTree;
+export default Canvas;
