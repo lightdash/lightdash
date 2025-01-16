@@ -59,7 +59,7 @@ import { MetricCatalogView } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
-import MetricTree from './MetricTree';
+import Canvas from './Canvas';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
@@ -581,7 +581,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             if (
                 data &&
                 metricCatalogView === MetricCatalogView.LIST &&
-                prevView.current === MetricCatalogView.TREE
+                prevView.current === MetricCatalogView.CANVAS
             ) {
                 table.setRowSelection({}); // Force a re-render of the table
             }
@@ -605,7 +605,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     )}
                 </>
             );
-        case MetricCatalogView.TREE:
+        case MetricCatalogView.CANVAS:
             return (
                 <Paper {...mantinePaperProps}>
                     <Box>
@@ -630,7 +630,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
                         <ReactFlowProvider>
                             {isValidMetricsTree ? (
-                                <MetricTree
+                                <Canvas
                                     metrics={flatData}
                                     edges={metricsTree?.edges ?? []}
                                     viewOnly={!canManageMetricsTree}
@@ -650,7 +650,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                                 void navigate({
                                                     pathname:
                                                         location.pathname.replace(
-                                                            /\/tree/,
+                                                            /\/canvas/,
                                                             '',
                                                         ),
                                                 });

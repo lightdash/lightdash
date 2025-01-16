@@ -2,12 +2,9 @@ import { Paper, Text } from '@mantine/core';
 import type { Node, NodeProps } from '@xyflow/react';
 import { useRef, type FC } from 'react';
 
-export type MetricTreeFreeGroupNodeData = Node;
+export type FreeGroupNodeData = Node;
 
-const MetricTreeFreeGroupNode: FC<NodeProps<MetricTreeFreeGroupNodeData>> = ({
-    height,
-    width,
-}) => {
+const FreeGroupNode: FC<NodeProps<FreeGroupNodeData>> = ({ height, width }) => {
     const ref = useRef<HTMLDivElement>(null);
 
     return (
@@ -21,4 +18,4 @@ const MetricTreeFreeGroupNode: FC<NodeProps<MetricTreeFreeGroupNodeData>> = ({
     );
 };
 
-export default MetricTreeFreeGroupNode;
+export default FreeGroupNode;
