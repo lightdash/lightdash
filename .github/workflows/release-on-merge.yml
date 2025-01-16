@@ -22,14 +22,16 @@ jobs:
                   cache-dependency-path: 'pnpm-lock.yaml'
             - name: Install dependencies
               run: pnpm install --frozen-lockfile --prefer-offline --prod=false
+            - name: Set publishing config
+              run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
+              env:
+                  NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
             - name: Semantic Release
               id: semantic
               uses: cycjimmy/semantic-release-action@v4
               env:
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
                   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-                  # PNPM uses NODE_AUTH_TOKEN to authenticate with NPM
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
               with:
                   semantic_version: 19
                   extra_plugins: |
