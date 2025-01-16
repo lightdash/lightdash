@@ -186,7 +186,7 @@ export class ProjectModel {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
             .select('*');
-        if (orgs.length === 0) {
+        if (!orgs[0]) {
             throw new NotExistsError('Cannot find organization');
         }
 
@@ -332,7 +332,7 @@ export class ProjectModel {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
             .select('*');
-        if (orgs.length === 0) {
+        if (!orgs[0]) {
             throw new NotExistsError('Cannot find organization');
         }
 
@@ -376,12 +376,22 @@ export class ProjectModel {
                 );
             }
 
+            if (!orgs[0]) {
+                throw new NotExistsError('Cannot find organization');
+            }
+
             // Make sure the project to copy exists and is owned by the same organization
             const copiedProjects = data.upstreamProjectUuid
                 ? await trx('projects')
                       .where('organization_id', orgs[0].organization_id)
                       .andWhere('project_uuid', data.upstreamProjectUuid)
                 : [];
+
+            if (!copiedProjects[0]) {
+                throw new UnexpectedServerError(
+                    'Could not copy project. Please contact support.',
+                );
+            }
             const [project] = await trx('projects')
                 .insert({
                     name: data.name,
@@ -404,6 +414,12 @@ export class ProjectModel {
                     created_by_user_uuid: userUuid,
                 })
                 .returning('*');
+
+            if (!project) {
+                throw new UnexpectedServerError(
+                    'Could not create project. Please contact support.',
+                );
+            }
 
             await this.upsertWarehouseConnection(
                 trx,
@@ -446,6 +462,12 @@ export class ProjectModel {
                 throw new UnexpectedServerError('Could not update project.');
             }
             const [project] = projects;
+
+            if (!project) {
+                throw new UnexpectedServerError(
+                    'Could not update project. Please contact support.',
+                );
+            }
 
             await this.upsertWarehouseConnection(
                 trx,
@@ -587,6 +609,11 @@ export class ProjectModel {
                     );
                 }
                 const [project] = projects;
+                if (!project) {
+                    throw new NotExistsError(
+                        `Cannot find project with id: ${projectUuid}`,
+                    );
+                }
                 if (!project.dbt_connection) {
                     throw new NotExistsError(
                         'Project has no valid dbt credentials',
@@ -771,7 +798,7 @@ export class ProjectModel {
         const projects = await this.database(ProjectTableName)
             .select(['table_selection_type', 'table_selection_value'])
             .where('project_uuid', projectUuid);
-        if (projects.length === 0) {
+        if (!projects[0]) {
             throw new NotExistsError(
                 `Cannot find project with id: ${projectUuid}`,
             );
@@ -803,6 +830,12 @@ export class ProjectModel {
             .select(['explores'])
             .where('project_uuid', projectUuid)
             .limit(1);
+
+        if (!explores[0]) {
+            throw new NotExistsError(
+                `Cannot find cached explores for project with id: ${projectUuid}`,
+            );
+        }
         if (explores.length > 0) return explores[0].explores;
         return undefined;
     }
@@ -971,7 +1004,7 @@ export class ProjectModel {
                     .first();
                 if (exploreWithJoinAlias) {
                     const originalTableName =
-                        exploreWithJoinAlias.explore.tables?.[joinAliasName]
+                        exploreWithJoinAlias.explore.tables?.[joinAliasName]!
                             .originalName;
                     if (originalTableName) {
                         const exploreCache = await this.database(
@@ -1079,6 +1112,10 @@ export class ProjectModel {
                     .merge()
                     .returning('*');
 
+                if (!cachedExplores) {
+                    throw new Error('Failed to cache explores');
+                }
+
                 return {
                     cachedExplores,
                 };
@@ -1117,7 +1154,7 @@ export class ProjectModel {
             .select(['warehouse'])
             .where('project_uuid', projectUuid)
             .limit(1);
-        if (warehouses.length > 0) return warehouses[0].warehouse;
+        if (warehouses[0]) return warehouses[0].warehouse;
         return undefined;
     }
 
@@ -1133,6 +1170,10 @@ export class ProjectModel {
             .onConflict('project_uuid')
             .merge()
             .returning('*');
+
+        if (!cachedWarehouse) {
+            throw new Error('Failed to cache warehouse');
+        }
 
         return cachedWarehouse;
     }
@@ -1217,6 +1258,10 @@ export class ProjectModel {
             const [project] = await this.database('projects')
                 .select('project_id', 'organization_id')
                 .where('project_uuid', projectUuid);
+
+            if (!project) {
+                throw new NotExistsError('Project not found');
+            }
 
             const [user] = await this.database('users')
                 .leftJoin('emails', 'emails.user_id', 'users.user_id')
@@ -1358,9 +1403,21 @@ export class ProjectModel {
                 previewProjectUuid,
             );
 
+            if (!previewProject) {
+                throw new NotExistsError(
+                    `Project ${previewProjectUuid} does not exist`,
+                );
+            }
+
             const [project] = await trx('projects')
                 .where('project_uuid', projectUuid)
                 .select('project_id');
+
+            if (!project) {
+                throw new NotExistsError(
+                    `Project ${projectUuid} does not exist`,
+                );
+            }
             const projectId = project.project_id;
 
             const dbSpaces = await trx('spaces').whereIn(
@@ -1407,12 +1464,17 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const spaceMapping = dbSpaces.map((s, i) => ({
-                id: s.space_id,
-                uuid: s.space_uuid,
-                newId: newSpaces[i].space_id,
-                newUuid: newSpaces[i].space_uuid,
-            }));
+            const spaceMapping = dbSpaces.map((s, i) => {
+                if (!newSpaces[i]) {
+                    throw new Error(`newSpaces[${i}] is undefined`);
+                }
+                return {
+                    id: s.space_id,
+                    uuid: s.space_uuid,
+                    newId: newSpaces[i].space_id,
+                    newUuid: newSpaces[i].space_uuid,
+                };
+            });
 
             const getNewSpaceId = (oldSpacId: number): number =>
                 spaceMapping.find((s) => s.id === oldSpacId)?.newId!;
@@ -1569,15 +1631,27 @@ export class ProjectModel {
                     : [];
 
             // Create a mapping of the old saved SQLs to the new saved SQLs
-            const savedSQLInSpacesMapping = savedSQLs.map((c, i) => ({
-                id: c.saved_sql_uuid,
-                newId: newSavedSQLs[i].saved_sql_uuid,
-            }));
-            const savedSQLInDashboardsMapping = savedSQLInDashboards.map(
-                (c, i) => ({
+            const savedSQLInSpacesMapping = savedSQLs.map((c, i) => {
+                if (!newSavedSQLs[i]) {
+                    throw new Error(`newSavedSQLs[${i}] is undefined`);
+                }
+                return {
                     id: c.saved_sql_uuid,
-                    newId: newSavedSQLInDashboards[i].saved_sql_uuid,
-                }),
+                    newId: newSavedSQLs[i].saved_sql_uuid,
+                };
+            });
+            const savedSQLInDashboardsMapping = savedSQLInDashboards.map(
+                (c, i) => {
+                    if (!newSavedSQLInDashboards[i]) {
+                        throw new Error(
+                            `newSavedSQLInDashboards[${i}] is undefined`,
+                        );
+                    }
+                    return {
+                        id: c.saved_sql_uuid,
+                        newId: newSavedSQLInDashboards[i].saved_sql_uuid,
+                    };
+                },
             );
             const savedSQLMapping = [
                 ...savedSQLInSpacesMapping,
@@ -1626,10 +1700,15 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const savedSQLVersionMapping = savedSQLVersions.map((c, i) => ({
-                id: c.saved_sql_version_uuid,
-                newId: newSavedSQLVersions[i].saved_sql_version_uuid,
-            }));
+            const savedSQLVersionMapping = savedSQLVersions.map((c, i) => {
+                if (!newSavedSQLVersions[i]) {
+                    throw new Error(`newSavedSQLVersions[${i}] is undefined`);
+                }
+                return {
+                    id: c.saved_sql_version_uuid,
+                    newId: newSavedSQLVersions[i].saved_sql_version_uuid,
+                };
+            });
 
             //  dP""b8 88  88    db    88""Yb 888888 .dP"Y8
             // dP   `" 88  88   dPYb   88__dP   88   `Ybo."
@@ -1718,14 +1797,25 @@ export class ProjectModel {
                           )
                           .returning('*')
                     : [];
-            const chartInSpacesMapping = charts.map((c, i) => ({
-                id: c.saved_query_id,
-                newId: newCharts[i].saved_query_id,
-            }));
-            const chartInDashboardsMapping = chartsInDashboards.map((c, i) => ({
-                id: c.saved_query_id,
-                newId: newChartsInDashboards[i].saved_query_id,
-            }));
+            const chartInSpacesMapping = charts.map((c, i) => {
+                if (!newCharts[i]) {
+                    throw new Error(`newCharts[${i}] is undefined`);
+                }
+                return {
+                    id: c.saved_query_id,
+                    newId: newCharts[i].saved_query_id,
+                };
+            });
+
+            const chartInDashboardsMapping = chartsInDashboards.map((c, i) => {
+                if (!newChartsInDashboards[i]) {
+                    throw new Error(`newChartsInDashboards[${i}] is undefined`);
+                }
+                return {
+                    id: c.saved_query_id,
+                    newId: newChartsInDashboards[i].saved_query_id,
+                };
+            });
 
             const chartMapping = [
                 ...chartInSpacesMapping,
@@ -1743,7 +1833,7 @@ export class ProjectModel {
             const chartVersions = await trx('saved_queries_versions')
                 .whereIn(
                     'saved_queries_version_id',
-                    lastVersionIds.map((d) => d.max),
+                    lastVersionIds.map((d) => String(d.max)),
                 )
                 .select('*');
 
@@ -1779,10 +1869,15 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const chartVersionMapping = chartVersions.map((c, i) => ({
-                id: c.saved_queries_version_id,
-                newId: newChartVersions[i].saved_queries_version_id,
-            }));
+            const chartVersionMapping = chartVersions.map((c, i) => {
+                if (!newChartVersions[i]) {
+                    throw new Error(`newChartVersions[${i}] is undefined`);
+                }
+                return {
+                    id: c.saved_queries_version_id,
+                    newId: newChartVersions[i].saved_queries_version_id,
+                };
+            });
 
             const copyChartVersionContent = async (
                 table: string,
@@ -1810,9 +1905,12 @@ export class ProjectModel {
                                 delete createContent[fieldId];
                             });
                             Object.keys(fieldPreprocess).forEach((fieldId) => {
-                                createContent[fieldId] = fieldPreprocess[
-                                    fieldId
-                                ](createContent[fieldId]);
+                                const preprocessFn = fieldPreprocess[fieldId];
+                                if (preprocessFn) {
+                                    createContent[fieldId] = preprocessFn(
+                                        createContent[fieldId],
+                                    );
+                                }
                             });
                             return createContent;
                         }),
@@ -1894,12 +1992,17 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const dashboardMapping = dashboards.map((c, i) => ({
-                id: c.dashboard_id,
-                newId: newDashboards[i].dashboard_id,
-                uuid: c.dashboard_uuid,
-                newUuid: newDashboards[i].dashboard_uuid,
-            }));
+            const dashboardMapping = dashboards.map((c, i) => {
+                if (!newDashboards[i]) {
+                    throw new Error(`newDashboards[${i}] is undefined`);
+                }
+                return {
+                    id: c.dashboard_id,
+                    newId: newDashboards[i].dashboard_id,
+                    uuid: c.dashboard_uuid,
+                    newUuid: newDashboards[i].dashboard_uuid,
+                };
+            });
 
             // Get last version of a dashboard
             const lastDashboardVersionsIds = await trx('dashboard_versions')
@@ -1907,8 +2010,8 @@ export class ProjectModel {
                 .groupBy('dashboard_id')
                 .max('dashboard_version_id');
 
-            const dashboardVersionIds = lastDashboardVersionsIds.map(
-                (d) => d.max,
+            const dashboardVersionIds = lastDashboardVersionsIds.map((d) =>
+                String(d.max),
             );
 
             const dashboardVersions = await trx('dashboard_versions')
@@ -1934,10 +2037,15 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
-                id: c.dashboard_version_id,
-                newId: newDashboardVersions[i].dashboard_version_id,
-            }));
+            const dashboardVersionsMapping = dashboardVersions.map((c, i) => {
+                if (!newDashboardVersions[i]) {
+                    throw new Error(`newDashboardVersions[${i}] is undefined`);
+                }
+                return {
+                    id: c.dashboard_version_id,
+                    newId: newDashboardVersions[i].dashboard_version_id,
+                };
+            });
 
             const dashboardTabs = await trx(DashboardTabsTableName).whereIn(
                 'dashboard_version_id',
@@ -1964,11 +2072,16 @@ export class ProjectModel {
                     )
                     .returning('*');
             }
-            const dashboardTabsMapping = newDashboardTabs.map((c, i) => ({
-                uuid: dashboardTabs[i].uuid,
-                newUuid: c.uuid,
-                dashboardVersionId: dashboardTabs[i].dashboard_version_id,
-            }));
+            const dashboardTabsMapping = newDashboardTabs.map((c, i) => {
+                if (!dashboardTabs[i]) {
+                    throw new Error(`dashboardTabs[${i}] is undefined`);
+                }
+                return {
+                    uuid: dashboardTabs[i].uuid,
+                    newUuid: c.uuid,
+                    dashboardVersionId: dashboardTabs[i].dashboard_version_id,
+                };
+            });
 
             const dashboardViews = await trx(DashboardViewsTableName).whereIn(
                 'dashboard_version_id',
@@ -2076,10 +2189,15 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
-                id: c.dashboard_tile_uuid,
-                newId: newDashboardTiles[i].dashboard_tile_uuid,
-            }));
+            const dashboardTilesMapping = dashboardTiles.map((c, i) => {
+                if (!newDashboardTiles[i]) {
+                    throw new Error(`newDashboardTiles[${i}] is undefined`);
+                }
+                return {
+                    id: c.dashboard_tile_uuid,
+                    newId: newDashboardTiles[i].dashboard_tile_uuid,
+                };
+            });
 
             const copyDashboardTileContent = async (table: string) => {
                 const content = await trx(table)

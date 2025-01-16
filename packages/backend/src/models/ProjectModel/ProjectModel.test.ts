@@ -123,7 +123,7 @@ describe('ProjectModel', () => {
                 .insert(
                     queryMatcher(CachedExploreTableName, [
                         JSON.stringify(exploresWithSameName[0]),
-                        exploresWithSameName[0].name,
+                        exploresWithSameName[0]!.name,
                         projectUuid,
                         [],
                     ]),
