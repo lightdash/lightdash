@@ -2518,7 +2518,9 @@ export class ProjectService extends BaseService {
                                 };
                                 currentRowIndex = row.row_index;
                             }
-                            // Suffix the value column with the group by columns to avoid collisions. E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'], then the value column will be 'value_1_a_b'
+                            // Suffix the value column with the group by columns to avoid collisions.
+                            // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                            // then the value column will be 'value_1_a_b'
                             const valueSuffix = groupByColumns
                                 ?.map((col) => row[col.reference])
                                 .join('_');
@@ -2526,8 +2528,8 @@ export class ProjectService extends BaseService {
                                 const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
                                 valuesColumnData.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
-                                    id: valueColumnReference, // The pivoted y field name eg amount_false
-                                    aggregation: col.aggregation, // The aggregation type
+                                    id: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                    aggregation: col.aggregation,
                                     pivotValues: groupByColumns?.map((c) => ({
                                         field: c.reference,
                                         value: row[c.reference],
