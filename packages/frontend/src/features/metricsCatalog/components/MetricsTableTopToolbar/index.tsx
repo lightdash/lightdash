@@ -233,7 +233,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         </Center>
                                     </SegmentedControlHoverCard>
                                 ),
-                                value: MetricCatalogView.TREE,
+                                value: MetricCatalogView.CANVAS,
                             },
                         ]}
                         onChange={(value) => {
@@ -247,13 +247,13 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 case MetricCatalogView.LIST:
                                     void navigate({
                                         pathname: location.pathname.replace(
-                                            /\/tree/,
+                                            /\/canvas/,
                                             '',
                                         ),
                                         search: location.search,
                                     });
                                     break;
-                                case MetricCatalogView.TREE:
+                                case MetricCatalogView.CANVAS:
                                     track({
                                         name: EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED,
                                         properties: {
@@ -263,7 +263,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         },
                                     });
                                     void navigate({
-                                        pathname: `${location.pathname}/tree`,
+                                        pathname: `${location.pathname}/canvas`,
                                         search: location.search,
                                     });
                                     break;

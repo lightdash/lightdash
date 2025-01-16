@@ -2,7 +2,7 @@ import { useMantineTheme } from '@mantine/core';
 import { BaseEdge, getSimpleBezierPath, type EdgeProps } from '@xyflow/react';
 import type { FC } from 'react';
 
-const MetricTreeDefaultEdge: FC<EdgeProps> = ({
+const DefaultEdge: FC<EdgeProps> = ({
     sourceX,
     sourceY,
     targetX,
@@ -29,4 +29,4 @@ const MetricTreeDefaultEdge: FC<EdgeProps> = ({
     );
 };
 
-export default MetricTreeDefaultEdge;
+export default DefaultEdge;

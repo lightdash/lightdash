@@ -21,11 +21,11 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
-import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import { useRunMetricTotal } from '../../hooks/useRunMetricExplorerQuery';
-import { useChangeIndicatorStyles } from '../../styles/useChangeIndicatorStyles';
+import { useChangeIndicatorStyles } from '../../../../styles/useChangeIndicatorStyles';
+import { useAppSelector } from '../../../../../sqlRunner/store/hooks';
+import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
+import { calculateComparisonValue } from '../../../../../../hooks/useBigNumberConfig';
+import MantineIcon from '../../../../../../components/common/MantineIcon';
 
 const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
     change,
@@ -56,7 +56,7 @@ const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
     );
 };
 
-export type MetricTreeExpandedNodeData = Node<{
+export type ExpandedNodeData = Node<{
     label: string;
     tableName: string;
     metricName: string;
@@ -65,9 +65,11 @@ export type MetricTreeExpandedNodeData = Node<{
     timeFrame: TimeFrames;
 }>;
 
-const MetricTreeExpandedNode: React.FC<
-    NodeProps<MetricTreeExpandedNodeData>
-> = ({ data, isConnectable, selected }) => {
+const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
+    data,
+    isConnectable,
+    selected,
+}) => {
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
     const projectUuid = useAppSelector(
@@ -196,4 +198,4 @@ const MetricTreeExpandedNode: React.FC<
     );
 };
 
-export default MetricTreeExpandedNode;
+export default ExpandedNode;
