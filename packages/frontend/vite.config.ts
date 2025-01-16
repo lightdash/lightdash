@@ -39,7 +39,8 @@ export default defineConfig({
                         'react-router',
                         'react-hook-form',
                         'react-use',
-                        'react-draggable',
+                        // TODO: removed because of PNPM
+                        // 'react-draggable',
                         '@hello-pangea/dnd',
                         '@tanstack/react-query',
                         '@tanstack/react-table',
@@ -49,13 +50,14 @@ export default defineConfig({
                     vega: ['vega', 'vega-lite'],
                     ace: ['ace-builds', 'react-ace/lib'],
                     modules: [
-                        'pegjs',
+                        // TODO: removed because of PNPM
+                        // 'ajv',
+                        // 'ajv-formats',
+                        // 'liquidjs',
+                        // 'pegjs',
                         'jspdf',
-                        'ajv',
-                        'ajv-formats',
                         'lodash',
                         'colorjs.io',
-                        'liquidjs',
                         'zod',
                     ],
                     thirdparty: [

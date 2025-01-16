@@ -1,3 +1,46 @@
+## [0.1457.1](https://github.com/lightdash/lightdash/compare/0.1457.0...0.1457.1) (2025-01-16)
+
+
+### Bug Fixes
+
+* make row-limit forms consistent ([#13312](https://github.com/lightdash/lightdash/issues/13312)) ([aa32547](https://github.com/lightdash/lightdash/commit/aa325474b5c5de5e86d3781bade982be921829e9))
+
+# [0.1457.0](https://github.com/lightdash/lightdash/compare/0.1456.4...0.1457.0) (2025-01-16)
+
+
+### Features
+
+* dbt selector on compile ([#13280](https://github.com/lightdash/lightdash/issues/13280)) ([516173d](https://github.com/lightdash/lightdash/commit/516173de1f7577a0c886187ec87453fe9619fd06))
+
+## [0.1456.4](https://github.com/lightdash/lightdash/compare/0.1456.3...0.1456.4) (2025-01-16)
+
+
+### Bug Fixes
+
+* pnpm auth token ([#13306](https://github.com/lightdash/lightdash/issues/13306)) ([e497778](https://github.com/lightdash/lightdash/commit/e497778822e4668de400113824c8aae94749ddf0))
+
+## [0.1456.3](https://github.com/lightdash/lightdash/compare/0.1456.2...0.1456.3) (2025-01-16)
+
+
+### Bug Fixes
+
+* NODE_AUTH_TOKEN for PNPM ([#13305](https://github.com/lightdash/lightdash/issues/13305)) ([6684b2e](https://github.com/lightdash/lightdash/commit/6684b2e27cab80b1df66a1825df5e38fd6cc23e7))
+
+## [0.1456.2](https://github.com/lightdash/lightdash/compare/0.1456.1...0.1456.2) (2025-01-16)
+
+
+### Bug Fixes
+
+* pnpm release ([#13301](https://github.com/lightdash/lightdash/issues/13301)) ([57f9a3b](https://github.com/lightdash/lightdash/commit/57f9a3b67923b58350f981be2df611caf08986ba))
+* pnpm release 2 ([#13303](https://github.com/lightdash/lightdash/issues/13303)) ([e9170bb](https://github.com/lightdash/lightdash/commit/e9170bbfe252b2e23f6ad817fc007ee039b56e17))
+
+## [0.1456.1](https://github.com/lightdash/lightdash/compare/0.1456.0...0.1456.1) (2025-01-16)
+
+
+### Bug Fixes
+
+* browse menu spaces list scroll ([#13283](https://github.com/lightdash/lightdash/issues/13283)) ([ed8772b](https://github.com/lightdash/lightdash/commit/ed8772b7ae9e637b9e6e8e880e2246ab08fd6ddd))
+
 # [0.1456.0](https://github.com/lightdash/lightdash/compare/0.1455.3...0.1456.0) (2025-01-15)
 
 
