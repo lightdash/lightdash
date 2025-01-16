@@ -1,46 +1,3 @@
-// order is important
-const packagesWithWorkspaceDependencies = [
-    'packages/backend/package.json',
-    'packages/cli/package.json',
-    'packages/e2e/package.json',
-    'packages/frontend/package.json',
-    'packages/warehouses/package.json',
-];
-
-// order is important and should be in sync with `packagesWithWorkspaceDependencies`
-const expectedResults = [
-    {
-        file: 'packages/backend/package.json',
-        hasChanged: true,
-        numMatches: 2,
-        numReplacements: 2,
-    },
-    {
-        file: 'packages/cli/package.json',
-        hasChanged: true,
-        numMatches: 2,
-        numReplacements: 2,
-    },
-    {
-        file: 'packages/e2e/package.json',
-        hasChanged: true,
-        numMatches: 1,
-        numReplacements: 1,
-    },
-    {
-        file: 'packages/frontend/package.json',
-        hasChanged: true,
-        numMatches: 1,
-        numReplacements: 1,
-    },
-    {
-        file: 'packages/warehouses/package.json',
-        hasChanged: true,
-        numMatches: 1,
-        numReplacements: 1,
-    },
-];
-
 /**
  * @type {import('semantic-release').GlobalConfig}
  */
@@ -65,21 +22,6 @@ module.exports = {
         ],
 
         [
-            '@google/semantic-release-replace-plugin',
-            {
-                replacements: [
-                    {
-                        files: packagesWithWorkspaceDependencies,
-                        from: 'workspace:\\*',
-                        to: '^${nextRelease.version}',
-                        countMatches: true,
-                        results: expectedResults,
-                    },
-                ],
-            },
-        ],
-
-        [
             '@amanda-mitchell/semantic-release-npm-multiple',
             {
                 registries: {
@@ -88,7 +30,7 @@ module.exports = {
                         pkgRoot: '.',
                     },
                     common: {
-                        npmPublish: true,
+                        npmPublish: false,
                         pkgRoot: 'packages/common',
                     },
                     backend: {
@@ -104,11 +46,11 @@ module.exports = {
                         pkgRoot: 'packages/e2e',
                     },
                     warehouses: {
-                        npmPublish: true,
+                        npmPublish: false,
                         pkgRoot: 'packages/warehouses',
                     },
                     cli: {
-                        npmPublish: true,
+                        npmPublish: false,
                         pkgRoot: 'packages/cli',
                     },
                 },
@@ -116,31 +58,24 @@ module.exports = {
         ],
 
         [
-            '@google/semantic-release-replace-plugin',
+            '@semantic-release/exec',
             {
-                replacements: [
-                    {
-                        files: packagesWithWorkspaceDependencies,
-                        from: (_file, { nextRelease: { version } }) => {
-                            const regexVersion = version.replace(/\./g, '\\.');
-                            return new RegExp(`\\^${regexVersion}`, 'gm');
-                        },
-                        to: 'workspace:*',
-                        countMatches: true,
-                        results: expectedResults,
-                    },
-                ],
+                prepareCmd: 'pnpm build-published-packages',
+                publishCmd: 'pnpm release-packages',
             },
         ],
-
         [
             '@semantic-release/git',
             {
                 assets: [
                     'CHANGELOG.md',
                     'package.json',
+                    'packages/backend/package.json',
+                    'packages/cli/package.json',
                     'packages/common/package.json',
-                    ...packagesWithWorkspaceDependencies,
+                    'packages/e2e/package.json',
+                    'packages/frontend/package.json',
+                    'packages/warehouses/package.json',
                 ],
                 message:
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',

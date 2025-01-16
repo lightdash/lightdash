@@ -22,8 +22,6 @@ jobs:
                   cache-dependency-path: 'pnpm-lock.yaml'
             - name: Install dependencies
               run: pnpm install --frozen-lockfile --prefer-offline --prod=false
-            - name: Build
-              run: pnpm build-published-packages
             - name: Semantic Release
               id: semantic
               uses: cycjimmy/semantic-release-action@v4
@@ -35,7 +33,7 @@ jobs:
                   extra_plugins: |
                       @semantic-release/changelog@6
                       @amanda-mitchell/semantic-release-npm-multiple@2.17.0
-                      @google/semantic-release-replace-plugin@1.2.0
+                      @semantic-release/exec@6
                       @semantic-release/git@10
                       @semantic-release/github@8
 
