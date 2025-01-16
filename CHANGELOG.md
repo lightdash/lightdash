@@ -1,3 +1,10 @@
+# [0.1457.0](https://github.com/lightdash/lightdash/compare/0.1456.4...0.1457.0) (2025-01-16)
+
+
+### Features
+
+* dbt selector on compile ([#13280](https://github.com/lightdash/lightdash/issues/13280)) ([516173d](https://github.com/lightdash/lightdash/commit/516173de1f7577a0c886187ec87453fe9619fd06))
+
 ## [0.1456.4](https://github.com/lightdash/lightdash/compare/0.1456.3...0.1456.4) (2025-01-16)
 
 
