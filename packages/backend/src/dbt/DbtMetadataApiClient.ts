@@ -199,6 +199,11 @@ export class DbtMetadataApiClient implements DbtClient {
         );
     }
 
+    /* eslint-disable-next-line class-methods-use-this */
+    getSelector(): string | undefined {
+        return undefined;
+    }
+
     private async getModels(
         prevResponse?: DbtCloudEnvironmentResponse,
     ): Promise<DbtCloudEnvironmentResponse> {

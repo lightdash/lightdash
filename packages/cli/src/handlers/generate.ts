@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { getModelsFromManifest, ParseError } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
@@ -10,7 +10,6 @@ import { loadManifest } from '../dbt/manifest';
 import {
     findAndUpdateModelYaml,
     getCompiledModels,
-    getModelsFromManifest,
     getWarehouseTableForModel,
 } from '../dbt/models';
 import { getFileHeadComments } from '../dbt/schema';
