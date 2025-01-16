@@ -237,7 +237,8 @@ const getNodeLayout = (
         const position = treeGraph.node(node.id);
         const x = position.x - (node.measured?.width ?? 0) / 2;
         const y = position.y - (node.measured?.height ?? 0) / 2;
-        const xFromUnconnectedGroup = unconnectedGroupWidth + x + freeGroupTextHeight;
+        const xFromUnconnectedGroup =
+            unconnectedGroupWidth + x + freeGroupTextHeight;
         const yFromUnconnectedGroup = -mainPadding + y;
 
         return {
