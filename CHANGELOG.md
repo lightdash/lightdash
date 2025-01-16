@@ -1,3 +1,11 @@
+## [0.1456.2](https://github.com/lightdash/lightdash/compare/0.1456.1...0.1456.2) (2025-01-16)
+
+
+### Bug Fixes
+
+* pnpm release ([#13301](https://github.com/lightdash/lightdash/issues/13301)) ([57f9a3b](https://github.com/lightdash/lightdash/commit/57f9a3b67923b58350f981be2df611caf08986ba))
+* pnpm release 2 ([#13303](https://github.com/lightdash/lightdash/issues/13303)) ([e9170bb](https://github.com/lightdash/lightdash/commit/e9170bbfe252b2e23f6ad817fc007ee039b56e17))
+
 ## [0.1456.1](https://github.com/lightdash/lightdash/compare/0.1456.0...0.1456.1) (2025-01-16)
 
 
