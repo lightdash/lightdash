@@ -1,3 +1,10 @@
+## [0.1456.4](https://github.com/lightdash/lightdash/compare/0.1456.3...0.1456.4) (2025-01-16)
+
+
+### Bug Fixes
+
+* pnpm auth token ([#13306](https://github.com/lightdash/lightdash/issues/13306)) ([e497778](https://github.com/lightdash/lightdash/commit/e497778822e4668de400113824c8aae94749ddf0))
+
 ## [0.1456.3](https://github.com/lightdash/lightdash/compare/0.1456.2...0.1456.3) (2025-01-16)
 
 
