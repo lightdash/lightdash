@@ -1,3 +1,10 @@
+## [0.1456.1](https://github.com/lightdash/lightdash/compare/0.1456.0...0.1456.1) (2025-01-16)
+
+
+### Bug Fixes
+
+* browse menu spaces list scroll ([#13283](https://github.com/lightdash/lightdash/issues/13283)) ([ed8772b](https://github.com/lightdash/lightdash/commit/ed8772b7ae9e637b9e6e8e880e2246ab08fd6ddd))
+
 # [0.1456.0](https://github.com/lightdash/lightdash/compare/0.1455.3...0.1456.0) (2025-01-15)
 
 
