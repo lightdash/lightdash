@@ -24,6 +24,8 @@ export interface DbtClient {
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
 
+    getSelector(): string | undefined;
+
     test(): Promise<void>;
 }
 
