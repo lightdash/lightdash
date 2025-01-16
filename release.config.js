@@ -21,39 +21,14 @@ module.exports = {
             },
         ],
 
+        // This is a workaround to avoid the error "EUNSUPPORTEDPROTOCOL" when running the prepareCmd
+        // https://github.com/pnpm/pnpm/issues/8064
+        // https://github.com/pnpm/pnpm/issues/5904
         [
-            '@amanda-mitchell/semantic-release-npm-multiple',
+            '@semantic-release/exec',
             {
-                registries: {
-                    main: {
-                        npmPublish: false,
-                        pkgRoot: '.',
-                    },
-                    common: {
-                        npmPublish: false,
-                        pkgRoot: 'packages/common',
-                    },
-                    backend: {
-                        npmPublish: false,
-                        pkgRoot: 'packages/backend',
-                    },
-                    frontend: {
-                        npmPublish: false,
-                        pkgRoot: 'packages/frontend',
-                    },
-                    e2e: {
-                        npmPublish: false,
-                        pkgRoot: 'packages/e2e',
-                    },
-                    warehouses: {
-                        npmPublish: false,
-                        pkgRoot: 'packages/warehouses',
-                    },
-                    cli: {
-                        npmPublish: false,
-                        pkgRoot: 'packages/cli',
-                    },
-                },
+                prepareCmd:
+                    'pnpm version ${nextRelease.version} --workspaces --include-workspace-root --no-git-tag 2>&1 | grep -q EUNSUPPORTEDPROTOCOL && exit 0 || exit 1',
             },
         ],
 
