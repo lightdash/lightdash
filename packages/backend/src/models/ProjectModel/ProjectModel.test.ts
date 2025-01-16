@@ -138,7 +138,9 @@ describe('ProjectModel', () => {
                 )
                 .response([]);
 
-            await model.saveExploresToCache(projectUuid, exploresWithSameName);
+            await expect(
+                model.saveExploresToCache(projectUuid, exploresWithSameName),
+            ).rejects.toThrowError('Failed to cache explores');
 
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.delete).toHaveLength(1);
