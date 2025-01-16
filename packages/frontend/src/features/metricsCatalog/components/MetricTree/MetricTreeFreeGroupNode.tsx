@@ -11,8 +11,8 @@ const MetricTreeFreeGroupNode: FC<NodeProps<MetricTreeFreeGroupNodeData>> = ({
     const ref = useRef<HTMLDivElement>(null);
 
     return (
-        <Paper fz="xs" p="xs" h={height} w={width} bg="gray.0" padding="sm">
-            <Text fz={12} fw={500} c="gray.6" ref={ref}>
+        <Paper p="xs" h={height} w={width} bg="gray.0" padding="sm">
+            <Text fz="xs" fw={500} c="gray.6" ref={ref}>
                 Drag tiles from this area into the workspace to curate your
                 canvas. Use the nodes to connect metrics and create metric
                 trees.
