@@ -33,7 +33,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/dataCatalog')
@@ -302,8 +306,11 @@ export class CatalogController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{catalogSearchUuid}/categories')
     @OperationId('addCategoryToCatalogItem')
@@ -327,7 +334,11 @@ export class CatalogController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('{catalogSearchUuid}/categories/{tagUuid}')
     @OperationId('removeCategoryFromCatalogItem')
@@ -348,7 +359,11 @@ export class CatalogController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('{catalogSearchUuid}/icon')
     @OperationId('updateCatalogItemIcon')
@@ -395,7 +410,11 @@ export class CatalogController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/metrics/tree/edges')
     @OperationId('createMetricsTreeEdge')
@@ -415,7 +434,11 @@ export class CatalogController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete(
         '/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}',
