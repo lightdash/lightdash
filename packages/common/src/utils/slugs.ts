@@ -1,10 +1,6 @@
 const sanitizeSlug = (slug: string) =>
     slug
         .toLowerCase()
-        // First remove emoji-style strings like :control_knobs:
-        .replace(/:[a-z_]+:/g, '')
-        // Then remove unicode emojis
-        .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
         // Then replace remaining non-alphanumeric characters with hyphens
         .replace(/[^a-z0-9]+/g, '-')
         // Replace multiple hyphens with a single hyphen
@@ -12,4 +8,10 @@ const sanitizeSlug = (slug: string) =>
         // Trim leading and trailing hyphens
         .replace(/^-+|-+$/g, '');
 
-export const generateSlug = (name: string) => `${sanitizeSlug(name)}`;
+export const generateSlug = (name: string) => {
+    const sanitizedSlug = sanitizeSlug(name);
+    if (sanitizedSlug.length === 0) {
+        return Math.random().toString(36).substring(2, 7);
+    }
+    return sanitizedSlug;
+};

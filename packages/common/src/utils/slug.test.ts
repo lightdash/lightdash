@@ -1,4 +1,4 @@
-import { generateSlug } from './utils/slugs';
+import { generateSlug } from './slugs';
 
 describe('Slug', () => {
     test('should generate space slugs', async () => {
@@ -30,10 +30,6 @@ describe('Slug', () => {
     });
 
     test('should handle emojis and special characters properly', () => {
-        expect(
-            generateSlug(':control_knobs: Usage Dashboard (demo Swappie)'),
-        ).toEqual('usage-dashboard-demo-swappie');
-
         // Test multiple emojis and special characters
         expect(generateSlug('🎉 Party 🎊 Time! 🎈 (Special Event)')).toEqual(
             'party-time-special-event',
@@ -45,5 +41,28 @@ describe('Slug', () => {
         // Ensure backwards compatibility with existing test cases
         expect(generateSlug('my dashboard name')).toEqual('my-dashboard-name');
         expect(generateSlug('!special.chars!')).toEqual('special-chars');
+
+        // Test Unicode emojis
+        expect(generateSlug('📊 Analytics Dashboard 👨‍💻')).toEqual(
+            'analytics-dashboard',
+        );
+
+        // Handle japanese characters
+        expect(generateSlug('Lightdashライトダッシュ')).toEqual('lightdash');
+
+        // Return short slug (but not empty) if all characters are special
+        expect(generateSlug('LDライトダッシュ')).toEqual('ld');
+        expect(generateSlug('!"·$%&0!"·$%')).toEqual('0');
+        expect(generateSlug('x!!!!')).toEqual('x');
+    });
+
+    test('if all slug are special characters, return a 5 char random string', () => {
+        expect(generateSlug('!!!!').length).toEqual(5);
+
+        // Test multiple emojis andspecial characters
+        expect(generateSlug('🎉🎊').length).toEqual(5);
+
+        // Handle japanese characters
+        expect(generateSlug('ライトダッシュ').length).toEqual(5);
     });
 });
