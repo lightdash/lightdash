@@ -25,9 +25,9 @@ const getDbtCLIVersion = async () => {
             return cloudVersion[0];
         }
         const version = logs.match(DBT_CORE_VERSION_REGEX);
-        if (version === null || version.length === 0)
+        if (version === null || version.length === 0 || !version[0])
             throw new ParseError(`Can't locate dbt --version: ${logs}`);
-        return version[0].split(':')[1].trim();
+        return version[0].split(':')[1]!.trim();
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : '-';
         throw new ParseError(`Failed to get dbt --version:\n  ${msg}`);

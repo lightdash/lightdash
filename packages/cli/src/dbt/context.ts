@@ -49,6 +49,11 @@ export const getDbtContext = async ({
     const targetDir = path.join(projectDir, targetSubDir);
     const modelsSubDir = config['models-path'] || './models';
     const modelsDir = path.join(projectDir, modelsSubDir);
+
+    if (!config.name || !config.profile) {
+        throw new ParseError('dbt_project.yml must have name and profile keys');
+    }
+
     return {
         projectName: config.name,
         profileName: config.profile,

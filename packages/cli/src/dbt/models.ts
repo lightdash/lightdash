@@ -200,6 +200,9 @@ export const findAndUpdateModelYaml = async ({
     if (match) {
         const docsNames = Object.values(docs).map((doc) => doc.name);
         const existingModel = match.doc.models[match.modelIndex];
+        if (!existingModel) {
+            throw new Error(`Could not find model ${model.name}`);
+        }
         const existingColumns = existingModel.columns || [];
         const existingColumnsUpdatedPromise = existingColumns?.map(
             async (column) => {
@@ -400,13 +403,18 @@ export const getCompiledModels = async (
         {},
     );
 
-    return allModelIds.map((modelId) => ({
-        name: modelLookup[modelId].name,
-        schema: modelLookup[modelId].schema,
-        database: modelLookup[modelId].database,
-        originalFilePath: modelLookup[modelId].original_file_path,
-        patchPath: modelLookup[modelId].patch_path,
-        alias: modelLookup[modelId].alias,
-        packageName: modelLookup[modelId].package_name,
-    }));
+    return allModelIds.map((modelId) => {
+        if (!modelLookup[modelId]) {
+            throw new Error(`Model with ID '${modelId}' not found in lookup`);
+        }
+        return {
+            name: modelLookup[modelId]!.name,
+            schema: modelLookup[modelId]!.schema,
+            database: modelLookup[modelId]!.database,
+            originalFilePath: modelLookup[modelId]!.original_file_path,
+            patchPath: modelLookup[modelId]!.patch_path,
+            alias: modelLookup[modelId]!.alias,
+            packageName: modelLookup[modelId]!.package_name,
+        };
+    });
 };

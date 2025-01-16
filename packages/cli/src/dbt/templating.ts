@@ -15,8 +15,15 @@ const nunjucksContext = {
         }
         return process.env[key] ?? fallbackValue;
     },
-    var: (key: string) =>
-        JSON.parse(process.argv[process.argv.indexOf('--vars') + 1])[key],
+    var: (key: string) => {
+        const varsIndex = process.argv.indexOf('--vars');
+        const varsString = process.argv[varsIndex + 1];
+        if (!varsString) {
+            throw new Error(`"--vars" argument not found or missing value.`);
+        }
+        const varsObject = JSON.parse(varsString);
+        return varsObject[key];
+    },
 };
 
 export const renderProfilesYml = (

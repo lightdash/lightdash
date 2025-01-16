@@ -442,8 +442,12 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 body: JSON.stringify(item),
             });
 
+            if (!upsertData[type]?.[0]?.action) {
+                throw new Error(`Action is missing for ${type} "${item.name}"`);
+            }
+
             GlobalState.debug(
-                `${type} "${item.name}": ${upsertData[type]?.[0].action}`,
+                `${type} "${item.name}": ${upsertData[type][0]!.action}`,
             );
 
             changes = storeUploadChanges(changes, upsertData);

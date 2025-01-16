@@ -47,7 +47,11 @@ const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
         });
         const logs = all || '';
         const connectionType = logs.match(DBT_CLOUD_CONNECTION_TYPE_REGEX);
-        if (connectionType === null || connectionType.length === 0) {
+        if (
+            connectionType === null ||
+            connectionType.length === 0 ||
+            !connectionType[1]
+        ) {
             throw new ParseError(
                 `Can't locate connection type in 'dbt environment show' response`,
             );

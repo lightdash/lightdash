@@ -14,7 +14,7 @@ const getDbtCloudTargetName = async (): Promise<string> => {
         });
         const logs = all || '';
         const targetName = logs.match(DBT_CLOUD_TARGET_NAME_REGEX);
-        if (targetName === null || targetName.length === 0) {
+        if (targetName === null || targetName.length === 0 || !targetName[1]) {
             throw new ParseError(
                 `Can't locate profile target name in 'dbt environment show' response`,
             );

@@ -31,6 +31,12 @@ export const getBigqueryCredentialsFromOauth = async (): Promise<
             string
         >;
 
+        if (!email || !key || !projectId) {
+            throw new ParseError(
+                'Missing required credentials for service account',
+            );
+        }
+
         return {
             client_email: email,
             private_key: key,

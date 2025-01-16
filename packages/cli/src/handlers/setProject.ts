@@ -75,6 +75,10 @@ export const setFirstProject = async () => {
     });
     const firstProject = projects[0];
 
+    if (!firstProject) {
+        throw new Error('No projects found');
+    }
+
     await setProject(firstProject.projectUuid, firstProject.name);
     const config = await getConfig();
     const projectUrl =
