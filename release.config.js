@@ -21,9 +21,6 @@ module.exports = {
             },
         ],
 
-        // This is a workaround to avoid the error "EUNSUPPORTEDPROTOCOL" when running the prepareCmd
-        // https://github.com/pnpm/pnpm/issues/8064
-        // https://github.com/pnpm/pnpm/issues/5904
         [
             '@semantic-release/exec',
             {
