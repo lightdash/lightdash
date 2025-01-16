@@ -7,6 +7,9 @@
     "dependencies": {
         "tslib": "^2.6.2"
     },
+    "workspaces": [
+        "packages/*"
+    ],
     "resolutions": {
         "react-is": "19.0.0",
         "@types/react": "19.0.2",
@@ -96,6 +99,7 @@
         "build": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend build",
         "clean-build": "pnpm clean && pnpm install && pnpm build",
         "build-published-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli build",
+        "release-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli release",
         "start": "pnpm run backend-start",
         "prepare": "husky install || true",
         "load:env": "dotenv -c -e .env.development.local",

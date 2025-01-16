@@ -40,6 +40,7 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
-        "test": "TZ=UTC jest"
+        "test": "TZ=UTC jest",
+        "release": "pnpm publish --no-git-checks"
     }
 }
