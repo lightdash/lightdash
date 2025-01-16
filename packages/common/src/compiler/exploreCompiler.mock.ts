@@ -207,11 +207,11 @@ export const exploreCircularDimensionShortReference: UncompiledExplore = {
     ...exploreCircularDimensionReference,
     tables: {
         a: {
-            ...exploreCircularDimensionReference.tables.a,
+            ...exploreCircularDimensionReference.tables.a!,
             dimensions: {
                 dim1: {
-                    ...exploreCircularDimensionReference.tables.a.dimensions
-                        .dim1,
+                    ...exploreCircularDimensionReference.tables.a!.dimensions
+                        .dim1!,
                     sql: '${dim1}', // circular short reference
                 },
             },
@@ -267,10 +267,11 @@ export const exploreCircularMetricShortReference: UncompiledExplore = {
     ...exploreCircularDimensionReference,
     tables: {
         a: {
-            ...exploreCircularDimensionReference.tables.a,
+            ...exploreCircularDimensionReference.tables.a!,
             metrics: {
                 met1: {
-                    ...exploreCircularDimensionReference.tables.a.metrics.met1,
+                    ...exploreCircularDimensionReference.tables.a!.metrics
+                        .met1!,
                     sql: '${met1}', // circular short reference
                 },
             },
@@ -778,14 +779,14 @@ export const exploreWithJoinWithFieldsAndGroups: UncompiledExplore = {
     ...simpleJoinedExplore,
     joinedTables: [
         {
-            ...simpleJoinedExplore.joinedTables[0],
+            ...simpleJoinedExplore.joinedTables[0]!,
             fields: ['dim2'],
         },
     ],
     tables: {
         ...simpleJoinedExplore.tables,
         b: {
-            ...simpleJoinedExplore.tables.b,
+            ...simpleJoinedExplore.tables.b!,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -940,9 +941,9 @@ export const exploreReferenceInJoin: UncompiledExplore = {
     tables: {
         ...simpleJoinedExplore.tables,
         b: {
-            ...simpleJoinedExplore.tables.b,
+            ...simpleJoinedExplore.tables.b!,
             dimensions: {
-                ...simpleJoinedExplore.tables.b.dimensions,
+                ...simpleJoinedExplore.tables.b!.dimensions,
                 dim2: {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
@@ -979,9 +980,9 @@ export const exploreReferenceInJoinCompiled: Explore = {
     tables: {
         ...compiledSimpleJoinedExplore.tables,
         b: {
-            ...compiledSimpleJoinedExplore.tables.b,
+            ...compiledSimpleJoinedExplore.tables.b!,
             dimensions: {
-                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                ...compiledSimpleJoinedExplore.tables.b!.dimensions,
                 dim2: {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
@@ -1021,7 +1022,7 @@ export const joinedExploreOverridingJoinLabel: UncompiledExplore = {
     ...simpleJoinedExplore,
     joinedTables: [
         {
-            ...simpleJoinedExplore.joinedTables[0],
+            ...simpleJoinedExplore.joinedTables[0]!,
             label: 'Custom join label',
         },
     ],
@@ -1031,12 +1032,12 @@ export const compiledJoinedExploreOverridingJoinLabel: Explore = {
     tables: {
         ...compiledSimpleJoinedExplore.tables,
         b: {
-            ...compiledSimpleJoinedExplore.tables.b,
+            ...compiledSimpleJoinedExplore.tables.b!,
             label: 'Custom join label',
             dimensions: {
-                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                ...compiledSimpleJoinedExplore.tables.b!.dimensions,
                 dim1: {
-                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    ...compiledSimpleJoinedExplore.tables.b!.dimensions.dim1!,
                     tableLabel: 'Custom join label',
                 },
             },
@@ -1068,15 +1069,15 @@ export const compiledJoinedExploreOverridingJoinAlias: Explore = {
         },
     ],
     tables: {
-        a: compiledSimpleJoinedExplore.tables.a,
+        a: compiledSimpleJoinedExplore.tables.a!,
         custom_alias: {
-            ...compiledSimpleJoinedExplore.tables.b,
+            ...compiledSimpleJoinedExplore.tables.b!,
             name: 'custom_alias',
             label: 'Custom alias',
             dimensions: {
-                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                ...compiledSimpleJoinedExplore.tables.b!.dimensions,
                 dim1: {
-                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    ...compiledSimpleJoinedExplore.tables.b!.dimensions.dim1!,
                     table: 'custom_alias',
                     tableLabel: 'Custom alias',
                     compiledSql: '"custom_alias".dim1',
@@ -1112,15 +1113,15 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
         },
     ],
     tables: {
-        a: compiledSimpleJoinedExplore.tables.a,
+        a: compiledSimpleJoinedExplore.tables.a!,
         custom_alias: {
-            ...compiledSimpleJoinedExplore.tables.b,
+            ...compiledSimpleJoinedExplore.tables.b!,
             name: 'custom_alias',
             label: 'Custom join label',
             dimensions: {
-                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                ...compiledSimpleJoinedExplore.tables.b!.dimensions,
                 dim1: {
-                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    ...compiledSimpleJoinedExplore.tables.b!.dimensions.dim1!,
                     table: 'custom_alias',
                     tableLabel: 'Custom join label',
                     compiledSql: '"custom_alias".dim1',
@@ -1149,7 +1150,7 @@ export const joinedExploreWithTwoJoinsToTheSameTable: UncompiledExplore = {
     tables: {
         ...simpleJoinedExplore.tables,
         a: {
-            ...simpleJoinedExplore.tables.a,
+            ...simpleJoinedExplore.tables.a!,
             metrics: {
                 m1: {
                     fieldType: FieldType.METRIC,
@@ -1190,7 +1191,7 @@ export const compiledJoinedExploreWithTwoJoinsToTheSameTable: Explore = {
     ],
     tables: {
         a: {
-            ...compiledSimpleJoinedExplore.tables.a,
+            ...compiledSimpleJoinedExplore.tables.a!,
             metrics: {
                 m1: {
                     fieldType: FieldType.METRIC,
@@ -1208,15 +1209,15 @@ export const compiledJoinedExploreWithTwoJoinsToTheSameTable: Explore = {
                 },
             },
         },
-        b: compiledSimpleJoinedExplore.tables.b,
+        b: compiledSimpleJoinedExplore.tables.b!,
         custom_alias: {
-            ...compiledSimpleJoinedExplore.tables.b,
+            ...compiledSimpleJoinedExplore.tables.b!,
             name: 'custom_alias',
             label: 'Custom join label',
             dimensions: {
-                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                ...compiledSimpleJoinedExplore.tables.b!.dimensions,
                 dim1: {
-                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    ...compiledSimpleJoinedExplore.tables.b!.dimensions.dim1!,
                     table: 'custom_alias',
                     tableLabel: 'Custom join label',
                     compiledSql: '"custom_alias".dim1',
@@ -1253,9 +1254,9 @@ export const compiledExploreWithHiddenJoin: Explore = {
     tables: {
         ...exploreReferenceInJoinCompiled.tables,
         b: {
-            ...exploreReferenceInJoinCompiled.tables.b,
+            ...exploreReferenceInJoinCompiled.tables.b!,
             dimensions: Object.entries(
-                exploreReferenceInJoinCompiled.tables.b.dimensions,
+                exploreReferenceInJoinCompiled.tables.b!.dimensions,
             ).reduce(
                 (acc, [key, value]) => ({
                     ...acc,
@@ -1287,10 +1288,11 @@ export const compiledJoinedExploreWithSubsetOfFields: Explore = {
     tables: {
         ...exploreReferenceInJoinCompiled.tables,
         b: {
-            ...exploreReferenceInJoinCompiled.tables.b,
+            ...exploreReferenceInJoinCompiled.tables.b!,
             dimensions: {
                 dim1: {
-                    ...exploreReferenceInJoinCompiled.tables.b.dimensions.dim1,
+                    ...exploreReferenceInJoinCompiled.tables.b!.dimensions
+                        .dim1!,
                 },
             },
         },
@@ -1315,16 +1317,16 @@ export const compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields: Ex
         tables: {
             ...exploreReferenceInJoinCompiled.tables,
             b: {
-                ...exploreReferenceInJoinCompiled.tables.b,
+                ...exploreReferenceInJoinCompiled.tables.b!,
                 dimensions: {
                     dim1: {
-                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
-                            .dim1,
+                        ...exploreReferenceInJoinCompiled.tables.b!.dimensions
+                            .dim1!,
                         hidden: true,
                     },
                     dim2: {
-                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
-                            .dim2,
+                        ...exploreReferenceInJoinCompiled.tables.b!.dimensions
+                            .dim2!,
                     },
                 },
             },
@@ -1358,16 +1360,16 @@ export const compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeS
             },
         ],
         tables: {
-            a: exploreReferenceInJoinCompiled.tables.a,
+            a: exploreReferenceInJoinCompiled.tables.a!,
             custom_alias: {
-                ...exploreReferenceInJoinCompiled.tables.b,
+                ...exploreReferenceInJoinCompiled.tables.b!,
                 name: 'custom_alias',
                 label: 'Custom alias',
                 dimensions: {
-                    ...exploreReferenceInJoinCompiled.tables.b.dimensions,
+                    ...exploreReferenceInJoinCompiled.tables.b!.dimensions,
                     dim1: {
-                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
-                            .dim1,
+                        ...exploreReferenceInJoinCompiled.tables.b!.dimensions
+                            .dim1!,
                         table: 'custom_alias',
                         tableLabel: 'Custom alias',
                         compiledSql: '"custom_alias".dim1',
@@ -1376,16 +1378,16 @@ export const compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeS
                         hidden: true,
                     },
                     dim2: {
-                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
-                            .dim2,
+                        ...exploreReferenceInJoinCompiled.tables.b!.dimensions
+                            .dim2!,
                         table: 'custom_alias',
                         tableLabel: 'Custom alias',
                         compiledSql: '("a".dim1)',
                         tablesReferences: ['custom_alias', 'a'],
                     },
                     dim3: {
-                        ...exploreReferenceInJoinCompiled.tables.b.dimensions
-                            .dim3,
+                        ...exploreReferenceInJoinCompiled.tables.b!.dimensions
+                            .dim3!,
                         table: 'custom_alias',
                         tableLabel: 'Custom alias',
                         compiledSql: '"custom_alias".dim3',
@@ -1466,7 +1468,7 @@ export const exploreWithMetricNumberCompiled: Explore = {
             uncompiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
-                    ...exploreWithMetricNumber.tables.a.dimensions.dim1,
+                    ...exploreWithMetricNumber.tables.a!.dimensions.dim1!,
                     compiledSql: '"a".dim1',
 
                     tablesReferences: ['a'],
@@ -1474,12 +1476,12 @@ export const exploreWithMetricNumberCompiled: Explore = {
             },
             metrics: {
                 m1: {
-                    ...exploreWithMetricNumber.tables.a.metrics.m1,
+                    ...exploreWithMetricNumber.tables.a!.metrics.m1!,
                     compiledSql: 'SUM(("a".dim1))',
                     tablesReferences: ['a'],
                 },
                 m2: {
-                    ...exploreWithMetricNumber.tables.a.metrics.m2,
+                    ...exploreWithMetricNumber.tables.a!.metrics.m2!,
                     compiledSql: '2 + (SUM(("a".dim1)))',
 
                     tablesReferences: ['a'],

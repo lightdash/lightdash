@@ -568,8 +568,8 @@ const modelCanUseMetric = (
 
     if (metric.calculation_method === 'derived') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
-        return referencedMetrics.every((m) =>
-            modelCanUseMetric(m, modelName, metrics),
+        return referencedMetrics.every(
+            (m) => m !== undefined && modelCanUseMetric(m, modelName, metrics),
         );
     }
     return false;
@@ -608,6 +608,7 @@ export const convertExplores = async (
                 const tableWithLineage: Table = {
                     ...table,
                     ...tableLineage[model.name],
+                    lineageGraph: tableLineage[model.name]!.lineageGraph,
                 };
 
                 return [[...accTables, tableWithLineage], accErrors];
@@ -700,6 +701,7 @@ export const attachTypesToModels = (
         );
         const schemaMatch =
             databaseMatch &&
+            warehouseCatalog[databaseMatch] &&
             Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
                 caseSensitiveMatching
                     ? s === schema
@@ -708,6 +710,8 @@ export const attachTypesToModels = (
         const tableMatch =
             databaseMatch &&
             schemaMatch &&
+            warehouseCatalog[databaseMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch] &&
             Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
                 (t) =>
                     caseSensitiveMatching
@@ -734,6 +738,7 @@ export const attachTypesToModels = (
         );
         const schemaMatch =
             databaseMatch &&
+            warehouseCatalog[databaseMatch] &&
             Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
                 caseSensitiveMatching
                     ? s === schema
@@ -742,6 +747,8 @@ export const attachTypesToModels = (
         const tableMatch =
             databaseMatch &&
             schemaMatch &&
+            warehouseCatalog[databaseMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch] &&
             Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
                 (t) =>
                     caseSensitiveMatching
@@ -752,6 +759,9 @@ export const attachTypesToModels = (
             databaseMatch &&
             schemaMatch &&
             tableMatch &&
+            warehouseCatalog[databaseMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch][tableMatch] &&
             Object.keys(
                 warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
             ).find((c) =>
@@ -759,7 +769,18 @@ export const attachTypesToModels = (
                     ? c === columnName
                     : c.toLowerCase() === columnName.toLowerCase(),
             );
-        if (databaseMatch && schemaMatch && tableMatch && columnMatch) {
+        if (
+            databaseMatch &&
+            schemaMatch &&
+            tableMatch &&
+            columnMatch &&
+            warehouseCatalog[databaseMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch][tableMatch] &&
+            warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
+                columnMatch
+            ]
+        ) {
             return warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
                 columnMatch
             ];

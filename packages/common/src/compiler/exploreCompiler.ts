@@ -50,6 +50,13 @@ const getParsedReference = (ref: string, currentTable: string): Reference => {
     const refTable = split.length === 1 ? currentTable : split[0];
     const refName = split.length === 1 ? split[0] : split[1];
 
+    if (!refTable || !refName) {
+        throw new CompileError(
+            `Error in model "${currentTable}": The dimension reference "${ref}" is invalid. Ensure both table and dimension names are specified.`,
+            {},
+        );
+    }
+
     return { refTable, refName };
 };
 
@@ -138,11 +145,14 @@ export class ExploreCompiler {
         }
         const includedTables = joinedTables.reduce<Record<string, Table>>(
             (prev, join) => {
-                const joinTableName = join.alias || tables[join.table].name;
+                if (!tables[join.table]) {
+                    throw new CompileError(`Table ${join.table} not found`);
+                }
+                const joinTableName = join.alias || tables[join.table]!.name;
                 const joinTableLabel =
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
-                    tables[join.table].label;
+                    tables[join.table]!.label;
 
                 const requiredDimensionsForJoin = parseAllReferences(
                     join.sqlOn,
@@ -154,14 +164,18 @@ export class ExploreCompiler {
                     return acc;
                 }, []);
 
-                const tableDimensions = tables[join.table].dimensions;
+                const tableDimensions = tables[join.table]!.dimensions;
                 return {
                     ...prev,
                     [join.alias || join.table]: {
                         ...tables[join.table],
-                        originalName: tables[join.table].name,
+                        originalName: tables[join.table]!.name,
                         name: joinTableName,
                         label: joinTableLabel,
+                        database: tables[join.table]!.database,
+                        schema: tables[join.table]!.schema,
+                        sqlTable: tables[join.table]!.sqlTable,
+                        lineageGraph: tables[join.table]!.lineageGraph,
                         hidden: join.hidden,
                         dimensions: Object.keys(tableDimensions).reduce<
                             Record<string, Dimension>
@@ -171,6 +185,12 @@ export class ExploreCompiler {
                                 requiredDimensionsForJoin.includes(
                                     dimensionKey,
                                 );
+
+                            if (!dimension) {
+                                throw new CompileError(
+                                    `Dimension ${dimensionKey} not found in table ${join.table}`,
+                                );
+                            }
 
                             const isTimeIntervalBaseDimensionVisible =
                                 dimension.timeInterval &&
@@ -201,7 +221,7 @@ export class ExploreCompiler {
                             }
                             return acc;
                         }, {}),
-                        metrics: Object.keys(tables[join.table].metrics)
+                        metrics: Object.keys(tables[join.table]!.metrics)
                             .filter(
                                 (d) =>
                                     join.fields === undefined ||
@@ -210,7 +230,13 @@ export class ExploreCompiler {
                             .reduce<Record<string, Metric>>(
                                 (prevMetrics, metricKey) => {
                                     const metric =
-                                        tables[join.table].metrics[metricKey];
+                                        tables[join.table]!.metrics[metricKey];
+
+                                    if (!metric) {
+                                        throw new CompileError(
+                                            `Metric ${metricKey} not found in table ${join.table}`,
+                                        );
+                                    }
                                     return {
                                         ...prevMetrics,
                                         [metricKey]: {
@@ -234,7 +260,7 @@ export class ExploreCompiler {
             (prev, tableName) => ({
                 ...prev,
                 [tableName]: this.compileTable(
-                    includedTables[tableName],
+                    includedTables[tableName]!,
                     includedTables,
                 ),
             }),
@@ -263,28 +289,37 @@ export class ExploreCompiler {
     compileTable(table: Table, tables: Record<string, Table>): CompiledTable {
         const dimensions: Record<string, CompiledDimension> = Object.keys(
             table.dimensions,
-        ).reduce(
-            (prev, dimensionKey) => ({
+        ).reduce((prev, dimensionKey) => {
+            if (!table.dimensions[dimensionKey]) {
+                throw new Error(
+                    `Dimension "${dimensionKey}" is missing in table "${table.name}".`,
+                );
+            }
+            return {
                 ...prev,
                 [dimensionKey]: this.compileDimension(
                     table.dimensions[dimensionKey],
                     tables,
                 ),
-            }),
-            {},
-        );
+            };
+        }, {});
+
         const metrics: Record<string, CompiledMetric> = Object.keys(
             table.metrics,
-        ).reduce(
-            (prev, metricKey) => ({
+        ).reduce((prev, metricKey) => {
+            if (!table.metrics[metricKey]) {
+                throw new Error(
+                    `Metric "${metricKey}" is missing in table "${table.name}".`,
+                );
+            }
+            return {
                 ...prev,
                 [metricKey]: this.compileMetric(
                     table.metrics[metricKey],
                     tables,
                 ),
-            }),
-            {},
-        );
+            };
+        }, {});
 
         const compiledSqlWhere = table.sqlWhere?.replace(
             lightdashVariablePattern,
