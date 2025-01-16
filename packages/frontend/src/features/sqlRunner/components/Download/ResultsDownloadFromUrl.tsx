@@ -50,7 +50,7 @@ export const ResultsDownloadFromUrl: FC<Props> = ({
                     <NumberInput
                         size="xs"
                         type="number"
-                        label="Row limit"
+                        label="Row limit:"
                         step={100}
                         min={1}
                         autoFocus
