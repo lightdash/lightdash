@@ -366,7 +366,7 @@ export const convertDashboardFiltersParamToDashboardFilters = (
                         if (isDashboardTileTargetFilterOverride(tileTarget)) {
                             return {
                                 ...tileTargetsResult,
-                                ...{ [targetName]: targetValue },
+                                ...{ [String(targetName)]: targetValue },
                             };
                         }
                         return tileTargetsResult;

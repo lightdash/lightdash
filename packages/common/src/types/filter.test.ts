@@ -61,7 +61,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual([{ 'chart-id-no-filter': false }]);
         });
         it('should set tile target overrides when filter fields dont match tile fields', async () => {
@@ -80,7 +80,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual([
                 {
                     'chart-id-modified-filter': {
@@ -106,7 +106,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual([]);
         });
         it('should handle disabled, override and default cases together', async () => {
@@ -148,7 +148,7 @@ describe('compress and uncompress dashboard filters', () => {
                 tableCalculations: [],
             });
 
-            expect(compressedFilters.dimensions[0].tileTargets).toEqual([
+            expect(compressedFilters.dimensions[0]!.tileTargets).toEqual([
                 { 'chart-id-no-filter': false },
                 {
                     'chart-id-modified-filter': {
@@ -158,7 +158,7 @@ describe('compress and uncompress dashboard filters', () => {
                 },
                 { 'chart-id-no-filter2': false },
             ]);
-            expect(compressedFilters.metrics[0].tileTargets).toEqual([
+            expect(compressedFilters.metrics[0]!.tileTargets).toEqual([
                 { 'metric-chart-id-no-filter': false },
                 {
                     'metric-chart-id-modified-filter': {
@@ -227,7 +227,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual({
                 'chart-id-modified-filter': {
                     fieldId: 'other-field',
@@ -246,7 +246,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual({ 'chart-id-no-filter': false });
         });
         it('should omit tile target string (for back-compat)', async () => {
@@ -260,7 +260,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual({});
         });
         it('should handle normal, modified and disabled tile targets', async () => {
@@ -284,7 +284,7 @@ describe('compress and uncompress dashboard filters', () => {
                     ],
                     metrics: [],
                     tableCalculations: [],
-                }).dimensions[0].tileTargets,
+                }).dimensions[0]?.tileTargets,
             ).toEqual({
                 'chart-id-no-filter': false,
                 'chart-id-modified-filter': {
