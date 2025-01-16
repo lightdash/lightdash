@@ -2523,8 +2523,7 @@ export class ProjectService extends BaseService {
                                 ?.map((col) => row[col.reference])
                                 .join('_');
                             valuesColumns.forEach((col) => {
-                                // TODO: this should include the aggregation type, probably before the suffix
-                                const valueColumnReference = `${col.reference}_${valueSuffix}`;
+                                const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
                                 valuesColumnData.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
                                     id: valueColumnReference, // The pivoted y field name eg amount_false
