@@ -55,6 +55,10 @@ export function getHumanReadableCronExpression(
         .replaceAll(' PM', ` PM (UTC ${offsetString})`)
         .replaceAll(' AM', ` AM (UTC ${offsetString})`);
 
+    if (!valueWithTimezone[0]) {
+        throw new Error('Invalid cron expression');
+    }
+
     return valueWithTimezone[0].toLowerCase() + valueWithTimezone.slice(1);
 }
 
@@ -69,6 +73,10 @@ export function isValidFrequency(cronExpression: string): boolean {
         return false;
     }
     const [minutePart] = cronParts;
+    if (!minutePart) {
+        // Invalid cron expression
+        return false;
+    }
     if (
         minutePart.includes('/') ||
         minutePart.includes(',') ||

@@ -474,8 +474,8 @@ export const getFirstAvailableTimeDimension = (
         metric.availableTimeDimensions.length > 0
     ) {
         return {
-            table: metric.availableTimeDimensions[0].table,
-            field: metric.availableTimeDimensions[0].name,
+            table: metric.availableTimeDimensions[0]!.table,
+            field: metric.availableTimeDimensions[0]!.name,
             interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
         };
     }
@@ -505,7 +505,7 @@ export const getDefaultTimeDimension = (
                 !!dim.isIntervalBase &&
                 !dim.hidden,
         );
-        if (timeDimensions.length === 1) {
+        if (timeDimensions[0]) {
             return {
                 field: timeDimensions[0].name,
                 interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,

@@ -89,11 +89,9 @@ function updateModelNode(
     return {
         ...modelNode,
         columns: Object.values(modelNode.columns).map((columnNode) => {
-            if (groupedMetricsByDimension[columnNode.name]) {
-                return updateColumnNode(
-                    columnNode,
-                    groupedMetricsByDimension[columnNode.name],
-                );
+            const metricsForColumn = groupedMetricsByDimension[columnNode.name];
+            if (metricsForColumn) {
+                return updateColumnNode(columnNode, metricsForColumn);
             }
             return columnNode;
         }) as any,
@@ -109,11 +107,9 @@ export function findAndUpdateModelNodes(
         (metric) => metric.table,
     );
     return modelNodes.map((modelNode) => {
-        if (groupMetricsByTable[modelNode.name]) {
-            return updateModelNode(
-                modelNode,
-                groupMetricsByTable[modelNode.name],
-            );
+        const metricsForModel = groupMetricsByTable[modelNode.name];
+        if (metricsForModel) {
+            return updateModelNode(modelNode, metricsForModel);
         }
         return modelNode;
     });

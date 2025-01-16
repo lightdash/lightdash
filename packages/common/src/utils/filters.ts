@@ -664,8 +664,13 @@ export const getTabUuidsForFilterRules = (
             if (!acc[filterId]) {
                 acc[filterId] = [];
             }
-            if (tile.tabUuid && !acc[filterId].includes(tile.tabUuid)) {
-                acc[filterId].push(tile.tabUuid);
+            const filterList = acc[filterId];
+            if (
+                tile.tabUuid &&
+                filterList &&
+                !filterList.includes(tile.tabUuid)
+            ) {
+                filterList.push(tile.tabUuid);
             }
         });
         return acc;

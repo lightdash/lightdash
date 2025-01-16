@@ -144,9 +144,13 @@ describe('sanitizeHtml', () => {
             ];
 
             invalidTags.forEach(([tag, expected]) => {
-                expect(
-                    sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
-                ).toEqual(expected);
+                if (tag !== undefined && expected !== undefined) {
+                    expect(
+                        sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+                    ).toEqual(expected);
+                } else {
+                    fail('Tag or expected value is undefined');
+                }
             });
         });
 
@@ -178,9 +182,13 @@ describe('sanitizeHtml', () => {
             ];
 
             disallowedTags.forEach(([tag, expected]) => {
-                expect(
-                    sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
-                ).toEqual(expected);
+                if (tag !== undefined && expected !== undefined) {
+                    expect(
+                        sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+                    ).toEqual(expected);
+                } else {
+                    fail('Tag or expected value is undefined');
+                }
             });
         });
     });
