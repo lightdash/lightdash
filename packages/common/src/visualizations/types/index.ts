@@ -95,8 +95,7 @@ export type PivotChartData = {
     fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
-    valuesColumns: string[]; // This type doesn't include the aggregation type
-    valuesColumnsMetadata: {
+    valuesColumns: {
         referenceField: string;
         id: string;
         aggregation: VizAggregationOptions;

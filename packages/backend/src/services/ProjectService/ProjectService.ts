@@ -2469,8 +2469,7 @@ export class ProjectService extends BaseService {
         const columns: VizColumn[] = [];
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
-        const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
-        const columnMetadata = new Map<
+        const valuesColumnData = new Map<
             string,
             {
                 referenceField: string;
@@ -2524,11 +2523,9 @@ export class ProjectService extends BaseService {
                                 ?.map((col) => row[col.reference])
                                 .join('_');
                             valuesColumns.forEach((col) => {
-                                const valueColumnReference = `${col.reference}_${valueSuffix}`; // suffix added here
-                                valuesColumnReferences.add(
-                                    valueColumnReference,
-                                );
-                                columnMetadata.set(valueColumnReference, {
+                                // TODO: this should include the aggregation type, probably before the suffix
+                                const valueColumnReference = `${col.reference}_${valueSuffix}`;
+                                valuesColumnData.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
                                     id: valueColumnReference, // The pivoted y field name eg amount_false
                                     aggregation: col.aggregation, // The aggregation type
@@ -2560,16 +2557,7 @@ export class ProjectService extends BaseService {
 
         const processedColumns =
             groupByColumns && groupByColumns.length > 0
-                ? Array.from(valuesColumnReferences) // Here are the pivoted ones
-                : valuesColumns.map(
-                      (col) => `${col.reference}_${col.aggregation}`,
-                  );
-
-        // TODO: This extra metadata is being returned as a separate array for now,
-        // we could return it as part of the valuesColumns array.
-        const valuesColumnsMetadata =
-            groupByColumns && groupByColumns.length > 0
-                ? Array.from(columnMetadata.values())
+                ? Array.from(valuesColumnData.values())
                 : valuesColumns.map((col) => ({
                       referenceField: col.reference,
                       id: `${col.reference}_${col.aggregation}`,
@@ -2580,7 +2568,6 @@ export class ProjectService extends BaseService {
         return {
             fileUrl,
             valuesColumns: processedColumns,
-            valuesColumnsMetadata,
             indexColumn,
         };
     }

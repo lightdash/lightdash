@@ -68,7 +68,6 @@ const pivotQueryFn: PivotQueryFn = async ({
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
-            valuesColumnsMetadata: job.details.valuesColumnsMetadata,
             fileUrl: url,
         };
     } else {
@@ -172,7 +171,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
             ...(pivotResults.indexColumn?.reference
                 ? [pivotResults.indexColumn.reference]
                 : []),
-            ...pivotResults.valuesColumns,
+            ...pivotResults.valuesColumns.map((valueColumn) => valueColumn.id),
         ].map((field) => ({
             reference: field,
         }));
@@ -182,7 +181,6 @@ export const getPivotQueryFunctionForSqlRunner = ({
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,
-            valuesColumnsMetadata: pivotResults.valuesColumnsMetadata,
             columns,
         };
     };
