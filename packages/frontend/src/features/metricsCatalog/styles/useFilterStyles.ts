@@ -39,16 +39,33 @@ const baseStyles = (theme: MantineTheme) => ({
 export const useFilterSelectStyles = createStyles((theme) => {
     const base = baseStyles(theme);
     return {
+        root: {
+            flexGrow: 1,
+        },
         input: {
             ...base.baseInput,
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
             borderRadius: theme.radius.md,
+            minWidth: 200,
+            // truncate text
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            maxWidth: '100%',
+
             '&[value=""]': {
                 border: `1px dashed ${theme.colors.gray[4]}`,
             },
             '&[data-selected="true"]': {
-                borderBottomLeftRadius: 0,
                 borderBottomRightRadius: 0,
+                borderBottomLeftRadius: theme.radius.md,
+                borderTopRightRadius: 0,
+            },
+            '&[data-no-values="true"]': {
+                borderBottomLeftRadius: theme.radius.md,
+            },
+            '&[data-no-values="false"]': {
+                borderBottomLeftRadius: 0,
             },
         },
         item: base.baseItem,
@@ -69,26 +86,30 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
                 flexGrow: 1,
             },
         },
-
         input: {
             ...base.baseInput,
-            padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.radius.md,
+            width: 100,
+            minWidth: 100,
+            maxWidth: 100,
+            marginLeft: -1,
             borderTopLeftRadius: 0,
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
-            borderTop: 0,
-            paddingRight: 8,
-            paddingLeft: 8,
-
+            borderBottomLeftRadius: 0,
+            '&[data-no-values="true"]': {
+                borderBottomRightRadius: theme.radius.md,
+            },
+            '&[data-no-values="false"]': {
+                borderBottomRightRadius: 0,
+            },
             '&[data-full-width="true"]': {
                 width: '100%',
                 maxWidth: '100%',
-                borderBottomRightRadius: theme.radius.md,
             },
         },
         item: base.baseItem,
         dropdown: {
-            minWidth: 60,
+            minWidth: 100,
         },
         rightSection: {
             pointerEvents: 'none',
@@ -96,48 +117,44 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
     };
 });
 
-export const useFilterTagInputStyles = createStyles((theme: MantineTheme) => {
-    const base = baseStyles(theme);
-    return {
-        root: {
-            flexGrow: 1,
-        },
-        input: {
-            ...base.baseInput,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            '&[data-disabled="true"]': {
-                border: `1px dashed ${theme.colors.gray[4]}`,
-                borderLeft: 0,
+export const useFilterAutoCompleteStyles = createStyles(
+    (theme: MantineTheme) => {
+        const base = baseStyles(theme);
+        return {
+            root: {
+                flexGrow: 1,
             },
-        },
-        tagInput: {
-            fontWeight: 500,
-            fontSize: 14,
-        },
-        tagInputEmpty: {
-            fontWeight: 500,
-        },
-        value: {
-            fontWeight: 500,
-            borderRadius: theme.radius.sm,
-            color: theme.colors.dark[7],
-            border: `1px solid ${theme.colors.gray[2]}`,
-        },
-        values: {
-            maxHeight: 32,
-        },
-        tagInputContainer: {
-            ...base.baseInput,
-            borderRadius: theme.radius.md,
-            borderTopRightRadius: 0,
-            borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            borderLeft: 0,
-            borderTop: 0,
-            overflow: 'scroll',
-        },
-        rightSection: {
-            pointerEvents: 'none',
-        },
-    };
-});
+            input: {
+                ...base.baseInput,
+                borderRadius: theme.radius.md,
+                padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
+                borderTop: 0,
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                height: 'auto',
+            },
+            item: {
+                ...base.baseItem,
+                // makes add new item button sticky to bottom
+                '&:last-child:not([value])': {
+                    position: 'sticky',
+                    bottom: 4,
+                    // casts shadow on the bottom of the list to avoid transparency
+                    boxShadow: '0 4px 0 0 white',
+                },
+                '&:last-child:not([value]):not(:hover)': {
+                    background: 'white',
+                },
+            },
+            searchInput: {
+                fontWeight: 500,
+            },
+            dropdown: {
+                minWidth: 100,
+            },
+            rightSection: {
+                pointerEvents: 'none',
+            },
+        };
+    },
+);

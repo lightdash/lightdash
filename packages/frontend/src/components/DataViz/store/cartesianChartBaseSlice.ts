@@ -186,7 +186,8 @@ export const cartesianChartConfigSlice = createSlice({
         ) => {
             if (!display) display = {};
 
-            display.yAxis = display.yAxis || [];
+            // Initialize yAxis array with empty objects to prevent null values in case one is not set
+            display.yAxis = display.yAxis || [{}, {}];
 
             const { index, label } = action.payload;
             if (display.yAxis[index] === undefined) {
@@ -334,10 +335,8 @@ export const cartesianChartConfigSlice = createSlice({
                 ? action.payload.format
                 : undefined;
 
-            display.yAxis = display.yAxis || [
-                { format: undefined },
-                { format: undefined },
-            ];
+            // Initialize with empty objects to prevent null values in case one is not set
+            display.yAxis = display.yAxis || [{}, {}];
 
             if (!display.yAxis[action.payload.index]) {
                 display.yAxis[action.payload.index] = {

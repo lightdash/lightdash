@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CompileProjectPayload,
+    CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
@@ -87,7 +88,6 @@ import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
-import { job } from '../services/ProjectService/ProjectService.mock';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
 import {
@@ -96,6 +96,7 @@ import {
 } from '../services/UnfurlService/UnfurlService';
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
+import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { SchedulerClient } from './SchedulerClient';
 
 type SchedulerTaskArguments = {
@@ -115,6 +116,7 @@ type SchedulerTaskArguments = {
     slackClient: SlackClient;
     semanticLayerService: SemanticLayerService;
     catalogService: CatalogService;
+    encryptionUtil: EncryptionUtil;
 };
 
 type RunQueryTags = {
@@ -123,6 +125,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
@@ -157,6 +160,8 @@ export default class SchedulerTask {
 
     private readonly catalogService: CatalogService;
 
+    private readonly encryptionUtil: EncryptionUtil;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -174,6 +179,7 @@ export default class SchedulerTask {
         this.slackClient = args.slackClient;
         this.semanticLayerService = args.semanticLayerService;
         this.catalogService = args.catalogService;
+        this.encryptionUtil = args.encryptionUtil;
     }
 
     protected async getChartOrDashboard(
@@ -807,9 +813,20 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.STARTED,
             });
 
+            let projectData: CreateProject;
+            try {
+                projectData = JSON.parse(
+                    this.encryptionUtil.decrypt(
+                        Buffer.from(payload.data, 'base64'),
+                    ),
+                ) as CreateProject;
+            } catch {
+                throw new UnexpectedServerError('Failed to load project data');
+            }
+
             const projectCreationResult = await this.projectService._create(
                 user,
-                payload.data,
+                projectData,
                 payload.jobUuid,
                 getRequestMethod(payload.requestMethod),
             );
@@ -1150,6 +1167,7 @@ export default class SchedulerTask {
                 project_uuid: payload.projectUuid,
                 user_uuid: payload.userUuid,
                 organization_uuid: payload.organizationUuid,
+                explore_name: payload.exploreId,
             };
 
             const { rows } = await this.projectService.runMetricQuery({
