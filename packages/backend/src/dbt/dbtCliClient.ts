@@ -118,6 +118,10 @@ export class DbtCliClient implements DbtClient {
         this.selector = selector;
     }
 
+    getSelector(): string | undefined {
+        return this.selector;
+    }
+
     private async _getTargetDirectory(): Promise<string> {
         if (!this.targetDirectory) {
             const config = await getDbtConfig(this.dbtProjectDirectory);

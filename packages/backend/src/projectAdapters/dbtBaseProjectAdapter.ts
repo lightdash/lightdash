@@ -85,15 +85,25 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 {},
             );
         }
+        let models: DbtRawModelNode[] = [];
 
-        const manifestModels = getModelsFromManifest(manifest);
-        const compiledModels = getCompiledModels(manifestModels, undefined);
+        if (this.dbtClient.getSelector()) {
+            // If selector is provided, we use compile to get the models that match the selector
+            const manifestModels = getModelsFromManifest(manifest);
+            const compiledModels = getCompiledModels(manifestModels, undefined);
+            models = compiledModels.filter(
+                (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+            ) as DbtRawModelNode[];
+        } else {
+            // If selector is not provided, we use all the models from the manifest
+            // models with invalid metadata will compile to failed Explores
+            models = Object.values(manifest.nodes).filter(
+                (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+            ) as DbtRawModelNode[];
+        }
+
         const adapterType = manifest.metadata.adapter_type;
 
-        // Validate models in the manifest - models with invalid metadata will compile to failed Explores
-        const models = Object.values(compiledModels).filter(
-            (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
-        ) as DbtRawModelNode[];
         const manifestVersion = getDbtManifestVersion(manifest);
         Logger.debug(
             `Validate ${models.length} models in manifest with version ${manifestVersion}`,

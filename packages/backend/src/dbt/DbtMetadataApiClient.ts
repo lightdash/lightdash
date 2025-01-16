@@ -74,6 +74,11 @@ export class DbtMetadataApiClient implements DbtClient {
         );
     }
 
+    /* eslint-disable-next-line class-methods-use-this */
+    getSelector(): string | undefined {
+        return undefined;
+    }
+
     async getDbtManifest() {
         // TODO add selector to dbt cloud query
         try {
