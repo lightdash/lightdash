@@ -98,6 +98,9 @@ type Props = {
 export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
     ({ row, table }, ref) => {
         const { track } = useTracking();
+        const userUuid = useAppSelector(
+            (state) => state.metricsCatalog.user?.userUuid,
+        );
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
@@ -186,6 +189,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                 track({
                     name: EventName.METRICS_CATALOG_ICON_APPLIED,
                     properties: {
+                        userId: userUuid,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                     },

@@ -25,16 +25,19 @@ import {
     useReactFlow,
     type Connection,
     type Edge,
-    type EdgeChange,
     type EdgeTypes,
+    type NodeAddChange,
     type NodeChange,
     type NodePositionChange,
+    type NodeRemoveChange,
     type NodeReplaceChange,
     type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateMetricsTreeEdge,
@@ -139,7 +142,7 @@ const getNodeLayout = (
     // Draw the unconnected grid
     const free = gridArray.flatMap((row, rowIndex) =>
         row.map<MetricTreeCollapsedNodeData>((node, colIndex) => {
-            // Calculate x position based on widths of nodes in same column
+            // Calculate x position based on widths of nodes in same row
             const allPrevNodesInRowWidths = row
                 .slice(0, colIndex)
                 .map((n) => n.measured?.width ?? 0)
@@ -148,15 +151,12 @@ const getNodeLayout = (
             const x = 1 * colIndex + allPrevNodesInRowWidths;
 
             // Calculate y position based on sum of previous rows' max height
-            const prevRowMaxHeight = gridArray[rowIndex - 1]
-                ? Math.max(
-                      ...gridArray[rowIndex - 1].map(
-                          (n) => n.measured?.height ?? 0,
-                      ),
-                  ) + mainPadding
-                : 0;
+            const allPrevRowsMaxHeights = gridArray
+                .slice(0, rowIndex)
+                .map((r) => Math.max(...r.map((n) => n.measured?.height ?? 0)))
+                .reduce((acc, height) => acc + height + mainPadding, 0);
 
-            const y = 1 * rowIndex + prevRowMaxHeight;
+            const y = 1 * rowIndex + allPrevRowsMaxHeights;
 
             return {
                 ...node,
@@ -253,16 +253,24 @@ const getNodeLayout = (
 };
 
 const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
+    const { track } = useTracking();
     const theme = useMantineTheme();
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
+    );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
     );
 
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
     const { fitView, getNode } = useReactFlow<MetricTreeNode, Edge>();
-    const [isInitialLayoutReady, setIsInitialLayoutReady] = useState(false);
-    const nodesInitialized = useNodesInitialized({ includeHiddenNodes: false });
+    const nodesInitialized = useNodesInitialized();
+    const [isLayoutReady, setIsLayoutReady] = useState(false);
+
     const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
         STATIC_NODE_TYPES.UNCONNECTED,
     );
@@ -308,6 +316,10 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
             return {
                 id: metric.catalogSearchUuid,
                 position: { x: 0, y: 0 },
+                type:
+                    isEdgeTarget || isEdgeSource
+                        ? MetricTreeNodeType.EXPANDED
+                        : MetricTreeNodeType.COLLAPSED,
                 data: {
                     label: metric.name,
                     tableName: metric.tableName,
@@ -336,23 +348,25 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     );
 
     const applyLayout = useCallback(
-        (renderTwice?: boolean) => {
+        ({ renderTwice = true }: { renderTwice?: boolean } = {}) => {
             const layout = getNodeLayout(currentNodes, currentEdges, theme);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
-            setIsInitialLayoutReady(true); // Stop applying layout changes as soon as the initial layout is ready
 
             if (renderTwice) {
                 setTimeout(() => {
-                    applyLayout(false);
-                }, 0); // Wait for nodes to be measured
+                    applyLayout({ renderTwice: false });
+                }, 10);
+
                 return;
             }
 
-            setTimeout(() => {
-                void fitView();
-            }, 50); // Wait for nodes to be measured
+            window.requestAnimationFrame(() => {
+                void fitView({ maxZoom: 1.2 });
+            });
+
+            setIsLayoutReady(true);
         },
         [
             currentNodes,
@@ -440,39 +454,78 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     targetCatalogSearchUuid: params.target,
                 });
 
-                setCurrentEdges((els) => addEdge(params, els));
+                setCurrentEdges((edg) => addEdge(params, edg));
+                track({
+                    name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
+                    properties: {
+                        userId: userUuid,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                    },
+                });
             }
         },
-        [projectUuid, createMetricsTreeEdge, setCurrentEdges],
+        [
+            projectUuid,
+            createMetricsTreeEdge,
+            track,
+            userUuid,
+            organizationUuid,
+            setCurrentEdges,
+        ],
     );
 
     const handleEdgesDelete = useCallback(
         async (edgesToDelete: Edge[]) => {
             if (projectUuid) {
-                const promises = edgesToDelete.map((edge) => {
-                    return deleteMetricsTreeEdge({
+                const promises = edgesToDelete.map(async (edge) => {
+                    await deleteMetricsTreeEdge({
                         projectUuid,
                         sourceCatalogSearchUuid: edge.source,
                         targetCatalogSearchUuid: edge.target,
+                    });
+
+                    track({
+                        name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED,
+                        properties: {
+                            userId: userUuid,
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                        },
                     });
                 });
 
                 await Promise.all(promises);
             }
         },
-        [projectUuid, deleteMetricsTreeEdge],
+        [projectUuid, deleteMetricsTreeEdge, track, organizationUuid, userUuid],
     );
 
+    // Reset layout when initial edges or nodes change
     useEffect(() => {
-        const addNodeChanges: NodeChange<MetricTreeNode>[] = initialNodes
+        setCurrentEdges(initialEdges);
+        setIsLayoutReady(false);
+    }, [initialEdges, setCurrentEdges]);
+
+    // Only apply layout when nodes are initialized and the initial layout is not ready
+    useEffect(() => {
+        if (nodesInitialized && !isLayoutReady) {
+            applyLayout();
+        }
+    }, [applyLayout, nodesInitialized, isLayoutReady]);
+
+    const addNodeChanges = useMemo<NodeAddChange<MetricTreeNode>[]>(() => {
+        return initialNodes
             .filter((node) => !currentNodes.some((n) => n.id === node.id))
             .map((node) => ({
                 id: node.id,
                 type: 'add',
                 item: node,
             }));
+    }, [initialNodes, currentNodes]);
 
-        const removeNodeChanges: NodeChange<MetricTreeNode>[] = currentNodes
+    const removeNodeChanges = useMemo<NodeRemoveChange[]>(() => {
+        return currentNodes
             .filter(
                 (node) =>
                     node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
@@ -482,43 +535,13 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 id: node.id,
                 type: 'remove',
             }));
+    }, [currentNodes, initialNodes]);
 
+    useEffect(() => {
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
         }
-    }, [currentNodes, initialNodes, onNodesChange]);
-
-    useEffect(() => {
-        const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
-            .filter((edge) => !currentEdges.some((e) => e.id === edge.id))
-            .map((edge) => ({
-                id: edge.id,
-                type: 'add',
-                item: edge,
-            }));
-        const removeEdgeChanges: EdgeChange<Edge>[] = currentEdges
-            .filter((edge) => !initialEdges.some((e) => e.id === edge.id))
-            .map((edge) => ({
-                id: edge.id,
-                type: 'remove',
-            }));
-        if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
-            onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
-        }
-    }, [currentEdges, initialEdges, onEdgesChange]);
-
-    // Only apply layout when nodes are initialized and the initial layout is not ready
-    useEffect(() => {
-        if (nodesInitialized && !isInitialLayoutReady) {
-            // Render twice needed because nodes can change from expanded to collapsed on layout function so they need to be measured again
-            applyLayout(true);
-        }
-    }, [applyLayout, nodesInitialized, isInitialLayoutReady]);
-
-    // Reset layout when initial edges or nodes change
-    useEffect(() => {
-        setIsInitialLayoutReady(false);
-    }, [initialNodes, initialEdges]);
+    }, [addNodeChanges, removeNodeChanges, onNodesChange]);
 
     return (
         <Box h="100%">
@@ -562,7 +585,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                         <Button
                             variant="default"
                             radius="md"
-                            onClick={() => applyLayout(true)}
+                            onClick={applyLayout}
                             size="xs"
                             sx={{
                                 boxShadow: theme.shadows.subtle,

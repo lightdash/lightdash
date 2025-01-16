@@ -1,6 +1,7 @@
 import type { CatalogField } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { MRT_SortingState } from 'mantine-react-table';
+import type { UserWithAbility } from '../../../hooks/user/useUser';
 
 type MetricsCatalogState = {
     modals: {
@@ -12,6 +13,7 @@ type MetricsCatalogState = {
             metric: Pick<CatalogField, 'name' | 'tableName'> | undefined;
         };
     };
+    user: UserWithAbility | undefined;
     abilities: {
         canManageTags: boolean;
         canRefreshCatalog: boolean;
@@ -46,6 +48,7 @@ const initialState: MetricsCatalogState = {
             desc: true,
         },
     ],
+    user: undefined,
     abilities: {
         canManageTags: false,
         canRefreshCatalog: false,
@@ -102,6 +105,9 @@ export const metricsCatalogSlice = createSlice({
         setTableSorting: (state, action: PayloadAction<MRT_SortingState>) => {
             state.tableSorting = action.payload;
         },
+        setUser: (state, action: PayloadAction<UserWithAbility>) => {
+            state.user = action.payload;
+        },
         setAbility: (
             state,
             action: PayloadAction<{
@@ -140,6 +146,7 @@ export const {
     setCategoryFilters,
     setOrganizationUuid,
     setAbility,
+    setUser,
     setCategoryPopoverIsClosing,
     setDescriptionPopoverIsClosing,
     toggleMetricExploreModal,

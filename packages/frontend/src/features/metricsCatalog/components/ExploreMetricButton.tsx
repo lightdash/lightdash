@@ -23,6 +23,9 @@ export const ExploreMetricButton = ({ row }: Props) => {
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
 
     const { track } = useTracking();
 
@@ -30,6 +33,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
         track({
             name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
             properties: {
+                userId: userUuid,
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 metricName: row.original.name,
@@ -57,6 +61,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
         row.original.name,
         row.original.tableName,
         track,
+        userUuid,
     ]);
 
     return (
