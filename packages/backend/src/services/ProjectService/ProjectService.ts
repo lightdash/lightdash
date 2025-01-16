@@ -164,6 +164,7 @@ import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -181,6 +182,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 
 type ProjectServiceArguments = {
@@ -207,6 +209,7 @@ type ProjectServiceArguments = {
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
     contentModel: ContentModel;
+    encryptionUtil: EncryptionUtil;
 };
 
 export class ProjectService extends BaseService {
@@ -258,6 +261,8 @@ export class ProjectService extends BaseService {
 
     contentModel: ContentModel;
 
+    encryptionUtil: EncryptionUtil;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -282,6 +287,7 @@ export class ProjectService extends BaseService {
         tagsModel,
         catalogModel,
         contentModel,
+        encryptionUtil,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -308,6 +314,7 @@ export class ProjectService extends BaseService {
         this.tagsModel = tagsModel;
         this.catalogModel = catalogModel;
         this.contentModel = contentModel;
+        this.encryptionUtil = encryptionUtil;
     }
 
     private async validateProjectCreationPermissions(
@@ -642,6 +649,15 @@ export class ProjectService extends BaseService {
 
         await this.validateProjectCreationPermissions(user, data);
 
+        let encryptedData: string;
+        try {
+            encryptedData = this.encryptionUtil
+                .encrypt(JSON.stringify(data))
+                .toString('base64');
+        } catch {
+            throw new UnexpectedServerError('Failed to load project data');
+        }
+
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.CREATE_PROJECT,
@@ -664,7 +680,7 @@ export class ProjectService extends BaseService {
             organizationUuid: user.organizationUuid,
             requestMethod: method,
             jobUuid: job.jobUuid,
-            data,
+            data: encryptedData,
         });
         return { jobUuid: job.jobUuid };
     }
@@ -1297,6 +1313,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         return this.runQueryAndFormatRows({
@@ -1377,6 +1394,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
+            explore_name: savedChart.tableName,
         };
 
         const { cacheMetadata, rows, fields } =
@@ -1503,6 +1521,7 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
+            explore_name: explore.name,
         };
 
         const exploreDimensions = getDimensions(explore);
@@ -1593,6 +1612,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         const explore = await this.getExplore(
@@ -1767,6 +1787,7 @@ export class ProjectService extends BaseService {
                     project_uuid: chart.projectUuid,
                     user_uuid: user.userUuid,
                     chart_uuid: chartUuid,
+                    explore_name: exploreId,
                 };
 
                 return this.runMetricQuery({
@@ -2764,6 +2785,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
+            explore_name: explore.name,
         };
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
@@ -4479,6 +4501,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
@@ -4512,6 +4535,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: explore.name,
         };
 
         const { rows, cacheMetadata } =

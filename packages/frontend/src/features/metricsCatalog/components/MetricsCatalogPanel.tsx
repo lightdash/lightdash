@@ -33,6 +33,7 @@ import {
     setProjectUuid,
     setSearch,
     setTableSorting,
+    setUser,
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
 import { type MetricCatalogView } from '../types';
@@ -317,6 +318,8 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     'manage',
                     'MetricsTree',
                 );
+
+                dispatch(setUser(user.data));
 
                 dispatch(
                     setAbility({

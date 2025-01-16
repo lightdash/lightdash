@@ -2,6 +2,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
+import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
@@ -96,6 +97,7 @@ type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     repository: ServiceRepository;
     context: OperationContext;
     models: ModelRepository;
+    utils: UtilRepository;
     clients: ClientRepository;
 }) => T[keyof T];
 
@@ -176,21 +178,26 @@ abstract class ServiceRepositoryBase {
 
     protected models: ModelRepository;
 
+    protected readonly utils: UtilRepository;
+
     constructor({
         serviceProviders,
         context,
         clients,
         models,
+        utils,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
         clients: ClientRepository;
         models: ModelRepository;
+        utils: UtilRepository;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
         this.clients = clients;
         this.models = models;
+        this.utils = utils;
     }
 }
 
@@ -448,6 +455,7 @@ export class ServiceRepository
                     tagsModel: this.models.getTagsModel(),
                     catalogModel: this.models.getCatalogModel(),
                     contentModel: this.models.getContentModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }
@@ -790,6 +798,7 @@ export class ServiceRepository
                     context: this.context,
                     models: this.models,
                     clients: this.clients,
+                    utils: this.utils,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();

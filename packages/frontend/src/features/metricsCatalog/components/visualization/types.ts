@@ -12,6 +12,8 @@ export const DATE_FORMATS = {
     year: (date: Date) => dayjs(date).format('YYYY'),
 };
 
+export const COMPARISON_OPACITY = 0.3;
+
 export type MetricVisualizationFormatConfig = {
     metric: CustomFormat | undefined;
     compareMetric: CustomFormat | undefined;

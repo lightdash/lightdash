@@ -1,15 +1,18 @@
 import { friendlyName } from '@lightdash/common';
-import { Paper, Text } from '@mantine/core';
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { Group, Paper, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 
 export type MetricTreeCollapsedNodeData = Node<{
     label: string;
+    tableName?: string;
 }>;
 
 const MetricTreeCollapsedNode: React.FC<
     NodeProps<MetricTreeCollapsedNodeData>
-> = ({ data, isConnectable }) => {
+> = ({ data, selected }) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
@@ -18,43 +21,39 @@ const MetricTreeCollapsedNode: React.FC<
             miw={150}
             fz="xs"
             p="xs"
+            bg="white"
             sx={(theme) => ({
                 '&[data-with-border]': {
-                    border: `none`,
-                    borderRadius: theme.radius.sm,
-                    background: `linear-gradient(90deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%), 
-                                linear-gradient(90deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%), 
-                                linear-gradient(0deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%), 
-                                linear-gradient(0deg, ${theme.colors.gray[5]} 50%, ${theme.colors.gray[0]} 50%)`,
-                    backgroundColor: theme.colors.gray[0],
-                    backgroundRepeat: 'repeat-x, repeat-x, repeat-y, repeat-y',
-                    backgroundSize: '6px 1px, 6px 1px, 1px 6px, 1px 6px',
-                    backgroundPosition: '0% 0%, 100% 100%, 0% 100%, 100% 0px',
-                    animation: 'dash 15s linear infinite',
-                },
-                '@keyframes dash': {
-                    to: {
-                        backgroundPosition:
-                            '100% 0%, 0% 100%, 0% 0%, 100% 100%',
-                    },
+                    borderRadius: theme.radius.md,
+                    border: `1px dashed ${
+                        selected ? theme.colors.blue[5] : theme.colors.gray[3]
+                    }`,
                 },
             })}
         >
-            <Handle
-                type="target"
-                position={Position.Top}
-                hidden={!isConnectable}
-            />
-
-            <Text size="xs" c="dark.3" fw={500} truncate ta="center">
-                {title}
-            </Text>
-
-            <Handle
-                type="source"
-                position={Position.Bottom}
-                hidden={!isConnectable}
-            />
+            <Group position="apart">
+                <Text size="xs" c="gray.7" fw={500} truncate ta="center">
+                    {title}
+                </Text>
+                <Tooltip
+                    label={
+                        <>
+                            <Text size="xs" fw="bold">
+                                Table:{' '}
+                                <Text span fw="normal">
+                                    {data.tableName}
+                                </Text>
+                            </Text>
+                        </>
+                    }
+                >
+                    <MantineIcon
+                        icon={IconInfoCircle}
+                        size={12}
+                        color="dark.3"
+                    />
+                </Tooltip>
+            </Group>
         </Paper>
     );
 };
