@@ -70,8 +70,12 @@ module.exports = {
                 assets: [
                     'CHANGELOG.md',
                     'package.json',
+                    'packages/backend/package.json',
+                    'packages/cli/package.json',
                     'packages/common/package.json',
-                    ...packagesWithWorkspaceDependencies,
+                    'packages/e2e/package.json',
+                    'packages/frontend/package.json',
+                    'packages/warehouses/package.json',
                 ],
                 message:
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',
