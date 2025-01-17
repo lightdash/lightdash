@@ -66,6 +66,9 @@ const setIndexByKey = (
         return false;
     }
     const [key, ...rest] = keys;
+    if (!key) {
+        return false;
+    }
     if (rest.length === 0) {
         if (obj[key] === undefined) {
             // eslint-disable-next-line no-param-reassign
@@ -96,6 +99,9 @@ const getIndexByKey = (
     }
 
     const [key, ...rest] = keys;
+    if (!key) {
+        throw new Error('Expected a key');
+    }
 
     if (rest.length === 0) {
         const value = obj[key];
@@ -143,8 +149,14 @@ const getAllIndicesByKey = (
     keys: string[],
 ): number[] => {
     const [key, ...rest] = keys;
+    if (!key) {
+        throw new Error('Expected a key');
+    }
     if (rest.length === 0) {
         const value = obj[key];
+        if (!value) {
+            throw new Error('Expected a number');
+        }
         if (isNumber(value)) {
             return [value];
         }
@@ -205,6 +217,9 @@ const combinedRetrofit = (
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
+    if (!data.headerValues[0]) {
+        throw new Error('Invalid pivot data');
+    }
     const uniqueIdsForDataValueColumns: string[] = Array(
         data.headerValues[0].length,
     );
@@ -273,12 +288,18 @@ const combinedRetrofit = (
             };
         });
 
+        if (!data.dataValues[rowIndex]) {
+            throw new Error('Invalid pivot data');
+        }
+
         const remappedDataValues = data.dataValues[rowIndex].map(
             (dataValue, colIndex) => {
                 const baseIdInfoForCol = baseIdInfo
                     ? baseIdInfo[colIndex]
                     : undefined;
                 const baseId = baseIdInfoForCol?.fieldId;
+                if (!uniqueIdsForDataValueColumns[colIndex])
+                    throw new Error("Unique Id's are not found");
                 const id = uniqueIdsForDataValueColumns[colIndex] + colIndex;
                 return {
                     baseId,
@@ -429,17 +450,28 @@ export const pivotQueryResults = ({
     let columnCount = 0;
     for (let nRow = 0; nRow < N_ROWS; nRow += 1) {
         const row = rows[nRow];
+        if (!row) {
+            throw new Error('Row is undefined');
+        }
 
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
+            if (!metric) {
+                throw new Error('Metric is undefined');
+            }
 
             const indexRowValues = indexDimensions
-                .map<PivotData['indexValues'][number][number]>((fieldId) => ({
-                    type: 'value',
-                    fieldId,
-                    value: row[fieldId].value,
-                    colSpan: 1,
-                }))
+                .map<PivotData['indexValues'][number][number]>((fieldId) => {
+                    if (!row[fieldId]) {
+                        throw new Error('Field value is undefined');
+                    }
+                    return {
+                        type: 'value',
+                        fieldId,
+                        value: row[fieldId].value,
+                        colSpan: 1,
+                    };
+                })
                 .concat(
                     pivotConfig.metricsAsRows
                         ? [
@@ -452,12 +484,17 @@ export const pivotQueryResults = ({
                 );
 
             const headerRowValues = headerDimensions
-                .map<PivotData['headerValues'][number][number]>((fieldId) => ({
-                    type: 'value',
-                    fieldId,
-                    value: row[fieldId].value,
-                    colSpan: 1,
-                }))
+                .map<PivotData['headerValues'][number][number]>((fieldId) => {
+                    if (!row[fieldId]) {
+                        throw new Error('Field value is undefined');
+                    }
+                    return {
+                        type: 'value',
+                        fieldId,
+                        value: row[fieldId].value,
+                        colSpan: 1,
+                    };
+                })
                 .concat(
                     pivotConfig.metricsAsRows
                         ? []
@@ -510,6 +547,9 @@ export const pivotQueryResults = ({
             headerValuesT.map<PivotData['headerValues'][number][number]>(
                 (row, rowIndex) => {
                     const cell = row[colIndex];
+                    if (!cell) {
+                        throw new Error('Cell is undefined');
+                    }
                     if (cell.type === 'label') {
                         return cell;
                     }
@@ -556,16 +596,22 @@ export const pivotQueryResults = ({
     // Compute pivoted data
     for (let nRow = 0; nRow < N_ROWS; nRow += 1) {
         const row = rows[nRow];
+        if (!row) {
+            throw new Error('Row is undefined');
+        }
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const { value } = row[metric.fieldId];
+            if (!metric) {
+                throw new Error('Metric is undefined');
+            }
+            const { value } = row[metric.fieldId] as { value: ResultValue };
 
             const rowKeys = [
-                ...indexDimensions.map((d) => row[d].value.raw),
+                ...indexDimensions.map((d) => row[d]!.value.raw),
                 ...(pivotConfig.metricsAsRows ? [metric.fieldId] : []),
             ];
             const columnKeys = [
-                ...headerDimensions.map((d) => row[d].value.raw),
+                ...headerDimensions.map((d) => row[d]!.value.raw),
                 ...(pivotConfig.metricsAsRows ? [] : [metric.fieldId]),
             ];
 
@@ -578,6 +624,10 @@ export const pivotQueryResults = ({
             const columnIndex = hasHeader
                 ? getIndexByKey(columnIndices, columnKeysString)
                 : 0;
+
+            if (!dataValues[rowIndex]) {
+                throw new Error('Data values is undefined');
+            }
 
             dataValues[rowIndex][columnIndex] = value;
         }
@@ -594,18 +644,25 @@ export const pivotQueryResults = ({
             rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
+            if (rowTotalFields.length === 0) {
+                throw new Error('Row total fields is undefined');
+            }
+
             // set the last header cell as the "Total"
-            rowTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+            rowTotalFields[N_TOTAL_ROWS - 1]![N_TOTAL_COLS - 1] = {
                 fieldId: undefined,
             };
 
             rowTotals = rowTotals.map((row, rowIndex) =>
-                row.map(() =>
-                    dataValues[rowIndex].reduce(
+                row.map(() => {
+                    if (!dataValues[rowIndex]) {
+                        throw new Error('Row totals is undefined');
+                    }
+                    return dataValues[rowIndex].reduce(
                         (acc, value) => acc + parseNumericValue(value),
                         0,
-                    ),
-                ),
+                    );
+                }),
             );
         } else {
             const N_TOTAL_COLS = summableMetricFieldIds.length;
@@ -615,7 +672,7 @@ export const pivotQueryResults = ({
             rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
             summableMetricFieldIds.forEach((fieldId, metricIndex) => {
-                rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
+                rowTotalFields![N_TOTAL_ROWS - 1]![metricIndex] = {
                     fieldId,
                 };
             });
@@ -623,7 +680,7 @@ export const pivotQueryResults = ({
             rowTotals = rowTotals.map((row, rowIndex) =>
                 row.map((_, totalColIndex) => {
                     const totalColFieldId =
-                        rowTotalFields![N_TOTAL_ROWS - 1][totalColIndex]
+                        rowTotalFields![N_TOTAL_ROWS - 1]![totalColIndex]
                             ?.fieldId;
                     const valueColIndices = totalColFieldId
                         ? getAllIndicesForFieldId(
@@ -631,6 +688,9 @@ export const pivotQueryResults = ({
                               totalColFieldId,
                           )
                         : [];
+                    if (!dataValues[rowIndex]) {
+                        throw new Error('Row totals is undefined');
+                    }
                     return dataValues[rowIndex]
                         .filter((__, dataValueColIndex) =>
                             valueColIndices.includes(dataValueColIndex),
@@ -655,7 +715,7 @@ export const pivotQueryResults = ({
             columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
             summableMetricFieldIds.forEach((fieldId, metricIndex) => {
-                columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
+                columnTotalFields![metricIndex]![N_TOTAL_COLS - 1] = {
                     fieldId,
                 };
             });
@@ -663,7 +723,8 @@ export const pivotQueryResults = ({
             columnTotals = columnTotals.map((row, rowIndex) =>
                 row.map((_, totalColIndex) => {
                     const totalColFieldId =
-                        columnTotalFields![rowIndex][N_TOTAL_COLS - 1]?.fieldId;
+                        columnTotalFields![rowIndex]![N_TOTAL_COLS - 1]
+                            ?.fieldId;
 
                     const valueColIndices = totalColFieldId
                         ? getAllIndicesForFieldId(rowIndices, totalColFieldId)
@@ -672,14 +733,22 @@ export const pivotQueryResults = ({
                         .filter((__, dataValueColIndex) =>
                             valueColIndices.includes(dataValueColIndex),
                         )
-                        .reduce(
-                            (acc, value) =>
-                                acc + parseNumericValue(value[totalColIndex]),
-                            0,
-                        );
+                        .reduce((acc, value) => {
+                            if (!value[totalColIndex]) {
+                                throw new Error(
+                                    `Value at column index ${totalColIndex} is undefined in dataValues.`,
+                                );
+                            }
+                            return (
+                                acc + parseNumericValue(value[totalColIndex])
+                            );
+                        }, 0);
                 }),
             );
         } else {
+            if (!indexValues[0]) {
+                throw new Error('Index values is undefined');
+            }
             const N_TOTAL_COLS = indexValues[0].length;
             const N_TOTAL_ROWS = 1;
 
@@ -687,7 +756,7 @@ export const pivotQueryResults = ({
             columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
             // set the last index cell as the "Total"
-            columnTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+            columnTotalFields[N_TOTAL_ROWS - 1]![N_TOTAL_COLS - 1] = {
                 fieldId: undefined,
             };
 
@@ -695,10 +764,12 @@ export const pivotQueryResults = ({
                 row.map((_col, colIndex) =>
                     dataValues
                         .map((dataRow) => dataRow[colIndex])
-                        .reduce(
-                            (acc, value) => acc + parseNumericValue(value),
-                            0,
-                        ),
+                        .reduce((acc, value) => {
+                            if (!value) {
+                                throw new Error('Value is undefined');
+                            }
+                            return acc + parseNumericValue(value);
+                        }, 0),
                 ),
             );
         }
@@ -710,7 +781,7 @@ export const pivotQueryResults = ({
     );
     headerValueTypes.forEach((headerValueType, headerIndex) => {
         if (headerValueType.type === FieldType.DIMENSION) {
-            titleFields[headerIndex][
+            titleFields[headerIndex]![
                 hasIndex ? indexValueTypes.length - 1 : 0
             ] = {
                 fieldId: headerValueType.fieldId,
@@ -720,7 +791,7 @@ export const pivotQueryResults = ({
     });
     indexValueTypes.forEach((indexValueType, indexIndex) => {
         if (indexValueType.type === FieldType.DIMENSION) {
-            titleFields[hasHeader ? headerValueTypes.length - 1 : 0][
+            titleFields[hasHeader ? headerValueTypes.length - 1 : 0]![
                 indexIndex
             ] = {
                 fieldId: indexValueType.fieldId,
@@ -730,10 +801,10 @@ export const pivotQueryResults = ({
     });
 
     const cellsCount =
-        (indexValueTypes.length === 0 ? titleFields[0].length : 0) +
+        (indexValueTypes.length === 0 ? titleFields[0]!.length : 0) +
         indexValueTypes.length +
-        dataValues[0].length +
-        (pivotConfig.rowTotals && rowTotals ? rowTotals[0].length : 0);
+        dataValues[0]!.length +
+        (pivotConfig.rowTotals && rowTotals ? rowTotals[0]!.length : 0);
 
     const rowsCount = dataValues.length || 0;
 
@@ -808,6 +879,9 @@ export const pivotResultsAsCsv = ({
                     : getFieldLabel(header.fieldId),
             );
             const fields = pivotedResults.titleFields[i];
+            if (!fields) {
+                throw new Error(`No fields for row ${i}`);
+            }
             const fieldLabels = fields.map((field) =>
                 field ? getFieldLabel(field.fieldId) : undefinedCharacter,
             );
