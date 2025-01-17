@@ -138,6 +138,16 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         },
     ): Promise<void> {
         try {
+            // Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed.
+            const labels = options?.tags
+                ? Object.fromEntries(
+                      Object.entries(options.tags).map(([key, value]) => [
+                          key.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
+                          value.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
+                      ]),
+                  )
+                : undefined;
+
             const [job] = await this.client.createQueryJob({
                 query,
                 params: options?.values,
@@ -150,7 +160,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 jobTimeoutMs:
                     this.credentials.timeoutSeconds &&
                     this.credentials.timeoutSeconds * 1000,
-                labels: options?.tags,
+                labels,
             });
 
             // Get the full api response but we can request zero rows

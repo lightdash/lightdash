@@ -13,7 +13,7 @@ type MetricsCatalogState = {
             metric: Pick<CatalogField, 'name' | 'tableName'> | undefined;
         };
     };
-    user: UserWithAbility | undefined;
+    user: Pick<UserWithAbility, 'userUuid'> | undefined;
     abilities: {
         canManageTags: boolean;
         canRefreshCatalog: boolean;
@@ -105,7 +105,10 @@ export const metricsCatalogSlice = createSlice({
         setTableSorting: (state, action: PayloadAction<MRT_SortingState>) => {
             state.tableSorting = action.payload;
         },
-        setUser: (state, action: PayloadAction<UserWithAbility>) => {
+        setUser: (
+            state,
+            action: PayloadAction<Pick<UserWithAbility, 'userUuid'>>,
+        ) => {
             state.user = action.payload;
         },
         setAbility: (
