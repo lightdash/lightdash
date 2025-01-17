@@ -157,6 +157,9 @@ export const EXPLORE_JOIN_CHAIN: Explore = {
     name: 'myexplore',
     label: 'myexplore',
     baseTable: 'table1',
+    spotlight: {
+        visibility: 'show',
+    },
     tags: [],
     tables: {
         table1: emptyTable('table1'),
@@ -228,6 +231,9 @@ export const EXPLORE_ALL_JOIN_TYPES_CHAIN: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'myexplore',
     label: 'myexplore',
+    spotlight: {
+        visibility: 'show',
+    },
     baseTable: 'table1',
     tags: [],
     tables: {
@@ -301,6 +307,9 @@ export const EXPLORE: Explore = {
     name: 'table1',
     label: 'table1',
     baseTable: 'table1',
+    spotlight: {
+        visibility: 'show',
+    },
     tags: [],
     joinedTables: [
         {
@@ -442,6 +451,9 @@ export const EXPLORE_BIGQUERY: Explore = {
     name: 'table1',
     label: 'table1',
     baseTable: 'table1',
+    spotlight: {
+        visibility: 'show',
+    },
     tags: [],
     joinedTables: [
         {

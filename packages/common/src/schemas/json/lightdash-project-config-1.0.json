@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/config.json",
+    "type": "object",
+    "properties": {
+        "spotlight": {
+            "type": "object",
+            "properties": {
+                "default_visibility": {
+                    "type": "string",
+                    "enum": ["show", "hide"],
+                    "default": "show"
+                },
+                "categories": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_-]+$": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string"
+                                },
+                                "color": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["label"]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -10469,6 +10469,20 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                spotlight: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        visibility: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['show'] },
+                                { dataType: 'enum', enums: ['hide'] },
+                            ],
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
             },
             validators: {},
         },

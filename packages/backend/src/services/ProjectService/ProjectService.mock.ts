@@ -4,6 +4,7 @@ import {
     ChartKind,
     ChartType,
     DbtProjectType,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     DimensionType,
     Explore,
@@ -67,6 +68,9 @@ export const validExplore: Explore = {
     tags: [],
     baseTable: 'a',
     type: ExploreType.DEFAULT,
+    spotlight: {
+        visibility: 'show',
+    },
     joinedTables: [
         {
             sqlOn: '${a.dim1} = ${b.dim1}',

@@ -1,0 +1,10 @@
+spotlight:
+  default_visibility: hide # Optional, defaults to "show"
+
+  categories:
+    core:
+      label: "Core Metrics"
+      color: blue
+    experimental:
+      label: "Experimental Metrics"
+      color: orange

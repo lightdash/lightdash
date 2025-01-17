@@ -121,6 +121,9 @@ export const mockExploreWithOutdatedMetricFilters: Explore = {
     name: 'payments',
     tags: [],
     label: 'Payments',
+    spotlight: {
+        visibility: 'show',
+    },
     tables: {
         orders: {
             name: 'orders',
@@ -252,6 +255,9 @@ export const exploreWithMetricFilters: Explore = {
     name: 'payments',
     tags: [],
     label: 'Payments',
+    spotlight: {
+        visibility: 'show',
+    },
     tables: {
         orders: {
             name: 'orders',
@@ -388,6 +394,9 @@ export const exploresWithSameName: Explore[] = [
         baseTable: 'payments_v1',
         joinedTables: [],
         targetDatabase: SupportedDbtAdapter.POSTGRES,
+        spotlight: {
+            visibility: 'show',
+        },
     },
     {
         name: 'payments',
@@ -397,5 +406,8 @@ export const exploresWithSameName: Explore[] = [
         baseTable: 'payments_v2',
         joinedTables: [],
         targetDatabase: SupportedDbtAdapter.POSTGRES,
+        spotlight: {
+            visibility: 'show',
+        },
     },
 ];

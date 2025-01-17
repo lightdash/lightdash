@@ -6,6 +6,7 @@ import {
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
+    DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     ExploreError,
     friendlyName,
@@ -163,6 +164,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 metrics,
                 this.warehouseClient,
+                // TODO: Read from project config yml
+                {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                },
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -200,6 +205,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     adapterType,
                     metrics,
                     this.warehouseClient,
+                    // TODO: Read from project config yml
+                    {
+                        spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                    },
                 );
                 return [...explores, ...failedExplores];
             }

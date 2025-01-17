@@ -11171,6 +11171,16 @@
                     },
                     "sqlPath": {
                         "type": "string"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -11180,7 +11190,8 @@
                     "baseTable",
                     "joinedTables",
                     "tables",
-                    "targetDatabase"
+                    "targetDatabase",
+                    "spotlight"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -13016,7 +13027,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1459.3",
+        "version": "0.1461.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

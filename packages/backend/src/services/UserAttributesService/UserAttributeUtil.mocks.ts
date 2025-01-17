@@ -10,6 +10,9 @@ export const EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES: Explore = {
     name: 'payments',
     tags: [],
     label: 'Payments',
+    spotlight: {
+        visibility: 'show',
+    },
     baseTable: 'payments',
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     joinedTables: [

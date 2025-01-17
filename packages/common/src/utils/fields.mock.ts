@@ -55,6 +55,9 @@ const exploreBase: Explore = {
     joinedTables: [],
     tables: {},
     groupLabel: undefined,
+    spotlight: {
+        visibility: 'show',
+    },
 };
 
 const sourceMock: Source = {

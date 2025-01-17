@@ -22,6 +22,7 @@ import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
+import { loadLightdashProjectConfig } from '../lightdash-config';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -123,6 +124,17 @@ ${errors.join('')}`),
     GlobalState.debug(
         `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
     );
+
+    GlobalState.debug(
+        `> Loading lightdash project config from ${absoluteProjectPath}`,
+    );
+
+    const lightdashProjectConfig = await loadLightdashProjectConfig(
+        path.join(absoluteProjectPath, 'lightdash.config.yml'),
+    );
+
+    GlobalState.debug(`> Loaded lightdash project config`);
+
     const validExplores = await convertExplores(
         validModelsWithTypes,
         false,
@@ -135,6 +147,7 @@ ${errors.join('')}`),
             ? []
             : Object.values(manifest.metrics),
         warehouseClient,
+        lightdashProjectConfig,
     );
     console.error('');
 

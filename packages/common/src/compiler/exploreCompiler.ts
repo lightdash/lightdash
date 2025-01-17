@@ -29,6 +29,7 @@ import {
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
+import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -78,6 +79,7 @@ export type UncompiledExplore = {
     ymlPath?: string;
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
+    spotlight: Required<NonNullable<LightdashProjectConfig['spotlight']>>;
 };
 
 const getReferencedTable = (
@@ -110,6 +112,7 @@ export class ExploreCompiler {
         warehouse,
         ymlPath,
         sqlPath,
+        spotlight,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -246,6 +249,10 @@ export class ExploreCompiler {
         );
 
         return {
+            spotlight: {
+                // TODO: verify from data in config from yml
+                visibility: spotlight.default_visibility,
+            },
             name,
             label,
             tags,

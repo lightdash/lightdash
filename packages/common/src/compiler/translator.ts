@@ -30,6 +30,10 @@ import {
     type Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
+import {
+    DEFAULT_SPOTLIGHT_CONFIG,
+    type LightdashProjectConfig,
+} from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseClient } from '../types/warehouse';
@@ -586,6 +590,7 @@ export const convertExplores = async (
     adapterType: SupportedDbtAdapter,
     metrics: DbtMetric[],
     warehouseClient: WarehouseClient,
+    lightdashProjectConfig: LightdashProjectConfig,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -673,6 +678,10 @@ export const convertExplores = async (
                 warehouse: model.config?.snowflake_warehouse,
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
+                spotlight: {
+                    ...DEFAULT_SPOTLIGHT_CONFIG,
+                    ...lightdashProjectConfig.spotlight,
+                },
             });
         } catch (e: unknown) {
             return {
