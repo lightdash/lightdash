@@ -5,6 +5,7 @@ import {
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Group,
     Indicator,
@@ -20,6 +21,8 @@ import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
     IconChartHistogram,
+    IconChevronDown,
+    IconChevronUp,
     IconCodeCircle,
     IconGripHorizontal,
 } from '@tabler/icons-react';
@@ -76,6 +79,11 @@ import { ResultsDownloadFromUrl } from './Download/ResultsDownloadFromUrl';
 import { SqlEditor } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
+// Used to set the initial size of the results panel to a value that looks like
+// 0 but is not zero. This makes it possible to know if size has been changed
+// since it can never be set back to this value by the UI
+const INITIAL_RESULTS_PANEL_SIZE = 0.1;
+
 export const ContentPanel: FC = () => {
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
@@ -102,7 +110,10 @@ export const ContentPanel: FC = () => {
     const { showToastError } = useToaster();
 
     // State tracked by this component
-    const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
+    const [panelSizes, setPanelSizes] = useState<number[]>([
+        100,
+        INITIAL_RESULTS_PANEL_SIZE,
+    ]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
 
     // state for helping highlight errors in the editor
@@ -114,6 +125,8 @@ export const ContentPanel: FC = () => {
         width: inputSectionWidth,
         height: inputSectionHeight,
     } = useElementSize();
+
+    const [userHasResized, setUserHasResized] = useState(false);
 
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
@@ -243,11 +256,15 @@ export const ContentPanel: FC = () => {
     const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
 
     useEffect(() => {
-        if (queryResults && panelSizes[1] === 0) {
+        if (
+            queryResults &&
+            panelSizes[1] === INITIAL_RESULTS_PANEL_SIZE &&
+            !userHasResized
+        ) {
             resultsPanelRef.current?.resize(50);
             setPanelSizes([50, 50]);
         }
-    }, [queryResults, panelSizes]);
+    }, [queryResults, panelSizes, userHasResized]);
 
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
@@ -453,12 +470,14 @@ export const ContentPanel: FC = () => {
 
                 <PanelGroup
                     direction="vertical"
-                    onLayout={(sizes) => setPanelSizes(sizes)}
+                    onLayout={(sizes) => {
+                        setPanelSizes(sizes);
+                    }}
                 >
                     <Panel
                         id="sql-runner-panel-sql-or-charts"
                         order={1}
-                        minSize={30}
+                        minSize={20}
                         style={{ display: 'flex', flexDirection: 'column' }}
                     >
                         <Paper
@@ -471,6 +490,7 @@ export const ContentPanel: FC = () => {
                                 borderStyle: 'solid',
                                 borderColor: theme.colors.gray[3],
                                 overflow: 'auto',
+                                position: 'relative',
                             })}
                         >
                             <Box
@@ -632,6 +652,49 @@ export const ContentPanel: FC = () => {
                                         )}
                                 </ConditionalVisibility>
                             </Box>
+                            <Group
+                                sx={(theme) => ({
+                                    marginLeft: 'auto',
+                                    marginRight: 20,
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    right: 0,
+                                    padding: `2px ${theme.spacing.xs}`,
+                                    backgroundColor: theme.colors.white,
+                                    borderRadius: `${theme.radius.sm} ${theme.radius.sm} 0 0`,
+                                    border: `1px solid ${theme.colors.gray[3]}`,
+                                    borderBottom: 'none',
+                                })}
+                                noWrap
+                                spacing="two"
+                            >
+                                <ActionIcon
+                                    variant="subtle"
+                                    onClick={() => {
+                                        resultsPanelRef.current?.resize(100);
+                                        setUserHasResized(true);
+                                    }}
+                                    size="sm"
+                                >
+                                    <MantineIcon
+                                        color="gray.6"
+                                        icon={IconChevronUp}
+                                    />
+                                </ActionIcon>
+                                <ActionIcon
+                                    variant="subtle"
+                                    onClick={() => {
+                                        resultsPanelRef.current?.resize(0);
+                                        setUserHasResized(true);
+                                    }}
+                                    size="sm"
+                                >
+                                    <MantineIcon
+                                        color="gray.6"
+                                        icon={IconChevronDown}
+                                    />
+                                </ActionIcon>
+                            </Group>
                         </Paper>
                     </Panel>
 
@@ -656,24 +719,26 @@ export const ContentPanel: FC = () => {
                             gap: 5,
                         })}
                     >
-                        <MantineIcon
-                            color="gray"
-                            icon={IconGripHorizontal}
-                            size={12}
-                        />
+                        <Group mx="auto" sx={{ cursor: 'row-resize' }}>
+                            <MantineIcon
+                                color="gray"
+                                icon={IconGripHorizontal}
+                                size={12}
+                            />
 
-                        {showLimitText && (
-                            <>
-                                <Text fz="xs" fw={400} c="gray.7">
-                                    Showing first {DEFAULT_SQL_LIMIT} rows
-                                </Text>
-                                <MantineIcon
-                                    color="gray"
-                                    icon={IconGripHorizontal}
-                                    size={12}
-                                />
-                            </>
-                        )}
+                            {showLimitText && (
+                                <>
+                                    <Text fz="xs" fw={400} c="gray.7">
+                                        Showing first {DEFAULT_SQL_LIMIT} rows
+                                    </Text>
+                                    <MantineIcon
+                                        color="gray"
+                                        icon={IconGripHorizontal}
+                                        size={12}
+                                    />
+                                </>
+                            )}
+                        </Group>
                     </Box>
 
                     <Panel
