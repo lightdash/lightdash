@@ -98,16 +98,17 @@ export const useColumns = (): TableColumn[] => {
     });
 
     const itemsMap = useMemo<ItemsMap | undefined>(() => {
-        // If there are no results, use the explore data to render placeholder columns
-        if (resultsData) {
-            return resultsData?.fields;
-        } else if (exploreData) {
-            return getItemMap(
-                exploreData,
-                additionalMetrics,
-                tableCalculations,
-                customDimensions,
-            );
+        if (exploreData) {
+            // Explore items for new columns and result items for existing columns with format overrides
+            return {
+                ...getItemMap(
+                    exploreData,
+                    additionalMetrics,
+                    tableCalculations,
+                    customDimensions,
+                ),
+                ...(resultsData?.fields || {}),
+            };
         }
     }, [
         resultsData,
