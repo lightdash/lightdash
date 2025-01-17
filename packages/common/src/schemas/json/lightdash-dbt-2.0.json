@@ -185,6 +185,17 @@
                                                     "field",
                                                     "interval"
                                                 ]
+                                            },
+                                            "spotlight": {
+                                                "type": "object",
+                                                "description": "Set the visibility of a metric in Spotlight",
+                                                "properties": {
+                                                    "visibility": {
+                                                        "type": "string",
+                                                        "enum": ["show", "hide"]
+                                                    }
+                                                },
+                                                "required": ["visibility"]
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -211,6 +222,17 @@
                                     }
                                 },
                                 "required": ["field", "interval"]
+                            },
+                            "spotlight": {
+                                "type": "object",
+                                "description": "Set the visibility of all metrics in this model in Spotlight",
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["show", "hide"]
+                                    }
+                                },
+                                "required": ["visibility"]
                             }
                         }
                     },
@@ -351,6 +373,22 @@
                                                             "required": [
                                                                 "field",
                                                                 "interval"
+                                                            ]
+                                                        },
+                                                        "spotlight": {
+                                                            "type": "object",
+                                                            "description": "Set the visibility of this metric in Spotlight",
+                                                            "properties": {
+                                                                "visibility": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "show",
+                                                                        "hide"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "visibility"
                                                             ]
                                                         }
                                                     },
@@ -622,6 +660,17 @@
                                     }
                                 },
                                 "required": ["field", "interval"]
+                            },
+                            "spotlight": {
+                                "type": "object",
+                                "description": "Set the visibility of this metric in Spotlight",
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["show", "hide"]
+                                    }
+                                },
+                                "required": ["visibility"]
                             }
                         }
                     }

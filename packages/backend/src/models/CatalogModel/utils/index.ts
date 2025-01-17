@@ -5,6 +5,7 @@ import {
     friendlyName,
     getItemId,
     isExploreError,
+    isMetric,
     type CatalogFieldMap,
     type CatalogFieldWhere,
     type ChartFieldChanges,
@@ -73,7 +74,9 @@ export const convertExploresToCatalog = (
                         {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
                     chart_usage: 0, // Fields are initialized with 0 chart usage
                     table_name: explore.baseTable,
-                    spotlight_show: getSpotlightShow(explore.spotlight),
+                    spotlight_show: getSpotlightShow(
+                        isMetric(field) ? field.spotlight : explore.spotlight,
+                    ),
                 };
             });
 

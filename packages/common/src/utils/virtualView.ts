@@ -62,7 +62,9 @@ export const createVirtualView = (
         tables: { [virtualViewName]: compiledTable },
         targetDatabase: warehouseClient.getAdapterType(),
         // TODO: Read from project config yml
-        spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+        // NOTE: Users can't create metrics in virtual views, so this is irrelevant
+        spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+        meta: {},
     });
 
     const virtualView = {

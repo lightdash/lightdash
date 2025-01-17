@@ -2,6 +2,8 @@ version: 2
 models:
   - name: customers
     meta:
+      spotlight:
+        visibility: hide
       joins:
         - join: membership
           hidden: true
@@ -25,7 +27,8 @@ models:
               type: count_distinct
               label: Unique customer count
               description: Total number of customers
-
+              spotlight:
+                visibility: show
       - name: first_name
         description: |
           # First name

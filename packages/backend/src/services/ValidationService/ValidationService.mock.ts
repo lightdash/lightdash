@@ -166,6 +166,9 @@ export const explore: Explore = {
                     compiledSql: 'compiledSql',
                     tablesReferences: undefined,
                     hidden: false,
+                    spotlight: {
+                        visibility: 'show',
+                    },
                 },
             },
             lineageGraph: {},
@@ -237,6 +240,9 @@ export const exploreWithJoin: Explore = {
                     compiledSql: 'compiledSql',
                     tablesReferences: undefined,
                     hidden: false,
+                    spotlight: {
+                        visibility: 'show',
+                    },
                 },
             },
             lineageGraph: {},

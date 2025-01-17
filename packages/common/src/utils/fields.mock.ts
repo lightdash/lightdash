@@ -115,6 +115,9 @@ export const explore: Explore = {
                     compiledSql: 'AVG("table1".metric1)',
                     tablesReferences: ['table1'],
                     groups: [],
+                    spotlight: {
+                        visibility: 'show',
+                    },
                 },
             },
             lineageGraph: {},
