@@ -78,6 +78,7 @@ import {
     NotFoundError,
     ParameterError,
     PivotChartData,
+    PivotValuesColumn,
     Project,
     ProjectCatalog,
     ProjectGroupAccess,
@@ -2469,18 +2470,7 @@ export class ProjectService extends BaseService {
         const columns: VizColumn[] = [];
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
-        const valuesColumnData = new Map<
-            string,
-            {
-                referenceField: string;
-                id: string;
-                aggregation: VizAggregationOptions;
-                pivotValues: {
-                    field: string;
-                    value: string;
-                }[];
-            }
-        >();
+        const valuesColumnData = new Map<string, PivotValuesColumn>();
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,

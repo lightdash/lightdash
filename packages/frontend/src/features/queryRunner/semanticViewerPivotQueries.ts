@@ -9,6 +9,7 @@ import {
     type SemanticLayerField,
     type SemanticLayerQuery,
     type VizColumn,
+    type PivotValuesColumn,
 } from '@lightdash/common';
 import { apiGetSemanticLayerQueryResults } from '../semanticViewer/api/requests';
 
@@ -101,27 +102,19 @@ export const getPivotQueryFunctionForSemanticViewer = (
               }
             : undefined;
 
-        const valuesColumns = pivotedResults.columns.reduce(
-            (acc, col) => {
-                if (!query.pivot?.index.includes(col)) {
-                    // TODO: returning a bit of a dummy object here to keep this working,
-                    // but the extra information isn't used in the Semantic viewer
-                    acc.push({
-                        referenceField: col,
-                        id: col,
-                        aggregation: VizAggregationOptions.ANY,
-                        pivotValues: [],
-                    });
-                }
-                return acc;
-            },
-            [] as {
-                referenceField: string;
-                id: string;
-                aggregation: VizAggregationOptions;
-                pivotValues: { field: string; value: string }[];
-            }[],
-        );
+        const valuesColumns = pivotedResults.columns.reduce((acc, col) => {
+            if (!query.pivot?.index.includes(col)) {
+                // TODO: returning a bit of a dummy object here to keep this working,
+                // but the extra information isn't used in the Semantic viewer
+                acc.push({
+                    referenceField: col,
+                    id: col,
+                    aggregation: VizAggregationOptions.ANY,
+                    pivotValues: [],
+                });
+            }
+            return acc;
+        }, [] as PivotValuesColumn[]);
 
         return {
             results,

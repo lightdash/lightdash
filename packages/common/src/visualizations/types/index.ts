@@ -91,19 +91,21 @@ export type PivotIndexColum =
     | { reference: string; type: VizIndexType }
     | undefined;
 
+export type PivotValuesColumn = {
+    referenceField: string;
+    id: string;
+    aggregation: VizAggregationOptions;
+    pivotValues: {
+        field: string;
+        value: string;
+    }[];
+};
+
 export type PivotChartData = {
     fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
-    valuesColumns: {
-        referenceField: string;
-        id: string;
-        aggregation: VizAggregationOptions;
-        pivotValues: {
-            field: string;
-            value: string;
-        }[];
-    }[];
+    valuesColumns: PivotValuesColumn[];
     columns: VizColumn[];
 };
 
