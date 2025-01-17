@@ -2,13 +2,14 @@ import {
     CustomFormatType,
     getCustomFormat,
     getItemId,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     hasFormatting,
     NumberSeparator,
     type CustomFormat,
 } from '@lightdash/common';
-import { Button, Modal, Stack, Title } from '@mantine/core';
+import { Button, Group, Modal, Stack, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { isEqual } from 'lodash';
 import { useCallback, useEffect } from 'react';
 import { type ValueOf } from 'type-fest';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -97,7 +98,9 @@ export const FormatModal = () => {
             opened={isOpen}
             onClose={handleClose}
             title={
-                <Title order={4}>Format metric "{getItemLabel(metric)}"</Title>
+                <Title order={4}>
+                    Format metric "{getItemLabelWithoutTableName(metric)}"
+                </Title>
             }
         >
             <form onSubmit={handleOnSubmit}>
@@ -107,9 +110,25 @@ export const FormatModal = () => {
                         format={form.values.format}
                         setFormatFieldValue={setFormatFieldValue}
                     />
-                    <Button display="block" ml="auto" type="submit">
-                        Save changes
-                    </Button>
+
+                    <Group position="right" spacing="xs">
+                        {!isEqual(form.values.format, DEFAULT_FORMAT) && (
+                            <Button
+                                variant="default"
+                                onClick={() =>
+                                    form.setValues({
+                                        format: DEFAULT_FORMAT,
+                                    })
+                                }
+                            >
+                                Reset
+                            </Button>
+                        )}
+
+                        <Button display="block" type="submit">
+                            Save changes
+                        </Button>
+                    </Group>
                 </Stack>
             </form>
         </Modal>
