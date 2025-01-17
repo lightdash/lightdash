@@ -338,7 +338,7 @@ export class PieChartDataModel {
           }
         | undefined {
         const transformedData = this.pivotedChartData;
-        if (!transformedData) {
+        if (!transformedData || !transformedData.results[0]) {
             return undefined;
         }
 
@@ -360,7 +360,11 @@ export class PieChartDataModel {
     getSpec(display?: VizPieChartDisplay): Record<string, any> {
         const transformedData = this.pivotedChartData;
 
-        if (!transformedData) {
+        if (
+            !transformedData ||
+            !Array.isArray(transformedData.valuesColumns) ||
+            !transformedData.valuesColumns[0]
+        ) {
             return {};
         }
 
@@ -386,7 +390,7 @@ export class PieChartDataModel {
                             ? result[transformedData.indexColumn.reference]
                             : '-',
                         groupId: transformedData.indexColumn?.reference,
-                        value: result[transformedData.valuesColumns[0]],
+                        value: result[transformedData.valuesColumns[0]!],
                     })),
                 },
             ],

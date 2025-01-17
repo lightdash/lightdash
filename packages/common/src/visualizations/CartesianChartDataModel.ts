@@ -642,7 +642,7 @@ export class CartesianChartDataModel {
                     name:
                         leftYAxisSeriesReferences.length > 0
                             ? display?.yAxis?.[0]?.label ||
-                              friendlyName(leftYAxisSeriesReferences[0])
+                              friendlyName(leftYAxisSeriesReferences[0]!)
                             : '',
                     nameLocation: 'center',
                     nameGap: 50,
@@ -667,7 +667,7 @@ export class CartesianChartDataModel {
                     name:
                         rightYAxisSeriesReferences.length > 0
                             ? display?.yAxis?.[1]?.label ||
-                              friendlyName(rightYAxisSeriesReferences[0])
+                              friendlyName(rightYAxisSeriesReferences[0]!)
                             : '',
                     nameLocation: 'center',
                     nameGap: 50,
