@@ -991,15 +991,16 @@ export const getAxisName = ({
     series?: Series[];
     itemsMap: ItemsMap | undefined;
 }): string | undefined => {
-    const defaultItem = itemsMap
-        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
-        : undefined;
+    const firstSeries = (series || [])[0];
+    const encodeField = firstSeries?.encode[axisReference].field;
+    const defaultItem =
+        itemsMap && encodeField ? itemsMap[encodeField] : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name ||
+            ? series[0]!.name ||
               (defaultItem && getItemLabelWithoutTableName(defaultItem))
             : undefined;
 
