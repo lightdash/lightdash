@@ -1,7 +1,9 @@
 import {
     assertUnreachable,
     DimensionType,
+    type PivotChartData,
     SemanticLayerFieldType,
+    VizAggregationOptions,
     VizIndexType,
     type RunPivotQuery,
     type SemanticLayerField,
@@ -73,16 +75,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
     projectUuid: string,
     fields: SemanticLayerField[],
 ): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
-        // ! When there is pivotConfig.index (group by) then we cannot sort by anything other than pivotConfig.on (X field) -> this is because the results don't include those columns
-        // TODO: This seems to work tout this, but might need to check
-        // const pivotSorts =
-        //     pivotConfig.index.length > 0
-        //         ? this.query.sortBy.filter((s) =>
-        //               pivotConfig.on.includes(s.name),
-        //           )
-        //         : this.query.sortBy;
-
+    return async (query: SemanticLayerQuery): Promise<PivotChartData> => {
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid,
             query,
@@ -108,8 +101,26 @@ export const getPivotQueryFunctionForSemanticViewer = (
               }
             : undefined;
 
-        const valuesColumns = pivotedResults.columns.filter(
-            (col) => !query.pivot?.index.includes(col),
+        const valuesColumns = pivotedResults.columns.reduce(
+            (acc, col) => {
+                if (!query.pivot?.index.includes(col)) {
+                    // TODO: returning a bit of a dummy object here to keep this working,
+                    // but the extra information isn't used in the Semantic viewer
+                    acc.push({
+                        referenceField: col,
+                        id: col,
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [],
+                    });
+                }
+                return acc;
+            },
+            [] as {
+                referenceField: string;
+                id: string;
+                aggregation: VizAggregationOptions;
+                pivotValues: { field: string; value: string }[];
+            }[],
         );
 
         return {
