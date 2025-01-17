@@ -1,4 +1,5 @@
 import {
+    DEFAULT_SPOTLIGHT_CONFIG,
     LightdashProjectConfig,
     ParseError,
     lightdashProjectConfigSchema,
@@ -34,10 +35,7 @@ export const loadLightdashProjectConfig = async (
         if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
             // Return default config if file doesn't exist
             return {
-                spotlight: {
-                    default_visibility: 'show',
-                    categories: {},
-                },
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             };
         }
         throw e;

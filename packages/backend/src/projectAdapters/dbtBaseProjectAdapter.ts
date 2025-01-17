@@ -17,6 +17,7 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    lightdashProjectConfigSchema,
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
@@ -24,8 +25,13 @@ import {
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
+    type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import path from 'path';
+import Ajv from 'ajv';
+import * as yaml from 'js-yaml';
+import { promises as fs } from 'fs';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -38,16 +44,20 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtVersion: SupportedDbtVersions;
 
+    dbtProjectDir?: string;
+
     constructor(
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
         cachedWarehouse: CachedWarehouse,
         dbtVersion: SupportedDbtVersions,
+        dbtProjectDir?: string,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
         this.dbtVersion = dbtVersion;
+        this.dbtProjectDir = dbtProjectDir;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -68,6 +78,43 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return this.dbtClient.getDbtPackages();
         }
         return undefined;
+    }
+
+    private async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+        try {
+            const ajv = new Ajv({ coerceTypes: true });
+
+            if (!this.dbtProjectDir) {
+                return {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                };
+            }
+
+            const configPath = path.join(
+                this.dbtProjectDir,
+                'lightdash.config.yml',
+            );
+            const configFile = yaml.load(await fs.readFile(configPath, 'utf8'));
+            const validate = ajv.compile<LightdashProjectConfig>(
+                lightdashProjectConfigSchema,
+            );
+
+            if (!validate(configFile)) {
+                throw new ParseError(
+                    `Invalid lightdash.config.yml at ${configPath}\n`,
+                );
+            }
+
+            return configFile;
+        } catch (e: unknown) {
+            if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+                // Return default config if file doesn't exist
+                return {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                };
+            }
+            throw e;
+        }
     }
 
     public async compileAllExplores(
@@ -142,6 +189,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 : Object.values(manifest.metrics),
         );
 
+        const lightdashProjectConfig = await this.getLightdashProjectConfig();
+
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
             if (this.cachedWarehouse?.warehouseCatalog === undefined) {
@@ -164,10 +213,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 metrics,
                 this.warehouseClient,
-                // TODO: Read from project config yml
-                {
-                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
-                },
+                lightdashProjectConfig,
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -205,10 +251,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     adapterType,
                     metrics,
                     this.warehouseClient,
-                    // TODO: Read from project config yml
-                    {
-                        spotlight: DEFAULT_SPOTLIGHT_CONFIG,
-                    },
+                    lightdashProjectConfig,
                 );
                 return [...explores, ...failedExplores];
             }

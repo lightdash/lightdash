@@ -50,7 +50,10 @@ import type {
     DbCatalogTagsMigrateIn,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
-import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import {
+    CatalogModel,
+    type CatalogSearchContext,
+} from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -228,6 +231,7 @@ export class CatalogService<
         projectUuid: string,
         userAttributes: UserAttributeValueMap,
         catalogSearch: ApiCatalogSearch,
+        context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogItem[]>> {
@@ -253,6 +257,7 @@ export class CatalogService<
                             tablesConfiguration,
                             userAttributes,
                             sortArgs,
+                            context,
                         }),
                 ),
         );
@@ -505,6 +510,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         catalogSearch: ApiCatalogSearch,
+        context: CatalogSearchContext,
     ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -536,6 +542,7 @@ export class CatalogService<
                 projectUuid,
                 userAttributes,
                 catalogSearch,
+                context,
             );
         }
 
@@ -716,6 +723,7 @@ export class CatalogService<
     async getMetricsCatalog(
         user: SessionUser,
         projectUuid: string,
+        context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
         { searchQuery, catalogTags }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
@@ -748,6 +756,7 @@ export class CatalogService<
                 filter: CatalogFilter.Metrics,
                 catalogTags,
             },
+            context,
             paginateArgs,
             sortArgs,
         );
@@ -1164,6 +1173,7 @@ export class CatalogService<
     async getAllCatalogMetricsWithTimeDimensions(
         user: SessionUser,
         projectUuid: string,
+        context: CatalogSearchContext,
     ): Promise<MetricWithAssociatedTimeDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1193,6 +1203,7 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
+            context,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1217,6 +1228,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         tableName: string,
+        context: CatalogSearchContext,
     ): Promise<CompiledDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1253,6 +1265,7 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
+            context,
         });
 
         const allDimensions = catalogDimensions.data

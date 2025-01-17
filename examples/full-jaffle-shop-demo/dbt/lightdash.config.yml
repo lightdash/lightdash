@@ -1,5 +1,5 @@
 spotlight:
-  default_visibility: hide # Optional, defaults to "show"
+  default_visibility: show # Optional, defaults to "show"
 
   categories:
     core:
