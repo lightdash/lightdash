@@ -154,7 +154,7 @@ const getAllIndicesByKey = (
     }
     if (rest.length === 0) {
         const value = obj[key];
-        if (!value) {
+        if (value === undefined) {
             throw new Error('Expected a number');
         }
         if (isNumber(value)) {
