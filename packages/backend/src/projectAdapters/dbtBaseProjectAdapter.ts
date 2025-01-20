@@ -19,6 +19,7 @@ import {
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
+    NotFoundError,
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
@@ -88,18 +89,26 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         let models: DbtRawModelNode[] = [];
 
         if (this.dbtClient.getSelector()) {
+            Logger.info(
+                `Manifest generated with selector "${this.dbtClient.getSelector()}"`,
+            );
             // If selector is provided, we use compile to get the models that match the selector
             const manifestModels = getModelsFromManifest(manifest);
+            Logger.info(`Manifest models ${manifestModels.length}`);
             const compiledModels = getCompiledModels(manifestModels, undefined);
+            Logger.info(`Compiled models ${compiledModels.length}`);
             models = compiledModels.filter(
                 (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
             ) as DbtRawModelNode[];
+            Logger.info(`Filtered models ${models.length}`);
         } else {
+            Logger.info(`Manifest models ${manifest.nodes.length}`);
             // If selector is not provided, we use all the models from the manifest
             // models with invalid metadata will compile to failed Explores
             models = Object.values(manifest.nodes).filter(
                 (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
             ) as DbtRawModelNode[];
+            Logger.info(`Filtered models ${models.length}`);
         }
 
         const adapterType = manifest.metadata.adapter_type;
@@ -108,6 +117,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         Logger.debug(
             `Validate ${models.length} models in manifest with version ${manifestVersion}`,
         );
+
+        if (models.length === 0) {
+            throw new NotFoundError(`No models found`);
+        }
 
         const [validModels, failedExplores] =
             DbtBaseProjectAdapter._validateDbtModel(
