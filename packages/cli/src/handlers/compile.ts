@@ -129,6 +129,7 @@ ${errors.join('')}`),
         `> Loading lightdash project config from ${absoluteProjectPath}`,
     );
 
+    // TODO: Should we load config again?
     const lightdashProjectConfig = await loadLightdashProjectConfig(
         path.join(absoluteProjectPath, 'lightdash.config.yml'),
     );

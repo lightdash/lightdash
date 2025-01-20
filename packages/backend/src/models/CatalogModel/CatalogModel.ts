@@ -145,14 +145,7 @@ export class CatalogModel {
 
     private async getTagsPerItem(catalogSearchUuids: string[]) {
         const itemTags = await this.database(CatalogTagsTableName)
-            .select<
-                {
-                    catalog_search_uuid: string;
-                    tag_uuid: string;
-                    name: string;
-                    color: string;
-                }[]
-            >()
+            .select()
             .leftJoin(
                 TagsTableName,
                 `${CatalogTagsTableName}.tag_uuid`,
@@ -164,7 +157,10 @@ export class CatalogModel {
             );
 
         return itemTags.reduce<
-            Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>
+            Record<
+                string,
+                Pick<Tag, 'tagUuid' | 'name' | 'color' | 'yamlReference'>[]
+            >
         >((acc, tag) => {
             acc[tag.catalog_search_uuid] = [
                 ...(acc[tag.catalog_search_uuid] || []),
@@ -172,10 +168,11 @@ export class CatalogModel {
                     tagUuid: tag.tag_uuid,
                     name: tag.name,
                     color: tag.color,
+                    yamlReference: tag.yaml_reference,
                 },
             ];
             return acc;
-        }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
+        }, {});
     }
 
     async search({
@@ -638,11 +635,13 @@ export class CatalogModel {
         user: SessionUser,
         catalogSearchUuid: string,
         tagUuid: string,
+        isFromYaml: boolean,
     ) {
         await this.database(CatalogTagsTableName).insert({
             catalog_search_uuid: catalogSearchUuid,
             tag_uuid: tagUuid,
             created_by_user_uuid: user.userUuid,
+            is_from_yaml: isFromYaml,
         });
     }
 
@@ -689,13 +688,14 @@ export class CatalogModel {
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.table_name`,
                 {
-                    catalog_tag_uuids: this.database.raw(`
+                    catalog_tags: this.database.raw(`
                     COALESCE(
                         JSON_AGG(
                             DISTINCT JSONB_BUILD_OBJECT(
                                 'tagUuid', ${CatalogTagsTableName}.tag_uuid,
                                 'createdByUserUuid', ${CatalogTagsTableName}.created_by_user_uuid,
-                                'createdAt', ${CatalogTagsTableName}.created_at
+                                'createdAt', ${CatalogTagsTableName}.created_at,
+                                'taggedViaYaml', ${CatalogTagsTableName}.is_from_yaml
                             )
                         ) FILTER (WHERE ${CatalogTagsTableName}.tag_uuid IS NOT NULL),
                         '[]'
@@ -736,10 +736,11 @@ export class CatalogModel {
             );
 
         const itemsWithTags: (DbCatalog & {
-            catalog_tag_uuids: {
+            catalog_tags: {
                 tagUuid: string;
                 createdByUserUuid: string | null;
                 createdAt: Date;
+                taggedViaYaml: boolean;
             }[];
         })[] = await query;
 
@@ -751,7 +752,7 @@ export class CatalogModel {
             type: i.type,
             fieldType: i.field_type,
             tableName: i.table_name,
-            catalogTags: i.catalog_tag_uuids,
+            catalogTags: i.catalog_tags,
         }));
     }
 

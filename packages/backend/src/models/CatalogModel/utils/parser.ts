@@ -25,7 +25,7 @@ const parseFieldFromMetricOrDimension = (
     }: {
         catalogSearchUuid: string;
         tags: string[];
-        categories: Pick<Tag, 'tagUuid' | 'color' | 'name'>[];
+        categories: Pick<Tag, 'tagUuid' | 'color' | 'name' | 'yamlReference'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
@@ -72,7 +72,10 @@ export const parseFieldsFromCompiledTable = (
 export const parseCatalog = (
     dbCatalog: DbCatalog & {
         explore: Explore;
-        catalog_tags: Pick<Tag, 'tagUuid' | 'name' | 'color'>[];
+        catalog_tags: Pick<
+            Tag,
+            'tagUuid' | 'name' | 'color' | 'yamlReference'
+        >[];
     },
 ): CatalogTable | CatalogField => {
     const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];

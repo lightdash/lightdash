@@ -5,7 +5,9 @@ type SpotlightCategory = {
 
 type SpotlightConfig = {
     default_visibility?: 'show' | 'hide';
-    categories?: Record<string, SpotlightCategory>;
+    categories?: {
+        [yaml_reference: string]: SpotlightCategory;
+    };
 };
 
 export type LightdashProjectConfig = {

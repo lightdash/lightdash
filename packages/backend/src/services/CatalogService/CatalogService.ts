@@ -391,11 +391,13 @@ export class CatalogService<
                                 tagUuid: prevCatalogTagUuid,
                                 createdByUserUuid: prevCreatedByUserUuid,
                                 createdAt: prevCreatedAt,
+                                isFromYaml: prevIsFromYaml,
                             }) => ({
                                 catalog_search_uuid: currentCatalogSearchUuid,
                                 tag_uuid: prevCatalogTagUuid,
                                 created_by_user_uuid: prevCreatedByUserUuid,
                                 created_at: prevCreatedAt,
+                                is_from_yaml: prevIsFromYaml,
                             }),
                         );
                     }
@@ -851,6 +853,7 @@ export class CatalogService<
             user,
             catalogSearchUuid,
             tagUuid,
+            false,
         );
     }
 

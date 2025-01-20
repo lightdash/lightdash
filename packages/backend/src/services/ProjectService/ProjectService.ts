@@ -134,7 +134,7 @@ import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbTagUpdate } from '../../database/entities/tags';
+import type { DbTag, DbTagIn, DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -5118,6 +5118,7 @@ export class ProjectService extends BaseService {
             name,
             color,
             created_by_user_uuid: user.userUuid,
+            yaml_reference: null,
         });
 
         this.analytics.track({
@@ -5204,5 +5205,25 @@ export class ProjectService extends BaseService {
         }
 
         return this.tagsModel.list(projectUuid);
+    }
+
+    async replaceYamlTags(
+        user: SessionUser,
+        projectUuid: string,
+        yamlTags: (Pick<Tag, 'name' | 'color'> & {
+            yamlReference: NonNullable<Tag['yamlReference']>;
+        })[],
+    ) {
+        // TODO: implement permissions
+
+        const yamlTagsIn = yamlTags.map((tag) => ({
+            project_uuid: projectUuid,
+            name: tag.name,
+            color: tag.color,
+            created_by_user_uuid: user.userUuid, // we always pass the userUuid although when updating a tag it's going to be ignored
+            yaml_reference: tag.yamlReference,
+        }));
+
+        return this.tagsModel.replaceYamlTags(projectUuid, yamlTagsIn);
     }
 }
