@@ -165,23 +165,23 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                 inheritedRoles[orgUser.userUuid],
             );
             const hasProjectRole = !!projectRoles[orgUser.userUuid];
-            const defaultRole = highestRole?.role
+            const inheritedRole = highestRole?.role
                 ? convertProjectRoleToOrganizationRole(highestRole.role)
                 : orgUser.role;
             return {
                 ...orgUser,
-                role: hasProjectRole
+                finalRole: hasProjectRole
                     ? convertProjectRoleToOrganizationRole(
                           projectRoles[orgUser.userUuid],
                       )
-                    : defaultRole,
+                    : inheritedRole,
             };
         });
     }, [organizationUsers, projectRoles, inheritedRoles]);
     const filteredUsers = useMemo(() => {
         if (search && usersWithProjectRole) {
             return new Fuse(usersWithProjectRole, {
-                keys: ['firstName', 'lastName', 'email', 'role'],
+                keys: ['firstName', 'lastName', 'email', 'finalRole'],
                 ignoreLocation: true,
                 threshold: 0.3,
             })
