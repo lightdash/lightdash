@@ -1499,7 +1499,15 @@ export const exploreWithMetricNumber: UncompiledExplore = {
 };
 
 export const exploreWithMetricNumberCompiled: Explore = {
-    ...exploreWithMetricNumber,
+    name: exploreWithMetricNumber.name,
+    label: exploreWithMetricNumber.label,
+    baseTable: exploreWithMetricNumber.baseTable,
+    tags: exploreWithMetricNumber.tags,
+    targetDatabase: exploreWithMetricNumber.targetDatabase,
+    warehouse: exploreWithMetricNumber.warehouse,
+    ymlPath: exploreWithMetricNumber.ymlPath,
+    sqlPath: exploreWithMetricNumber.sqlPath,
+    groupLabel: exploreWithMetricNumber.groupLabel,
     spotlight: {
         visibility: 'show',
     },
