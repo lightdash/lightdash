@@ -7,7 +7,9 @@ export async function up(knex: Knex): Promise<void> {
     // Add yaml_reference column to tags table, this means that the tag is created from a YAML file
     await knex.schema.alterTable(TAGS_TABLE, (table) => {
         table.string('yaml_reference').nullable();
-        table.unique(['project_uuid', 'yaml_reference', 'name']);
+        table.unique(['project_uuid', 'yaml_reference'], {
+            predicate: knex.whereNotNull('yaml_reference'),
+        });
     });
 
     // Add is_from_yaml column to catalog_search_tags table, this means that the relationship between a tag and a catalog item is created from a YAML file
@@ -19,7 +21,6 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.alterTable(TAGS_TABLE, (table) => {
         table.dropColumn('yaml_reference');
-        table.dropUnique(['project_uuid', 'yaml_reference', 'name']);
     });
 
     await knex.schema.alterTable(CATALOG_SEARCH_TAGS_TABLE, (table) => {

@@ -804,7 +804,7 @@ export class ProjectController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Put('{projectUuid}/tags/yaml')
-    @OperationId('replaceYamlTags')
+    @OperationId('replaceYamlTags') // TODO: should this be renamed to upsert?
     async replaceYamlTags(
         @Path() projectUuid: string,
         @Body()
