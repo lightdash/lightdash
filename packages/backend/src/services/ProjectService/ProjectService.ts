@@ -522,6 +522,7 @@ export class ProjectService extends BaseService {
         const prevCatalogItemsWithTags =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
+                includeYamlTags: false, // we don't need the yaml tags as they are being recreated by the indexCatalog job
             });
 
         const prevCatalogItemsWithIcons =
