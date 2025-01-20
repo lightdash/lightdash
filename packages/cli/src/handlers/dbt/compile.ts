@@ -1,12 +1,13 @@
 import {
     DbtModelNode,
+    getCompiledModels,
+    getModelsFromManifest,
     ParseError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import execa from 'execa';
 import { xor } from 'lodash';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
-import { getModelsFromManifest } from '../../dbt/models';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
@@ -76,19 +77,6 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
 };
-
-export function getCompiledModels(
-    manifestModels: DbtModelNode[],
-    compiledModelIds?: string[],
-) {
-    return manifestModels.filter((model) => {
-        if (compiledModelIds) {
-            return compiledModelIds.includes(model.unique_id);
-        }
-
-        return model.compiled;
-    });
-}
 
 const getJoinedModelsRecursively = (
     modelNode: DbtModelNode,

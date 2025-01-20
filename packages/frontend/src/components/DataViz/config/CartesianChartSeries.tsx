@@ -41,16 +41,16 @@ export const CartesianChartSeries = ({
         selectCurrentCartesianChartState(state, selectedChartType),
     );
 
-    const seriesMetadata = useAppSelector((state) =>
+    const series = useAppSelector((state) =>
         selectCurrentCartesianChartState(state, selectedChartType),
-    )?.seriesMetadata;
+    )?.series;
 
     const groupedSeries: Record<string, ConfigurableSeries[]> = useMemo(() => {
-        if (!seriesMetadata) {
+        if (!series) {
             return {};
         }
 
-        return seriesMetadata.reduce<Record<string, ConfigurableSeries[]>>(
+        return series.reduce<Record<string, ConfigurableSeries[]>>(
             (acc, s, index) => {
                 const foundSeries = Object.values(
                     currentConfig?.display?.series || {},
@@ -89,7 +89,7 @@ export const CartesianChartSeries = ({
             },
             {},
         );
-    }, [colors, currentConfig?.display?.series, seriesMetadata]);
+    }, [colors, currentConfig?.display?.series, series]);
 
     const isGrouped = useMemo(() => {
         return (
@@ -97,8 +97,6 @@ export const CartesianChartSeries = ({
             currentConfig?.fieldConfig?.groupBy.length > 0
         );
     }, [currentConfig?.fieldConfig?.groupBy]);
-
-    console.log('series', seriesMetadata, groupedSeries);
 
     return (
         <Stack mt="sm" spacing="xs">

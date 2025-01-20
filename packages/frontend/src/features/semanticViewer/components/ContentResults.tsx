@@ -156,7 +156,7 @@ const ContentResults: FC<ContentResultsProps> = ({
                     </Tabs.Tab>
 
                     <Text ml="auto" mr="lg" fz="sm">
-                        Total rows:{' '}
+                        Row limit:{' '}
                         <Text span fw={500}>
                             {results.length}
                         </Text>

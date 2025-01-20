@@ -1,6 +1,7 @@
 import {
     ChartKind,
     isVizPieChartConfig,
+    type PivotValuesColumn,
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
     type VizConfigErrors,
@@ -36,7 +37,7 @@ export type PieChartState = {
               >['payload']
           >
         | undefined;
-    series: string[] | undefined;
+    series: PivotValuesColumn[] | undefined;
 };
 
 const initialState: PieChartState = {

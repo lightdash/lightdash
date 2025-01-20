@@ -319,7 +319,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     'MetricsTree',
                 );
 
-                dispatch(setUser(user.data));
+                dispatch(setUser({ userUuid: user.data.userUuid }));
 
                 dispatch(
                     setAbility({

@@ -2,7 +2,7 @@
 /* eslint-disable */
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import type { TsoaRoute } from '@tsoa/runtime';
-import { fetchMiddlewares, ExpressTemplateService } from '@tsoa/runtime';
+import { ExpressTemplateService, fetchMiddlewares } from '@tsoa/runtime';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ValidationController } from './../controllers/validationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -58,15 +58,15 @@ import { SemanticLayerController } from './../controllers/v2/SemanticLayerContro
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { FeatureFlagController } from './../controllers/v2/FeatureFlagController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { ContentController } from './../controllers/v2/ContentController';
-import { iocContainer } from './../services/tsoaServiceContainer';
 import type { IocContainer, IocContainerFactory } from '@tsoa/runtime';
 import type {
     Request as ExRequest,
-    Response as ExResponse,
     RequestHandler,
+    Response as ExResponse,
     Router,
 } from 'express';
+import { ContentController } from './../controllers/v2/ContentController';
+import { iocContainer } from './../services/tsoaServiceContainer';
 
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
@@ -6012,6 +6012,7 @@ const models: TsoaRoute.Models = {
                     ref: 'DbtProjectEnvironmentVariable',
                 },
             },
+            selector: { dataType: 'string' },
             profiles_dir: { dataType: 'string' },
             project_dir: { dataType: 'string' },
         },
@@ -6051,6 +6052,7 @@ const models: TsoaRoute.Models = {
                     ref: 'DbtProjectEnvironmentVariable',
                 },
             },
+            selector: { dataType: 'string' },
             personal_access_token: { dataType: 'string', required: true },
             repository: { dataType: 'string', required: true },
             branch: { dataType: 'string', required: true },
@@ -6077,6 +6079,7 @@ const models: TsoaRoute.Models = {
                     ref: 'DbtProjectEnvironmentVariable',
                 },
             },
+            selector: { dataType: 'string' },
             username: { dataType: 'string', required: true },
             personal_access_token: { dataType: 'string', required: true },
             repository: { dataType: 'string', required: true },
@@ -6104,6 +6107,7 @@ const models: TsoaRoute.Models = {
                     ref: 'DbtProjectEnvironmentVariable',
                 },
             },
+            selector: { dataType: 'string' },
             personal_access_token: { dataType: 'string', required: true },
             repository: { dataType: 'string', required: true },
             branch: { dataType: 'string', required: true },
@@ -6130,6 +6134,7 @@ const models: TsoaRoute.Models = {
                     ref: 'DbtProjectEnvironmentVariable',
                 },
             },
+            selector: { dataType: 'string' },
             personal_access_token: { dataType: 'string', required: true },
             organization: { dataType: 'string', required: true },
             project: { dataType: 'string', required: true },
@@ -6157,6 +6162,7 @@ const models: TsoaRoute.Models = {
                     ref: 'DbtProjectEnvironmentVariable',
                 },
             },
+            selector: { dataType: 'string' },
             hideRefreshButton: { dataType: 'boolean' },
         },
         additionalProperties: true,

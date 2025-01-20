@@ -78,6 +78,7 @@ import {
     NotFoundError,
     ParameterError,
     PivotChartData,
+    PivotValuesColumn,
     Project,
     ProjectCatalog,
     ProjectGroupAccess,
@@ -2469,19 +2470,7 @@ export class ProjectService extends BaseService {
         const columns: VizColumn[] = [];
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
-        const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
-        const columnMetadata = new Map<
-            string,
-            {
-                referenceField: string;
-                id: string;
-                aggregation: VizAggregationOptions;
-                pivotValues: {
-                    field: string;
-                    value: string;
-                }[];
-            }
-        >();
+        const valuesColumnData = new Map<string, PivotValuesColumn>();
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -2519,19 +2508,18 @@ export class ProjectService extends BaseService {
                                 };
                                 currentRowIndex = row.row_index;
                             }
-                            // Suffix the value column with the group by columns to avoid collisions. E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'], then the value column will be 'value_1_a_b'
+                            // Suffix the value column with the group by columns to avoid collisions.
+                            // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                            // then the value column will be 'value_1_a_b'
                             const valueSuffix = groupByColumns
                                 ?.map((col) => row[col.reference])
                                 .join('_');
                             valuesColumns.forEach((col) => {
-                                const valueColumnReference = `${col.reference}_${valueSuffix}`; // suffix added here
-                                valuesColumnReferences.add(
-                                    valueColumnReference,
-                                );
-                                columnMetadata.set(valueColumnReference, {
+                                const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+                                valuesColumnData.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
-                                    id: valueColumnReference, // The pivoted y field name eg amount_false
-                                    aggregation: col.aggregation, // The aggregation type
+                                    id: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                    aggregation: col.aggregation,
                                     pivotValues: groupByColumns?.map((c) => ({
                                         field: c.reference,
                                         value: row[c.reference],
@@ -2560,16 +2548,7 @@ export class ProjectService extends BaseService {
 
         const processedColumns =
             groupByColumns && groupByColumns.length > 0
-                ? Array.from(valuesColumnReferences) // Here are the pivoted ones
-                : valuesColumns.map(
-                      (col) => `${col.reference}_${col.aggregation}`,
-                  );
-
-        // TODO: This extra metadata is being returned as a separate array for now,
-        // we could return it as part of the valuesColumns array.
-        const valuesColumnsMetadata =
-            groupByColumns && groupByColumns.length > 0
-                ? Array.from(columnMetadata.values())
+                ? Array.from(valuesColumnData.values())
                 : valuesColumns.map((col) => ({
                       referenceField: col.reference,
                       id: `${col.reference}_${col.aggregation}`,
@@ -2580,7 +2559,6 @@ export class ProjectService extends BaseService {
         return {
             fileUrl,
             valuesColumns: processedColumns,
-            valuesColumnsMetadata,
             indexColumn,
         };
     }
