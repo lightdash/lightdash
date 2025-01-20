@@ -1,3 +1,10 @@
+# [0.1458.0](https://github.com/lightdash/lightdash/compare/0.1457.8...0.1458.0) (2025-01-20)
+
+
+### Features
+
+* error delivery add link ([#13341](https://github.com/lightdash/lightdash/issues/13341)) ([36d6386](https://github.com/lightdash/lightdash/commit/36d6386d52032bc81fb52e0c20ad923fb2f1a890))
+
 ## [0.1457.8](https://github.com/lightdash/lightdash/compare/0.1457.7...0.1457.8) (2025-01-20)
 
 
