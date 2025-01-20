@@ -1899,17 +1899,30 @@ export class ProjectService extends BaseService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () =>
-                        measureTime(
-                            () =>
-                                warehouseClient.runQuery(
-                                    query,
-                                    queryTags,
-                                    // metricQuery.timezone,
-                                ),
-                            'runWarehouseQuery',
-                            this.logger,
-                        ),
+                    async () => {
+                        try {
+                            return await measureTime(
+                                () =>
+                                    warehouseClient.runQuery(
+                                        query,
+                                        queryTags,
+                                        // metricQuery.timezone,
+                                    ),
+                                'runWarehouseQuery',
+                                this.logger,
+                            );
+                        } catch (e) {
+                            this.logger.warn(
+                                `Error running "${
+                                    warehouseClient.credentials.type
+                                }" warehouse query:
+                                "${query}"
+                                with query tags: 
+                                ${JSON.stringify(queryTags)}`,
+                            );
+                            throw e;
+                        }
+                    },
                 );
 
                 if (this.lightdashConfig.resultsCache?.resultsEnabled) {
