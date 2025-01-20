@@ -223,7 +223,7 @@ const TableCalculationModal: FC<Props> = ({
                                 }}
                             />
                         </Tabs.Panel>
-                        <Tabs.Panel value="format">
+                        <Tabs.Panel value="format" p="sm">
                             <FormatForm
                                 formatInputProps={getFormatInputProps}
                                 setFormatFieldValue={setFormatFieldValue}
