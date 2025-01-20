@@ -456,6 +456,7 @@ export interface Metric extends Field {
         visibility: Required<
             NonNullable<LightdashProjectConfig['spotlight']>
         >['default_visibility'];
+        categories: string[]; // yaml_reference
     };
 }
 

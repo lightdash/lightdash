@@ -740,6 +740,21 @@ export class ProjectService extends BaseService {
                         );
                     }
 
+                    const lightdashProjectConfig =
+                        await adapter.getLightdashProjectConfig();
+
+                    await this.replaceYamlTags(
+                        user,
+                        projectUuid,
+                        // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                        Object.entries(
+                            lightdashProjectConfig.spotlight?.categories || {},
+                        ).map(([key, category]) => ({
+                            yamlReference: key,
+                            name: category.label,
+                            color: category.color ?? 'gray',
+                        })),
+                    );
                     await this.saveExploresToCacheAndIndexCatalog(
                         user.userUuid,
                         newProjectUuid,
@@ -954,6 +969,22 @@ export class ProjectService extends BaseService {
                     async () => {
                         try {
                             const explores = await adapter.compileAllExplores();
+                            const lightdashProjectConfig =
+                                await adapter.getLightdashProjectConfig();
+
+                            await this.replaceYamlTags(
+                                user,
+                                projectUuid,
+                                // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                                Object.entries(
+                                    lightdashProjectConfig.spotlight
+                                        ?.categories || {},
+                                ).map(([key, category]) => ({
+                                    yamlReference: key,
+                                    name: category.label,
+                                    color: category.color ?? 'gray',
+                                })),
+                            );
                             await this.saveExploresToCacheAndIndexCatalog(
                                 user.userUuid,
                                 projectUuid,
@@ -2821,7 +2852,10 @@ export class ProjectService extends BaseService {
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         requestMethod: RequestMethod,
-    ): Promise<(Explore | ExploreError)[]> {
+    ): Promise<{
+        explores: (Explore | ExploreError)[];
+        adapter: ProjectAdapter;
+    }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
@@ -2966,7 +3000,8 @@ export class ProjectService extends BaseService {
                     ),
                 },
             });
-            return explores;
+
+            return { explores, adapter };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -3120,10 +3155,28 @@ export class ProjectService extends BaseService {
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const explores = await this.refreshAllTables(
+                        const { explores, adapter } =
+                            await this.refreshAllTables(
+                                user,
+                                projectUuid,
+                                requestMethod,
+                            );
+
+                        const lightdashProjectConfig =
+                            await adapter.getLightdashProjectConfig();
+
+                        await this.replaceYamlTags(
                             user,
                             projectUuid,
-                            requestMethod,
+                            // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                            Object.entries(
+                                lightdashProjectConfig.spotlight?.categories ||
+                                    {},
+                            ).map(([key, category]) => ({
+                                yamlReference: key,
+                                name: category.label,
+                                color: category.color ?? 'gray',
+                            })),
                         );
                         await this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,

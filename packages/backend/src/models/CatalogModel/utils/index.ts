@@ -15,24 +15,28 @@ import {
 } from '@lightdash/common';
 import { uniq } from 'lodash';
 import { DbCatalogIn } from '../../../database/entities/catalog';
+import { DbTag } from '../../../database/entities/tags';
 
 const getSpotlightShow = (spotlight: Explore['spotlight']) =>
     spotlight.visibility === 'show';
 
+type CatalogInsertWithYamlTags = DbCatalogIn & { assigned_yaml_tags?: DbTag[] };
+
 export const convertExploresToCatalog = (
     projectUuid: string,
     cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    projectYamlTags: DbTag[],
 ): {
-    catalogInserts: DbCatalogIn[];
+    catalogInserts: CatalogInsertWithYamlTags[];
     catalogFieldMap: CatalogFieldMap;
 } => {
     // Track fields' ids and names to calculate their chart usage
     const catalogFieldMap: CatalogFieldMap = {};
 
-    const catalogInserts = cachedExplores.reduce<DbCatalogIn[]>(
+    const catalogInserts = cachedExplores.reduce<CatalogInsertWithYamlTags[]>(
         (acc, explore) => {
             const baseTable = explore?.tables?.[explore.baseTable];
-            const table: DbCatalogIn = {
+            const table: CatalogInsertWithYamlTags = {
                 project_uuid: projectUuid,
                 cached_explore_uuid: explore.cachedExploreUuid,
                 name: explore.name,
@@ -52,33 +56,49 @@ export const convertExploresToCatalog = (
                 ...Object.values(baseTable?.metrics || {}),
             ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
 
-            const fields = dimensionsAndMetrics.map<DbCatalogIn>((field) => {
-                catalogFieldMap[getItemId(field)] = {
-                    fieldName: field.name,
-                    tableName: field.table,
-                    cachedExploreUuid: explore.cachedExploreUuid,
-                    fieldType: field.fieldType,
-                };
+            const fields = dimensionsAndMetrics.map<CatalogInsertWithYamlTags>(
+                (field) => {
+                    catalogFieldMap[getItemId(field)] = {
+                        fieldName: field.name,
+                        tableName: field.table,
+                        cachedExploreUuid: explore.cachedExploreUuid,
+                        fieldType: field.fieldType,
+                    };
 
-                return {
-                    project_uuid: projectUuid,
-                    cached_explore_uuid: explore.cachedExploreUuid,
-                    name: field.name,
-                    label: field.label || friendlyName(field.name),
-                    description: field.description || null,
-                    type: CatalogType.Field,
-                    field_type: field.fieldType,
-                    required_attributes:
-                        field.requiredAttributes ??
-                        baseTable.requiredAttributes ??
-                        {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
-                    chart_usage: 0, // Fields are initialized with 0 chart usage
-                    table_name: explore.baseTable,
-                    spotlight_show: getSpotlightShow(
-                        isMetric(field) ? field.spotlight : explore.spotlight,
-                    ),
-                };
-            });
+                    const assignedYamlTags = isMetric(field)
+                        ? projectYamlTags.filter(
+                              (tag) =>
+                                  tag.yaml_reference &&
+                                  // TODO: remove / check if necessary
+                                  field.spotlight.categories?.includes(
+                                      tag.yaml_reference,
+                                  ),
+                          )
+                        : [];
+
+                    return {
+                        project_uuid: projectUuid,
+                        cached_explore_uuid: explore.cachedExploreUuid,
+                        name: field.name,
+                        label: field.label || friendlyName(field.name),
+                        description: field.description || null,
+                        type: CatalogType.Field,
+                        field_type: field.fieldType,
+                        required_attributes:
+                            field.requiredAttributes ??
+                            baseTable.requiredAttributes ??
+                            {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
+                        chart_usage: 0, // Fields are initialized with 0 chart usage
+                        table_name: explore.baseTable,
+                        spotlight_show: getSpotlightShow(
+                            isMetric(field)
+                                ? field.spotlight
+                                : explore.spotlight,
+                        ),
+                        assigned_yaml_tags: assignedYamlTags,
+                    };
+                },
+            );
 
             return [...acc, table, ...fields];
         },

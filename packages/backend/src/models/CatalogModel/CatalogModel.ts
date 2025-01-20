@@ -30,17 +30,17 @@ import type { LightdashConfig } from '../../config/parseConfig';
 import {
     CatalogTableName,
     CatalogTagsTableName,
+    DbCatalogTagIn,
     getDbCatalogColumnFromCatalogProperty,
     MetricsTreeEdgesTableName,
     type DbCatalog,
-    type DbCatalogIn,
     type DbCatalogTagsMigrateIn,
     type DbMetricsTreeEdge,
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
-import { TagsTableName } from '../../database/entities/tags';
+import { DbTag, TagsTableName } from '../../database/entities/tags';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -75,8 +75,9 @@ export class CatalogModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
+        projectYamlTags: DbTag[],
     ): Promise<{
-        catalogInserts: DbCatalogIn[];
+        catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
     }> {
         if (cachedExplores.length === 0) {
@@ -102,6 +103,7 @@ export class CatalogModel {
                                 convertExploresToCatalog(
                                     projectUuid,
                                     cachedExplores,
+                                    projectYamlTags,
                                 ),
                         );
 
@@ -114,15 +116,57 @@ export class CatalogModel {
                                     .where('project_uuid', projectUuid)
                                     .delete();
 
-                                const inserts = await this.database
-                                    .batchInsert(
-                                        CatalogTableName,
-                                        catalogInserts,
+                                const results = await this.database(
+                                    CatalogTableName,
+                                )
+                                    .insert(
+                                        catalogInserts.map(
+                                            ({
+                                                assigned_yaml_tags,
+                                                ...catalogInsert
+                                            }) => catalogInsert,
+                                        ),
                                     )
                                     .returning('*')
                                     .transacting(trx);
 
-                                return inserts;
+                                const yamlTagInserts: DbCatalogTagIn[] =
+                                    results.flatMap((result, index) => {
+                                        const yamlTags =
+                                            catalogInserts[index]
+                                                .assigned_yaml_tags;
+
+                                        if (yamlTags && yamlTags.length > 0) {
+                                            console.log({
+                                                found: result.name,
+                                                tags: yamlTags,
+                                            });
+
+                                            return yamlTags.map((tag) => ({
+                                                catalog_search_uuid:
+                                                    result.catalog_search_uuid,
+                                                tag_uuid: tag.tag_uuid,
+                                                is_from_yaml: true,
+                                                // TODO: handle created_by_user_uuid
+                                                created_by_user_uuid: null,
+                                            }));
+                                        }
+                                        return [];
+                                    });
+
+                                console.log({ yamlTagInserts });
+
+                                if (yamlTagInserts.length > 0) {
+                                    const yamlTagResults = await this.database(
+                                        CatalogTagsTableName,
+                                    )
+                                        .insert(yamlTagInserts)
+                                        .returning('*');
+
+                                    console.log({ yamlTagResults });
+                                }
+
+                                return results;
                             }),
                     );
 
@@ -630,6 +674,16 @@ export class CatalogModel {
             .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
             .first();
     }
+
+    // async tagCatalogItemByYamlReference(
+    //     projectUuid: string,
+    //     yamlTagAssignments: {
+    //         catalogSearchUuid: string;
+    //         yamlReference: string;
+    //     }[],
+    // ) {
+    //     // assign tags to catalog items based on yaml reference, in cata
+    // }
 
     async tagCatalogItem(
         user: SessionUser,

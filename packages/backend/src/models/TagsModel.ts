@@ -2,6 +2,7 @@ import type { Tag } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     convertTagRow,
+    DbTag,
     TagsTableName,
     type DbTagIn,
     type DbTagUpdate,
@@ -58,6 +59,15 @@ export class TagsModel {
         return tags.map(convertTagRow);
     }
 
+    async getYamlTags(projectUuid: string): Promise<DbTag[]> {
+        const tags = await this.database(TagsTableName)
+            .whereNotNull('yaml_reference')
+            .andWhere('project_uuid', projectUuid)
+            .select('*');
+
+        return tags;
+    }
+
     async replaceYamlTags(projectUuid: string, yamlTags: DbTagIn[]) {
         await this.database.transaction(async (trx) => {
             // get all yaml tags in the project
@@ -106,27 +116,33 @@ export class TagsModel {
                 {},
             );
 
-            // delete all yaml tags that are in the project but are not in the yamlTags array
-            await trx(TagsTableName)
-                .where('project_uuid', projectUuid)
-                .whereIn(
-                    'tag_uuid',
-                    yamlTagsToDelete.map((t) => t.tag_uuid),
-                )
-                .delete();
+            if (yamlTagsToDelete.length > 0) {
+                // delete all yaml tags that are in the project but are not in the yamlTags array
+                await trx(TagsTableName)
+                    .where('project_uuid', projectUuid)
+                    .whereIn(
+                        'tag_uuid',
+                        yamlTagsToDelete.map((t) => t.tag_uuid),
+                    )
+                    .delete();
+            }
 
-            // create all yaml tags that are not in the project but are in the yamlTags array
-            await trx(TagsTableName).insert(yamlTagsToCreate);
+            if (yamlTagsToCreate.length > 0) {
+                // create all yaml tags that are not in the project but are in the yamlTags array
+                await trx(TagsTableName).insert(yamlTagsToCreate);
+            }
 
-            // apply all updates to the existing project yaml tags
-            const updatePromises = Object.entries(yamlTagUpdates).map(
-                ([tagUuid, tagUpdate]) =>
-                    trx(TagsTableName)
-                        .where('tag_uuid', tagUuid)
-                        .update(tagUpdate),
-            );
+            if (Object.keys(yamlTagUpdates).length > 0) {
+                // apply all updates to the existing project yaml tags
+                const updatePromises = Object.entries(yamlTagUpdates).map(
+                    ([tagUuid, tagUpdate]) =>
+                        trx(TagsTableName)
+                            .where('tag_uuid', tagUuid)
+                            .update(tagUpdate),
+                );
 
-            await Promise.all(updatePromises);
+                await Promise.all(updatePromises);
+            }
         });
     }
 }

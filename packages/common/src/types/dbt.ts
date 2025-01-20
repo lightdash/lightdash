@@ -22,6 +22,7 @@ import { parseFilters } from './filterGrammar';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
+import { getCategoriesFromResource } from '../compiler/lightdashProjectConfig';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -156,6 +157,7 @@ export type DbtColumnLightdashMetric = {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
         >['default_visibility'];
+        categories: string[];
     };
 } & DbtLightdashFieldTags;
 
@@ -423,6 +425,7 @@ export const isDbtRpcRunSqlResults = (
             'rows' in result.table &&
             Array.isArray(result.table.rows),
     );
+
 type ConvertModelMetricArgs = {
     modelName: string;
     name: string;
@@ -446,6 +449,14 @@ export const convertModelMetric = ({
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
         metric.spotlight?.visibility ?? spotlightConfig.default_visibility;
+
+    // TODO: check for model categories, and apply them incrementally
+    const spotlightCategories = getCategoriesFromResource(
+        'metric',
+        name,
+        spotlightConfig,
+        metric.spotlight?.categories,
+    );
     return {
         fieldType: FieldType.METRIC,
         name,
@@ -485,6 +496,7 @@ export const convertModelMetric = ({
             : null),
         spotlight: {
             visibility: spotlightVisibility,
+            categories: spotlightCategories,
         },
     };
 };

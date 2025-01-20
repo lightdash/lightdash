@@ -80,7 +80,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    private async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+    public async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
         try {
             const ajv = new Ajv({ coerceTypes: true });
 

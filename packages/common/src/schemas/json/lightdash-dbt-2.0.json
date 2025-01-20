@@ -193,6 +193,13 @@
                                                     "visibility": {
                                                         "type": "string",
                                                         "enum": ["show", "hide"]
+                                                    },
+                                                    "categories": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": "An optional array of categories for the metric in Spotlight"
                                                     }
                                                 },
                                                 "required": ["visibility"]
@@ -230,6 +237,13 @@
                                     "visibility": {
                                         "type": "string",
                                         "enum": ["show", "hide"]
+                                    },
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An optional array of categories for all metrics in this model in Spotlight"
                                     }
                                 },
                                 "required": ["visibility"]
@@ -385,6 +399,13 @@
                                                                         "show",
                                                                         "hide"
                                                                     ]
+                                                                },
+                                                                "categories": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": "An optional array of categories for the metric in Spotlight"
                                                                 }
                                                             },
                                                             "required": [
@@ -668,6 +689,13 @@
                                     "visibility": {
                                         "type": "string",
                                         "enum": ["show", "hide"]
+                                    },
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An optional array of categories for the metric in Spotlight"
                                     }
                                 },
                                 "required": ["visibility"]

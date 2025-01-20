@@ -29,6 +29,7 @@ models:
               description: Total number of customers
               spotlight:
                 visibility: show
+                categories: ["core"]
       - name: first_name
         description: |
           # First name

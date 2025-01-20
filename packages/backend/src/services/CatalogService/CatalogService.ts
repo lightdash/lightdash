@@ -325,9 +325,12 @@ export class CatalogService<
                 explores,
             );
 
+        const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
+
         return this.catalogModel.indexCatalog(
             projectUuid,
             exploresWithCachedExploreUuid,
+            projectYamlTags,
         );
     }
 
@@ -391,13 +394,13 @@ export class CatalogService<
                                 tagUuid: prevCatalogTagUuid,
                                 createdByUserUuid: prevCreatedByUserUuid,
                                 createdAt: prevCreatedAt,
-                                isFromYaml: prevIsFromYaml,
+                                taggedViaYaml: prevTaggedViaYaml,
                             }) => ({
                                 catalog_search_uuid: currentCatalogSearchUuid,
                                 tag_uuid: prevCatalogTagUuid,
                                 created_by_user_uuid: prevCreatedByUserUuid,
                                 created_at: prevCreatedAt,
-                                is_from_yaml: prevIsFromYaml,
+                                is_from_yaml: prevTaggedViaYaml,
                             }),
                         );
                     }
