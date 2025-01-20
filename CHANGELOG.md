@@ -1,3 +1,10 @@
+## [0.1458.1](https://github.com/lightdash/lightdash/compare/0.1458.0...0.1458.1) (2025-01-20)
+
+
+### Bug Fixes
+
+* remove extra hyphens when emojis are used in slug ([#13224](https://github.com/lightdash/lightdash/issues/13224)) ([4f1055f](https://github.com/lightdash/lightdash/commit/4f1055f13aca6bbb20fa4f5c569c9ae7ff3b7e15))
+
 # [0.1458.0](https://github.com/lightdash/lightdash/compare/0.1457.8...0.1458.0) (2025-01-20)
 
 
