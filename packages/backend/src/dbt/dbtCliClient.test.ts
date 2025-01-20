@@ -109,6 +109,7 @@ describe('DbtCliClient', () => {
                 'model-name',
                 'model:staging',
                 'model_name_with_underscore',
+                '*_wildcard_*',
                 'events +customers tag:lightdash', // Complex selector with multiple parts
             ];
 
@@ -123,7 +124,6 @@ describe('DbtCliClient', () => {
                 'model\\name', // backslash
                 'model$name', // special character
                 'model@name', // special character
-                'model*name', // wildcard
                 'model;name', // semicolon
                 'model`name', // backtick
                 'model"name', // quotes
