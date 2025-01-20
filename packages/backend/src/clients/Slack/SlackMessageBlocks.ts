@@ -454,6 +454,7 @@ export const getNotificationChannelErrorBlocks = (
     error: any,
     resourceUrl: string,
     type: 'Scheduled delivery' | 'Google Sync' = 'Scheduled delivery',
+    isDisabled: boolean = false,
 ): KnownBlock[] =>
     getBlocks([
         {
@@ -489,4 +490,15 @@ export const getNotificationChannelErrorBlocks = (
                 text: '```' + `${error}` + '```',
             },
         },
+        isDisabled
+            ? {
+                  type: 'context',
+                  elements: [
+                      {
+                          type: 'mrkdwn',
+                          text: `Due to this error, this scheduler has been automatically disabled.\nYou can re-enable it from the ${type} settings once the issue is resolved.`,
+                      },
+                  ],
+              }
+            : undefined,
     ]);

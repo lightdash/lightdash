@@ -1946,6 +1946,11 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: { error: e.message },
             });
+            const shouldDisableSync =
+                e instanceof ForbiddenError ||
+                e instanceof MissingConfigError ||
+                e instanceof UnexpectedGoogleSheetsError;
+
             if (
                 this.slackClient.isEnabled &&
                 user?.organizationUuid &&
@@ -1959,15 +1964,12 @@ export default class SchedulerTask {
                         e,
                         deliveryUrl,
                         'Google Sync',
+                        shouldDisableSync,
                     ),
                 });
             }
 
-            if (
-                e instanceof ForbiddenError ||
-                e instanceof MissingConfigError ||
-                e instanceof UnexpectedGoogleSheetsError
-            ) {
+            if (shouldDisableSync) {
                 console.warn(
                     `Disabling Google sheets scheduler with non-retryable error: ${e}`,
                 );
