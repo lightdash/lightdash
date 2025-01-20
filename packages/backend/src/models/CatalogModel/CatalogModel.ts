@@ -717,9 +717,12 @@ export class CatalogModel {
 
     async getCatalogItemsWithTags(
         projectUuid: string,
-        opts?: { onlyTagged?: boolean },
+        opts?: {
+            onlyTagged?: boolean;
+            includeYamlTags?: boolean;
+        },
     ) {
-        const { onlyTagged = false } = opts ?? {};
+        const { onlyTagged = false, includeYamlTags = false } = opts ?? {};
 
         let query = this.database(CatalogTableName)
             .column(
@@ -764,6 +767,10 @@ export class CatalogModel {
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTagsTableName}.catalog_search_uuid`,
             );
+        }
+
+        if (!includeYamlTags) {
+            query = query.whereNull(`${CatalogTagsTableName}.is_from_yaml`);
         }
 
         query = query
