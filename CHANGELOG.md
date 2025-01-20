@@ -1,3 +1,11 @@
+## [0.1457.4](https://github.com/lightdash/lightdash/compare/0.1457.3...0.1457.4) (2025-01-20)
+
+
+### Bug Fixes
+
+* email with pdf attachments ([#13338](https://github.com/lightdash/lightdash/issues/13338)) ([768d8b4](https://github.com/lightdash/lightdash/commit/768d8b44bea840b0dd0217452cc83d8c651dd5d5))
+* results table warning for unfetched columns ([#13331](https://github.com/lightdash/lightdash/issues/13331)) ([9b3d255](https://github.com/lightdash/lightdash/commit/9b3d25543dac26c05f6d03a3a2cb45480c74605f))
+
 ## [0.1457.3](https://github.com/lightdash/lightdash/compare/0.1457.2...0.1457.3) (2025-01-17)
 
 
