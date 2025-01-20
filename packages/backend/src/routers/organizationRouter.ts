@@ -65,7 +65,7 @@ organizationRouter.delete(
     async (req, res, next) =>
         req.services
             .getProjectService()
-            .delete(req.params.projectUuid, req.user!)
+            .delete(req.params.projectUuid!, req.user!)
             .then((results) => {
                 res.json({
                     status: 'ok',

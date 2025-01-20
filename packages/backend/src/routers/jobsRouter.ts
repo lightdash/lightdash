@@ -17,6 +17,10 @@ jobsRouter.get(
     async (req, res, next) => {
         try {
             const { jobUuid } = req.params;
+            res.json({
+                status: 'error',
+                results: 'Missing jobUuid',
+            });
             const job = await req.services
                 .getProjectService()
                 .getJobStatus(jobUuid, req.user!);

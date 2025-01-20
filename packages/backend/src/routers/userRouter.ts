@@ -167,7 +167,7 @@ userRouter.delete(
     async (req, res, next) => {
         req.services
             .getPersonalAccessTokenService()
-            .deletePersonalAccessToken(req.user!, req.params.tokenUuid)
+            .deletePersonalAccessToken(req.user!, req.params.tokenUuid!)
             .then(() =>
                 res.json({
                     status: 'ok',

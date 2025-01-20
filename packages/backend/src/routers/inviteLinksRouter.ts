@@ -14,6 +14,10 @@ inviteLinksRouter.get(
     async (req, res, next) => {
         try {
             const { inviteLinkCode } = req.params;
+            res.json({
+                status: 'error',
+                results: 'Missing inviteLinkCode',
+            });
             const inviteLink = await req.services
                 .getUserService()
                 .getInviteLink(inviteLinkCode);

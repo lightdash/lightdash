@@ -9,7 +9,7 @@ passwordResetLinksRouter.get(
     async (req, res, next) =>
         req.services
             .getUserService()
-            .verifyPasswordResetLink(req.params.code)
+            .verifyPasswordResetLink(req.params.code!)
             .then(() => {
                 res.json({
                     status: 'ok',

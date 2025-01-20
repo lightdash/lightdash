@@ -13,6 +13,12 @@ analyticsRouter.get(
     async (req, res, next) => {
         try {
             const { projectUuid } = req.params;
+            if (!projectUuid) {
+                res.json({
+                    status: 'error',
+                    results: 'Missing projectUuid',
+                });
+            }
             const userActivity = await req.services
                 .getAnalyticsService()
                 .getUserActivity(projectUuid, req.user!);

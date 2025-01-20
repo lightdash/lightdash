@@ -17,7 +17,7 @@ dashboardRouter.get(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .getById(req.user!, req.params.dashboardUuid),
+                    .getById(req.user!, req.params.dashboardUuid!),
             });
         } catch (e) {
             next(e);
@@ -32,7 +32,7 @@ dashboardRouter.get(
     async (req, res, next) => {
         req.services
             .getAnalyticsService()
-            .getDashboardViews(req.params.dashboardUuid)
+            .getDashboardViews(req.params.dashboardUuid!)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -54,7 +54,7 @@ dashboardRouter.patch(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .update(req.user!, req.params.dashboardUuid, req.body),
+                    .update(req.user!, req.params.dashboardUuid!, req.body),
             });
         } catch (e) {
             next(e);
@@ -73,7 +73,7 @@ dashboardRouter.patch(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .togglePinning(req.user!, req.params.dashboardUuid),
+                    .togglePinning(req.user!, req.params.dashboardUuid!),
             });
         } catch (e) {
             next(e);
@@ -90,7 +90,7 @@ dashboardRouter.delete(
         try {
             await req.services
                 .getDashboardService()
-                .delete(req.user!, req.params.dashboardUuid);
+                .delete(req.user!, req.params.dashboardUuid!);
             res.json({
                 status: 'ok',
                 results: undefined,
@@ -111,7 +111,7 @@ dashboardRouter.get(
                 status: 'ok',
                 results: await req.services
                     .getDashboardService()
-                    .getSchedulers(req.user!, req.params.dashboardUuid),
+                    .getSchedulers(req.user!, req.params.dashboardUuid!),
             });
         } catch (e) {
             next(e);
@@ -132,7 +132,7 @@ dashboardRouter.post(
                     .getDashboardService()
                     .createScheduler(
                         req.user!,
-                        req.params.dashboardUuid,
+                        req.params.dashboardUuid!,
                         req.body,
                     ),
             });
@@ -171,7 +171,7 @@ dashboardRouter.post(
             const results = await req.services
                 .getUnfurlService()
                 .exportDashboard(
-                    req.params.dashboardUuid,
+                    req.params.dashboardUuid!,
                     req.body.queryFilters,
                     req.body.gridWidth,
                     req.user!,
@@ -197,7 +197,7 @@ dashboardRouter.post(
                 .getCsvService()
                 .exportCsvDashboard(
                     req.user!,
-                    req.params.dashboardUuid,
+                    req.params.dashboardUuid!,
                     req.body.filters,
                     req.body.dateZoomGranularity,
                 );
