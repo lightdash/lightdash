@@ -8,3 +8,6 @@ spotlight:
     experimental:
       label: "Experimental Metrics"
       color: orange
+    sales:
+      label: "Sales"
+      color: green

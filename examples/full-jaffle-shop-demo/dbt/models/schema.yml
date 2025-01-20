@@ -108,6 +108,9 @@ models:
 
       {{ doc("orders_status") }}
     meta:
+      spotlight:
+        categories:
+          - sales
       joins:
         - join: customers
           sql_on: ${customers.customer_id} = ${orders.customer_id}
