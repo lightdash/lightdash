@@ -2,7 +2,6 @@ import {
     CustomFormatType,
     getCustomFormat,
     getItemId,
-    getItemLabelWithoutTableName,
     hasFormatting,
     NumberSeparator,
     type CustomFormat,
@@ -97,11 +96,7 @@ export const FormatModal = () => {
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
             onClose={handleClose}
-            title={
-                <Title order={4}>
-                    Format metric "{getItemLabelWithoutTableName(metric)}"
-                </Title>
-            }
+            title={<Title order={4}>Format metric</Title>}
         >
             <form onSubmit={handleOnSubmit}>
                 <Stack>
