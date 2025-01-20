@@ -1,3 +1,10 @@
+## [0.1457.6](https://github.com/lightdash/lightdash/compare/0.1457.5...0.1457.6) (2025-01-20)
+
+
+### Bug Fixes
+
+* support dbt selectors * and @ ([#13344](https://github.com/lightdash/lightdash/issues/13344)) ([c18a0ca](https://github.com/lightdash/lightdash/commit/c18a0ca25be745deb024b3504ad28293a6c6928d))
+
 ## [0.1457.5](https://github.com/lightdash/lightdash/compare/0.1457.4...0.1457.5) (2025-01-20)
 
 
