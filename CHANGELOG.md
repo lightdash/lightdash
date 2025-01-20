@@ -1,3 +1,10 @@
+## [0.1457.8](https://github.com/lightdash/lightdash/compare/0.1457.7...0.1457.8) (2025-01-20)
+
+
+### Bug Fixes
+
+* add logs to failed warehouse queries ([#13333](https://github.com/lightdash/lightdash/issues/13333)) ([672d419](https://github.com/lightdash/lightdash/commit/672d419991747c5224397b7bab68374a00d26adc))
+
 ## [0.1457.7](https://github.com/lightdash/lightdash/compare/0.1457.6...0.1457.7) (2025-01-20)
 
 
