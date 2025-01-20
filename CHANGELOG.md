@@ -1,3 +1,10 @@
+## [0.1457.7](https://github.com/lightdash/lightdash/compare/0.1457.6...0.1457.7) (2025-01-20)
+
+
+### Bug Fixes
+
+* show error when no models are found ([#13347](https://github.com/lightdash/lightdash/issues/13347)) ([d71a64a](https://github.com/lightdash/lightdash/commit/d71a64a12f970560752a421018b9cf3eae2931bd))
+
 ## [0.1457.6](https://github.com/lightdash/lightdash/compare/0.1457.5...0.1457.6) (2025-01-20)
 
 
