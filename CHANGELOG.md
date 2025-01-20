@@ -1,3 +1,10 @@
+## [0.1457.5](https://github.com/lightdash/lightdash/compare/0.1457.4...0.1457.5) (2025-01-20)
+
+
+### Bug Fixes
+
+* sql runner table borders ([#13337](https://github.com/lightdash/lightdash/issues/13337)) ([4871c05](https://github.com/lightdash/lightdash/commit/4871c05a905bfd1ed6dd6024e0dc90f104b05393))
+
 ## [0.1457.4](https://github.com/lightdash/lightdash/compare/0.1457.3...0.1457.4) (2025-01-20)
 
 
