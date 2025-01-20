@@ -723,27 +723,28 @@ export class ProjectService extends BaseService {
             const projectUuid = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.CREATING_PROJECT,
-                async () =>
-                    this.projectModel.create(
+                async () => {
+                    const newProjectUuid = await this.projectModel.create(
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
-                    ),
-            );
+                    );
+                    // Give admin user permissions to user who created this project even if he is an admin
+                    if (user.email) {
+                        await this.projectModel.createProjectAccess(
+                            newProjectUuid,
+                            user.email,
+                            ProjectMemberRole.ADMIN,
+                        );
+                    }
 
-            // Give admin user permissions to user who created this project even if he is an admin
-            if (user.email) {
-                await this.projectModel.createProjectAccess(
-                    projectUuid,
-                    user.email,
-                    ProjectMemberRole.ADMIN,
-                );
-            }
-
-            await this.saveExploresToCacheAndIndexCatalog(
-                user.userUuid,
-                projectUuid,
-                explores,
+                    await this.saveExploresToCacheAndIndexCatalog(
+                        user.userUuid,
+                        newProjectUuid,
+                        explores,
+                    );
+                    return newProjectUuid;
+                },
             );
 
             await this.jobModel.update(jobUuid, {
@@ -945,23 +946,22 @@ export class ProjectService extends BaseService {
                     ),
             );
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                const explores = await this.jobModel.tryJobStep(
+                await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            return await adapter.compileAllExplores();
+                            const explores = await adapter.compileAllExplores();
+                            await this.saveExploresToCacheAndIndexCatalog(
+                                user.userUuid,
+                                projectUuid,
+                                explores,
+                            );
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
                         }
                     },
-                );
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
                 );
             }
 
@@ -3086,17 +3086,21 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                const explores = await this.jobModel.tryJobStep(
+                await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () =>
-                        this.refreshAllTables(user, projectUuid, requestMethod),
-                );
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
+                    async () => {
+                        const explores = await this.refreshAllTables(
+                            user,
+                            projectUuid,
+                            requestMethod,
+                        );
+                        await this.saveExploresToCacheAndIndexCatalog(
+                            user.userUuid,
+                            projectUuid,
+                            explores,
+                        );
+                    },
                 );
 
                 await this.jobModel.update(job.jobUuid, {
