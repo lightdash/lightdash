@@ -63,6 +63,7 @@ export type Explore = {
         visibility: Required<
             NonNullable<LightdashProjectConfig['spotlight']>
         >['default_visibility'];
+        categories?: string[]; // yaml_reference
     };
 };
 

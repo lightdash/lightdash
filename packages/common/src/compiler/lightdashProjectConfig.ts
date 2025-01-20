@@ -1,3 +1,4 @@
+import { CompileError } from '../types/errors';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
 // TODO: document
@@ -17,7 +18,7 @@ export const getCategoriesFromResource = (
     );
 
     if (invalidCategories.length > 0) {
-        throw new Error(
+        throw new CompileError(
             `Invalid spotlight categories found in ${resourceType} '${resourceName}': ${invalidCategories.join(
                 ', ',
             )}. Categories must be defined in project config.`,

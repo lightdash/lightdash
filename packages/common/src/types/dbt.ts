@@ -85,6 +85,7 @@ type DbtModelLightdashConfig = {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
         >['default_visibility'];
+        categories?: string[];
     };
 };
 
@@ -435,6 +436,7 @@ type ConvertModelMetricArgs = {
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
     spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>;
+    modelCategories?: string[];
 };
 export const convertModelMetric = ({
     modelName,
@@ -445,18 +447,23 @@ export const convertModelMetric = ({
     dimensionReference,
     requiredAttributes,
     spotlightConfig,
+    modelCategories = [],
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
         metric.spotlight?.visibility ?? spotlightConfig.default_visibility;
 
-    // TODO: check for model categories, and apply them incrementally
+    const metricCategories = Array.from(
+        new Set([...modelCategories, ...(metric.spotlight?.categories || [])]),
+    );
+
     const spotlightCategories = getCategoriesFromResource(
         'metric',
         name,
         spotlightConfig,
-        metric.spotlight?.categories,
+        metricCategories,
     );
+
     return {
         fieldType: FieldType.METRIC,
         name,
@@ -500,12 +507,15 @@ export const convertModelMetric = ({
         },
     };
 };
+
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
     metric: DbtColumnLightdashMetric;
     dimensionName?: string;
     dimensionSql: string;
     requiredAttributes?: Record<string, string | string[]>;
+    modelCategories?: string[];
 };
+
 export const convertColumnMetric = ({
     modelName,
     dimensionName,
@@ -516,6 +526,7 @@ export const convertColumnMetric = ({
     tableLabel,
     requiredAttributes,
     spotlightConfig,
+    modelCategories = [],
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -546,6 +557,7 @@ export const convertColumnMetric = ({
               }
             : null),
         spotlightConfig,
+        modelCategories,
     });
 
 export enum DbtManifestVersion {

@@ -45,7 +45,6 @@ import {
     type WeekDay,
 } from '../utils/timeFrames';
 import { ExploreCompiler } from './exploreCompiler';
-import { getCategoriesFromResource } from './lightdashProjectConfig';
 
 const convertTimezone = (
     timestampSql: string,
@@ -271,12 +270,7 @@ const convertDbtMetricToLightdashMetric = (
         metric.meta?.group_label,
     );
     const spotlightVisibility = spotlightConfig.default_visibility;
-    const spotlightCategories = getCategoriesFromResource(
-        'metric',
-        metric.name,
-        spotlightConfig,
-        metric.meta?.categories || [],
-    );
+
     return {
         fieldType: FieldType.METRIC,
         type,
@@ -306,7 +300,7 @@ const convertDbtMetricToLightdashMetric = (
             : {}),
         spotlight: {
             visibility: spotlightVisibility,
-            categories: spotlightCategories,
+            categories: [],
         },
     };
 };
@@ -458,6 +452,7 @@ export const convertTable = (
                                     model.meta.spotlight?.visibility ??
                                     spotlightConfig.default_visibility,
                             },
+                            modelCategories: model.meta.spotlight?.categories,
                         }),
                     ],
                 ),
@@ -489,6 +484,7 @@ export const convertTable = (
                         model.meta.spotlight?.visibility ??
                         spotlightConfig.default_visibility,
                 },
+                modelCategories: model.meta.spotlight?.categories,
             }),
         ]),
     );

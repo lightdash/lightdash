@@ -116,9 +116,7 @@ export class CatalogModel {
                                     .where('project_uuid', projectUuid)
                                     .delete();
 
-                                const results = await this.database(
-                                    CatalogTableName,
-                                )
+                                const results = await trx(CatalogTableName)
                                     .insert(
                                         catalogInserts.map(
                                             ({
@@ -130,6 +128,7 @@ export class CatalogModel {
                                     .returning('*')
                                     .transacting(trx);
 
+                                // Create project yaml tag insert objects depending on the ID of the catalog insert
                                 const yamlTagInserts: DbCatalogTagIn[] =
                                     results.flatMap((result, index) => {
                                         const yamlTags =
@@ -137,11 +136,6 @@ export class CatalogModel {
                                                 .assigned_yaml_tags;
 
                                         if (yamlTags && yamlTags.length > 0) {
-                                            console.log({
-                                                found: result.name,
-                                                tags: yamlTags,
-                                            });
-
                                             return yamlTags.map((tag) => ({
                                                 catalog_search_uuid:
                                                     result.catalog_search_uuid,
@@ -154,16 +148,11 @@ export class CatalogModel {
                                         return [];
                                     });
 
-                                console.log({ yamlTagInserts });
-
                                 if (yamlTagInserts.length > 0) {
-                                    const yamlTagResults = await this.database(
-                                        CatalogTagsTableName,
-                                    )
+                                    await trx(CatalogTagsTableName)
                                         .insert(yamlTagInserts)
-                                        .returning('*');
-
-                                    console.log({ yamlTagResults });
+                                        .returning('*')
+                                        .transacting(trx);
                                 }
 
                                 return results;

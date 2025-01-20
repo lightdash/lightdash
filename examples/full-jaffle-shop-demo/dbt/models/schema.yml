@@ -3,7 +3,7 @@ models:
   - name: customers
     meta:
       spotlight:
-        visibility: hide
+        categories: ["experimental"]
       joins:
         - join: membership
           hidden: true
@@ -28,7 +28,6 @@ models:
               label: Unique customer count
               description: Total number of customers
               spotlight:
-                visibility: show
                 categories: ["core"]
       - name: first_name
         description: |
@@ -68,6 +67,8 @@ models:
               type: min
             date_of_most_recent_created_customer:
               type: max
+              spotlight:
+                visibility: hide
       - name: first_order
         description: Date of the customers first order
         meta:

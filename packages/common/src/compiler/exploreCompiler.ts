@@ -256,6 +256,7 @@ export class ExploreCompiler {
         return {
             spotlight: {
                 visibility: spotlightVisibility,
+                categories: meta.spotlight?.categories,
             },
             name,
             label,
