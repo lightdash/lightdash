@@ -469,7 +469,7 @@ export class CartesianChartDataModel {
             columns: [
                 transformedData.indexColumn.reference,
                 ...transformedData.valuesColumns.map(
-                    (valueColumn) => valueColumn.id,
+                    (valueColumn) => valueColumn.pivotColumnName,
                 ),
             ],
             rows: transformedData.results,
@@ -516,7 +516,7 @@ export class CartesianChartDataModel {
                     (s) => s.yAxisIndex === index,
                 );
 
-                const seriesColumnId = seriesColumn.id;
+                const seriesColumnId = seriesColumn.pivotColumnName;
 
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =

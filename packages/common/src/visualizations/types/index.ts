@@ -93,10 +93,10 @@ export type PivotIndexColum =
 
 export type PivotValuesColumn = {
     referenceField: string;
-    id: string;
+    pivotColumnName: string;
     aggregation: VizAggregationOptions;
     pivotValues: {
-        field: string;
+        referenceField: string;
         value: string;
     }[];
 };

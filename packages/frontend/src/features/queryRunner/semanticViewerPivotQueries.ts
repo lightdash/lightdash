@@ -108,7 +108,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
                 // but the extra information isn't used in the Semantic viewer
                 acc.push({
                     referenceField: col,
-                    id: col,
+                    pivotColumnName: col,
                     aggregation: VizAggregationOptions.ANY,
                     pivotValues: [],
                 });

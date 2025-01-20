@@ -2531,10 +2531,10 @@ export class ProjectService extends BaseService {
                                 const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
                                 valuesColumnData.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
-                                    id: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                    pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
                                     aggregation: col.aggregation,
                                     pivotValues: groupByColumns?.map((c) => ({
-                                        field: c.reference,
+                                        referenceField: c.reference,
                                         value: row[c.reference],
                                     })),
                                 });
@@ -2564,7 +2564,7 @@ export class ProjectService extends BaseService {
                 ? Array.from(valuesColumnData.values())
                 : valuesColumns.map((col) => ({
                       referenceField: col.reference,
-                      id: `${col.reference}_${col.aggregation}`,
+                      pivotColumnName: `${col.reference}_${col.aggregation}`,
                       aggregation: col.aggregation,
                       pivotValues: [],
                   }));
