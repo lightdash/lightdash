@@ -139,11 +139,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     ): Promise<void> {
         try {
             // Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed.
+            // But also, keys can't be longer than 60 characters, or empty.
             const labels = options?.tags
                 ? Object.fromEntries(
                       Object.entries(options.tags).map(([key, value]) => [
-                          key.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
-                          value.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
+                          key
+                              .toLowerCase()
+                              .replace(/[^a-z0-9_-]/g, '_')
+                              .substring(0, 60) || 'empty_key',
+                          value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9_-]/g, '_')
+                              .substring(0, 60) || 'empty_value',
                       ]),
                   )
                 : undefined;

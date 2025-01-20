@@ -1,3 +1,25 @@
+## [0.1457.5](https://github.com/lightdash/lightdash/compare/0.1457.4...0.1457.5) (2025-01-20)
+
+
+### Bug Fixes
+
+* sql runner table borders ([#13337](https://github.com/lightdash/lightdash/issues/13337)) ([4871c05](https://github.com/lightdash/lightdash/commit/4871c05a905bfd1ed6dd6024e0dc90f104b05393))
+
+## [0.1457.4](https://github.com/lightdash/lightdash/compare/0.1457.3...0.1457.4) (2025-01-20)
+
+
+### Bug Fixes
+
+* email with pdf attachments ([#13338](https://github.com/lightdash/lightdash/issues/13338)) ([768d8b4](https://github.com/lightdash/lightdash/commit/768d8b44bea840b0dd0217452cc83d8c651dd5d5))
+* results table warning for unfetched columns ([#13331](https://github.com/lightdash/lightdash/issues/13331)) ([9b3d255](https://github.com/lightdash/lightdash/commit/9b3d25543dac26c05f6d03a3a2cb45480c74605f))
+
+## [0.1457.3](https://github.com/lightdash/lightdash/compare/0.1457.2...0.1457.3) (2025-01-17)
+
+
+### Bug Fixes
+
+* long querytag biquery ([#13335](https://github.com/lightdash/lightdash/issues/13335)) ([f9fc691](https://github.com/lightdash/lightdash/commit/f9fc691d1cf1e949b1e76a8d2bb97b2a71511cb5))
+
 ## [0.1457.2](https://github.com/lightdash/lightdash/compare/0.1457.1...0.1457.2) (2025-01-17)
 
 
