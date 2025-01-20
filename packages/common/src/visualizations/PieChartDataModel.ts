@@ -386,6 +386,9 @@ export class PieChartDataModel {
                             ? result[transformedData.indexColumn.reference]
                             : '-',
                         groupId: transformedData.indexColumn?.reference,
+                        // Pie chart uses only the first value column, though others
+                        // could be returned from the pivot query. If the pie chart
+                        // ever supports pivoting, we'll need to update this.
                         value: result[
                             transformedData.valuesColumns[0].pivotColumnName
                         ],
