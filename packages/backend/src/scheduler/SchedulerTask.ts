@@ -300,6 +300,10 @@ export default class SchedulerTask {
             context,
             selectedTabs,
         );
+
+        const deliveryUrl = savedChartUuid
+            ? `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${savedChartUuid}/view?scheduler_uuid=${schedulerUuid}`
+            : `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboardUuid}/view?scheduler_uuid=${schedulerUuid}`;
         switch (format) {
             case SchedulerFormat.IMAGE:
                 try {
@@ -337,6 +341,7 @@ export default class SchedulerTask {
                                 blocks: getNotificationChannelErrorBlocks(
                                     scheduler.name,
                                     error,
+                                    deliveryUrl,
                                 ),
                             },
                         );
@@ -421,6 +426,7 @@ export default class SchedulerTask {
                                 blocks: getNotificationChannelErrorBlocks(
                                     scheduler.name,
                                     e,
+                                    deliveryUrl,
                                 ),
                             },
                         );
@@ -1607,6 +1613,7 @@ export default class SchedulerTask {
         let user: SessionUser | undefined;
         let scheduler: SchedulerAndTargets | undefined;
 
+        let deliveryUrl = this.lightdashConfig.siteUrl;
         try {
             if (!this.googleDriveClient.isEnabled) {
                 throw new MissingConfigError(
@@ -1650,6 +1657,7 @@ export default class SchedulerTask {
                 const chart = await this.schedulerService.savedChartModel.get(
                     savedChartUuid,
                 );
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${savedChartUuid}/view?scheduler_uuid=${schedulerUuid}&isSync=true`;
 
                 const defaultSchedulerTimezone =
                     await this.schedulerService.getSchedulerDefaultTimezone(
@@ -1745,6 +1753,7 @@ export default class SchedulerTask {
                     user,
                     dashboardUuid,
                 );
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view?scheduler_uuid=${schedulerUuid}&isSync=true`;
 
                 const defaultSchedulerTimezone =
                     await this.schedulerService.getSchedulerDefaultTimezone(
@@ -1937,28 +1946,33 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: { error: e.message },
             });
-            if (
+            const shouldDisableSync =
                 e instanceof ForbiddenError ||
                 e instanceof MissingConfigError ||
-                e instanceof UnexpectedGoogleSheetsError
+                e instanceof UnexpectedGoogleSheetsError;
+
+            if (
+                this.slackClient.isEnabled &&
+                user?.organizationUuid &&
+                scheduler
             ) {
+                await this.slackClient.postMessageToNotificationChannel({
+                    organizationUuid: user.organizationUuid,
+                    text: `Error uploading Google Sheets: ${scheduler.name}`,
+                    blocks: getNotificationChannelErrorBlocks(
+                        scheduler.name,
+                        e,
+                        deliveryUrl,
+                        'Google Sync',
+                        shouldDisableSync,
+                    ),
+                });
+            }
+
+            if (shouldDisableSync) {
                 console.warn(
                     `Disabling Google sheets scheduler with non-retryable error: ${e}`,
                 );
-                if (
-                    this.slackClient.isEnabled &&
-                    user?.organizationUuid &&
-                    scheduler
-                ) {
-                    await this.slackClient.postMessageToNotificationChannel({
-                        organizationUuid: user.organizationUuid,
-                        text: `Error uploading Google Sheets: ${scheduler.name}`,
-                        blocks: getNotificationChannelErrorBlocks(
-                            scheduler.name,
-                            e,
-                        ),
-                    });
-                }
                 await this.schedulerService.setSchedulerEnabled(
                     user!, // This error from gdriveClient happens after user initialized
                     schedulerUuid,
