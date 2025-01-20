@@ -1,3 +1,10 @@
+# [0.1459.0](https://github.com/lightdash/lightdash/compare/0.1458.1...0.1459.0) (2025-01-20)
+
+
+### Features
+
+* field custom formatting improvements ([#13336](https://github.com/lightdash/lightdash/issues/13336)) ([91ebced](https://github.com/lightdash/lightdash/commit/91ebced5fdcb6623508ad6bdfd09f49955cd76ea))
+
 ## [0.1458.1](https://github.com/lightdash/lightdash/compare/0.1458.0...0.1458.1) (2025-01-20)
 
 
