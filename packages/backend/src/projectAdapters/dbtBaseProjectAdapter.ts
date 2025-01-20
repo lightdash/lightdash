@@ -19,6 +19,7 @@ import {
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
+    NotFoundError,
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
@@ -118,7 +119,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         );
 
         if (models.length === 0) {
-            throw new ParseError(`No models found`);
+            throw new NotFoundError(`No models found`);
         }
 
         const [validModels, failedExplores] =
