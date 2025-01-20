@@ -92,7 +92,7 @@ describe('Explore', () => {
             'In percent',
         ];
         headers.forEach((field, i) => {
-            cy.get(`thead > tr > :nth-child(${i + 2})`).contains(field);
+            cy.get(`thead > tr > :nth-child(${i + 1})`).contains(field);
         });
         const body = [
             '€1,999,000',
@@ -105,7 +105,7 @@ describe('Explore', () => {
             '199,900,000%',
         ];
         body.forEach((field, i) => {
-            cy.get(`tbody > tr > :nth-child(${i + 2})`).contains(field);
+            cy.get(`tbody > tr > :nth-child(${i + 1})`).contains(field);
         });
     });
 });
