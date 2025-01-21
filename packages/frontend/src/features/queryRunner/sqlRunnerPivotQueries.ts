@@ -171,7 +171,9 @@ export const getPivotQueryFunctionForSqlRunner = ({
             ...(pivotResults.indexColumn?.reference
                 ? [pivotResults.indexColumn.reference]
                 : []),
-            ...pivotResults.valuesColumns.map((valueColumn) => valueColumn.id),
+            ...pivotResults.valuesColumns.map(
+                (valueColumn) => valueColumn.pivotColumnName,
+            ),
         ].map((field) => ({
             reference: field,
         }));

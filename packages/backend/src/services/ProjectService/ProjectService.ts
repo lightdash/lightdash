@@ -725,27 +725,28 @@ export class ProjectService extends BaseService {
             const projectUuid = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.CREATING_PROJECT,
-                async () =>
-                    this.projectModel.create(
+                async () => {
+                    const newProjectUuid = await this.projectModel.create(
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
-                    ),
-            );
+                    );
+                    // Give admin user permissions to user who created this project even if he is an admin
+                    if (user.email) {
+                        await this.projectModel.createProjectAccess(
+                            newProjectUuid,
+                            user.email,
+                            ProjectMemberRole.ADMIN,
+                        );
+                    }
 
-            // Give admin user permissions to user who created this project even if he is an admin
-            if (user.email) {
-                await this.projectModel.createProjectAccess(
-                    projectUuid,
-                    user.email,
-                    ProjectMemberRole.ADMIN,
-                );
-            }
-
-            await this.saveExploresToCacheAndIndexCatalog(
-                user.userUuid,
-                projectUuid,
-                explores,
+                    await this.saveExploresToCacheAndIndexCatalog(
+                        user.userUuid,
+                        newProjectUuid,
+                        explores,
+                    );
+                    return newProjectUuid;
+                },
             );
 
             await this.jobModel.update(jobUuid, {
@@ -947,23 +948,22 @@ export class ProjectService extends BaseService {
                     ),
             );
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                const explores = await this.jobModel.tryJobStep(
+                await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            return await adapter.compileAllExplores();
+                            const explores = await adapter.compileAllExplores();
+                            await this.saveExploresToCacheAndIndexCatalog(
+                                user.userUuid,
+                                projectUuid,
+                                explores,
+                            );
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
                         }
                     },
-                );
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
                 );
             }
 
@@ -1901,17 +1901,30 @@ export class ProjectService extends BaseService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () =>
-                        measureTime(
-                            () =>
-                                warehouseClient.runQuery(
-                                    query,
-                                    queryTags,
-                                    // metricQuery.timezone,
-                                ),
-                            'runWarehouseQuery',
-                            this.logger,
-                        ),
+                    async () => {
+                        try {
+                            return await measureTime(
+                                () =>
+                                    warehouseClient.runQuery(
+                                        query,
+                                        queryTags,
+                                        // metricQuery.timezone,
+                                    ),
+                                'runWarehouseQuery',
+                                this.logger,
+                            );
+                        } catch (e) {
+                            this.logger.warn(
+                                `Error running "${
+                                    warehouseClient.credentials.type
+                                }" warehouse query:
+                                "${query}"
+                                with query tags: 
+                                ${JSON.stringify(queryTags)}`,
+                            );
+                            throw e;
+                        }
+                    },
                 );
 
                 if (this.lightdashConfig.resultsCache?.resultsEnabled) {
@@ -2518,10 +2531,10 @@ export class ProjectService extends BaseService {
                                 const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
                                 valuesColumnData.set(valueColumnReference, {
                                     referenceField: col.reference, // The original y field name
-                                    id: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                    pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
                                     aggregation: col.aggregation,
                                     pivotValues: groupByColumns?.map((c) => ({
-                                        field: c.reference,
+                                        referenceField: c.reference,
                                         value: row[c.reference],
                                     })),
                                 });
@@ -2551,7 +2564,7 @@ export class ProjectService extends BaseService {
                 ? Array.from(valuesColumnData.values())
                 : valuesColumns.map((col) => ({
                       referenceField: col.reference,
-                      id: `${col.reference}_${col.aggregation}`,
+                      pivotColumnName: `${col.reference}_${col.aggregation}`,
                       aggregation: col.aggregation,
                       pivotValues: [],
                   }));
@@ -3103,17 +3116,21 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                const explores = await this.jobModel.tryJobStep(
+                await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () =>
-                        this.refreshAllTables(user, projectUuid, requestMethod),
-                );
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
+                    async () => {
+                        const explores = await this.refreshAllTables(
+                            user,
+                            projectUuid,
+                            requestMethod,
+                        );
+                        await this.saveExploresToCacheAndIndexCatalog(
+                            user.userUuid,
+                            projectUuid,
+                            explores,
+                        );
+                    },
                 );
 
                 await this.jobModel.update(job.jobUuid, {

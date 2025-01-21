@@ -102,19 +102,23 @@ export const getPivotQueryFunctionForSemanticViewer = (
               }
             : undefined;
 
-        const valuesColumns = pivotedResults.columns.reduce((acc, col) => {
-            if (!query.pivot?.index.includes(col)) {
-                // TODO: returning a bit of a dummy object here to keep this working,
-                // but the extra information isn't used in the Semantic viewer
-                acc.push({
-                    referenceField: col,
-                    id: col,
-                    aggregation: VizAggregationOptions.ANY,
-                    pivotValues: [],
-                });
-            }
-            return acc;
-        }, [] as PivotValuesColumn[]);
+        const valuesColumns: PivotValuesColumn[] =
+            pivotedResults.columns.reduce<PivotValuesColumn[]>((acc, col) => {
+                if (!query.pivot?.index.includes(col)) {
+                    // Create a new object for the current column
+                    const newColumn: PivotValuesColumn = {
+                        referenceField: col,
+                        pivotColumnName: col,
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [],
+                    };
+
+                    // Use the spread operator to create a new array with the new column
+                    return [...acc, newColumn];
+                }
+
+                return acc;
+            }, []);
 
         return {
             results,

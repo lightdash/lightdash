@@ -1053,6 +1053,10 @@ export class ProjectModel {
                     (a, b) => a.name === b.name,
                 );
 
+                if (uniqueExplores.length <= 0) {
+                    throw new ParameterError('No explores to save');
+                }
+
                 // cache explores individually
                 await this.database(CachedExploreTableName)
                     .insert(

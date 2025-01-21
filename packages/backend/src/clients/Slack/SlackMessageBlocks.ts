@@ -452,20 +452,34 @@ export const getUnfurlBlocks = (
 export const getNotificationChannelErrorBlocks = (
     schedulerName: string,
     error: any,
+    resourceUrl: string,
+    type: 'Scheduled delivery' | 'Google Sync' = 'Scheduled delivery',
+    isDisabled: boolean = false,
 ): KnownBlock[] =>
     getBlocks([
         {
             type: 'header',
             text: {
                 type: 'plain_text',
-                text: `❌ Error sending Scheduled Delivery: "${schedulerName}"`,
+                text: `❌ Error sending ${type}: "${schedulerName}"`,
             },
         },
+
         {
             type: 'section',
             text: {
                 type: 'mrkdwn',
                 text: `*Details:*`,
+            },
+            accessory: {
+                type: 'button',
+                text: {
+                    type: 'plain_text',
+                    text: 'Open in Lightdash',
+                    emoji: true,
+                },
+                url: resourceUrl,
+                action_id: 'button-action',
             },
         },
         {
@@ -476,4 +490,15 @@ export const getNotificationChannelErrorBlocks = (
                 text: '```' + `${error}` + '```',
             },
         },
+        isDisabled
+            ? {
+                  type: 'context',
+                  elements: [
+                      {
+                          type: 'mrkdwn',
+                          text: `Due to this error, this scheduler has been automatically disabled.\nYou can re-enable it from the ${type} settings once the issue is resolved.`,
+                      },
+                  ],
+              }
+            : undefined,
     ]);
