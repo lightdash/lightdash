@@ -473,6 +473,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     isValidMetricsNodeCount={isValidMetricsNodeCount}
                     isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                     metricCatalogView={metricCatalogView}
+                    table={table}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -624,6 +625,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             isValidMetricsNodeCount={isValidMetricsNodeCount}
                             isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                             metricCatalogView={metricCatalogView}
+                            table={table}
                         />
                         <Divider color="gray.2" />
                     </Box>

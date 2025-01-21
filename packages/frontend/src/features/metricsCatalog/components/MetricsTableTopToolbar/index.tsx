@@ -5,13 +5,23 @@ import {
     Center,
     Divider,
     Group,
+    Popover,
     SegmentedControl,
+    Stack,
     Text,
     TextInput,
     Tooltip,
     type GroupProps,
 } from '@mantine/core';
-import { IconList, IconSearch, IconSitemap, IconX } from '@tabler/icons-react';
+import {
+    IconEye,
+    IconEyeOff,
+    IconGripVertical,
+    IconList,
+    IconSearch,
+    IconSitemap,
+    IconX,
+} from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -22,6 +32,22 @@ import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { type MRT_TableInstance } from 'mantine-react-table';
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -36,6 +62,64 @@ type MetricsTableTopToolbarProps = GroupProps & {
     showCategoriesFilter?: boolean;
     isValidMetricsTree: boolean;
     metricCatalogView: MetricCatalogView;
+    table: MRT_TableInstance<CatalogField>;
+};
+
+const SortableColumn: FC<{
+    column: { name: string; uuid: string; visible: boolean };
+    onToggleVisibility: () => void;
+}> = ({ column, onToggleVisibility }) => {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+        useSortable({
+            id: column.uuid,
+        });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <Group
+            ref={setNodeRef}
+            style={style}
+            position="apart"
+            m={4}
+            my={2}
+            px={4}
+            py={2}
+        >
+            <Group spacing={4}>
+                <ActionIcon
+                    size="xs"
+                    color="gray.5"
+                    {...attributes}
+                    {...listeners}
+                >
+                    <MantineIcon icon={IconGripVertical} />
+                </ActionIcon>
+                <Text
+                    variant="subtle"
+                    size="xs"
+                    radius="md"
+                    fw={500}
+                    color="dark.5"
+                >
+                    {column.name}
+                </Text>
+            </Group>
+            <ActionIcon
+                size="xs"
+                color="gray.5"
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.stopPropagation();
+                    onToggleVisibility();
+                }}
+            >
+                <MantineIcon icon={column.visible ? IconEye : IconEyeOff} />
+            </ActionIcon>
+        </Group>
+    );
 };
 
 export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
@@ -50,6 +134,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         isValidMetricsNodeCount,
         isValidMetricsEdgeCount,
         metricCatalogView,
+        table,
         ...props
     }) => {
         const userUuid = useAppSelector(
@@ -65,6 +150,42 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         const location = useLocation();
         const navigate = useNavigate();
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
+
+        const sensors = useSensors(
+            useSensor(PointerSensor),
+            useSensor(KeyboardSensor, {
+                coordinateGetter: sortableKeyboardCoordinates,
+            }),
+        );
+
+        const handleDragEnd = useCallback(
+            (event: any) => {
+                const { active, over } = event;
+
+                if (active.id !== over.id) {
+                    const columns = table.getAllLeafColumns();
+                    const oldIndex = columns.findIndex(
+                        (col) => col.id === active.id,
+                    );
+                    const newIndex = columns.findIndex(
+                        (col) => col.id === over.id,
+                    );
+
+                    // Get current column order or default to column ids if no order is set
+                    const currentOrder =
+                        table.getState().columnOrder.length > 0
+                            ? table.getState().columnOrder
+                            : columns.map((col) => col.id);
+
+                    const newColumnOrder = [...currentOrder];
+                    const [removed] = newColumnOrder.splice(oldIndex, 1);
+                    newColumnOrder.splice(newIndex, 0, removed);
+
+                    table.setColumnOrder(newColumnOrder);
+                }
+            },
+            [table],
+        );
 
         return (
             <Group {...props}>
@@ -156,6 +277,65 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             </Text>
                         </Group>
                     </Badge>
+                    <Popover>
+                        <Popover.Target>
+                            <ActionIcon
+                                variant="transparent"
+                                size="xs"
+                                color="gray.5"
+                            >
+                                <MantineIcon icon={IconEye} />
+                            </ActionIcon>
+                        </Popover.Target>
+                        <Popover.Dropdown px={4} py={4}>
+                            <Stack spacing={4}>
+                                <Stack spacing={0}>
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        onDragEnd={handleDragEnd}
+                                    >
+                                        <SortableContext
+                                            items={table
+                                                .getAllLeafColumns()
+                                                .map((col) => col.id)}
+                                            strategy={
+                                                verticalListSortingStrategy
+                                            }
+                                        >
+                                            {table
+                                                .getAllLeafColumns()
+                                                .map((column) => (
+                                                    <SortableColumn
+                                                        key={column.id}
+                                                        column={{
+                                                            name: column
+                                                                .columnDef
+                                                                .header as string,
+                                                            uuid: column.id,
+                                                            visible:
+                                                                column.getIsVisible(),
+                                                        }}
+                                                        onToggleVisibility={() => {
+                                                            const visibleColumns =
+                                                                table.getState()
+                                                                    .columnVisibility;
+                                                            table.setColumnVisibility(
+                                                                {
+                                                                    ...visibleColumns,
+                                                                    [column.id]:
+                                                                        !column.getIsVisible(),
+                                                                },
+                                                            );
+                                                        }}
+                                                    />
+                                                ))}
+                                        </SortableContext>
+                                    </DndContext>
+                                </Stack>
+                            </Stack>
+                        </Popover.Dropdown>
+                    </Popover>
                     <Divider
                         orientation="vertical"
                         w={1}
