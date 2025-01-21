@@ -2,7 +2,7 @@
 /* eslint-disable */
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import type { TsoaRoute } from '@tsoa/runtime';
-import { ExpressTemplateService, fetchMiddlewares } from '@tsoa/runtime';
+import { fetchMiddlewares, ExpressTemplateService } from '@tsoa/runtime';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ValidationController } from './../controllers/validationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -58,15 +58,15 @@ import { SemanticLayerController } from './../controllers/v2/SemanticLayerContro
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { FeatureFlagController } from './../controllers/v2/FeatureFlagController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { ContentController } from './../controllers/v2/ContentController';
+import { iocContainer } from './../services/tsoaServiceContainer';
 import type { IocContainer, IocContainerFactory } from '@tsoa/runtime';
 import type {
     Request as ExRequest,
-    RequestHandler,
     Response as ExResponse,
+    RequestHandler,
     Router,
 } from 'express';
-import { ContentController } from './../controllers/v2/ContentController';
-import { iocContainer } from './../services/tsoaServiceContainer';
 
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
@@ -1425,6 +1425,11 @@ const models: TsoaRoute.Models = {
         enums: ['hidden', 'top', 'bottom', 'left', 'right', 'inside'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AxisSide: {
+        dataType: 'refEnum',
+        enums: [0, 1],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChartDisplay: {
         dataType: 'refAlias',
         type: {
@@ -1461,7 +1466,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            whichYAxis: { dataType: 'double' },
+                            whichYAxis: { ref: 'AxisSide' },
                             valueLabelPosition: {
                                 ref: 'ValueLabelPositionOptions',
                             },

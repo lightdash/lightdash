@@ -1415,6 +1415,10 @@
                 "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
                 "type": "string"
             },
+            "AxisSide": {
+                "enum": [0, 1],
+                "type": "number"
+            },
             "CartesianChartDisplay": {
                 "properties": {
                     "stack": {
@@ -1439,8 +1443,7 @@
                         "additionalProperties": {
                             "properties": {
                                 "whichYAxis": {
-                                    "type": "number",
-                                    "format": "double"
+                                    "$ref": "#/components/schemas/AxisSide"
                                 },
                                 "valueLabelPosition": {
                                     "$ref": "#/components/schemas/ValueLabelPositionOptions"
@@ -12953,7 +12956,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1457.0",
+        "version": "0.1459.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
