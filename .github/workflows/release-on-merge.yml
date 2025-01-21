@@ -21,7 +21,7 @@ jobs:
                   cache: 'pnpm'
                   cache-dependency-path: 'pnpm-lock.yaml'
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile --prefer-offline --prod=false
+              run: pnpm install --frozen-lockfile --prod=false
             - name: Set publishing config
               run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
               env:

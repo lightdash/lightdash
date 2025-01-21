@@ -20,7 +20,7 @@ jobs:
                   cache: 'pnpm'
                   cache-dependency-path: 'pnpm-lock.yaml'
             - name: Install packages
-              run: pnpm install --frozen-lockfile --prefer-offline
+              run: pnpm install --frozen-lockfile
             - name: Run dangerjs
               if: github.event_name == 'pull_request'
               run: pnpm danger-ci-lint
