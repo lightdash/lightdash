@@ -113,7 +113,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
 
     // Get table config and set it in the state for mantine-react-table
     const { data: tableConfig } = useSpotlightTableConfig({ projectUuid });
-    console.log('tableConfig', tableConfig);
 
     const {
         data,

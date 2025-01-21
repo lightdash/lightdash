@@ -34,7 +34,7 @@ export class SpotlightService extends BaseService {
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
         if (
-            !user.ability.can(
+            user.ability.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: user.organizationUuid,
@@ -56,7 +56,7 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
         if (
-            !user.ability.can(
+            user.ability.cannot(
                 'view',
                 subject('SpotlightTableConfig', {
                     organizationUuid: user.organizationUuid,
@@ -86,7 +86,7 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
     ): Promise<void> {
         if (
-            !user.ability.can(
+            user.ability.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: user.organizationUuid,
