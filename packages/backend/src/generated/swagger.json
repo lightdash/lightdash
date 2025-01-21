@@ -2203,6 +2203,64 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SpotlightTableColumns": {
+                "enum": [
+                    "label",
+                    "table",
+                    "description",
+                    "categories",
+                    "chartUsage"
+                ],
+                "type": "string"
+            },
+            "ColumnConfig": {
+                "items": {
+                    "properties": {
+                        "isVisible": {
+                            "type": "boolean"
+                        },
+                        "column": {
+                            "$ref": "#/components/schemas/SpotlightTableColumns"
+                        }
+                    },
+                    "required": ["isVisible", "column"],
+                    "type": "object"
+                },
+                "type": "array"
+            },
+            "SpotlightTableConfig": {
+                "properties": {
+                    "columnConfig": {
+                        "$ref": "#/components/schemas/ColumnConfig"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "spotlightTableConfigUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "columnConfig",
+                    "projectUuid",
+                    "spotlightTableConfigUuid"
+                ],
+                "type": "object"
+            },
+            "ApiGetSpotlightTableConfig": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SpotlightTableConfig"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_": {
                 "properties": {
                     "name": {
@@ -12953,7 +13011,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1457.0",
+        "version": "0.1459.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13876,6 +13934,129 @@
                 "tags": ["SSH Keypairs"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spotlight/table/config": {
+            "post": {
+                "operationId": "postSpotlightTableConfig",
+                "responses": {
+                    "201": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Spotlight"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ColumnConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "getSpotlightTableConfig",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetSpotlightTableConfig"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Spotlight"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "resetSpotlightTableConfig",
+                "responses": {
+                    "204": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Spotlight"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}": {

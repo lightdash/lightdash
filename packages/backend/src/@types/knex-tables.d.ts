@@ -214,6 +214,10 @@ import {
     WarehouseAvailableTablesTable,
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
+import {
+    SpotlightTableConfigTable,
+    SpotlightTableConfigTableName,
+} from '../database/entities/spotlightTableConfig';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -293,5 +297,6 @@ declare module 'knex/types/tables' {
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
+        [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
     }
 }

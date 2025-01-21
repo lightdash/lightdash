@@ -173,6 +173,7 @@ export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/api/spotlight';
 export * from './types/catalog';
 export * from './types/coder';
 export * from './types/comments';
@@ -259,6 +260,7 @@ export * from './visualizations/PieChartDataModel';
 export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
 export * from './visualizations/types/IResultsRunner';
+export * from './types/spotlightTableConfig';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

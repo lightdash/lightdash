@@ -1,0 +1,53 @@
+import { Knex } from 'knex';
+import type { SpotlightTableConfig } from '@lightdash/common';
+import type { LightdashConfig } from '../config/parseConfig';
+import {
+    convertRow,
+    SpotlightTableConfigTableName,
+} from '../database/entities/spotlightTableConfig';
+
+export type SpotlightTableConfigModelArguments = {
+    database: Knex;
+    lightdashConfig: LightdashConfig;
+};
+
+export class SpotlightTableConfigModel {
+    protected database: Knex;
+
+    protected lightdashConfig: LightdashConfig;
+
+    constructor(args: SpotlightTableConfigModelArguments) {
+        this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
+    }
+
+    async createSpotlightTableConfig(
+        projectUuid: string,
+        columnConfig: SpotlightTableConfig['columnConfig'],
+    ): Promise<void> {
+        // TODO: permissions check
+
+        await this.database(SpotlightTableConfigTableName).insert({
+            project_uuid: projectUuid,
+            column_config: columnConfig,
+        });
+    }
+
+    async getSpotlightTableConfig(
+        projectUuid: string,
+    ): Promise<SpotlightTableConfig | undefined> {
+        // TODO: permissions check
+
+        const result = await this.database(SpotlightTableConfigTableName)
+            .where('project_uuid', projectUuid)
+            .first();
+
+        return convertRow(result);
+    }
+
+    async deleteSpotlightTableConfig(projectUuid: string): Promise<void> {
+        await this.database(SpotlightTableConfigTableName)
+            .where('project_uuid', projectUuid)
+            .delete();
+    }
+}
