@@ -512,10 +512,14 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesDisplay =
-                    display?.series?.[seriesColumn.pivotColumnName];
-
                 const seriesColumnId = seriesColumn.pivotColumnName;
+
+                // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
+                // If there is no display object for the seriesColumnId, we also referenceField for compatibility with
+                // the old display object that stored display info by the field, not the ID.
+                const seriesDisplay =
+                    display?.series?.[seriesColumnId] ??
+                    display?.series?.[seriesColumn.referenceField];
 
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
