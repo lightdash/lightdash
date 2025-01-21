@@ -1,5 +1,5 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box, Flex, Group, Text } from '@mantine/core';
+import { Anchor, Box, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
@@ -21,6 +21,10 @@ import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
+import {
+    createMetricPreviewUnsavedChartVersion,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -71,6 +75,30 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
         ),
+        Cell: ({ row, renderedCellValue }) => {
+            const projectUuid = useAppSelector(
+                (state) => state.metricsCatalog.projectUuid,
+            );
+
+            const savedChartVersion = createMetricPreviewUnsavedChartVersion({
+                name: row.original.name,
+                table: row.original.tableName,
+            });
+
+            const exploreUrl = getExplorerUrlFromCreateSavedChartVersion(
+                projectUuid,
+                savedChartVersion,
+            );
+
+            const url = new URL(exploreUrl.pathname, window.location.origin);
+            url.search = exploreUrl.search;
+
+            return (
+                <Anchor href={url.toString()} target="_blank">
+                    {renderedCellValue}
+                </Anchor>
+            );
+        },
     },
     {
         accessorKey: SpotlightTableColumns.DESCRIPTION,
