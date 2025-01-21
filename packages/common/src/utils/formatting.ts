@@ -211,17 +211,83 @@ export function formatNumberValue(
             return value.toLocaleString('en-US', options).replace(/,/g, ' ');
         case NumberSeparator.PERIOD_COMMA:
             // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
-            // Use Danish locale for DKK, German locale for other currencies with period-comma format
-            const locale = options.currency === 'DKK' ? 'da-DK' : 'de-DE';
-            const formatted = value.toLocaleString(locale, {
-                ...options,
-                currencyDisplay: 'code',
+            const isDkk = options.currency === 'DKK';
+            const isJpy = options.currency === 'JPY';
+            const useCommaDecimal =
+                isDkk || separator === NumberSeparator.PERIOD_COMMA;
+
+            // Format base number without grouping
+            const baseNumber = value.toLocaleString('en-US', {
+                minimumFractionDigits: isJpy
+                    ? 0
+                    : options.minimumFractionDigits ?? 2,
+                maximumFractionDigits: isJpy
+                    ? 0
+                    : options.maximumFractionDigits ?? 2,
+                useGrouping: false,
             });
-            // For DKK, replace "DKK" with "kr" and ensure it's after the number
-            if (options.currency === 'DKK') {
-                return formatted.replace('DKK', 'kr');
+
+            // Split number into integer and decimal parts
+            const [integerPart, decimalPart] = baseNumber.split('.');
+
+            // Apply grouping based on format
+            let formattedNumber;
+            if (useCommaDecimal) {
+                // Use period for thousands and comma for decimals
+                const groupedInteger = integerPart.replace(
+                    /\B(?=(\d{3})+(?!\d))/g,
+                    '.',
+                );
+                formattedNumber = decimalPart
+                    ? `${groupedInteger},${decimalPart}`
+                    : groupedInteger;
+            } else {
+                // Use comma for thousands and period for decimals
+                const groupedInteger = integerPart.replace(
+                    /\B(?=(\d{3})+(?!\d))/g,
+                    ',',
+                );
+                formattedNumber = decimalPart
+                    ? `${groupedInteger}.${decimalPart}`
+                    : groupedInteger;
             }
-            return formatted;
+
+            // Only add currency symbol if we're formatting a currency
+            if (!options.currency) {
+                return formattedNumber;
+            }
+
+            // Early return for non-currency formats
+            if (!options.currency) {
+                return formattedNumber;
+            }
+
+            type CurrencyInfo = {
+                symbol: string;
+                position: 'prefix' | 'suffix';
+            };
+
+            const currencyMap: Record<string, CurrencyInfo> = {
+                USD: { symbol: '$', position: 'prefix' },
+                EUR: { symbol: '€', position: 'prefix' },
+                GBP: { symbol: '£', position: 'prefix' },
+                JPY: { symbol: '¥', position: 'prefix' },
+                DKK: { symbol: 'kr', position: 'suffix' },
+            };
+
+            const currencyInfo = options.currency
+                ? currencyMap[options.currency] || {
+                      symbol: options.currency,
+                      position: 'prefix',
+                  }
+                : undefined;
+
+            if (!currencyInfo) return formattedNumber;
+
+            // Return formatted string with appropriate symbol placement
+            return currencyInfo.position === 'suffix'
+                ? `${formattedNumber} ${currencyInfo.symbol}`
+                : `${currencyInfo.symbol}${formattedNumber}`;
         case NumberSeparator.NO_SEPARATOR_PERIOD:
             return value.toLocaleString('en-US', {
                 ...options,
@@ -392,33 +458,75 @@ export function applyCustomFormat(
         case CustomFormatType.DEFAULT:
             return applyDefaultFormat(value);
 
-        case CustomFormatType.PERCENT:
-            const formatted = formatNumberValue(Number(value) * 100, format);
-            return `${formatted}%`;
-        case CustomFormatType.CURRENCY:
+        case CustomFormatType.PERCENT: {
+            const formattedPercent = formatNumberValue(Number(value) * 100, {
+                ...format,
+                currency: undefined,
+            });
+            return `${formattedPercent}%`;
+        }
+
+        case CustomFormatType.CURRENCY: {
             const { compactValue, compactSuffix } = applyCompact(value, format);
 
-            const currencyFormatted = formatNumberValue(
-                compactValue,
-                format,
-            ).replace(/\u00A0/, ' ');
+            // Format the number using our standard number formatting
+            const formattedValue = formatNumberValue(compactValue, {
+                ...format,
+                separator:
+                    format.currency === 'DKK'
+                        ? NumberSeparator.PERIOD_COMMA
+                        : format.separator,
+            });
 
-            return `${currencyFormatted}${compactSuffix}`;
-        case CustomFormatType.DATE:
-            return formatDate(value, format?.timeInterval, false);
-        case CustomFormatType.TIMESTAMP:
-            return formatTimestamp(value, format?.timeInterval, false);
-        case CustomFormatType.NUMBER:
+            // Add compact suffix
+            const valueWithSuffix = `${formattedValue}${compactSuffix}`;
+
+            // Return formatted value if no currency
+            if (!format.currency) return valueWithSuffix;
+
+            // Get currency info
+            type CurrencyInfo = {
+                symbol: string;
+                position: 'prefix' | 'suffix';
+            };
+
+            const currencyMap: Record<string, CurrencyInfo> = {
+                USD: { symbol: '$', position: 'prefix' },
+                EUR: { symbol: '€', position: 'prefix' },
+                GBP: { symbol: '£', position: 'prefix' },
+                JPY: { symbol: '¥', position: 'prefix' },
+                DKK: { symbol: 'kr', position: 'suffix' },
+            };
+
+            const currencyInfo = currencyMap[format.currency] || {
+                symbol: format.currency,
+                position: 'prefix',
+            };
+
+            // Return with appropriate currency symbol placement
+            return currencyInfo.position === 'suffix'
+                ? `${valueWithSuffix} ${currencyInfo.symbol}`
+                : `${currencyInfo.symbol}${valueWithSuffix}`;
+        }
+
+        case CustomFormatType.DATE: {
+            if (!isMomentInput(value)) return 'NaT';
+            return formatDate(value, format.timeInterval, false);
+        }
+
+        case CustomFormatType.TIMESTAMP: {
+            if (!isMomentInput(value)) return 'NaT';
+            return formatTimestamp(value, format.timeInterval, false);
+        }
+
+        case CustomFormatType.NUMBER: {
             const prefix = format.prefix || '';
             const suffix = format.suffix || '';
-            const {
-                compactValue: compactNumber,
-                compactSuffix: compactNumberSuffix,
-            } = applyCompact(value, format);
+            const { compactValue, compactSuffix } = applyCompact(value, format);
+            const numberFormatted = formatNumberValue(compactValue, format);
+            return `${prefix}${numberFormatted}${compactSuffix}${suffix}`;
+        }
 
-            const numberFormatted = formatNumberValue(compactNumber, format);
-
-            return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
         default:
             return assertUnreachable(
                 format.type,
