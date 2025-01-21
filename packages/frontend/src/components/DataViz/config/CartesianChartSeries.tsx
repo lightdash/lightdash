@@ -74,13 +74,13 @@ export const CartesianChartSeries = ({
                 };
 
                 // Grouped by referenceField
-                if (!acc[s.referenceField]) {
-                    acc[s.referenceField] = [];
-                }
-
-                acc[s.referenceField].push(config);
-
-                return acc;
+                return {
+                    ...acc,
+                    [s.referenceField]: [
+                        ...(acc[s.referenceField] || []),
+                        config,
+                    ],
+                };
             },
             {},
         );
@@ -172,7 +172,7 @@ export const CartesianChartSeries = ({
                                         label: 'Stacked',
                                     },
                                 ]}
-                                defaultValue={
+                                value={
                                     currentConfig?.display?.stack
                                         ? 'Stacked'
                                         : 'None'
