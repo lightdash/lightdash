@@ -1,3 +1,10 @@
+## [0.1459.3](https://github.com/lightdash/lightdash/compare/0.1459.2...0.1459.3) (2025-01-21)
+
+
+### Bug Fixes
+
+* filtering by project role on users ([#13342](https://github.com/lightdash/lightdash/issues/13342)) ([7f4d392](https://github.com/lightdash/lightdash/commit/7f4d39233d1d7e80fd24434a1d23646c92fbb05e))
+
 ## [0.1459.2](https://github.com/lightdash/lightdash/compare/0.1459.1...0.1459.2) (2025-01-21)
 
 
