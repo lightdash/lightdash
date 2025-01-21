@@ -1,12 +1,15 @@
 import {
     assertUnreachable,
     DimensionType,
+    type PivotChartData,
     SemanticLayerFieldType,
+    VizAggregationOptions,
     VizIndexType,
     type RunPivotQuery,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type VizColumn,
+    type PivotValuesColumn,
 } from '@lightdash/common';
 import { apiGetSemanticLayerQueryResults } from '../semanticViewer/api/requests';
 
@@ -73,16 +76,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
     projectUuid: string,
     fields: SemanticLayerField[],
 ): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
-        // ! When there is pivotConfig.index (group by) then we cannot sort by anything other than pivotConfig.on (X field) -> this is because the results don't include those columns
-        // TODO: This seems to work tout this, but might need to check
-        // const pivotSorts =
-        //     pivotConfig.index.length > 0
-        //         ? this.query.sortBy.filter((s) =>
-        //               pivotConfig.on.includes(s.name),
-        //           )
-        //         : this.query.sortBy;
-
+    return async (query: SemanticLayerQuery): Promise<PivotChartData> => {
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid,
             query,
@@ -108,9 +102,23 @@ export const getPivotQueryFunctionForSemanticViewer = (
               }
             : undefined;
 
-        const valuesColumns = pivotedResults.columns.filter(
-            (col) => !query.pivot?.index.includes(col),
-        );
+        const valuesColumns: PivotValuesColumn[] =
+            pivotedResults.columns.reduce<PivotValuesColumn[]>((acc, col) => {
+                if (!query.pivot?.index.includes(col)) {
+                    // Create a new object for the current column
+                    const newColumn: PivotValuesColumn = {
+                        referenceField: col,
+                        pivotColumnName: col,
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [],
+                    };
+
+                    // Use the spread operator to create a new array with the new column
+                    return [...acc, newColumn];
+                }
+
+                return acc;
+            }, []);
 
         return {
             results,

@@ -230,19 +230,22 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    static async createImagePdf(
-        imageId: string,
-        buffer: Buffer,
-    ): Promise<string> {
+    private async createImagePdf(id: string, buffer: Buffer): Promise<string> {
         // Converts an image to PDF format,
         // The PDF has the size of the image, not DIN A4
         const pdfDoc = await PDFDocument.create();
         const pngImage = await pdfDoc.embedPng(buffer);
         const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
         page.drawImage(pngImage);
-        const path = `/tmp/${imageId}.pdf`;
         const pdfBytes = await pdfDoc.save();
-        await fsPromise.writeFile(path, pdfBytes);
+
+        let path: string;
+        if (this.s3Client.isEnabled()) {
+            path = await this.s3Client.uploadPdf(Buffer.from(pdfBytes), id);
+        } else {
+            path = `/tmp/${id}.pdf`;
+            await fsPromise.writeFile(path, pdfBytes);
+        }
         return path;
     }
 
@@ -290,8 +293,9 @@ export class UnfurlService extends BaseService {
         let imageUrl;
         let pdfPath;
         if (buffer !== undefined) {
-            if (withPdf)
-                pdfPath = await UnfurlService.createImagePdf(imageId, buffer);
+            if (withPdf) {
+                pdfPath = await this.createImagePdf(imageId, buffer);
+            }
 
             if (this.s3Client.isEnabled()) {
                 imageUrl = await this.s3Client.uploadImage(buffer, imageId);

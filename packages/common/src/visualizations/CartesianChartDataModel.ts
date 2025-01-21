@@ -468,7 +468,9 @@ export class CartesianChartDataModel {
         return {
             columns: [
                 transformedData.indexColumn.reference,
-                ...transformedData.valuesColumns,
+                ...transformedData.valuesColumns.map(
+                    (valueColumn) => valueColumn.pivotColumnName,
+                ),
             ],
             rows: transformedData.results,
         };
@@ -514,6 +516,8 @@ export class CartesianChartDataModel {
                     (s) => s.yAxisIndex === index,
                 );
 
+                const seriesColumnId = seriesColumn.pivotColumnName;
+
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
                     seriesDisplay?.valueLabelPosition;
@@ -534,13 +538,13 @@ export class CartesianChartDataModel {
                 const seriesLabel = singleYAxisLabel ?? seriesDisplay?.label;
 
                 if (whichYAxis === 1) {
-                    rightYAxisSeriesReferences.push(seriesColumn);
+                    rightYAxisSeriesReferences.push(seriesColumnId);
                 } else {
-                    leftYAxisSeriesReferences.push(seriesColumn);
+                    leftYAxisSeriesReferences.push(seriesColumnId);
                 }
 
                 return {
-                    dimensions: [xAxisReference, seriesColumn],
+                    dimensions: [xAxisReference, seriesColumnId],
                     type: seriesType ?? defaultSeriesType,
                     stack:
                         shouldStack && seriesType === 'bar'
@@ -548,13 +552,13 @@ export class CartesianChartDataModel {
                             : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
                         seriesLabel ||
-                        capitalize(seriesColumn.toLowerCase()).replaceAll(
+                        capitalize(seriesColumnId.toLowerCase()).replaceAll(
                             '_',
                             ' ',
                         ), // similar to friendlyName, but this will preserve special characters
                     encode: {
                         x: xAxisReference,
-                        y: seriesColumn,
+                        y: seriesColumnId,
                     },
                     // NOTE: this yAxisIndex is the echarts option, NOT the yAxisIndex
                     // we had been storing in the display object.
@@ -586,7 +590,6 @@ export class CartesianChartDataModel {
                             index,
                             orgColors,
                         ),
-                    // this.getSeriesColor( seriesColumn, possibleXAxisValues, orgColors),
                 };
             },
         );

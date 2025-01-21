@@ -1,3 +1,81 @@
+## [0.1459.3](https://github.com/lightdash/lightdash/compare/0.1459.2...0.1459.3) (2025-01-21)
+
+
+### Bug Fixes
+
+* filtering by project role on users ([#13342](https://github.com/lightdash/lightdash/issues/13342)) ([7f4d392](https://github.com/lightdash/lightdash/commit/7f4d39233d1d7e80fd24434a1d23646c92fbb05e))
+
+## [0.1459.2](https://github.com/lightdash/lightdash/compare/0.1459.1...0.1459.2) (2025-01-21)
+
+
+### Bug Fixes
+
+* add pivot info to sql runner ([#13243](https://github.com/lightdash/lightdash/issues/13243)) ([45015e3](https://github.com/lightdash/lightdash/commit/45015e3c916d927de68394421170ae5c2e691671))
+
+## [0.1459.1](https://github.com/lightdash/lightdash/compare/0.1459.0...0.1459.1) (2025-01-21)
+
+
+### Bug Fixes
+
+* prevent infinite loop when calling setLayout on useEffect ([#13352](https://github.com/lightdash/lightdash/issues/13352)) ([844139f](https://github.com/lightdash/lightdash/commit/844139ff13da7c803887cd362ba74bef5f30d28c))
+
+# [0.1459.0](https://github.com/lightdash/lightdash/compare/0.1458.1...0.1459.0) (2025-01-20)
+
+
+### Features
+
+* field custom formatting improvements ([#13336](https://github.com/lightdash/lightdash/issues/13336)) ([91ebced](https://github.com/lightdash/lightdash/commit/91ebced5fdcb6623508ad6bdfd09f49955cd76ea))
+
+## [0.1458.1](https://github.com/lightdash/lightdash/compare/0.1458.0...0.1458.1) (2025-01-20)
+
+
+### Bug Fixes
+
+* remove extra hyphens when emojis are used in slug ([#13224](https://github.com/lightdash/lightdash/issues/13224)) ([4f1055f](https://github.com/lightdash/lightdash/commit/4f1055f13aca6bbb20fa4f5c569c9ae7ff3b7e15))
+
+# [0.1458.0](https://github.com/lightdash/lightdash/compare/0.1457.8...0.1458.0) (2025-01-20)
+
+
+### Features
+
+* error delivery add link ([#13341](https://github.com/lightdash/lightdash/issues/13341)) ([36d6386](https://github.com/lightdash/lightdash/commit/36d6386d52032bc81fb52e0c20ad923fb2f1a890))
+
+## [0.1457.8](https://github.com/lightdash/lightdash/compare/0.1457.7...0.1457.8) (2025-01-20)
+
+
+### Bug Fixes
+
+* add logs to failed warehouse queries ([#13333](https://github.com/lightdash/lightdash/issues/13333)) ([672d419](https://github.com/lightdash/lightdash/commit/672d419991747c5224397b7bab68374a00d26adc))
+
+## [0.1457.7](https://github.com/lightdash/lightdash/compare/0.1457.6...0.1457.7) (2025-01-20)
+
+
+### Bug Fixes
+
+* show error when no models are found ([#13347](https://github.com/lightdash/lightdash/issues/13347)) ([d71a64a](https://github.com/lightdash/lightdash/commit/d71a64a12f970560752a421018b9cf3eae2931bd))
+
+## [0.1457.6](https://github.com/lightdash/lightdash/compare/0.1457.5...0.1457.6) (2025-01-20)
+
+
+### Bug Fixes
+
+* support dbt selectors * and @ ([#13344](https://github.com/lightdash/lightdash/issues/13344)) ([c18a0ca](https://github.com/lightdash/lightdash/commit/c18a0ca25be745deb024b3504ad28293a6c6928d))
+
+## [0.1457.5](https://github.com/lightdash/lightdash/compare/0.1457.4...0.1457.5) (2025-01-20)
+
+
+### Bug Fixes
+
+* sql runner table borders ([#13337](https://github.com/lightdash/lightdash/issues/13337)) ([4871c05](https://github.com/lightdash/lightdash/commit/4871c05a905bfd1ed6dd6024e0dc90f104b05393))
+
+## [0.1457.4](https://github.com/lightdash/lightdash/compare/0.1457.3...0.1457.4) (2025-01-20)
+
+
+### Bug Fixes
+
+* email with pdf attachments ([#13338](https://github.com/lightdash/lightdash/issues/13338)) ([768d8b4](https://github.com/lightdash/lightdash/commit/768d8b44bea840b0dd0217452cc83d8c651dd5d5))
+* results table warning for unfetched columns ([#13331](https://github.com/lightdash/lightdash/issues/13331)) ([9b3d255](https://github.com/lightdash/lightdash/commit/9b3d25543dac26c05f6d03a3a2cb45480c74605f))
+
 ## [0.1457.3](https://github.com/lightdash/lightdash/compare/0.1457.2...0.1457.3) (2025-01-17)
 
 
