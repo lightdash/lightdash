@@ -211,11 +211,9 @@ export function formatNumberValue(
             return value.toLocaleString('en-US', options).replace(/,/g, ' ');
         case NumberSeparator.PERIOD_COMMA:
             // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
-            // Special handling for Danish Krone which uses 'kr' instead of 'DKK'
-            const formattedValue = value.toLocaleString('de-DE', options);
-            return options.currency === 'DKK'
-                ? formattedValue.replace('DKK', 'kr')
-                : formattedValue;
+            // Use Danish locale for DKK to get the correct 'kr' symbol
+            const locale = options.currency === 'DKK' ? 'da-DK' : 'de-DE';
+            return value.toLocaleString(locale, options);
         case NumberSeparator.NO_SEPARATOR_PERIOD:
             return value.toLocaleString('en-US', {
                 ...options,
