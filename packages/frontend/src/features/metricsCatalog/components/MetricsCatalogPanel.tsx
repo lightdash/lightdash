@@ -319,6 +319,11 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     'MetricsTree',
                 );
 
+                const canManageSpotlight = user.data.ability.can(
+                    'manage',
+                    'SpotlightTableConfig',
+                );
+
                 dispatch(setUser({ userUuid: user.data.userUuid }));
 
                 dispatch(
@@ -327,6 +332,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                         canRefreshCatalog,
                         canManageExplore,
                         canManageMetricsTree,
+                        canManageSpotlight,
                     }),
                 );
             }

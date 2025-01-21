@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 
 type UseSpotlightTableConfigOptions = {
     projectUuid: string | undefined;
@@ -51,6 +52,7 @@ const createSpotlightTableConfig = async ({
 
 export const useCreateSpotlightTableConfig = () => {
     const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         ApiSuccessEmpty['results'],
         ApiError,
@@ -64,6 +66,14 @@ export const useCreateSpotlightTableConfig = () => {
         onSuccess: (_, { projectUuid }) => {
             void queryClient.invalidateQueries({
                 queryKey: ['spotlight-table-config', projectUuid],
+            });
+            showToastSuccess({
+                title: 'Spotlight table config saved for everyone in this project',
+            });
+        },
+        onError: () => {
+            showToastError({
+                title: 'Error saving spotlight table config',
             });
         },
     });
@@ -81,8 +91,7 @@ const resetSpotlightTableConfig = async ({
     });
 };
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const useResetSpotlightTableConfig = () => {
+export const useResetSpotlightTableConfig = () => {
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty['results'],

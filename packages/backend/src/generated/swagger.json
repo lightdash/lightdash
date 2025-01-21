@@ -2206,7 +2206,7 @@
             "SpotlightTableColumns": {
                 "enum": [
                     "label",
-                    "table",
+                    "tableLabel",
                     "description",
                     "categories",
                     "chartUsage"

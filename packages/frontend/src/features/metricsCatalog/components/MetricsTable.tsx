@@ -1,9 +1,9 @@
 import {
     assertUnreachable,
-    DEFAULT_COLUMN_CONFIG,
     MAX_METRICS_TREE_NODE_COUNT,
-    SpotlightTableColumns,
     type CatalogItem,
+    DEFAULT_COLUMN_CONFIG,
+    SpotlightTableColumns,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -56,6 +56,8 @@ import {
     setSearch,
     setTableSorting,
     toggleMetricExploreModal,
+    setColumnOrder,
+    setColumnVisibility,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
@@ -110,9 +112,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const onCloseMetricExploreModal = () => {
         dispatch(toggleMetricExploreModal(undefined));
     };
-
-    // Get table config and set it in the state for mantine-react-table
-    const { data: tableConfig } = useSpotlightTableConfig({ projectUuid });
 
     const {
         data,
@@ -278,7 +277,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         return flatData.some((item) => item.categories?.length);
     }, [flatData]);
 
-    const noMeticsAvailable = useMemo(() => {
+    const noMetricsAvailable = useMemo(() => {
         return (
             flatData.length === 0 &&
             !isLoading &&
@@ -288,6 +287,29 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             categoryFilters.length === 0
         );
     }, [flatData, isLoading, isFetching, search, categoryFilters, hasNextPage]);
+
+    // Get column config from Redux
+    const columnConfig = useAppSelector(
+        (state) => state.metricsCatalog.columnConfig,
+    );
+
+    // Only fetch saved config on initial load
+    const { data: spotlightConfig, isLoading: isSpotlightConfigLoading } =
+        useSpotlightTableConfig({
+            projectUuid,
+        });
+
+    const columnVisibilityWithPermissions = useMemo(
+        () => ({
+            ...columnConfig.columnVisibility,
+            [SpotlightTableColumns.CATEGORIES]:
+                columnConfig.columnVisibility[
+                    SpotlightTableColumns.CATEGORIES
+                ] &&
+                (canManageTags || dataHasCategories),
+        }),
+        [columnConfig.columnVisibility, canManageTags, dataHasCategories],
+    );
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -513,7 +535,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             </Box>
         ),
         renderEmptyRowsFallback: () => {
-            return noMeticsAvailable ? (
+            return noMetricsAvailable ? (
                 <SuboptimalState
                     title="No metrics defined in this project"
                     action={
@@ -554,9 +576,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
-            columnOrder: tableConfig?.columnConfig.map(
-                (column) => column.column,
-            ),
+            columnOrder: columnConfig.columnOrder,
+            columnVisibility: columnVisibilityWithPermissions,
         },
         mantineLoadingOverlayProps: {
             loaderProps: {
@@ -565,9 +586,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
-            columnVisibility: {
-                categories: false,
-            },
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
@@ -580,27 +598,51 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         editDisplayMode: 'cell',
     });
 
-    const columnConfig = useMemo(
-        () => tableConfig?.columnConfig ?? DEFAULT_COLUMN_CONFIG,
-        [tableConfig],
-    );
+    // Initialize Redux state from API config or defaults on first load
+    useEffect(
+        function initializeColumnConfigAndSyncWithRedux() {
+            if (spotlightConfig) {
+                // Use API config if available
+                const visibilityConfig = spotlightConfig.columnConfig.reduce(
+                    (acc, { column, isVisible }) => ({
+                        ...acc,
+                        [column]: isVisible,
+                    }),
+                    {},
+                );
+                dispatch(setColumnVisibility(visibilityConfig));
 
-    useEffect(() => {
-        table.setColumnVisibility({
-            ...Object.fromEntries(
-                columnConfig.map((column) => {
-                    if (column.column === SpotlightTableColumns.CATEGORIES) {
-                        return [
-                            column.column,
-                            column.isVisible &&
-                                (canManageTags || dataHasCategories),
-                        ];
-                    }
-                    return [column.column, column.isVisible];
-                }),
-            ),
-        });
-    }, [canManageTags, dataHasCategories, table, columnConfig]);
+                const orderConfig = spotlightConfig.columnConfig.map(
+                    ({ column }) => column,
+                );
+                dispatch(setColumnOrder(orderConfig));
+            } else if (
+                columnConfig.columnOrder.length === 0 &&
+                !isSpotlightConfigLoading
+            ) {
+                // Use defaults if no API config and no existing Redux state
+                const defaultVisibility = DEFAULT_COLUMN_CONFIG.reduce(
+                    (acc, { column, isVisible }) => ({
+                        ...acc,
+                        [column]: isVisible,
+                    }),
+                    {},
+                );
+                dispatch(setColumnVisibility(defaultVisibility));
+
+                const defaultOrder = DEFAULT_COLUMN_CONFIG.map(
+                    (config) => config.column,
+                );
+                dispatch(setColumnOrder(defaultOrder));
+            }
+        },
+        [
+            spotlightConfig,
+            columnConfig.columnOrder.length,
+            dispatch,
+            isSpotlightConfigLoading,
+        ],
+    );
 
     useEffect(
         function handleRefetchOnViewChange() {

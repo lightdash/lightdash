@@ -2172,7 +2172,13 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpotlightTableColumns: {
         dataType: 'refEnum',
-        enums: ['label', 'table', 'description', 'categories', 'chartUsage'],
+        enums: [
+            'label',
+            'tableLabel',
+            'description',
+            'categories',
+            'chartUsage',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ColumnConfig: {

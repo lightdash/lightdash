@@ -1,4 +1,9 @@
-import type { CatalogField } from '@lightdash/common';
+import {
+    DEFAULT_COLUMN_CONFIG,
+    SpotlightTableColumns,
+    type SpotlightTableConfig,
+    type CatalogField,
+} from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { MRT_SortingState } from 'mantine-react-table';
 import type { UserWithAbility } from '../../../hooks/user/useUser';
@@ -19,6 +24,7 @@ type MetricsCatalogState = {
         canRefreshCatalog: boolean;
         canManageExplore: boolean;
         canManageMetricsTree: boolean;
+        canManageSpotlight: boolean;
     };
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
@@ -33,6 +39,10 @@ type MetricsCatalogState = {
         description: {
             isClosing: boolean;
         };
+    };
+    columnConfig: {
+        columnOrder: string[];
+        columnVisibility: Record<string, boolean>;
     };
 };
 
@@ -54,6 +64,7 @@ const initialState: MetricsCatalogState = {
         canRefreshCatalog: false,
         canManageExplore: false,
         canManageMetricsTree: false,
+        canManageSpotlight: false,
     },
     modals: {
         chartUsageModal: {
@@ -70,6 +81,16 @@ const initialState: MetricsCatalogState = {
         },
         description: {
             isClosing: false,
+        },
+    },
+    columnConfig: {
+        columnOrder: [],
+        columnVisibility: {
+            [SpotlightTableColumns.TABLE]: false,
+            [SpotlightTableColumns.CHART_USAGE]: false,
+            [SpotlightTableColumns.DESCRIPTION]: false,
+            [SpotlightTableColumns.CATEGORIES]: false,
+            [SpotlightTableColumns.METRIC]: false,
         },
     },
 };
@@ -140,6 +161,36 @@ export const metricsCatalogSlice = createSlice({
             state.modals.metricExploreModal.isOpen = Boolean(action.payload);
             state.modals.metricExploreModal.metric = action.payload;
         },
+        setColumnOrder: (state, action: PayloadAction<string[]>) => {
+            state.columnConfig.columnOrder = action.payload;
+        },
+        setColumnVisibility: (
+            state,
+            action: PayloadAction<Record<string, boolean>>,
+        ) => {
+            state.columnConfig.columnVisibility = Object.fromEntries(
+                Object.entries(action.payload).map(([column, isVisible]) => [
+                    column,
+                    isVisible,
+                ]),
+            );
+        },
+        resetColumnConfig: (
+            state,
+            action: PayloadAction<
+                Pick<SpotlightTableConfig, 'columnConfig'> | undefined
+            >,
+        ) => {
+            const config =
+                action.payload?.columnConfig ?? DEFAULT_COLUMN_CONFIG;
+            const formattedConfig = {
+                columnOrder: config.map((column) => column.column),
+                columnVisibility: Object.fromEntries(
+                    config.map((column) => [column.column, column.isVisible]),
+                ),
+            };
+            state.columnConfig = formattedConfig;
+        },
     },
 });
 
@@ -155,4 +206,7 @@ export const {
     toggleMetricExploreModal,
     setSearch,
     setTableSorting,
+    setColumnOrder,
+    setColumnVisibility,
+    resetColumnConfig,
 } = metricsCatalogSlice.actions;

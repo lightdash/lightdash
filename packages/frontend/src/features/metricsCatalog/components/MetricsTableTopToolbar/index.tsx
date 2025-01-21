@@ -15,23 +15,25 @@ import {
     TextInput,
     Tooltip,
     type GroupProps,
+    Button,
 } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
     IconGripVertical,
     IconList,
+    IconRotate2,
     IconSearch,
     IconSitemap,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useCallback, type FC, useEffect } from 'react';
+import { memo, useCallback, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
 import { EventName } from '../../../../types/Events';
-import { useAppSelector } from '../../../sqlRunner/store/hooks';
+import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
@@ -42,6 +44,7 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
+    type DragEndEvent,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -53,10 +56,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { type MRT_TableInstance } from 'mantine-react-table';
 import {
     useCreateSpotlightTableConfig,
+    useResetSpotlightTableConfig,
     useSpotlightTableConfig,
 } from '../../hooks/useSpotlightTable';
-
-// TODO: add optimistic update on reorders!!!!!
+import {
+    setColumnOrder,
+    setColumnVisibility,
+    resetColumnConfig,
+} from '../../store/metricsCatalogSlice';
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -89,15 +96,7 @@ const SortableColumn: FC<{
     };
 
     return (
-        <Group
-            ref={setNodeRef}
-            style={style}
-            position="apart"
-            m={4}
-            my={2}
-            px={4}
-            py={2}
-        >
+        <Group ref={setNodeRef} style={style} position="apart" my={2} p={2}>
             <Group spacing={4}>
                 <ActionIcon
                     size="xs"
@@ -155,10 +154,20 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
         );
+        const canManageSpotlight = useAppSelector(
+            (state) => state.metricsCatalog.abilities.canManageSpotlight,
+        );
+        const columnConfig = useAppSelector(
+            (state) => state.metricsCatalog.columnConfig,
+        );
+        const dispatch = useAppDispatch();
         const { track } = useTracking();
         const location = useLocation();
         const navigate = useNavigate();
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
+        const { data: savedTableConfig } = useSpotlightTableConfig({
+            projectUuid,
+        });
 
         const sensors = useSensors(
             useSensor(PointerSensor),
@@ -167,23 +176,24 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
             }),
         );
 
-        const { mutate: createSpotlightConfig } =
-            useCreateSpotlightTableConfig();
-        const { data: spotlightConfig } = useSpotlightTableConfig({
-            projectUuid,
-        });
+        const {
+            mutate: createSpotlightConfig,
+            isLoading: isCreatingSpotlightConfig,
+        } = useCreateSpotlightTableConfig();
+
+        const { mutate: resetSpotlightConfig } = useResetSpotlightTableConfig();
 
         const handleDragEnd = useCallback(
-            (event: any) => {
+            (event: DragEndEvent) => {
                 const { active, over } = event;
 
-                if (active.id !== over.id) {
+                if (active.id !== over?.id) {
                     const columns = table.getAllLeafColumns();
                     const oldIndex = columns.findIndex(
                         (col) => col.id === active.id,
                     );
                     const newIndex = columns.findIndex(
-                        (col) => col.id === over.id,
+                        (col) => col.id === over?.id,
                     );
 
                     // Get current column order or default to column ids if no order is set
@@ -196,73 +206,58 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     const [removed] = newColumnOrder.splice(oldIndex, 1);
                     newColumnOrder.splice(newIndex, 0, removed);
 
-                    table.setColumnOrder(newColumnOrder);
-
-                    const columnConfig = newColumnOrder.map((columnId) => ({
-                        column: columnId as SpotlightTableColumns,
-                        isVisible: table.getColumn(columnId).getIsVisible(),
-                    }));
-
-                    if (projectUuid) {
-                        createSpotlightConfig({
-                            projectUuid,
-                            data: {
-                                columnConfig,
-                            },
-                        });
-                    }
+                    dispatch(setColumnOrder(newColumnOrder));
                 }
             },
-            [table, createSpotlightConfig, projectUuid],
+            [table, dispatch],
         );
 
         const handleVisibilityChange = useCallback(
             (columnId: string, isVisible: boolean) => {
                 const visibleColumns = table.getState().columnVisibility;
-                table.setColumnVisibility({
-                    ...visibleColumns,
-                    [columnId]: isVisible,
-                });
 
-                const columnConfig = table
-                    .getAllLeafColumns()
-                    .map((column) => ({
-                        column: column.id as SpotlightTableColumns,
-                        isVisible:
-                            columnId === column.id
-                                ? isVisible
-                                : column.getIsVisible(),
-                    }));
-
-                if (projectUuid) {
-                    createSpotlightConfig({
-                        projectUuid,
-                        data: {
-                            columnConfig,
-                        },
-                    });
-                }
+                dispatch(
+                    setColumnVisibility({
+                        ...visibleColumns,
+                        [columnId]: isVisible,
+                    }),
+                );
             },
-            [table, createSpotlightConfig, projectUuid],
+            [table, dispatch],
         );
 
-        useEffect(() => {
-            if (spotlightConfig) {
-                const visibilityConfig = spotlightConfig.columnConfig.reduce(
-                    (acc, { column, isVisible }) => ({
-                        ...acc,
-                        [column]: isVisible,
-                    }),
-                    {},
-                );
-                table.setColumnVisibility(visibilityConfig);
-
-                const orderConfig = spotlightConfig.columnConfig.map(
-                    ({ column }) => column,
-                );
-                table.setColumnOrder(orderConfig);
+        const handleSave = useCallback(() => {
+            // Save for everyone
+            if (projectUuid) {
+                createSpotlightConfig({
+                    projectUuid,
+                    data: {
+                        columnConfig: columnConfig.columnOrder.map(
+                            (column) => ({
+                                column: column as SpotlightTableColumns,
+                                isVisible:
+                                    columnConfig.columnVisibility[column],
+                            }),
+                        ),
+                    },
+                });
             }
-        }, [spotlightConfig, table]);
+        }, [projectUuid, createSpotlightConfig, columnConfig]);
+
+        const handleReset = useCallback(() => {
+            if (canManageSpotlight && projectUuid) {
+                resetSpotlightConfig({ projectUuid });
+                dispatch(resetColumnConfig(savedTableConfig));
+            } else {
+                dispatch(resetColumnConfig(savedTableConfig));
+            }
+        }, [
+            canManageSpotlight,
+            projectUuid,
+            resetSpotlightConfig,
+            dispatch,
+            savedTableConfig,
+        ]);
 
         return (
             <Group {...props}>
@@ -354,17 +349,26 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             </Text>
                         </Group>
                     </Badge>
-                    <Popover>
+                    <Popover shadow="subtle" withArrow>
                         <Popover.Target>
-                            <ActionIcon
-                                variant="transparent"
-                                size="xs"
-                                color="gray.5"
+                            <Tooltip
+                                withinPortal
+                                variant="xs"
+                                multiline
+                                maw={150}
+                                label="Customize the table columns and their visibility"
+                                position="top"
                             >
-                                <MantineIcon icon={IconEye} />
-                            </ActionIcon>
+                                <ActionIcon
+                                    variant="transparent"
+                                    size="xs"
+                                    color="gray.5"
+                                >
+                                    <MantineIcon icon={IconEye} />
+                                </ActionIcon>
+                            </Tooltip>
                         </Popover.Target>
-                        <Popover.Dropdown px={4} py={4}>
+                        <Popover.Dropdown px={4} py={4} miw={200}>
                             <Stack spacing={4}>
                                 <Stack spacing={0}>
                                     <DndContext
@@ -404,6 +408,49 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         </SortableContext>
                                     </DndContext>
                                 </Stack>
+
+                                <Group position="apart" mt={4}>
+                                    {/* Only show save/reset buttons for users with permission */}
+                                    {canManageSpotlight ? (
+                                        <>
+                                            <Button
+                                                compact
+                                                size="xs"
+                                                variant="subtle"
+                                                leftIcon={
+                                                    <MantineIcon
+                                                        icon={IconRotate2}
+                                                    />
+                                                }
+                                                color="gray"
+                                                onClick={handleReset}
+                                            >
+                                                Reset
+                                            </Button>
+                                            <Button
+                                                compact
+                                                size="xs"
+                                                color="dark"
+                                                onClick={handleSave}
+                                                loading={
+                                                    isCreatingSpotlightConfig
+                                                }
+                                            >
+                                                Save for everyone
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <Button
+                                            compact
+                                            size="xs"
+                                            variant="subtle"
+                                            color="red"
+                                            onClick={handleReset}
+                                        >
+                                            Reset my view
+                                        </Button>
+                                    )}
+                                </Group>
                             </Stack>
                         </Popover.Dropdown>
                     </Popover>
