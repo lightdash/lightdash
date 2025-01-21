@@ -1164,9 +1164,6 @@ export class ProjectService extends BaseService {
         );
 
         try {
-            if (isExploreError(filteredExplore)) {
-                throw new UnexpectedServerError('Filtered explore is an error');
-            }
             const exploreWithOverride =
                 ProjectService.updateExploreWithGranularity(
                     filteredExplore,
@@ -3324,17 +3321,14 @@ export class ProjectService extends BaseService {
     }
 
     private static filterExplore(
-        explore: Explore | ExploreError,
+        explore: Explore,
         userAttributes: UserAttributeValueMap,
     ) {
-        if (!isExploreError(explore)) {
-            const shouldFilterExplore = exploreHasFilteredAttribute(explore);
-            if (!shouldFilterExplore) {
-                return explore;
-            }
-            return getFilteredExplore(explore, userAttributes);
+        const shouldFilterExplore = exploreHasFilteredAttribute(explore);
+        if (!shouldFilterExplore) {
+            return explore;
         }
-        return explore;
+        return getFilteredExplore(explore, userAttributes);
     }
 
     private async findExplores({
@@ -3396,10 +3390,14 @@ export class ProjectService extends BaseService {
                 return Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
-                    acc[explore.name] = ProjectService.filterExplore(
-                        explore,
-                        userAttributes,
-                    );
+                    if (isExploreError(explore)) {
+                        acc[explore.name] = explore;
+                    } else {
+                        acc[explore.name] = ProjectService.filterExplore(
+                            explore,
+                            userAttributes,
+                        );
+                    }
                     return acc;
                 }, {});
             },
