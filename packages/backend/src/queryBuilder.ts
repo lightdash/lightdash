@@ -46,7 +46,7 @@ import {
 import { isArray } from 'lodash';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
-const getDimensionFromId = (
+export const getDimensionFromId = (
     dimId: FieldId,
     explore: Explore,
     adapterType: SupportedDbtAdapter,
@@ -79,8 +79,10 @@ const getDimensionFromId = (
                 };
         }
 
+        console.trace();
         throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
+            { dimId },
         );
     }
     return dimension;

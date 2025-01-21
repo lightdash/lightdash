@@ -8,6 +8,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     assertUnreachable,
+    AuthorizationError,
     CacheMetadata,
     CalculateTotalFromQuery,
     ChartSourceType,
@@ -39,6 +40,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FieldReferenceError,
     FieldValueSearchResult,
     FilterableDimension,
     FilterGroupItem,
@@ -105,6 +107,7 @@ import {
     UpdateProject,
     UpdateProjectMember,
     UpdateVirtualViewPayload,
+    UserAttribute,
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
@@ -158,6 +161,7 @@ import {
     applyLimitToSqlQuery,
     buildQuery,
     CompiledQuery,
+    getDimensionFromId,
 } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -1154,29 +1158,55 @@ export class ProjectService extends BaseService {
         timezone: string,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
-        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
+        const filteredExplore = ProjectService.filterExplore(
             explore,
-            metricQuery,
-            warehouseClient,
-            granularity,
+            userAttributes,
         );
 
-        const compiledMetricQuery = compileMetricQuery({
-            explore: exploreWithOverride,
-            metricQuery,
-            warehouseClient,
-        });
+        try {
+            if (isExploreError(filteredExplore)) {
+                throw new UnexpectedServerError('Filtered explore is an error');
+            }
+            const exploreWithOverride =
+                ProjectService.updateExploreWithGranularity(
+                    filteredExplore,
+                    metricQuery,
+                    warehouseClient,
+                    granularity,
+                );
 
-        const buildQueryResult = buildQuery({
-            explore: exploreWithOverride,
-            compiledMetricQuery,
-            warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-        });
+            const compiledMetricQuery = compileMetricQuery({
+                explore: exploreWithOverride,
+                metricQuery,
+                warehouseClient,
+            });
 
-        return buildQueryResult;
+            const buildQueryResult = buildQuery({
+                explore: exploreWithOverride,
+                compiledMetricQuery,
+                warehouseClient,
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone,
+            });
+
+            return buildQueryResult;
+        } catch (error) {
+            if (error instanceof FieldReferenceError && error.data.dimId) {
+                const fieldExistsInFilteredExplore = getDimensionFromId(
+                    error.data.dimId,
+                    explore,
+                    warehouseClient.getAdapterType(),
+                    warehouseClient.getStartOfWeek(),
+                );
+                if (fieldExistsInFilteredExplore) {
+                    throw new AuthorizationError(
+                        "You don't have authorization to access this explore",
+                    );
+                }
+            }
+            throw error;
+        }
     }
 
     async compileQuery(
@@ -1453,6 +1483,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 savedChart.tableName,
                 organizationUuid,
+                false, // filterExplore
             ),
         ]);
 
@@ -1667,7 +1698,13 @@ export class ProjectService extends BaseService {
             async (span) => {
                 const explore =
                     validExplore ??
-                    (await this.getExplore(user, projectUuid, exploreName));
+                    (await this.getExplore(
+                        user,
+                        projectUuid,
+                        exploreName,
+                        undefined,
+                        false,
+                    ));
 
                 const { rows, cacheMetadata, fields } =
                     await this.runMetricQuery({
@@ -2008,7 +2045,13 @@ export class ProjectService extends BaseService {
 
                     const explore =
                         loadedExplore ??
-                        (await this.getExplore(user, projectUuid, exploreName));
+                        (await this.getExplore(
+                            user,
+                            projectUuid,
+                            exploreName,
+                            undefined,
+                            false,
+                        ));
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -3248,6 +3291,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         organizationUuid?: string,
+        filterExplore: boolean = true,
     ): Promise<Explore> {
         return Sentry.startSpan(
             {
@@ -3260,6 +3304,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     exploreNames: [exploreName],
                     organizationUuid,
+                    filterExplore,
                 });
                 const explore = exploresMap[exploreName];
 
@@ -3278,16 +3323,32 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private static filterExplore(
+        explore: Explore | ExploreError,
+        userAttributes: UserAttributeValueMap,
+    ) {
+        if (!isExploreError(explore)) {
+            const shouldFilterExplore = exploreHasFilteredAttribute(explore);
+            if (!shouldFilterExplore) {
+                return explore;
+            }
+            return getFilteredExplore(explore, userAttributes);
+        }
+        return explore;
+    }
+
     private async findExplores({
         user,
         projectUuid,
         exploreNames,
         organizationUuid,
+        filterExplore = true,
     }: {
         user: SessionUser;
         projectUuid: string;
         exploreNames: string[];
         organizationUuid?: string;
+        filterExplore?: boolean;
     }): Promise<Record<string, Explore | ExploreError>> {
         return Sentry.startSpan(
             {
@@ -3328,23 +3389,17 @@ export class ProjectService extends BaseService {
                         },
                     );
 
+                if (!filterExplore) {
+                    return explores;
+                }
+
                 return Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
-                    if (isExploreError(explore)) {
-                        acc[explore.name] = explore;
-                    } else {
-                        const shouldFilterExplore =
-                            exploreHasFilteredAttribute(explore);
-                        if (!shouldFilterExplore) {
-                            acc[explore.name] = explore;
-                        } else {
-                            acc[explore.name] = getFilteredExplore(
-                                explore,
-                                userAttributes,
-                            );
-                        }
-                    }
+                    acc[explore.name] = ProjectService.filterExplore(
+                        explore,
+                        userAttributes,
+                    );
                     return acc;
                 }, {});
             },
