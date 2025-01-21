@@ -512,7 +512,8 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesDisplay = display?.series?.[seriesColumn.id];
+                const seriesDisplay =
+                    display?.series?.[seriesColumn.pivotColumnName];
 
                 const seriesColumnId = seriesColumn.pivotColumnName;
 

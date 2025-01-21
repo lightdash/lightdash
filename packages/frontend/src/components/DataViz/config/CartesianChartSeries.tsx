@@ -52,7 +52,8 @@ export const CartesianChartSeries = ({
 
         return series.reduce<Record<string, ConfigurableSeries[]>>(
             (acc, s, index) => {
-                const foundSeries = currentConfig?.display?.series?.[s.id];
+                const foundSeries =
+                    currentConfig?.display?.series?.[s.pivotColumnName];
 
                 const seriesFormat = foundSeries?.format;
                 const seriesLabel = foundSeries?.label;
@@ -63,20 +64,20 @@ export const CartesianChartSeries = ({
                 const seriesWhichYAxis = foundSeries?.whichYAxis;
 
                 const config = {
-                    reference: s.id,
+                    reference: s.pivotColumnName,
                     format: seriesFormat,
-                    label: seriesLabel ?? friendlyName(s.id),
+                    label: seriesLabel ?? friendlyName(s.pivotColumnName),
                     color: seriesColor ?? colors[index],
                     type: seriesType,
                     valueLabelPosition: seriesValueLabelPosition,
                     whichYAxis: seriesWhichYAxis,
                 };
 
-                if (!acc[s.referenceField]) {
-                    acc[s.referenceField] = [];
+                if (!acc[s.pivotColumnName]) {
+                    acc[s.pivotColumnName] = [];
                 }
 
-                acc[s.referenceField].push(config);
+                acc[s.pivotColumnName].push(config);
 
                 return acc;
             },
