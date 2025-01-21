@@ -73,11 +73,12 @@ export const CartesianChartSeries = ({
                     whichYAxis: seriesWhichYAxis,
                 };
 
-                if (!acc[s.pivotColumnName]) {
-                    acc[s.pivotColumnName] = [];
+                // Grouped by referenceField
+                if (!acc[s.referenceField]) {
+                    acc[s.referenceField] = [];
                 }
 
-                acc[s.pivotColumnName].push(config);
+                acc[s.referenceField].push(config);
 
                 return acc;
             },
