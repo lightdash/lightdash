@@ -23,13 +23,13 @@ export class SpotlightTableConfigModel {
 
     async createSpotlightTableConfig(
         projectUuid: string,
-        columnConfig: SpotlightTableConfig['columnConfig'],
+        tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
         // TODO: permissions check
 
         await this.database(SpotlightTableConfigTableName).insert({
             project_uuid: projectUuid,
-            column_config: columnConfig,
+            column_config: tableConfig.columnConfig,
         });
     }
 

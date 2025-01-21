@@ -2228,6 +2228,16 @@
                 },
                 "type": "array"
             },
+            "Pick_SpotlightTableConfig.columnConfig_": {
+                "properties": {
+                    "columnConfig": {
+                        "$ref": "#/components/schemas/ColumnConfig"
+                    }
+                },
+                "required": ["columnConfig"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "SpotlightTableConfig": {
                 "properties": {
                     "columnConfig": {
@@ -13978,7 +13988,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/ColumnConfig"
+                                "$ref": "#/components/schemas/Pick_SpotlightTableConfig.columnConfig_"
                             }
                         }
                     }

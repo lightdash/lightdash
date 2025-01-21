@@ -25,13 +25,13 @@ export class SpotlightService extends BaseService {
     async createSpotlightTableConfig(
         user: SessionUser,
         projectUuid: string,
-        columnConfig: SpotlightTableConfig['columnConfig'],
+        tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
         // TODO: permissions check
 
         await this.spotlightTableConfigModel.createSpotlightTableConfig(
             projectUuid,
-            columnConfig,
+            tableConfig,
         );
     }
 

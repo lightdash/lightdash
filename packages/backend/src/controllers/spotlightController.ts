@@ -41,7 +41,7 @@ export class CatalogController extends BaseController {
     @OperationId('postSpotlightTableConfig')
     async postSpotlightTableConfig(
         @Path() projectUuid: string,
-        @Body() body: SpotlightTableConfig['columnConfig'],
+        @Body() body: Pick<SpotlightTableConfig, 'columnConfig'>,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services

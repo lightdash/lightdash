@@ -2190,6 +2190,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SpotlightTableConfig.columnConfig_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                columnConfig: { ref: 'ColumnConfig', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpotlightTableConfig: {
         dataType: 'refAlias',
         type: {
@@ -14624,7 +14635,12 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        body: { in: 'body', name: 'body', required: true, ref: 'ColumnConfig' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Pick_SpotlightTableConfig.columnConfig_',
+        },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
