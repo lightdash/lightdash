@@ -75,6 +75,9 @@ export const getFilteredExplore = (
         joinedTables: explore.joinedTables.filter((joinedTable) =>
             filteredTableNames.includes(joinedTable.table),
         ),
+        ...(filteredTableNames.length > 0
+            ? { unfilteredTables: explore.tables }
+            : {}),
         tables: Object.entries(explore.tables).reduce((at, exploreTable) => {
             const [tableName, table] = exploreTable;
             if (!filteredTableNames.includes(tableName)) return at;

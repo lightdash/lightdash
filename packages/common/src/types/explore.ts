@@ -51,6 +51,7 @@ export type Explore = {
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
+    unfilteredTables?: { [tableName: string]: CompiledTable }; // All tables, without user attribute filters, for error handling
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/databricks
     warehouse?: string;
     ymlPath?: string;

@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    AuthorizationError,
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
@@ -79,6 +80,22 @@ const getDimensionFromId = (
                 };
         }
 
+        // At this point, we couldn't find the dimension with the given id in the explore
+        // it is possible that the explore is a joined table and is filtered by user_attributes
+        // So we check if the dimension exists in the unfiltered tables
+        if (
+            explore.unfilteredTables &&
+            getDimensionFromId(
+                dimId,
+                { ...explore, tables: explore.unfilteredTables },
+                adapterType,
+                startOfWeek,
+            )
+        ) {
+            throw new AuthorizationError(
+                "You don't have authorization to access this explore",
+            );
+        }
         throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
         );
