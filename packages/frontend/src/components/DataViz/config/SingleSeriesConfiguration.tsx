@@ -14,7 +14,6 @@ import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig
 
 type SingleSeriesConfigurationProps = {
     reference: string;
-    seriesIndex: number;
     color: string | undefined;
     colors: string[];
     label?: string;
@@ -22,13 +21,21 @@ type SingleSeriesConfigurationProps = {
     whichYAxis?: number;
     valueLabelPosition: ValueLabelPositionOptions | undefined;
     selectedChartType: ChartKind;
-    dispatch: any;
-    actions: any;
+    onColorChange: (reference: string, color: string) => void;
+    onLabelChange: (reference: string, label: string) => void;
+    onTypeChange: (
+        reference: string,
+        type: NonNullable<CartesianChartDisplay['series']>[number]['type'],
+    ) => void;
+    onAxisChange: (reference: string, value: 'left' | 'right') => void;
+    onValueLabelPositionChange: (
+        reference: string,
+        position: ValueLabelPositionOptions,
+    ) => void;
 };
 
 export const SingleSeriesConfiguration = ({
     reference,
-    seriesIndex,
     color,
     colors,
     label,
@@ -36,8 +43,11 @@ export const SingleSeriesConfiguration = ({
     whichYAxis = 0,
     valueLabelPosition,
     selectedChartType,
-    dispatch,
-    actions,
+    onColorChange,
+    onLabelChange,
+    onTypeChange,
+    onAxisChange,
+    onValueLabelPositionChange,
 }: SingleSeriesConfigurationProps) => {
     return (
         <Stack key={reference} spacing="xs">
@@ -56,30 +66,16 @@ export const SingleSeriesConfiguration = ({
                     <Config.Label>Label</Config.Label>
                     <Group spacing="xs" noWrap>
                         <ColorSelector
-                            color={color ?? colors[seriesIndex]}
-                            onColorChange={(c) => {
-                                dispatch(
-                                    actions.setSeriesColor({
-                                        index: seriesIndex,
-                                        color: c,
-                                        reference,
-                                    }),
-                                );
-                            }}
+                            color={color}
+                            onColorChange={(c) => onColorChange(reference, c)}
                             swatches={colors}
                         />
                         <TextInput
                             radius="md"
                             value={label}
-                            onChange={(e) => {
-                                dispatch(
-                                    actions.setSeriesLabel({
-                                        label: e.target.value,
-                                        reference,
-                                        index: seriesIndex,
-                                    }),
-                                );
-                            }}
+                            onChange={(e) =>
+                                onLabelChange(reference, e.target.value)
+                            }
                         />
                     </Group>
                 </Config.Group>
@@ -91,19 +87,7 @@ export const SingleSeriesConfiguration = ({
                             type ??
                             getEChartsChartTypeFromChartKind(selectedChartType)
                         }
-                        onChangeType={(
-                            value: NonNullable<
-                                CartesianChartDisplay['series']
-                            >[number]['type'],
-                        ) => {
-                            dispatch(
-                                actions.setSeriesChartType({
-                                    index: seriesIndex,
-                                    type: value,
-                                    reference,
-                                }),
-                            );
-                        }}
+                        onChangeType={(value) => onTypeChange(reference, value)}
                     />
                 </Config.Group>
                 <Config.Group>
@@ -133,12 +117,9 @@ export const SingleSeriesConfiguration = ({
                         ]}
                         value={whichYAxis === 1 ? 'right' : 'left'}
                         onChange={(value) =>
-                            dispatch(
-                                actions.setSeriesYAxis({
-                                    index: seriesIndex,
-                                    whichYAxis: value === 'left' ? 0 : 1,
-                                    reference,
-                                }),
+                            onAxisChange(
+                                reference,
+                                value === 'left' ? 'left' : 'right',
                             )
                         }
                     />
@@ -150,15 +131,9 @@ export const SingleSeriesConfiguration = ({
                             valueLabelPosition ??
                             ValueLabelPositionOptions.HIDDEN
                         }
-                        onChangeValueLabelPosition={(value) => {
-                            dispatch(
-                                actions.setSeriesValueLabelPosition({
-                                    index: seriesIndex,
-                                    valueLabelPosition: value,
-                                    reference,
-                                }),
-                            );
-                        }}
+                        onChangeValueLabelPosition={(position) =>
+                            onValueLabelPositionChange(reference, position)
+                        }
                     />
                 </Config.Group>
             </Stack>

@@ -512,9 +512,7 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesDisplay = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                );
+                const seriesDisplay = display?.series?.[seriesColumn.id];
 
                 const seriesColumnId = seriesColumn.id;
 

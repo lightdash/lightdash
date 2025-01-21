@@ -1,6 +1,7 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
+    type ValueLabelPositionOptions,
     type CartesianChartDisplay,
     type ChartKind,
     type PivotChartLayout,
@@ -20,7 +21,6 @@ import { SingleSeriesConfiguration } from './SingleSeriesConfiguration';
 
 type ConfigurableSeries = {
     reference: PivotChartLayout['y'][number]['reference'];
-    seriesIndex: number;
 } & Pick<
     NonNullable<CartesianChartDisplay['series']>[number],
     'format' | 'label' | 'color' | 'type' | 'valueLabelPosition' | 'whichYAxis'
@@ -52,9 +52,7 @@ export const CartesianChartSeries = ({
 
         return series.reduce<Record<string, ConfigurableSeries[]>>(
             (acc, s, index) => {
-                const foundSeries = Object.values(
-                    currentConfig?.display?.series || {},
-                ).find((displayProps) => displayProps.yAxisIndex === index);
+                const foundSeries = currentConfig?.display?.series?.[s.id];
 
                 const seriesFormat = foundSeries?.format;
                 const seriesLabel = foundSeries?.label;
@@ -72,11 +70,6 @@ export const CartesianChartSeries = ({
                     type: seriesType,
                     valueLabelPosition: seriesValueLabelPosition,
                     whichYAxis: seriesWhichYAxis,
-                    // TODO: for now tracking the index in the series array.
-                    // This makes it so we don't need to make a breaking change to
-                    // the saved format, which applies styles by index, but is less
-                    // readable and less performant than if we used the reference.
-                    seriesIndex: index,
                 };
 
                 if (!acc[s.referenceField]) {
@@ -97,6 +90,57 @@ export const CartesianChartSeries = ({
             currentConfig?.fieldConfig?.groupBy.length > 0
         );
     }, [currentConfig?.fieldConfig?.groupBy]);
+
+    const onColorChange = (reference: string, color: string) => {
+        dispatch(
+            actions.setSeriesColor({
+                reference: reference,
+                color,
+            }),
+        );
+    };
+
+    const handleLabelChange = (reference: string, label: string) => {
+        dispatch(
+            actions.setSeriesLabel({
+                label,
+                reference,
+            }),
+        );
+    };
+
+    const handleTypeChange = (
+        reference: string,
+        type: NonNullable<CartesianChartDisplay['series']>[number]['type'],
+    ) => {
+        dispatch(
+            actions.setSeriesChartType({
+                type,
+                reference,
+            }),
+        );
+    };
+
+    const handleAxisChange = (reference: string, value: 'left' | 'right') => {
+        dispatch(
+            actions.setSeriesYAxis({
+                whichYAxis: value === 'left' ? 0 : 1,
+                reference,
+            }),
+        );
+    };
+
+    const handleValueLabelPositionChange = (
+        reference: string,
+        position: ValueLabelPositionOptions,
+    ) => {
+        dispatch(
+            actions.setSeriesValueLabelPosition({
+                valueLabelPosition: position,
+                reference,
+            }),
+        );
+    };
 
     return (
         <Stack mt="sm" spacing="xs">
@@ -158,8 +202,7 @@ export const CartesianChartSeries = ({
                                           <SingleSeriesConfiguration
                                               key={`${s.reference}-${index}`}
                                               reference={s.reference}
-                                              seriesIndex={s.seriesIndex}
-                                              color={s.color}
+                                              color={s.color ?? colors[index]}
                                               colors={colors}
                                               label={s.label}
                                               type={s.type}
@@ -170,8 +213,13 @@ export const CartesianChartSeries = ({
                                               selectedChartType={
                                                   selectedChartType
                                               }
-                                              dispatch={dispatch}
-                                              actions={actions}
+                                              onColorChange={onColorChange}
+                                              onLabelChange={handleLabelChange}
+                                              onTypeChange={handleTypeChange}
+                                              onAxisChange={handleAxisChange}
+                                              onValueLabelPositionChange={
+                                                  handleValueLabelPositionChange
+                                              }
                                           />
                                       </Accordion.Panel>
                                   ))}
@@ -190,23 +238,26 @@ export const CartesianChartSeries = ({
                                   type,
                                   whichYAxis,
                                   valueLabelPosition,
-                                  seriesIndex,
                               },
                               index,
                           ) => (
                               <SingleSeriesConfiguration
                                   key={`${reference}-${index}`}
                                   reference={reference}
-                                  color={color}
+                                  color={color ?? colors[index]}
                                   colors={colors}
                                   label={label}
-                                  seriesIndex={seriesIndex}
                                   type={type}
                                   whichYAxis={whichYAxis}
                                   valueLabelPosition={valueLabelPosition}
                                   selectedChartType={selectedChartType}
-                                  dispatch={dispatch}
-                                  actions={actions}
+                                  onColorChange={onColorChange}
+                                  onLabelChange={handleLabelChange}
+                                  onTypeChange={handleTypeChange}
+                                  onAxisChange={handleAxisChange}
+                                  onValueLabelPositionChange={
+                                      handleValueLabelPositionChange
+                                  }
                               />
                           ),
                       )}
