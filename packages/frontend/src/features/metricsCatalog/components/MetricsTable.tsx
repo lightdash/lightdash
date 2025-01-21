@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
+    DEFAULT_COLUMN_CONFIG,
     MAX_METRICS_TREE_NODE_COUNT,
+    SpotlightTableColumns,
     type CatalogItem,
 } from '@lightdash/common';
 import {
@@ -60,6 +62,7 @@ import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import Canvas from './Canvas';
+import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
@@ -107,6 +110,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const onCloseMetricExploreModal = () => {
         dispatch(toggleMetricExploreModal(undefined));
     };
+
+    // Get table config and set it in the state for mantine-react-table
+    const { data: tableConfig } = useSpotlightTableConfig({ projectUuid });
+    console.log('tableConfig', tableConfig);
 
     const {
         data,
@@ -548,6 +555,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
+            columnOrder: tableConfig?.columnConfig.map(
+                (column) => column.column,
+            ),
         },
         mantineLoadingOverlayProps: {
             loaderProps: {
@@ -571,11 +581,27 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         editDisplayMode: 'cell',
     });
 
+    const columnConfig = useMemo(
+        () => tableConfig?.columnConfig ?? DEFAULT_COLUMN_CONFIG,
+        [tableConfig],
+    );
+
     useEffect(() => {
         table.setColumnVisibility({
-            categories: canManageTags || dataHasCategories,
+            ...Object.fromEntries(
+                columnConfig.map((column) => {
+                    if (column.column === SpotlightTableColumns.CATEGORIES) {
+                        return [
+                            column.column,
+                            column.isVisible &&
+                                (canManageTags || dataHasCategories),
+                        ];
+                    }
+                    return [column.column, column.isVisible];
+                }),
+            ),
         });
-    }, [canManageTags, dataHasCategories, table]);
+    }, [canManageTags, dataHasCategories, table, columnConfig]);
 
     useEffect(
         function handleRefetchOnViewChange() {

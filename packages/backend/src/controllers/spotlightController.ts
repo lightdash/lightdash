@@ -67,20 +67,16 @@ export class SpotlightController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetSpotlightTableConfig> {
-        const tableConfig = await this.services
+        const { columnConfig } = await this.services
             .getSpotlightService()
             .getSpotlightTableConfig(req.user!, projectUuid);
-
-        if (!tableConfig) {
-            throw new NotFoundError(
-                `Table config not found for project ${projectUuid}`,
-            );
-        }
 
         this.setStatus(200);
         return {
             status: 'ok',
-            results: tableConfig,
+            results: {
+                columnConfig,
+            },
         };
     }
 

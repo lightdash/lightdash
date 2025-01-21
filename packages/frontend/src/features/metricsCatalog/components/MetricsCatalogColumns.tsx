@@ -1,4 +1,4 @@
-import { type CatalogField } from '@lightdash/common';
+import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
 import { Box, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
@@ -10,6 +10,7 @@ import {
     Hash,
     Popularity,
     Tag,
+    Table,
 } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
@@ -23,7 +24,7 @@ import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
-        accessorKey: 'label',
+        accessorKey: SpotlightTableColumns.METRIC,
         header: 'Metric',
         enableSorting: true,
         enableEditing: false,
@@ -60,7 +61,19 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         },
     },
     {
-        accessorKey: 'description',
+        accessorKey: SpotlightTableColumns.TABLE,
+        header: 'Table',
+        enableSorting: false,
+        enableEditing: false,
+        size: 120,
+        Header: ({ column }) => (
+            <MetricCatalogColumnHeaderCell Icon={Table} tooltipLabel="Table">
+                {column.columnDef.header}
+            </MetricCatalogColumnHeaderCell>
+        ),
+    },
+    {
+        accessorKey: SpotlightTableColumns.DESCRIPTION,
         enableSorting: false,
         enableEditing: false,
         size: 500,
@@ -78,7 +91,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         },
     },
     {
-        accessorKey: 'categories',
+        accessorKey: SpotlightTableColumns.CATEGORIES,
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
@@ -232,7 +245,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         },
     },
     {
-        accessorKey: 'chartUsage',
+        accessorKey: SpotlightTableColumns.CHART_USAGE,
         header: 'Popularity',
         enableSorting: true,
         enableEditing: false,

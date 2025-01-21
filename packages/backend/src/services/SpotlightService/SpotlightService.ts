@@ -1,4 +1,8 @@
-import type { SessionUser, SpotlightTableConfig } from '@lightdash/common';
+import {
+    NotFoundError,
+    type SessionUser,
+    type SpotlightTableConfig,
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../BaseService';
 import type { SpotlightTableConfigModel } from '../../models/SpotlightTableConfigModel';
@@ -38,12 +42,21 @@ export class SpotlightService extends BaseService {
     async getSpotlightTableConfig(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<SpotlightTableConfig | undefined> {
+    ): Promise<SpotlightTableConfig> {
         // TODO: permissions check
 
-        return this.spotlightTableConfigModel.getSpotlightTableConfig(
-            projectUuid,
-        );
+        const tableConfig =
+            await this.spotlightTableConfigModel.getSpotlightTableConfig(
+                projectUuid,
+            );
+
+        if (!tableConfig) {
+            throw new NotFoundError(
+                `Table config not found for project ${projectUuid}`,
+            );
+        }
+
+        return tableConfig;
     }
 
     async resetSpotlightTableConfig(

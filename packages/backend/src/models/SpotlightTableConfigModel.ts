@@ -27,10 +27,15 @@ export class SpotlightTableConfigModel {
     ): Promise<void> {
         // TODO: permissions check
 
-        await this.database(SpotlightTableConfigTableName).insert({
-            project_uuid: projectUuid,
-            column_config: tableConfig.columnConfig,
-        });
+        await this.database(SpotlightTableConfigTableName)
+            .insert({
+                project_uuid: projectUuid,
+                column_config: JSON.stringify(
+                    tableConfig.columnConfig,
+                ) as unknown as SpotlightTableConfig['columnConfig'],
+            })
+            .onConflict('project_uuid')
+            .merge();
     }
 
     async getSpotlightTableConfig(

@@ -152,6 +152,7 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
+import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 
 dayjs.extend(utc);
 
@@ -716,7 +717,8 @@ type ApiResults =
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
-    | ApiMetricsExplorerTotalResults['results'];
+    | ApiMetricsExplorerTotalResults['results']
+    | ApiGetSpotlightTableConfig['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

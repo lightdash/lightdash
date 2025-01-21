@@ -1,0 +1,100 @@
+import {
+    type ApiError,
+    type ApiSuccessEmpty,
+    type ApiGetSpotlightTableConfig,
+    type SpotlightTableConfig,
+} from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { lightdashApi } from '../../../api';
+
+type UseSpotlightTableConfigOptions = {
+    projectUuid: string | undefined;
+};
+
+const getSpotlightTableConfig = async ({
+    projectUuid,
+}: {
+    projectUuid: string;
+}) => {
+    return lightdashApi<ApiGetSpotlightTableConfig['results']>({
+        url: `/projects/${projectUuid}/spotlight/table/config`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useSpotlightTableConfig = ({
+    projectUuid,
+}: UseSpotlightTableConfigOptions) => {
+    return useQuery<ApiGetSpotlightTableConfig['results'], ApiError>({
+        queryKey: ['spotlight-table-config', projectUuid],
+        queryFn: () => getSpotlightTableConfig({ projectUuid: projectUuid! }),
+        enabled: !!projectUuid,
+    });
+};
+
+const createSpotlightTableConfig = async ({
+    projectUuid,
+    data,
+}: {
+    projectUuid: string;
+    data: Pick<SpotlightTableConfig, 'columnConfig'>;
+}) => {
+    return lightdashApi<ApiSuccessEmpty['results']>({
+        url: `/projects/${projectUuid}/spotlight/table/config`,
+        method: 'POST',
+        body: JSON.stringify({
+            columnConfig: data.columnConfig,
+        }),
+    });
+};
+
+export const useCreateSpotlightTableConfig = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            data: Pick<SpotlightTableConfig, 'columnConfig'>;
+        }
+    >({
+        mutationFn: ({ projectUuid, data }) =>
+            createSpotlightTableConfig({ projectUuid, data }),
+        onSuccess: (_, { projectUuid }) => {
+            void queryClient.invalidateQueries({
+                queryKey: ['spotlight-table-config', projectUuid],
+            });
+        },
+    });
+};
+
+const resetSpotlightTableConfig = async ({
+    projectUuid,
+}: {
+    projectUuid: string;
+}) => {
+    return lightdashApi<ApiSuccessEmpty['results']>({
+        url: `/api/v1/projects/${projectUuid}/spotlight/table/config`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+const useResetSpotlightTableConfig = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        { projectUuid: string }
+    >({
+        mutationFn: ({ projectUuid }) =>
+            resetSpotlightTableConfig({ projectUuid }),
+        onSuccess: (_, { projectUuid }) => {
+            void queryClient.invalidateQueries({
+                queryKey: ['spotlight-table-config', projectUuid],
+            });
+        },
+    });
+};

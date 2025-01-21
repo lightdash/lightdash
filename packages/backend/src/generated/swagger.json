@@ -2238,29 +2238,10 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "SpotlightTableConfig": {
-                "properties": {
-                    "columnConfig": {
-                        "$ref": "#/components/schemas/ColumnConfig"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "spotlightTableConfigUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "columnConfig",
-                    "projectUuid",
-                    "spotlightTableConfigUuid"
-                ],
-                "type": "object"
-            },
             "ApiGetSpotlightTableConfig": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/SpotlightTableConfig"
+                        "$ref": "#/components/schemas/Pick_SpotlightTableConfig.columnConfig_"
                     },
                     "status": {
                         "type": "string",

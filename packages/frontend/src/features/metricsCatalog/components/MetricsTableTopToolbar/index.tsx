@@ -1,4 +1,7 @@
-import { type CatalogField } from '@lightdash/common';
+import {
+    type CatalogField,
+    type SpotlightTableColumns,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -22,7 +25,7 @@ import {
     IconSitemap,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, type FC, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -48,6 +51,12 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { type MRT_TableInstance } from 'mantine-react-table';
+import {
+    useCreateSpotlightTableConfig,
+    useSpotlightTableConfig,
+} from '../../hooks/useSpotlightTable';
+
+// TODO: add optimistic update on reorders!!!!!
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -158,6 +167,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
             }),
         );
 
+        const { mutate: createSpotlightConfig } =
+            useCreateSpotlightTableConfig();
+        const { data: spotlightConfig } = useSpotlightTableConfig({
+            projectUuid,
+        });
+
         const handleDragEnd = useCallback(
             (event: any) => {
                 const { active, over } = event;
@@ -182,10 +197,72 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     newColumnOrder.splice(newIndex, 0, removed);
 
                     table.setColumnOrder(newColumnOrder);
+
+                    const columnConfig = newColumnOrder.map((columnId) => ({
+                        column: columnId as SpotlightTableColumns,
+                        isVisible: table.getColumn(columnId).getIsVisible(),
+                    }));
+
+                    if (projectUuid) {
+                        createSpotlightConfig({
+                            projectUuid,
+                            data: {
+                                columnConfig,
+                            },
+                        });
+                    }
                 }
             },
-            [table],
+            [table, createSpotlightConfig, projectUuid],
         );
+
+        const handleVisibilityChange = useCallback(
+            (columnId: string, isVisible: boolean) => {
+                const visibleColumns = table.getState().columnVisibility;
+                table.setColumnVisibility({
+                    ...visibleColumns,
+                    [columnId]: isVisible,
+                });
+
+                const columnConfig = table
+                    .getAllLeafColumns()
+                    .map((column) => ({
+                        column: column.id as SpotlightTableColumns,
+                        isVisible:
+                            columnId === column.id
+                                ? isVisible
+                                : column.getIsVisible(),
+                    }));
+
+                if (projectUuid) {
+                    createSpotlightConfig({
+                        projectUuid,
+                        data: {
+                            columnConfig,
+                        },
+                    });
+                }
+            },
+            [table, createSpotlightConfig, projectUuid],
+        );
+
+        useEffect(() => {
+            if (spotlightConfig) {
+                const visibilityConfig = spotlightConfig.columnConfig.reduce(
+                    (acc, { column, isVisible }) => ({
+                        ...acc,
+                        [column]: isVisible,
+                    }),
+                    {},
+                );
+                table.setColumnVisibility(visibilityConfig);
+
+                const orderConfig = spotlightConfig.columnConfig.map(
+                    ({ column }) => column,
+                );
+                table.setColumnOrder(orderConfig);
+            }
+        }, [spotlightConfig, table]);
 
         return (
             <Group {...props}>
@@ -317,15 +394,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                                 column.getIsVisible(),
                                                         }}
                                                         onToggleVisibility={() => {
-                                                            const visibleColumns =
-                                                                table.getState()
-                                                                    .columnVisibility;
-                                                            table.setColumnVisibility(
-                                                                {
-                                                                    ...visibleColumns,
-                                                                    [column.id]:
-                                                                        !column.getIsVisible(),
-                                                                },
+                                                            handleVisibilityChange(
+                                                                column.id,
+                                                                !column.getIsVisible(),
                                                             );
                                                         }}
                                                     />

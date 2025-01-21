@@ -1,6 +1,7 @@
 export enum SpotlightTableColumns {
+    // These must match the keys of CatalogField type
     METRIC = 'label',
-    TABLE = 'table',
+    TABLE = 'tableLabel',
     DESCRIPTION = 'description',
     CATEGORIES = 'categories',
     CHART_USAGE = 'chartUsage',
@@ -16,3 +17,11 @@ export type SpotlightTableConfig = {
     projectUuid: string;
     columnConfig: ColumnConfig;
 };
+
+export const DEFAULT_COLUMN_CONFIG: ColumnConfig = [
+    { column: SpotlightTableColumns.METRIC, isVisible: true },
+    { column: SpotlightTableColumns.TABLE, isVisible: false },
+    { column: SpotlightTableColumns.DESCRIPTION, isVisible: true },
+    { column: SpotlightTableColumns.CATEGORIES, isVisible: true },
+    { column: SpotlightTableColumns.CHART_USAGE, isVisible: true },
+];
