@@ -3,9 +3,9 @@
 # -----------------------------
 FROM node:20-bookworm-slim AS base
 
-ENV PNPM_HOME="/pnpm"
+ENV PNPM_HOME "/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable pnpm
+RUN corepack enable
 RUN corepack prepare pnpm@latest --activate
 RUN pnpm config set store-dir /pnpm/store
 
@@ -155,11 +155,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # Stage 3: execution environment for backend
 # -----------------------------
 
-FROM node:20-bookworm-slim as prod
+FROM node:20-bookworm-slim AS prod
 
 ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable pnpm
+RUN corepack enable
 RUN corepack prepare pnpm@latest --activate
 RUN pnpm config set store-dir /pnpm/store
 
@@ -197,7 +197,7 @@ ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
 # -------------------------
 # Stage 4: Extend with demo
 # -------------------------
-FROM prod as demo
+FROM prod AS demo
 
 # PR preview config
 ENV NODE_ENV production
