@@ -356,6 +356,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
+            setIsLayoutReady(true); // Prevent layout from being applied again - relevant to be set before renderTwice because of setTimeout otherwise it goes into an infinite loop
 
             if (renderTwice) {
                 setTimeout(() => {
@@ -368,8 +369,6 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             window.requestAnimationFrame(() => {
                 void fitView({ maxZoom: 1.2 });
             });
-
-            setIsLayoutReady(true);
         },
         [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges, fitView],
     );
