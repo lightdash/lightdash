@@ -14,7 +14,7 @@ import { SshController } from './../controllers/sshController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SqlRunnerController } from './../controllers/sqlRunnerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { CatalogController } from './../controllers/spotlightController';
+import { SpotlightController } from './../controllers/spotlightController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SpaceController } from './../controllers/spaceController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -14625,7 +14625,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsCatalogController_postSpotlightTableConfig: Record<
+    const argsSpotlightController_postSpotlightTableConfig: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -14645,12 +14645,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v1/projects/:projectUuid/spotlight/table/config',
-        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(SpotlightController),
         ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.postSpotlightTableConfig,
+            SpotlightController.prototype.postSpotlightTableConfig,
         ),
 
-        async function CatalogController_postSpotlightTableConfig(
+        async function SpotlightController_postSpotlightTableConfig(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -14660,7 +14660,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsCatalogController_postSpotlightTableConfig,
+                    args: argsSpotlightController_postSpotlightTableConfig,
                     request,
                     response,
                 });
@@ -14670,9 +14670,10 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<SpotlightController>(
+                        SpotlightController,
+                    );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -14691,7 +14692,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsCatalogController_getSpotlightTableConfig: Record<
+    const argsSpotlightController_getSpotlightTableConfig: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -14705,12 +14706,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.get(
         '/api/v1/projects/:projectUuid/spotlight/table/config',
-        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(SpotlightController),
         ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.getSpotlightTableConfig,
+            SpotlightController.prototype.getSpotlightTableConfig,
         ),
 
-        async function CatalogController_getSpotlightTableConfig(
+        async function SpotlightController_getSpotlightTableConfig(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -14720,7 +14721,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsCatalogController_getSpotlightTableConfig,
+                    args: argsSpotlightController_getSpotlightTableConfig,
                     request,
                     response,
                 });
@@ -14730,9 +14731,10 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<SpotlightController>(
+                        SpotlightController,
+                    );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -14751,7 +14753,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsCatalogController_resetSpotlightTableConfig: Record<
+    const argsSpotlightController_resetSpotlightTableConfig: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -14765,12 +14767,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.delete(
         '/api/v1/projects/:projectUuid/spotlight/table/config',
-        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(SpotlightController),
         ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.resetSpotlightTableConfig,
+            SpotlightController.prototype.resetSpotlightTableConfig,
         ),
 
-        async function CatalogController_resetSpotlightTableConfig(
+        async function SpotlightController_resetSpotlightTableConfig(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -14780,7 +14782,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsCatalogController_resetSpotlightTableConfig,
+                    args: argsSpotlightController_resetSpotlightTableConfig,
                     request,
                     response,
                 });
@@ -14790,9 +14792,10 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<SpotlightController>(
+                        SpotlightController,
+                    );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }

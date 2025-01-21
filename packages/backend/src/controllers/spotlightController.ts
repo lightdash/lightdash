@@ -30,7 +30,7 @@ import { BaseController } from './baseController';
 @Route('/api/v1/projects/{projectUuid}/spotlight')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Spotlight')
-export class CatalogController extends BaseController {
+export class SpotlightController extends BaseController {
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
