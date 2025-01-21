@@ -38,6 +38,11 @@ export enum VizIndexType {
     CATEGORY = 'category',
 }
 
+export enum AxisSide {
+    LEFT,
+    RIGHT,
+}
+
 export function getColumnAxisType(column: VizColumn): VizIndexType {
     switch (column.type) {
         case DimensionType.DATE:

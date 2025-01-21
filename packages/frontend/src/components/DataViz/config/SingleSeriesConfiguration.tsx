@@ -1,4 +1,5 @@
 import {
+    AxisSide,
     getEChartsChartTypeFromChartKind,
     ValueLabelPositionOptions,
     type CartesianChartDisplay,
@@ -27,7 +28,7 @@ type SingleSeriesConfigurationProps = {
         reference: string,
         type: NonNullable<CartesianChartDisplay['series']>[number]['type'],
     ) => void;
-    onAxisChange: (reference: string, value: 'left' | 'right') => void;
+    onAxisChange: (reference: string, value: AxisSide) => void;
     onValueLabelPositionChange: (
         reference: string,
         position: ValueLabelPositionOptions,
@@ -115,11 +116,13 @@ export const SingleSeriesConfiguration = ({
                                 ),
                             },
                         ]}
-                        value={whichYAxis === 1 ? 'right' : 'left'}
+                        value={whichYAxis === AxisSide.RIGHT ? 'right' : 'left'}
                         onChange={(value) =>
                             onAxisChange(
                                 reference,
-                                value === 'left' ? 'left' : 'right',
+                                value === 'left'
+                                    ? AxisSide.LEFT
+                                    : AxisSide.RIGHT,
                             )
                         }
                     />

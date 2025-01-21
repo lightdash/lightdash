@@ -16,6 +16,7 @@ import {
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
+    type AxisSide,
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
@@ -737,7 +738,7 @@ export type CartesianChartDisplay = {
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
             // whichAxis maps to the yAxis index in Echarts.
-            whichYAxis?: number;
+            whichYAxis?: AxisSide;
         };
     };
     legend?: {

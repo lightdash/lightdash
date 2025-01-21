@@ -5,6 +5,7 @@ import {
     type CartesianChartDisplay,
     type ChartKind,
     type PivotChartLayout,
+    type AxisSide,
 } from '@lightdash/common';
 import { Accordion, SegmentedControl, Stack, Text } from '@mantine/core';
 import { useMemo } from 'react';
@@ -123,10 +124,10 @@ export const CartesianChartSeries = ({
         );
     };
 
-    const handleAxisChange = (reference: string, value: 'left' | 'right') => {
+    const handleAxisChange = (reference: string, value: AxisSide) => {
         dispatch(
             actions.setSeriesYAxis({
-                whichYAxis: value === 'left' ? 0 : 1,
+                whichYAxis: value,
                 reference,
             }),
         );
