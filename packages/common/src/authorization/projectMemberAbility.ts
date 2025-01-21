@@ -62,6 +62,9 @@ export const projectMemberAbilities: Record<
         can('view', 'MetricsTree', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'SpotlightTableConfig', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -218,6 +221,9 @@ export const projectMemberAbilities: Record<
         can('create', 'Project', {
             upstreamProjectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
+        });
+        can('manage', 'SpotlightTableConfig', {
+            projectUuid: member.projectUuid,
         });
     },
     admin(member, { can }) {

@@ -2,7 +2,9 @@ import {
     NotFoundError,
     type SessionUser,
     type SpotlightTableConfig,
+    ForbiddenError,
 } from '@lightdash/common';
+import { subject } from '@casl/ability';
 import { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../BaseService';
 import type { SpotlightTableConfigModel } from '../../models/SpotlightTableConfigModel';
@@ -31,7 +33,17 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
-        // TODO: permissions check
+        if (
+            !user.ability.can(
+                'manage',
+                subject('SpotlightTableConfig', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         await this.spotlightTableConfigModel.createSpotlightTableConfig(
             projectUuid,
@@ -43,7 +55,17 @@ export class SpotlightService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
-        // TODO: permissions check
+        if (
+            !user.ability.can(
+                'view',
+                subject('SpotlightTableConfig', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const tableConfig =
             await this.spotlightTableConfigModel.getSpotlightTableConfig(
@@ -63,7 +85,17 @@ export class SpotlightService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<void> {
-        // TODO: permissions check
+        if (
+            !user.ability.can(
+                'manage',
+                subject('SpotlightTableConfig', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         await this.spotlightTableConfigModel.deleteSpotlightTableConfig(
             projectUuid,

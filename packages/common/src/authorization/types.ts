@@ -49,6 +49,7 @@ type Subject =
     | 'Tags'
     | 'PersonalAccessToken'
     | 'MetricsTree'
+    | 'SpotlightTableConfig'
     | 'all';
 
 type PossibleAbilities = [
