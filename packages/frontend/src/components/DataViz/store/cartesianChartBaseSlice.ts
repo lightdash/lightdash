@@ -11,6 +11,7 @@ import {
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
+    type PivotValuesColumn,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -34,7 +35,7 @@ export type CartesianChartState = {
         | undefined;
     chartDataLoading: boolean;
     chartDataError: Error | null | undefined;
-    series?: string[];
+    series?: PivotValuesColumn[];
 };
 
 const initialState: CartesianChartState = {
