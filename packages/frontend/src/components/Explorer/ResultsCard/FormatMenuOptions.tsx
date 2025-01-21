@@ -1,4 +1,4 @@
-import { getItemId, type Metric } from '@lightdash/common';
+import { type Metric } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -10,17 +10,12 @@ type Props = {
 };
 
 const FormatMenuOptions: FC<Props> = ({ item }) => {
+    const { track } = useTracking();
+
     const toggleFormatModal = useExplorerContext(
         (context) => context.actions.toggleFormatModal,
     );
-    const updateMetricFormat = useExplorerContext(
-        (context) => context.actions.updateMetricFormat,
-    );
-    const metricOverrides = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.metricOverrides,
-    );
-    const { track } = useTracking();
+
     const onCreate = () => {
         toggleFormatModal({ metric: item });
         track({
@@ -30,22 +25,8 @@ const FormatMenuOptions: FC<Props> = ({ item }) => {
 
     return (
         <>
-            <Menu.Label>Formatting</Menu.Label>
-            <Menu.Item onClick={onCreate}>Edit formatting</Menu.Item>
-            {metricOverrides &&
-                metricOverrides[getItemId(item)]?.formatOptions !==
-                    undefined && (
-                    <Menu.Item
-                        onClick={() =>
-                            updateMetricFormat({
-                                metric: item,
-                                formatOptions: undefined,
-                            })
-                        }
-                    >
-                        Reset formatting
-                    </Menu.Item>
-                )}
+            <Menu.Label>Format</Menu.Label>
+            <Menu.Item onClick={onCreate}>Edit format</Menu.Item>
         </>
     );
 };
