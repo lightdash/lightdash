@@ -1103,6 +1103,14 @@ describe('Formatting', () => {
                 ),
             ).toEqual(['$12,345.12', '€12,345.12', '£12,345.12', '¥12,345']);
 
+            // Test DKK formatting
+            expect(
+                applyCustomFormat(12345.1235, {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.DKK,
+                }),
+            ).toEqual('12.345,12 kr');
+
             // Number as string
             expect(
                 currencies.slice(0, 4).map((currency) =>
@@ -1145,6 +1153,15 @@ describe('Formatting', () => {
                 '12.345,12 £',
                 '12.345 ¥',
             ]);
+
+            // Test DKK with period comma separator
+            expect(
+                applyCustomFormat(12345.1235, {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.DKK,
+                    separator: NumberSeparator.PERIOD_COMMA,
+                }),
+            ).toEqual('12.345,12 kr');
         });
         test('convert currencies with compact ', () => {
             expect(
@@ -1156,6 +1173,15 @@ describe('Formatting', () => {
                     }),
                 ),
             ).toEqual(['$12.35K', '€12.35K', '£12.35K', '¥12K']);
+
+            // Test DKK with compact format
+            expect(
+                applyCustomFormat(12345.1235, {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.DKK,
+                    compact: Compact.THOUSANDS,
+                }),
+            ).toEqual('12,35K kr');
 
             expect(
                 currencies.slice(0, 4).map((currency) =>
