@@ -1,3 +1,10 @@
+## [0.1459.2](https://github.com/lightdash/lightdash/compare/0.1459.1...0.1459.2) (2025-01-21)
+
+
+### Bug Fixes
+
+* add pivot info to sql runner ([#13243](https://github.com/lightdash/lightdash/issues/13243)) ([45015e3](https://github.com/lightdash/lightdash/commit/45015e3c916d927de68394421170ae5c2e691671))
+
 ## [0.1459.1](https://github.com/lightdash/lightdash/compare/0.1459.0...0.1459.1) (2025-01-21)
 
 
