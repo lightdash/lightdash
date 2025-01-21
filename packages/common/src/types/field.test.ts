@@ -4,6 +4,8 @@ import {
     convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
+    Format,
+    isFormat,
     MetricType,
     type CustomBinDimension,
     type CustomSqlDimension,
@@ -14,14 +16,15 @@ import { type AdditionalMetric } from './metricQuery';
 describe('field util functions', () => {
     describe('isFormat', () => {
         it('should validate format strings', () => {
-            expect(isFormat('km')).toBe(true);
-            expect(isFormat('mi')).toBe(true);
-            expect(isFormat('usd')).toBe(true);
-            expect(isFormat('gbp')).toBe(true);
-            expect(isFormat('eur')).toBe(true);
-            expect(isFormat('dkk')).toBe(true);
-            expect(isFormat('id')).toBe(true);
-            expect(isFormat('percent')).toBe(true);
+            // Test all Format enum values
+            expect(isFormat(Format.KM)).toBe(true);
+            expect(isFormat(Format.MI)).toBe(true);
+            expect(isFormat(Format.USD)).toBe(true);
+            expect(isFormat(Format.GBP)).toBe(true);
+            expect(isFormat(Format.EUR)).toBe(true);
+            expect(isFormat(Format.ID)).toBe(true);
+            expect(isFormat(Format.PERCENT)).toBe(true);
+            // Test invalid values
             expect(isFormat('invalid')).toBe(false);
             expect(isFormat(undefined)).toBe(false);
         });
