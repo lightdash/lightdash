@@ -38,7 +38,7 @@ describe('Formatting', () => {
             });
         });
 
-        [Format.EUR, Format.GBP, Format.USD].forEach((format) => {
+        [Format.EUR, Format.GBP, Format.USD, Format.DKK].forEach((format) => {
             test(`when it is ${format.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
                 expect(getCustomFormatFromLegacy({ format })).toEqual({
                     type: CustomFormatType.CURRENCY,
@@ -105,6 +105,13 @@ describe('Formatting', () => {
                         currency: Format.EUR,
                     }),
                 ).toEqual('€5.00');
+                expect(
+                    applyCustomFormat(5, {
+                        type: CustomFormatType.CURRENCY,
+                        currency: Format.DKK,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    }),
+                ).toEqual('5,00 kr');
             });
 
             test('if Format is percent it should return the right format', () => {

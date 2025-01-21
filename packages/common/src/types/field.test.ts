@@ -12,6 +12,20 @@ import {
 import { type AdditionalMetric } from './metricQuery';
 
 describe('field util functions', () => {
+    describe('isFormat', () => {
+        it('should validate format strings', () => {
+            expect(isFormat('km')).toBe(true);
+            expect(isFormat('mi')).toBe(true);
+            expect(isFormat('usd')).toBe(true);
+            expect(isFormat('gbp')).toBe(true);
+            expect(isFormat('eur')).toBe(true);
+            expect(isFormat('dkk')).toBe(true);
+            expect(isFormat('id')).toBe(true);
+            expect(isFormat('percent')).toBe(true);
+            expect(isFormat('invalid')).toBe(false);
+            expect(isFormat(undefined)).toBe(false);
+        });
+    });
     describe('convertFieldRefToFieldId', () => {
         it('should convert field references to field ids', async () => {
             expect(convertFieldRefToFieldId('table.field')).toEqual(
