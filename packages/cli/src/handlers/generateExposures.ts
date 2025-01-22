@@ -1,4 +1,8 @@
-import { AuthorizationError, DbtExposure } from '@lightdash/common';
+import {
+    AuthorizationError,
+    DbtExposure,
+    getErrorMessage,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
@@ -84,7 +88,7 @@ export const generateExposuresHandler = async (
             },
         });
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         await LightdashAnalytics.track({
             event: 'generate_exposures.error',
             properties: {
