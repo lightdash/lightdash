@@ -134,9 +134,11 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                 recursive: true,
                 force: true,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             throw new UnexpectedServerError(
-                `Unexpected error while removing local git directory: ${e}`,
+                `Unexpected error while removing local git directory: ${String(
+                    e,
+                )}`,
             );
         }
     }
@@ -145,9 +147,11 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         try {
             Logger.debug(`Clean ${this.localRepositoryDir}`);
             await fspromises.emptyDir(this.localRepositoryDir);
-        } catch (e) {
+        } catch (e: unknown) {
             throw new UnexpectedServerError(
-                `Unexpected error while cleaning local git directory: ${e}`,
+                `Unexpected error while cleaning local git directory: ${String(
+                    e,
+                )}`,
             );
         }
     }
@@ -170,8 +174,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     this.localRepositoryDir,
                     defaultCloneOptions,
                 );
-        } catch (e) {
-            gitErrorHandler(e, this.repository);
+        } catch (e: unknown) {
+            gitErrorHandler(e as Error, this.repository);
         }
     }
 
@@ -188,16 +192,16 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     '--no-tags': null,
                     '--progress': null,
                 });
-        } catch (e) {
-            gitErrorHandler(e, this.repository);
+        } catch (e: unknown) {
+            gitErrorHandler(e as Error, this.repository);
         }
     }
 
     private async _refreshRepo() {
         try {
             await this._pull();
-        } catch (e) {
-            Logger.debug(`Failed git pull ${e}`);
+        } catch (e: unknown) {
+            Logger.debug(`Failed git pull ${String(e)}`);
             await this._cleanLocal();
             await this._clone();
         }

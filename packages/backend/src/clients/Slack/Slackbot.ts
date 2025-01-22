@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
+import { WebClient } from '@slack/web-api';
 import { Express } from 'express';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -21,8 +22,8 @@ import { slackOptions } from './SlackOptions';
 const notifySlackError = async (
     error: unknown,
     url: string,
-    client: any,
-    event: any,
+    client: WebClient,
+    event: { message_ts: string; channel: string },
     { appProfilePhotoUrl }: { appProfilePhotoUrl?: string },
 ): Promise<void> => {
     /** Expected slack errors:
@@ -38,8 +39,8 @@ const notifySlackError = async (
             ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
             text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
-        .catch((er: any) =>
-            Logger.error(`Unable send slack error message: ${er} `),
+        .catch((er: unknown) =>
+            Logger.error(`Unable send slack error message: ${String(er)} `),
         );
 };
 
@@ -122,14 +123,29 @@ export class SlackBot {
     }
 
     protected addEventListeners(app: App) {
-        app.event('link_shared', (m) => this.unfurlSlackUrls(m));
+        app.event('link_shared', async (m) => {
+            const { event, client, context } = m;
+            await this.unfurlSlackUrls({
+                event: {
+                    message_ts: event.message_ts,
+                    channel: event.channel,
+                    links: event.links,
+                    user: event.user,
+                },
+                client,
+                context: {
+                    botUserId: context.botUserId || '',
+                    teamId: context.teamId,
+                },
+            });
+        });
     }
 
     private async sendUnfurl(
-        event: any,
+        event: { message_ts: string; channel: string },
         originalUrl: string,
         unfurl: Unfurl,
-        client: any,
+        client: WebClient,
     ) {
         const unfurlBlocks = getUnfurlBlocks(originalUrl, unfurl);
         await client.chat
@@ -138,7 +154,7 @@ export class SlackBot {
                 channel: event.channel,
                 unfurls: unfurlBlocks,
             })
-            .catch((e: any) => {
+            .catch((e: unknown) => {
                 this.analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: event.user,
@@ -154,7 +170,19 @@ export class SlackBot {
             });
     }
 
-    async unfurlSlackUrls(message: any) {
+    async unfurlSlackUrls(message: {
+        event: {
+            message_ts: string;
+            channel: string;
+            links: Array<{ url: string }>;
+            user?: string;
+        };
+        client: WebClient;
+        context: {
+            botUserId: string;
+            teamId: string;
+        };
+    }) {
         const { event, client, context } = message;
         let appProfilePhotoUrl: string | undefined;
 
@@ -162,7 +190,7 @@ export class SlackBot {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
-        event.links.map(async (l: any) => {
+        event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {

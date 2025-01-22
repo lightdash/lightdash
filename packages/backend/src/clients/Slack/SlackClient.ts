@@ -141,8 +141,8 @@ export class SlackClient {
                 allChannels = conversations.channels
                     ? [...allChannels, ...conversations.channels]
                     : allChannels;
-            } catch (e) {
-                Logger.error(`Unable to fetch slack channels ${e}`);
+            } catch (e: unknown) {
+                Logger.error(`Unable to fetch slack channels ${String(e)}`);
                 Sentry.captureException(e);
                 break;
             }
@@ -165,8 +165,8 @@ export class SlackClient {
                 allUsers = users.members
                     ? [...allUsers, ...users.members]
                     : allUsers;
-            } catch (e) {
-                Logger.error(`Unable to fetch slack users ${e}`);
+            } catch (e: unknown) {
+                Logger.error(`Unable to fetch slack users ${String(e)}`);
                 Sentry.captureException(e);
 
                 break;
@@ -209,9 +209,11 @@ export class SlackClient {
                 });
             });
             await Promise.all(joinPromises);
-        } catch (e) {
+        } catch (e: unknown) {
             Logger.error(
-                `Unable to join channels ${channels} on organization ${organizationUuid}: ${e}`,
+                `Unable to join channels ${channels} on organization ${organizationUuid}: ${String(
+                    e,
+                )}`,
             );
         }
     }
@@ -240,7 +242,7 @@ export class SlackClient {
                 ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 ...slackMessageArgs,
             })
-            .catch((e: any) => {
+            .catch((e: unknown) => {
                 Logger.error(
                     `Unable to post message on Slack: ${JSON.stringify(e)}`,
                 );
@@ -276,7 +278,7 @@ export class SlackClient {
                         ? { icon_url: appProfilePhotoUrl }
                         : {}),
                 })
-                .catch((e: any) => {
+                .catch((e: unknown) => {
                     Logger.error(
                         `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${JSON.stringify(
                             e,
@@ -465,8 +467,8 @@ export class SlackClient {
                 title: name,
             });
             return { url: slackFileUrl, expiring: false };
-        } catch (e) {
-            Logger.error(`Failed to upload image to slack: ${e}`);
+        } catch (e: unknown) {
+            Logger.error(`Failed to upload image to slack: ${String(e)}`);
             return { url: imageUrl, expiring: true };
         }
     }

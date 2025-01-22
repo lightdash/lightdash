@@ -81,4 +81,4 @@ export const BaseResponse: HealthState = {
 export const userMock = {
     userUuid: 'uuid',
     organizationUuid: 'orguuid',
-} as any as SessionUser;
+} satisfies Partial<SessionUser> as SessionUser;

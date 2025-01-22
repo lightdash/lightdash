@@ -79,8 +79,10 @@ export class S3CacheClient {
                     Metadata: metadata,
                 });
                 const response = await this.s3.send(command);
-            } catch (error) {
-                Logger.error(`Failed to upload results to s3. ${error}`);
+            } catch (error: unknown) {
+                Logger.error(
+                    `Failed to upload results to s3. ${String(error)}`,
+                );
                 Sentry.captureException(error);
                 throw error;
             }
@@ -106,12 +108,14 @@ export class S3CacheClient {
                         Key: `${key}.json`,
                     });
                     return await this.s3.send(command);
-                } catch (error) {
+                } catch (error: unknown) {
                     if (error instanceof NotFound) {
                         return undefined;
                     }
                     Logger.error(
-                        `Failed to get results metadata from s3. ${error}`,
+                        `Failed to get results metadata from s3. ${String(
+                            error,
+                        )}`,
                     );
                     Sentry.captureException(error);
                     throw error;
@@ -136,9 +140,9 @@ export class S3CacheClient {
                     Key: `${key}.json`,
                 });
                 return await this.s3.send(command);
-            } catch (error) {
+            } catch (error: unknown) {
                 Logger.error(
-                    `Failed to get results metadata from s3. ${error}`,
+                    `Failed to get results metadata from s3. ${String(error)}`,
                 );
                 Sentry.captureException(error);
                 throw error;

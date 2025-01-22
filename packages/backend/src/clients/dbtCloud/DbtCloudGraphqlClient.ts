@@ -146,12 +146,31 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             return await this.getClient().request(query, {
                 environmentId: this.environmentId,
             });
-        } catch (error) {
+        } catch (error: unknown) {
             // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
-            const errors: string[] | undefined = error?.response?.errors?.map(
-                (e: { message: string }) =>
-                    this.transformers.errorToReadableError(e.message),
-            );
+            const errors =
+                error &&
+                typeof error === 'object' &&
+                'response' in error &&
+                error.response &&
+                typeof error.response === 'object' &&
+                'errors' in error.response &&
+                Array.isArray(error.response.errors)
+                    ? error.response.errors
+                          .filter(
+                              (e): e is { message: string } =>
+                                  typeof e === 'object' &&
+                                  e !== null &&
+                                  'message' in e &&
+                                  typeof e.message === 'string',
+                          )
+                          .map((e) =>
+                              this.transformers.errorToReadableError(e.message),
+                          )
+                          .filter(
+                              (msg): msg is string => typeof msg === 'string',
+                          )
+                    : undefined;
 
             throw new DbtError(errors?.join('\n'));
         }

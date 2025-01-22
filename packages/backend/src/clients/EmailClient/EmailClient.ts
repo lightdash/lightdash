@@ -64,7 +64,7 @@ export default class EmailClient {
                 },
             );
 
-            this.transporter.verify((error: any) => {
+            void this.transporter.verify((error: Error | null) => {
                 if (error) {
                     throw new SmptError(
                         `Failed to verify email transporter. ${error}`,
@@ -102,8 +102,8 @@ export default class EmailClient {
             try {
                 const info = await this.transporter.sendMail(options);
                 Logger.debug(`Email sent: ${info.messageId}`);
-            } catch (error) {
-                throw new SmptError(`Failed to send email. ${error}`, {
+            } catch (error: unknown) {
+                throw new SmptError(`Failed to send email. ${String(error)}`, {
                     error,
                 });
             }

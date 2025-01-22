@@ -122,17 +122,20 @@ export class ProjectModel {
         }
         return {
             ...incompleteConfig,
-            ...sensitiveDbtCredentialsFieldNames.reduce(
-                (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
-                        ? {
-                              ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
-                          }
-                        : sum,
-                {},
-            ),
+            ...sensitiveDbtCredentialsFieldNames.reduce((sum, secretKey) => {
+                const incompleteValue = (
+                    incompleteConfig as unknown as Record<string, unknown>
+                )[secretKey];
+                const completeValue = (
+                    completeConfig as unknown as Record<string, unknown>
+                )[secretKey];
+                return !incompleteValue && completeValue
+                    ? {
+                          ...sum,
+                          [secretKey]: completeValue,
+                      }
+                    : sum;
+            }, {}),
         };
     }
 
@@ -145,17 +148,20 @@ export class ProjectModel {
         }
         return {
             ...incompleteConfig,
-            ...sensitiveCredentialsFieldNames.reduce(
-                (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
-                        ? {
-                              ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
-                          }
-                        : sum,
-                {},
-            ),
+            ...sensitiveCredentialsFieldNames.reduce((sum, secretKey) => {
+                const incompleteValue = (
+                    incompleteConfig as unknown as Record<string, unknown>
+                )[secretKey];
+                const completeValue = (
+                    completeConfig as unknown as Record<string, unknown>
+                )[secretKey];
+                return !incompleteValue && completeValue
+                    ? {
+                          ...sum,
+                          [secretKey]: completeValue,
+                      }
+                    : sum;
+            }, {}),
         };
     }
 

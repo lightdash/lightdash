@@ -84,9 +84,9 @@ if (
                     url: testUrl,
                 },
             });
-        } catch (e) {
+        } catch (e: unknown) {
             console.error(e);
-            next(e.message);
+            next(e instanceof Error ? e.message : String(e));
         } finally {
             if (browser) await browser.close();
         }
@@ -173,9 +173,9 @@ if (
                 'Content-Length': imageBuffer.length,
             });
             res.end(imageBuffer);
-        } catch (e) {
+        } catch (e: unknown) {
             console.error(e);
-            next(e.message);
+            next(e instanceof Error ? e.message : String(e));
         } finally {
             if (browser) await browser.close();
         }

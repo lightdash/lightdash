@@ -270,7 +270,12 @@ export class GroupsModel {
                 return row.group_uuid;
             } catch (error) {
                 // Unique violation in PostgreSQL
-                if (error.code === '23505') {
+                if (
+                    error &&
+                    typeof error === 'object' &&
+                    'code' in error &&
+                    error.code === '23505'
+                ) {
                     throw new AlreadyExistsError(`Group name already exists`);
                 }
                 throw error; // Re-throw other errors
@@ -419,12 +424,21 @@ export class GroupsModel {
                         .where('group_uuid', groupUuid);
                 } catch (error) {
                     // Unique violation in PostgreSQL
-                    if (error.code === '23505') {
+                    if (
+                        error &&
+                        typeof error === 'object' &&
+                        'code' in error &&
+                        error.code === '23505'
+                    ) {
                         throw new AlreadyExistsError(
                             `Group name already exists`,
                         );
                     }
-                    throw new UnexpectedDatabaseError(error.message);
+                    throw new UnexpectedDatabaseError(
+                        error && typeof error === 'object' && 'message' in error
+                            ? String(error.message)
+                            : String(error),
+                    );
                 }
             }
 

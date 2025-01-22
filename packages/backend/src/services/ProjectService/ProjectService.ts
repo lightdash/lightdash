@@ -2206,7 +2206,7 @@ export class ProjectService extends BaseService {
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
-                        message: e.message,
+                        message: e instanceof Error ? e.message : String(e),
                     });
                     throw e;
                 } finally {

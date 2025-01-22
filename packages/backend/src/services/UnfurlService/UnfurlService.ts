@@ -685,17 +685,20 @@ export class UnfurlService extends BaseService {
                     const isRetryableError =
                         e instanceof playwright.errors.TimeoutError ||
                         // Following error messages were taken from the Playwright source code
-                        e.message.includes('Protocol error') ||
-                        e.message.includes('Target crashed') ||
-                        e.message.includes(
-                            'Target page, context or browser has been closed',
-                        );
+                        (e instanceof Error &&
+                            (e.message.includes('Protocol error') ||
+                                e.message.includes('Target crashed') ||
+                                e.message.includes(
+                                    'Target page, context or browser has been closed',
+                                )));
 
                     if (isRetryableError && retries) {
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${
+                                e instanceof Error ? e.message : String(e)
+                            }`,
                         );
-                        span.addEvent(e);
+                        span.addEvent(String(e));
                         span.setAttributes({
                             'page.type': lightdashPage,
                             url,
@@ -746,7 +749,9 @@ export class UnfurlService extends BaseService {
                     });
 
                     this.logger.error(
-                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${
+                            e instanceof Error ? e.message : String(e)
+                        }`,
                     );
                     throw e;
                 } finally {

@@ -620,7 +620,11 @@ export class SchedulerModel {
 
             if (
                 !(
+                    error &&
+                    typeof error === 'object' &&
+                    'code' in error &&
                     error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
+                    'constraint' in error &&
                     error.constraint === 'scheduler_log_scheduler_uuid_foreign'
                 )
             )

@@ -210,8 +210,8 @@ export class GoogleDriveClient {
                     range: tabName,
                 });
             }
-        } catch (error) {
-            Logger.error('Unable to clear the sheet', error);
+        } catch (error: unknown) {
+            Logger.error('Unable to clear the sheet', String(error));
             // Silently ignore this error
         }
     }

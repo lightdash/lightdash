@@ -192,7 +192,7 @@ export class JobModel {
                 jobUuid,
                 JobStepStatusType.ERROR,
                 jobStepType,
-                e.message,
+                e instanceof Error ? e.message : String(e),
                 e instanceof DbtError ? e.logs : [],
             );
             await this.update(jobUuid, { jobStatus: JobStatusType.ERROR });

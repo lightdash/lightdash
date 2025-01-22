@@ -191,7 +191,8 @@ export class GithubAppService extends BaseService {
                 properties: {
                     organizationId: user.organizationUuid!,
                     byAdmin: setup_action !== 'request',
-                    error: error.message,
+                    error:
+                        error instanceof Error ? error.message : String(error),
                 },
             });
             throw error;

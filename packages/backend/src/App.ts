@@ -268,7 +268,7 @@ export default class App {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
-            knex: this.database as any,
+            knex: this.database as Knex, // Type assertion needed for connect-session-knex compatibility
             createtable: false,
             tablename: 'sessions',
             sidfieldname: 'sid',

@@ -289,8 +289,13 @@ export const checkFileDoesNotExist = async ({
             branch,
         });
         throw new AlreadyExistsError(`File "${path}" already exists in Github`);
-    } catch (error) {
-        if (error.status === 404) {
+    } catch (error: unknown) {
+        if (
+            error &&
+            typeof error === 'object' &&
+            'status' in error &&
+            error.status === 404
+        ) {
             return true;
         }
         throw error;

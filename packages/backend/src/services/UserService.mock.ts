@@ -24,7 +24,7 @@ export const openIdUser: OpenIdUser = {
 export const openIdUserWithInvalidIssuer: OpenIdUser = {
     openId: {
         ...openIdUser.openId,
-        issuerType: 'invalid_issuer' as any,
+        issuerType: 'invalid_issuer' as OpenIdIdentityIssuerType, // Intentionally invalid for testing
     },
 };
 
