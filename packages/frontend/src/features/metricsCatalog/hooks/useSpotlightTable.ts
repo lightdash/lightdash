@@ -85,7 +85,7 @@ const resetSpotlightTableConfig = async ({
     projectUuid: string;
 }) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
-        url: `/api/v1/projects/${projectUuid}/spotlight/table/config`,
+        url: `/projects/${projectUuid}/spotlight/table/config`,
         method: 'DELETE',
         body: undefined,
     });
