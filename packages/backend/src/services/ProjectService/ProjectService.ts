@@ -50,6 +50,7 @@ import {
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
+    getErrorMessage,
     getFieldQuoteChar,
     getFields,
     getIntrinsicUserAttributes,
@@ -2206,7 +2207,7 @@ export class ProjectService extends BaseService {
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
-                        message: e.message,
+                        message: getErrorMessage(e),
                     });
                     throw e;
                 } finally {

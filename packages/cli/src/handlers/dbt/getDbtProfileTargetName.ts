@@ -21,8 +21,9 @@ const getDbtCloudTargetName = async (): Promise<string> => {
         }
         return targetName[1];
     } catch (e: unknown) {
-        const msg = getErrorMessage(e);
-        throw new ParseError(`Failed to get profile target name:\n  ${msg}`);
+        throw new ParseError(
+            `Failed to get profile target name:\n  ${getErrorMessage(e)}`,
+        );
     }
 };
 

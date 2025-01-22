@@ -16,6 +16,7 @@ import {
     DbtQueryStatus,
     DbtSemanticLayerConnection,
     getDefaultedLimit,
+    getErrorMessage,
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
@@ -150,7 +151,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
             const errors: string[] | undefined = error?.response?.errors?.map(
                 (e: { message: string }) =>
-                    this.transformers.errorToReadableError(e.message),
+                    this.transformers.errorToReadableError(getErrorMessage(e)),
             );
 
             throw new DbtError(errors?.join('\n'));

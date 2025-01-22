@@ -60,8 +60,9 @@ const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
         }
         return connectionType[1];
     } catch (e: unknown) {
-        const msg = getErrorMessage(e);
-        throw new ParseError(`Failed to get connection type:\n  ${msg}`);
+        throw new ParseError(
+            `Failed to get connection type:\n  ${getErrorMessage(e)}`,
+        );
     }
 };
 
