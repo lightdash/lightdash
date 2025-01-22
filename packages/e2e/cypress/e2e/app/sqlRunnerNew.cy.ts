@@ -223,7 +223,9 @@ describe('SQL Runner (new)', () => {
         cy.get(
             `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
         ).should('exist');
-        cy.contains('customer_id_sum').should('be.visible');
+        cy.get('table thead th')
+            .eq(0)
+            .should('contain.text', 'customer_id_sum');
 
         cy.contains('label', 'SQL').click();
         cy.get('.monaco-editor').should('be.visible');
