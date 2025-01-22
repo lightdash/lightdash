@@ -216,7 +216,11 @@ export class DbtCliClient implements DbtClient {
                     ' ',
                 )}" with dbt version "${this.dbtVersion}"`,
                 DbtCliClient.parseDbtJsonLogs(
-                    e instanceof Error && 'all' in e ? e.all : undefined,
+                    e instanceof Error &&
+                        'all' in e &&
+                        typeof e.all === 'string'
+                        ? e.all
+                        : undefined,
                 ),
             );
         }
