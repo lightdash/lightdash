@@ -10355,44 +10355,82 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Explore: {
+    'Pick_Explore.Exclude_keyofExplore.unfilteredTables__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                type: { ref: 'ExploreType' },
-                sqlPath: { dataType: 'string' },
-                ymlPath: { dataType: 'string' },
-                warehouse: { dataType: 'string' },
-                targetDatabase: { ref: 'SupportedDbtAdapter', required: true },
+                name: { dataType: 'string', required: true },
+                type: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExploreType' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                label: { dataType: 'string', required: true },
+                warehouse: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                tags: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                groupLabel: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                baseTable: { dataType: 'string', required: true },
+                joinedTables: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'CompiledExploreJoin' },
+                    required: true,
+                },
                 tables: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
                     additionalProperties: { ref: 'CompiledTable' },
                     required: true,
                 },
-                joinedTables: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'CompiledExploreJoin' },
-                    required: true,
+                targetDatabase: { ref: 'SupportedDbtAdapter', required: true },
+                ymlPath: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
                 },
-                baseTable: { dataType: 'string', required: true },
-                groupLabel: { dataType: 'string' },
-                tags: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
+                sqlPath: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
                 },
-                label: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_Explore.unfilteredTables_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_Explore.Exclude_keyofExplore.unfilteredTables__',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExploreResults: {
         dataType: 'refAlias',
-        type: { ref: 'Explore', validators: {} },
+        type: { ref: 'Omit_Explore.unfilteredTables_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCompiledQueryResults: {
