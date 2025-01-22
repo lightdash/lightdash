@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { getErrorMessage, ParseError } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import { promises as fs } from 'fs';
 import { ajv } from '../../../ajv';
