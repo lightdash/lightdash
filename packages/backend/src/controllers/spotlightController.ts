@@ -85,7 +85,7 @@ export class SpotlightController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('204', 'Deleted')
+    @SuccessResponse('200', 'Deleted')
     @Delete('/table/config')
     @OperationId('resetSpotlightTableConfig')
     async resetSpotlightTableConfig(
