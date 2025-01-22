@@ -4,7 +4,6 @@ import './sentry'; // Sentry has to be initialized before anything else
 
 import {
     ApiError,
-    ApiErrorResponse,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
