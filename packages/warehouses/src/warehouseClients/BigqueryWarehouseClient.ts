@@ -10,6 +10,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     CreateBigqueryCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     PartitionColumn,
@@ -125,7 +126,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             throw new WarehouseConnectionError(
                 `Failed connection to ${credentials.project} in ${
                     credentials.location
-                }. ${e instanceof Error ? e.message : 'Unknown error'}`,
+                }. ${getErrorMessage(e)}`,
             );
         }
     }

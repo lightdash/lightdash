@@ -32,7 +32,6 @@
                 "./../common/src"
             ]
         },
-        "useUnknownInCatchVariables": false, // TODO fix catches and remove this 
 
     },
     "include": [
