@@ -18,7 +18,7 @@ export type SpotlightTableConfig = {
     columnConfig: ColumnConfig;
 };
 
-export const DEFAULT_COLUMN_CONFIG: ColumnConfig = [
+export const DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG: ColumnConfig = [
     { column: SpotlightTableColumns.METRIC, isVisible: true },
     { column: SpotlightTableColumns.TABLE, isVisible: false },
     { column: SpotlightTableColumns.DESCRIPTION, isVisible: true },

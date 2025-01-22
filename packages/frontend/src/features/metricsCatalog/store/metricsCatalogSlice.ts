@@ -1,5 +1,5 @@
 import {
-    DEFAULT_COLUMN_CONFIG,
+    DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
     SpotlightTableColumns,
     type SpotlightTableConfig,
     type CatalogField,
@@ -45,6 +45,26 @@ type MetricsCatalogState = {
         columnVisibility: Record<string, boolean>;
     };
 };
+
+export function convertStateToTableColumnConfig(
+    state: MetricsCatalogState['columnConfig'],
+): SpotlightTableConfig['columnConfig'] {
+    return state.columnOrder.map((column) => ({
+        column: column as SpotlightTableColumns,
+        isVisible: state.columnVisibility[column],
+    }));
+}
+
+export function convertTableColumnConfigToState(
+    columnConfig: SpotlightTableConfig['columnConfig'],
+): MetricsCatalogState['columnConfig'] {
+    return {
+        columnOrder: columnConfig.map((column) => column.column),
+        columnVisibility: Object.fromEntries(
+            columnConfig.map((column) => [column.column, column.isVisible]),
+        ),
+    };
+}
 
 const initialState: MetricsCatalogState = {
     activeMetric: undefined,
@@ -175,20 +195,16 @@ export const metricsCatalogSlice = createSlice({
                 ]),
             );
         },
-        resetColumnConfig: (
+        setColumnConfig: (
             state,
             action: PayloadAction<
-                Pick<SpotlightTableConfig, 'columnConfig'> | undefined
+                Pick<SpotlightTableConfig, 'columnConfig'> | undefined | null
             >,
         ) => {
             const config =
-                action.payload?.columnConfig ?? DEFAULT_COLUMN_CONFIG;
-            const formattedConfig = {
-                columnOrder: config.map((column) => column.column),
-                columnVisibility: Object.fromEntries(
-                    config.map((column) => [column.column, column.isVisible]),
-                ),
-            };
+                action.payload?.columnConfig ??
+                DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG;
+            const formattedConfig = convertTableColumnConfigToState(config);
             state.columnConfig = formattedConfig;
         },
     },
@@ -208,5 +224,5 @@ export const {
     setTableSorting,
     setColumnOrder,
     setColumnVisibility,
-    resetColumnConfig,
+    setColumnConfig,
 } = metricsCatalogSlice.actions;

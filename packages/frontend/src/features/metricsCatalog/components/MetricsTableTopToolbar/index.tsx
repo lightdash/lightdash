@@ -1,5 +1,5 @@
 import {
-    DEFAULT_COLUMN_CONFIG,
+    DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
     SpotlightTableColumns,
     type CatalogField,
 } from '@lightdash/common';
@@ -63,7 +63,9 @@ import {
 import {
     setColumnOrder,
     setColumnVisibility,
-    resetColumnConfig,
+    setColumnConfig,
+    convertStateToTableColumnConfig,
+    convertTableColumnConfigToState,
 } from '../../store/metricsCatalogSlice';
 import { isEqual } from 'lodash';
 
@@ -255,43 +257,20 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                 createSpotlightConfig({
                     projectUuid,
                     data: {
-                        columnConfig: columnConfig.columnOrder.map(
-                            (column) => ({
-                                column: column as SpotlightTableColumns,
-                                isVisible:
-                                    columnConfig.columnVisibility[column],
-                            }),
-                        ),
+                        columnConfig:
+                            convertStateToTableColumnConfig(columnConfig),
                     },
                 });
             }
         }, [projectUuid, createSpotlightConfig, columnConfig]);
 
-        const handleReset = useCallback(() => {
-            if (canManageSpotlight && projectUuid) {
-                resetSpotlightConfig({ projectUuid });
-                dispatch(resetColumnConfig(savedTableConfig));
-            } else {
-                dispatch(resetColumnConfig(savedTableConfig));
-            }
-        }, [
-            canManageSpotlight,
-            projectUuid,
-            resetSpotlightConfig,
-            dispatch,
-            savedTableConfig,
-        ]);
-
         const hasConfigChanges = useMemo(() => {
             const referenceConfig =
-                savedTableConfig?.columnConfig ?? DEFAULT_COLUMN_CONFIG;
+                savedTableConfig?.columnConfig ??
+                DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG;
 
-            const referenceFormatted = {
-                columnOrder: referenceConfig.map((c) => c.column),
-                columnVisibility: Object.fromEntries(
-                    referenceConfig.map((c) => [c.column, c.isVisible]),
-                ),
-            };
+            const referenceFormatted =
+                convertTableColumnConfigToState(referenceConfig);
 
             const orderChanged = !isEqual(
                 columnConfig.columnOrder,
@@ -304,6 +283,35 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
 
             return orderChanged || visibilityChanged;
         }, [savedTableConfig, columnConfig]);
+
+        const isDefaultConfig = useMemo(() => {
+            const currentConfig = convertStateToTableColumnConfig(columnConfig);
+
+            return isEqual(
+                currentConfig,
+                DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
+            );
+        }, [columnConfig]);
+
+        const handleReset = useCallback(() => {
+            if (!canManageSpotlight || !projectUuid) {
+                dispatch(setColumnConfig(savedTableConfig));
+                return;
+            }
+
+            if (hasConfigChanges) {
+                dispatch(setColumnConfig(savedTableConfig));
+            } else {
+                resetSpotlightConfig({ projectUuid });
+            }
+        }, [
+            canManageSpotlight,
+            dispatch,
+            hasConfigChanges,
+            projectUuid,
+            resetSpotlightConfig,
+            savedTableConfig,
+        ]);
 
         return (
             <Group {...props}>
@@ -462,21 +470,39 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 <Group position="apart" mt={4}>
                                     {canManageSpotlight ? (
                                         <>
-                                            <Button
-                                                size="xs"
-                                                variant="default"
-                                                radius="md"
-                                                h={28}
-                                                onClick={handleReset}
-                                                disabled={!hasConfigChanges}
-                                                sx={(theme) => ({
-                                                    border: `1px solid ${theme.colors.gray[2]}`,
-                                                    boxShadow:
-                                                        theme.shadows.subtle,
-                                                })}
+                                            <Tooltip
+                                                position="bottom"
+                                                variant="xs"
+                                                withinPortal
+                                                label={
+                                                    hasConfigChanges
+                                                        ? 'Discard unsaved changes'
+                                                        : 'Reset configuration for everyone'
+                                                }
                                             >
-                                                Reset
-                                            </Button>
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    radius="md"
+                                                    h={28}
+                                                    onClick={handleReset}
+                                                    sx={(theme) => ({
+                                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                                        boxShadow:
+                                                            theme.shadows
+                                                                .subtle,
+                                                    })}
+                                                    disabled={
+                                                        isDefaultConfig &&
+                                                        !hasConfigChanges
+                                                    }
+                                                >
+                                                    {hasConfigChanges
+                                                        ? 'Discard'
+                                                        : 'Reset'}
+                                                </Button>
+                                            </Tooltip>
+
                                             <Button
                                                 size="xs"
                                                 h={28}
@@ -490,21 +516,29 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                             </Button>
                                         </>
                                     ) : (
-                                        <Button
-                                            fullWidth
-                                            size="xs"
-                                            h={28}
-                                            radius="md"
-                                            variant="default"
-                                            onClick={handleReset}
-                                            disabled={!hasConfigChanges}
-                                            sx={(theme) => ({
-                                                border: `1px solid ${theme.colors.gray[2]}`,
-                                                boxShadow: theme.shadows.subtle,
-                                            })}
+                                        <Tooltip
+                                            position="bottom"
+                                            variant="xs"
+                                            withinPortal
+                                            label={'Discard unsaved changes'}
                                         >
-                                            Reset my view
-                                        </Button>
+                                            <Button
+                                                fullWidth
+                                                size="xs"
+                                                h={28}
+                                                radius="md"
+                                                variant="default"
+                                                onClick={handleReset}
+                                                disabled={!hasConfigChanges}
+                                                sx={(theme) => ({
+                                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                                    boxShadow:
+                                                        theme.shadows.subtle,
+                                                })}
+                                            >
+                                                Discard
+                                            </Button>
+                                        </Tooltip>
                                     )}
                                 </Group>
                             </Stack>

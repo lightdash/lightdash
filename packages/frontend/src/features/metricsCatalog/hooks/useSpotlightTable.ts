@@ -3,6 +3,7 @@ import {
     type ApiSuccessEmpty,
     type ApiGetSpotlightTableConfig,
     type SpotlightTableConfig,
+    DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -17,11 +18,21 @@ const getSpotlightTableConfig = async ({
 }: {
     projectUuid: string;
 }) => {
-    return lightdashApi<ApiGetSpotlightTableConfig['results']>({
-        url: `/projects/${projectUuid}/spotlight/table/config`,
-        method: 'GET',
-        body: undefined,
-    });
+    try {
+        return await lightdashApi<ApiGetSpotlightTableConfig['results']>({
+            url: `/projects/${projectUuid}/spotlight/table/config`,
+            method: 'GET',
+            body: undefined,
+        });
+    } catch (e) {
+        if (e.error.statusCode === 404) {
+            return {
+                columnConfig: DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
+            };
+        }
+
+        throw e;
+    }
 };
 
 export const useSpotlightTableConfig = ({

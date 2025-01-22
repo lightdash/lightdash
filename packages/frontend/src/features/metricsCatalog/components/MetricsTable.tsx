@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     MAX_METRICS_TREE_NODE_COUNT,
     type CatalogItem,
-    DEFAULT_COLUMN_CONFIG,
     SpotlightTableColumns,
 } from '@lightdash/common';
 import {
@@ -56,8 +55,7 @@ import {
     setSearch,
     setTableSorting,
     toggleMetricExploreModal,
-    setColumnOrder,
-    setColumnVisibility,
+    setColumnConfig,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
@@ -606,38 +604,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     useEffect(
         function initializeColumnConfigAndSyncWithRedux() {
             if (spotlightConfig) {
-                // Use API config if available
-                const visibilityConfig = spotlightConfig.columnConfig.reduce(
-                    (acc, { column, isVisible }) => ({
-                        ...acc,
-                        [column]: isVisible,
-                    }),
-                    {},
-                );
-                dispatch(setColumnVisibility(visibilityConfig));
-
-                const orderConfig = spotlightConfig.columnConfig.map(
-                    ({ column }) => column,
-                );
-                dispatch(setColumnOrder(orderConfig));
-            } else if (
-                columnConfig.columnOrder.length === 0 &&
-                !isSpotlightConfigLoading
-            ) {
-                // Use defaults if no API config and no existing Redux state
-                const defaultVisibility = DEFAULT_COLUMN_CONFIG.reduce(
-                    (acc, { column, isVisible }) => ({
-                        ...acc,
-                        [column]: isVisible,
-                    }),
-                    {},
-                );
-                dispatch(setColumnVisibility(defaultVisibility));
-
-                const defaultOrder = DEFAULT_COLUMN_CONFIG.map(
-                    (config) => config.column,
-                );
-                dispatch(setColumnOrder(defaultOrder));
+                dispatch(setColumnConfig(spotlightConfig));
             }
         },
         [
