@@ -3,10 +3,13 @@ import type { ItemsMap } from '..';
 import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    type ConditionalFormattingColorMinMaxRange,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
     type ConditionalFormattingConfigWithSingleColor,
     type ConditionalFormattingWithConditionalOperator,
+    type ConditionalFormattingMinMaxMap,
 } from '../types/conditionalFormatting';
 import {
     ConditionalOperator,
@@ -81,6 +84,7 @@ const convertFormattedValue = (
 
 export const hasMatchingConditionalRules = (
     field: ItemsMap[string],
+    minMaxByFieldId: ConditionalFormattingMinMaxMap,
     value: unknown,
     config: ConditionalFormattingConfig | undefined,
 ) => {
@@ -133,6 +137,26 @@ export const hasMatchingConditionalRules = (
     if (isConditionalFormattingConfigWithColorRange(config)) {
         if (typeof convertedValue !== 'number') return false;
 
+        const fieldId = getItemId(field);
+
+        if (config.rule.min === 'auto' && config.rule.max === 'auto') {
+            if (fieldId in minMaxByFieldId) {
+                return (
+                    convertedValue >=
+                        (config.rule.min === 'auto'
+                            ? minMaxByFieldId[fieldId].min
+                            : config.rule.min) &&
+                    convertedValue <=
+                        (config.rule.max === 'auto'
+                            ? minMaxByFieldId[fieldId].max
+                            : config.rule.max)
+                );
+            }
+
+            // TODO:  throw error!
+            return true;
+        }
+
         return (
             convertedValue >= config.rule.min &&
             convertedValue <= config.rule.max
@@ -144,6 +168,7 @@ export const hasMatchingConditionalRules = (
 
 export const getConditionalFormattingConfig = (
     field: ItemsMap[string] | undefined,
+    minMaxByFieldId: ConditionalFormattingMinMaxMap,
     value: unknown | undefined,
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
 ) => {
@@ -163,7 +188,9 @@ export const getConditionalFormattingConfig = (
 
     return fieldConfigs
         .reverse()
-        .find((config) => hasMatchingConditionalRules(field, value, config));
+        .find((config) =>
+            hasMatchingConditionalRules(field, minMaxByFieldId, value, config),
+        );
 };
 
 export const getConditionalFormattingDescription = (
@@ -204,51 +231,84 @@ export const getConditionalFormattingDescription = (
     );
 };
 
-export const getConditionalFormattingColor = (
-    field: ItemsMap[string] | undefined,
-    value: unknown,
-    conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
-    getColorFromRange: (
-        value: number,
-        config: {
-            color: {
-                start: string;
-                end: string;
-                steps: number;
-            };
-            rule: {
-                min: number;
-                max: number;
-            };
-        },
-    ) => string | undefined,
-) => {
-    if (!conditionalFormattingConfig) {
-        return undefined;
+type GetColorFromRangeFunction = (
+    value: number,
+    colorRange: ConditionalFormattingColorRange,
+    minMaxRange: ConditionalFormattingColorMinMaxRange,
+) => string | undefined;
+
+type GetMinMaxRangeFunction = () => ConditionalFormattingColorMinMaxRange;
+
+export const getConditionalFormattingColorWithColorRange = ({
+    field,
+    value,
+    config,
+    getMinMaxRange,
+    getColorFromRange,
+}: {
+    field: ItemsMap[string] | undefined;
+    value: unknown;
+    config: ConditionalFormattingConfigWithColorRange;
+    getMinMaxRange: GetMinMaxRangeFunction;
+    getColorFromRange: GetColorFromRangeFunction;
+}) => {
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+    const convertedValue = convertFormattedValue(numericValue, field);
+
+    if (typeof convertedValue !== 'number') return undefined;
+
+    let minMaxRange: ConditionalFormattingColorMinMaxRange;
+
+    console.log('alalal', config.rule);
+
+    if (config.rule.min === 'auto' || config.rule.max === 'auto') {
+        const autoMinMax = getMinMaxRange();
+
+        minMaxRange = {
+            min: config.rule.min === 'auto' ? autoMinMax.min : config.rule.min,
+            max: config.rule.max === 'auto' ? autoMinMax.max : config.rule.max,
+        };
+    } else {
+        minMaxRange = { min: config.rule.min, max: config.rule.max };
     }
 
-    if (
-        isConditionalFormattingConfigWithColorRange(conditionalFormattingConfig)
-    ) {
-        const numericValue =
-            typeof value === 'string' ? parseFloat(value) : value;
-        const convertedValue = convertFormattedValue(numericValue, field);
+    console.log({ minMaxRange });
 
-        if (typeof convertedValue !== 'number') return undefined;
+    return getColorFromRange(convertedValue, config.color, minMaxRange);
+};
 
-        return getColorFromRange(convertedValue, conditionalFormattingConfig);
+export const getConditionalFormattingColorWithSingleColor = ({
+    config,
+}: {
+    config: ConditionalFormattingConfigWithSingleColor;
+}) => config.color;
+
+export const getConditionalFormattingColor = ({
+    field,
+    value,
+    config,
+    getMinMaxRange,
+    getColorFromRange,
+}: {
+    field: ItemsMap[string] | undefined;
+    value: unknown;
+    config: ConditionalFormattingConfig | undefined;
+    getMinMaxRange: GetMinMaxRangeFunction;
+    getColorFromRange: GetColorFromRangeFunction;
+}) => {
+    if (!config) return undefined;
+
+    if (isConditionalFormattingConfigWithSingleColor(config)) {
+        return getConditionalFormattingColorWithSingleColor({ config });
     }
 
-    if (
-        isConditionalFormattingConfigWithSingleColor(
-            conditionalFormattingConfig,
-        )
-    ) {
-        return conditionalFormattingConfig.color;
-    }
+    console.log('are we getting here?');
 
-    return assertUnreachable(
-        conditionalFormattingConfig,
-        'Unknown conditional formatting config',
-    );
+    return getConditionalFormattingColorWithColorRange({
+        field,
+        value,
+        config,
+        getMinMaxRange,
+        getColorFromRange,
+    });
 };

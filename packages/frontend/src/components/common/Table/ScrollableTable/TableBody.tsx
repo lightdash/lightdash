@@ -64,17 +64,19 @@ const TableRow: FC<TableRowProps> = ({
                 const conditionalFormattingConfig =
                     getConditionalFormattingConfig(
                         field,
+                        {},
                         cellValue?.value?.raw,
                         conditionalFormattings,
                     );
 
                 const conditionalFormattingColor =
-                    getConditionalFormattingColor(
+                    getConditionalFormattingColor({
                         field,
-                        cellValue?.value?.raw,
-                        conditionalFormattingConfig,
+                        value: cellValue?.value?.raw,
+                        config: conditionalFormattingConfig,
                         getColorFromRange,
-                    );
+                        getMinMaxRange: () => ({ min: -3, max: 333 }),
+                    });
 
                 const tooltipContent = getConditionalFormattingDescription(
                     field,

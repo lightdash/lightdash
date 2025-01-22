@@ -536,17 +536,22 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const conditionalFormattingConfig =
                                     getConditionalFormattingConfig(
                                         item,
+                                        {},
                                         value?.raw,
                                         conditionalFormattings,
                                     );
 
                                 const conditionalFormattingColor =
-                                    getConditionalFormattingColor(
-                                        item,
-                                        value?.raw,
-                                        conditionalFormattingConfig,
+                                    getConditionalFormattingColor({
+                                        field: item,
+                                        value: value?.raw,
+                                        config: conditionalFormattingConfig,
+                                        getMinMaxRange: () => ({
+                                            min: -3,
+                                            max: 333,
+                                        }),
                                         getColorFromRange,
-                                    );
+                                    });
 
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =

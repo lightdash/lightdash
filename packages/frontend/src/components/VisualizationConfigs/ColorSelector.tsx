@@ -1,6 +1,7 @@
 import {
     ColorPicker as MantineColorPicker,
     ColorSwatch,
+    type ColorSwatchProps,
     Popover,
     Stack,
     TextInput,
@@ -15,6 +16,7 @@ interface Props {
     defaultColor?: string;
     swatches: string[];
     onColorChange?: (newColor: string) => void;
+    colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
 }
 
 const ColorSelector: FC<Props> = ({
@@ -22,6 +24,7 @@ const ColorSelector: FC<Props> = ({
     defaultColor = 'rgba(0,0,0,.1)',
     swatches,
     onColorChange,
+    colorSwatchProps,
 }) => {
     const isValidHexColor = color && isHexCodeColor(color);
 
@@ -31,10 +34,12 @@ const ColorSelector: FC<Props> = ({
                 <ColorSwatch
                     size={20}
                     color={isValidHexColor ? color : defaultColor}
+                    {...colorSwatchProps}
                     sx={{
                         cursor: onColorChange ? 'pointer' : 'default',
                         transition: 'opacity 100ms ease',
                         '&:hover': { opacity: 0.8 },
+                        ...colorSwatchProps?.sx,
                     }}
                 />
             </Popover.Target>

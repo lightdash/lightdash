@@ -1,4 +1,5 @@
 import {
+    type ConditionalFormattingMinMaxMap,
     FilterType,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
@@ -29,6 +30,7 @@ interface ConditionalFormattingRuleProps {
     ruleIndex: number;
     rule: ConditionalFormattingWithConditionalOperator;
     field: FilterableItem;
+    minMax: ConditionalFormattingMinMaxMap[string] | null;
     hasRemove?: boolean;
     onChangeRule: (
         newRule: ConditionalFormattingWithConditionalOperator,
