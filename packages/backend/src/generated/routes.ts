@@ -14799,7 +14799,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: 204,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);

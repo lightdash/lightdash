@@ -14015,7 +14015,7 @@
             "delete": {
                 "operationId": "resetSpotlightTableConfig",
                 "responses": {
-                    "204": {
+                    "200": {
                         "description": "Deleted",
                         "content": {
                             "application/json": {
