@@ -398,7 +398,8 @@ export const SEED_GROUP = {
 
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
-) => any
+) => // eslint-disable-next-line @typescript-eslint/no-explicit-any
+any
     ? A
     : never;
 
@@ -1114,6 +1115,7 @@ export function itemsInMetricQuery(
 
 function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any,
 ) {
     const isTimestamp =
@@ -1130,6 +1132,7 @@ function formatRawValue(
 }
 
 export function formatRows(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rows: { [col: string]: any }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
@@ -1153,8 +1156,11 @@ export function formatRows(
     });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isObject = (object: any) => object != null && typeof object === 'object';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const removeEmptyProperties = (object: Record<string, any>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newObj: Record<string, any> = {};
     Object.keys(object).forEach((key) => {
         if (object[key] === Object(object[key]))
@@ -1165,7 +1171,9 @@ export const removeEmptyProperties = (object: Record<string, any>) => {
     return newObj;
 };
 export const deepEqual = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     object1: Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     object2: Record<string, any>,
 ): boolean => {
     const keys1 = Object.keys(object1);
@@ -1174,7 +1182,9 @@ export const deepEqual = (
         return false;
     }
     return keys1.every((key) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const val1: any = object1[key];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const val2: any = object2[key];
         const areObjects = isObject(val1) && isObject(val2);
         return !(
