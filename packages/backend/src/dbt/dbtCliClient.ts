@@ -12,7 +12,7 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import execa from 'execa';
+import execa, { ExecaError, ExecaReturnValue } from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
@@ -213,12 +213,18 @@ export class DbtCliClient implements DbtClient {
                     this.dbtVersion
                 }: ${getErrorMessage(e)}`,
             );
-            if (e instanceof Error && 'all' in e && typeof e.all === 'string') {
+            // TODO parse ExecaError
+            const execaError = e as Partial<ExecaError>;
+            if (
+                execaError &&
+                'all' in execaError &&
+                typeof execaError.all === 'string'
+            ) {
                 throw new DbtError(
                     `Failed to run "${dbtExec} ${command.join(
                         ' ',
                     )}" with dbt version "${this.dbtVersion}"`,
-                    DbtCliClient.parseDbtJsonLogs(e.all),
+                    DbtCliClient.parseDbtJsonLogs(execaError.all),
                 );
             }
             throw e;
