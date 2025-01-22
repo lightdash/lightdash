@@ -1,4 +1,10 @@
-import { DbtPackages, Explore, ExploreError } from '@lightdash/common';
+import {
+    DbtPackages,
+    DEFAULT_SPOTLIGHT_CONFIG,
+    Explore,
+    ExploreError,
+    LightdashProjectConfig,
+} from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
 import { ProjectAdapter } from '../types';
@@ -50,5 +56,12 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
         Logger.debug(`Run query against warehouse`);
         // Possible error if query is ran before dependencies are installed
         return this.warehouseClient.runQuery(sql, queryTags);
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+        return {
+            spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+        };
     }
 }

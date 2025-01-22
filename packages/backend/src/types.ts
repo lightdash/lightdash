@@ -1,9 +1,9 @@
 import {
     DbtPackages,
-    DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     Explore,
     ExploreError,
+    LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
@@ -15,6 +15,8 @@ export interface ProjectAdapter {
     test(): Promise<void>;
 
     destroy(): Promise<void>;
+
+    getLightdashProjectConfig(): Promise<LightdashProjectConfig>;
 }
 
 export interface DbtClient {

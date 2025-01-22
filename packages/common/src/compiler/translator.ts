@@ -30,6 +30,10 @@ import {
     type Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
+import {
+    DEFAULT_SPOTLIGHT_CONFIG,
+    type LightdashProjectConfig,
+} from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseClient } from '../types/warehouse';
@@ -210,6 +214,7 @@ const convertDbtMetricToLightdashMetric = (
     metric: DbtMetric,
     tableName: string,
     tableLabel: string,
+    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>,
 ): Metric => {
     let sql: string;
     let type: MetricType;
@@ -264,6 +269,8 @@ const convertDbtMetricToLightdashMetric = (
         metric.meta?.groups,
         metric.meta?.group_label,
     );
+    const spotlightVisibility = spotlightConfig.default_visibility;
+
     return {
         fieldType: FieldType.METRIC,
         type,
@@ -291,6 +298,9 @@ const convertDbtMetricToLightdashMetric = (
                       : [metric.meta.tags],
               }
             : {}),
+        spotlight: {
+            visibility: spotlightVisibility,
+        },
     };
 };
 
@@ -298,10 +308,12 @@ export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
     dbtMetrics: DbtMetric[],
+    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>,
     startOfWeek?: WeekDay | null,
 ): Omit<Table, 'lineageGraph'> => {
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
     const tableLabel = meta.label || friendlyName(model.name);
+
     const [dimensions, metrics]: [
         Record<string, Dimension>,
         Record<string, Metric>,
@@ -433,6 +445,12 @@ export const convertTable = (
                             metric,
                             tableLabel,
                             requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
+                            spotlightConfig: {
+                                ...spotlightConfig,
+                                default_visibility:
+                                    model.meta.spotlight?.visibility ??
+                                    spotlightConfig.default_visibility,
+                            },
                         }),
                     ],
                 ),
@@ -458,6 +476,12 @@ export const convertTable = (
                 name,
                 metric,
                 tableLabel,
+                spotlightConfig: {
+                    ...spotlightConfig,
+                    default_visibility:
+                        model.meta.spotlight?.visibility ??
+                        spotlightConfig.default_visibility,
+                },
             }),
         ]),
     );
@@ -465,7 +489,12 @@ export const convertTable = (
     const convertedDbtMetrics = Object.fromEntries(
         dbtMetrics.map((metric) => [
             metric.name,
-            convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
+            convertDbtMetricToLightdashMetric(
+                metric,
+                model.name,
+                tableLabel,
+                spotlightConfig,
+            ),
         ]),
     );
 
@@ -586,11 +615,16 @@ export const convertExplores = async (
     adapterType: SupportedDbtAdapter,
     metrics: DbtMetric[],
     warehouseClient: WarehouseClient,
+    lightdashProjectConfig: LightdashProjectConfig,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
         ([accTables, accErrors], model) => {
             const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
+            const spotlightConfig = {
+                ...DEFAULT_SPOTLIGHT_CONFIG,
+                ...lightdashProjectConfig.spotlight,
+            };
             // If there are any errors compiling the table return an ExploreError
             try {
                 // base dimensions and metrics
@@ -601,6 +635,7 @@ export const convertExplores = async (
                     adapterType,
                     model,
                     tableMetrics,
+                    spotlightConfig,
                     warehouseClient.getStartOfWeek(),
                 );
 
@@ -673,6 +708,11 @@ export const convertExplores = async (
                 warehouse: model.config?.snowflake_warehouse,
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
+                spotlightConfig: {
+                    ...DEFAULT_SPOTLIGHT_CONFIG,
+                    ...lightdashProjectConfig.spotlight,
+                },
+                meta,
             });
         } catch (e: unknown) {
             return {

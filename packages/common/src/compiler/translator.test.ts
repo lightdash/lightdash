@@ -1,4 +1,5 @@
 import { SupportedDbtAdapter } from '../types/dbt';
+import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { attachTypesToModels, convertTable } from './translator';
 import {
     DBT_METRIC,
@@ -113,29 +114,43 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_NO_METRICS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS);
     });
     it('should convert dbt model with dbt metrics', () => {
         expect(
-            convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_NO_METRICS, [
-                DBT_METRIC,
-                DBT_METRIC_WITH_SQL_FIELD,
-                DBT_METRIC_WITH_CUSTOM_SQL,
-                DBT_METRIC_WITH_FILTER,
-                DBT_METRIC_DERIVED,
-            ]),
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_NO_METRICS,
+                [
+                    DBT_METRIC,
+                    DBT_METRIC_WITH_SQL_FIELD,
+                    DBT_METRIC_WITH_CUSTOM_SQL,
+                    DBT_METRIC_WITH_FILTER,
+                    DBT_METRIC_DERIVED,
+                ],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
         // dbt 1.5 metrics
         expect(
-            convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_NO_METRICS, [
-                DBT_V9_METRIC,
-            ]),
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_NO_METRICS,
+                [DBT_V9_METRIC],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_V9_METRICS);
     });
     it('should convert dbt model with metrics in meta', () => {
         expect(
-            convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_METRIC, []),
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_METRIC,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS);
     });
     it('should convert dbt model with dimension with default time intervals bigquery', () => {
@@ -144,6 +159,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
             LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
@@ -155,6 +171,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
             LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
@@ -166,6 +183,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.SNOWFLAKE,
                 MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
             LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
@@ -177,6 +195,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.SNOWFLAKE,
                 MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
             LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
@@ -188,6 +207,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
     });
@@ -197,6 +217,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
     });
@@ -206,6 +227,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS);
     });
@@ -215,6 +237,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_WRONG_METRIC,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toThrowError(
             'Found a metric and a dimension with the same name: user_id',
@@ -226,6 +249,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_WRONG_METRICS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toThrowError(
             'Found multiple metrics and a dimensions with the same name: user_id,user_id2',
@@ -238,6 +262,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_GROUP_LABEL,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_LABEL);
     });
@@ -249,6 +274,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_SQL_WHERE,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
     });
@@ -259,6 +285,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_SQL_FILTER,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
     });
@@ -269,6 +296,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.POSTGRES,
                 MODEL_WITH_ADDITIONAL_DIMENSIONS,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS);
     });
@@ -279,6 +307,7 @@ describe('convert tables from dbt models', () => {
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_GROUPS_BLOCK,
                 [],
+                DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
     });
