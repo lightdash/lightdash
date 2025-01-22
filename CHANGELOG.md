@@ -1,3 +1,24 @@
+# [0.1461.0](https://github.com/lightdash/lightdash/compare/0.1460.1...0.1461.0) (2025-01-22)
+
+
+### Features
+
+* allow curating Spotlight's table ([#13355](https://github.com/lightdash/lightdash/issues/13355)) ([7417319](https://github.com/lightdash/lightdash/commit/741731967a2d7b4c903359cb8ccf7f55075e07c5))
+
+## [0.1460.1](https://github.com/lightdash/lightdash/compare/0.1460.0...0.1460.1) (2025-01-22)
+
+
+### Bug Fixes
+
+* identify filtered explore error on missing dimension ([#13353](https://github.com/lightdash/lightdash/issues/13353)) ([5db23cd](https://github.com/lightdash/lightdash/commit/5db23cd6045acc2d74c9e03a16f6acd739162330))
+
+# [0.1460.0](https://github.com/lightdash/lightdash/compare/0.1459.3...0.1460.0) (2025-01-22)
+
+
+### Features
+
+* Support Japanese Yen format ([#13346](https://github.com/lightdash/lightdash/issues/13346)) ([88cf9b2](https://github.com/lightdash/lightdash/commit/88cf9b2de1596f82e55756a6104ce348d7ce197a))
+
 ## [0.1459.3](https://github.com/lightdash/lightdash/compare/0.1459.2...0.1459.3) (2025-01-21)
 
 

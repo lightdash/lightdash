@@ -1,4 +1,4 @@
-import { type ApiError } from '@lightdash/common';
+import { getErrorMessage, type ApiError } from '@lightdash/common';
 
 // To be reused across all hooks that need to fetch SQL query results
 export const getResultsFromStream = async <T>(url: string | undefined) => {
@@ -66,7 +66,7 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
             error: {
                 name: 'Error',
                 statusCode: 500,
-                message: e.message,
+                message: getErrorMessage(e),
                 data: {},
             },
         };

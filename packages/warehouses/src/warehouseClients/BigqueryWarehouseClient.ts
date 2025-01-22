@@ -10,6 +10,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     CreateBigqueryCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     PartitionColumn,
@@ -121,9 +122,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             throw new WarehouseConnectionError(
-                `Failed connection to ${credentials.project} in ${credentials.location}. ${e.message}`,
+                `Failed connection to ${credentials.project} in ${
+                    credentials.location
+                }. ${getErrorMessage(e)}`,
             );
         }
     }
@@ -215,10 +218,20 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             });
 
             await streamPromise;
-        } catch (e) {
-            const response = e?.response as bigquery.IJob;
-            const responseError = response?.status?.errorResult || e;
-            throw this.parseError(responseError, query);
+        } catch (e: unknown) {
+            const isIJob = (error: unknown): error is bigquery.IJob =>
+                error !== null &&
+                typeof error === 'object' &&
+                'status' in error;
+
+            if (isIJob(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.status?.errorResult;
+                if (responseError) {
+                    throw this.parseError(responseError, query);
+                }
+            }
+            throw e;
         }
     }
 

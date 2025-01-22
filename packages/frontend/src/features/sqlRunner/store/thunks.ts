@@ -4,6 +4,7 @@ import type * as rtk from '@reduxjs/toolkit';
 
 import {
     ChartKind,
+    isApiError,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiErrorDetail,
@@ -69,7 +70,10 @@ export const runSqlQuery = createAsyncThunk<
                 return rejectWithValue(job.error);
             }
         } catch (error) {
-            return rejectWithValue(error?.error as ApiErrorDetail);
+            if (isApiError(error)) {
+                return rejectWithValue(error.error);
+            }
+            throw error;
         }
     },
 );

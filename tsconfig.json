@@ -1,4 +1,9 @@
-{
+{    "compilerOptions": {
+    // "noUncheckedIndexedAccess": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitAny": true
+
+ },
     "references": [
         {
             "path": "./packages/frontend"
