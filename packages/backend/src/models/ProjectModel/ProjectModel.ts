@@ -825,16 +825,6 @@ export class ProjectModel {
         return convertedExplore;
     };
 
-    private getExploreQueryBuilder(projectUuid: string) {
-        return this.database(CachedExploresTableName)
-            .select<{ explore: Explore | ExploreError }[]>(['explore'])
-            .crossJoin(
-                this.database.raw('jsonb_array_elements(explores) as explore'),
-            )
-            .where('project_uuid', projectUuid)
-            .first();
-    }
-
     async findExploresFromCache(
         projectUuid: string,
         exploreNames?: string[],
