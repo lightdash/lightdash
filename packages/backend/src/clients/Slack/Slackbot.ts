@@ -171,7 +171,7 @@ export class SlackBot {
             .catch((e: unknown) => {
                 this.analytics.track({
                     event: 'share_slack.unfurl_error',
-                    userId: event.user,
+                    userId: event.user ? String(event.user) : undefined,
                     properties: {
                         error: e instanceof Error ? e.message : String(e),
                     },
@@ -278,7 +278,7 @@ export class SlackBot {
 
                 this.analytics.track({
                     event: 'share_slack.unfurl_error',
-                    userId: eventUserId,
+                    userId: eventUserId ? String(eventUserId) : undefined,
 
                     properties: {
                         error: e instanceof Error ? e.message : String(e),
