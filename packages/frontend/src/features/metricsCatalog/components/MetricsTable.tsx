@@ -292,10 +292,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     );
 
     // Only fetch saved config on initial load
-    const { data: spotlightConfig, isLoading: isSpotlightConfigLoading } =
-        useSpotlightTableConfig({
-            projectUuid,
-        });
+    const { data: spotlightConfig } = useSpotlightTableConfig({
+        projectUuid,
+    });
 
     const columnVisibilityWithPermissions = useMemo(
         () => ({
@@ -600,20 +599,12 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         editDisplayMode: 'cell',
     });
 
-    // Initialize Redux state from API config or defaults on first load
-    useEffect(
-        function initializeColumnConfigAndSyncWithRedux() {
-            if (spotlightConfig) {
-                dispatch(setColumnConfig(spotlightConfig));
-            }
-        },
-        [
-            spotlightConfig,
-            columnConfig.columnOrder.length,
-            dispatch,
-            isSpotlightConfigLoading,
-        ],
-    );
+    // Initialize Redux state from API config whenever we load it via the API
+    useEffect(() => {
+        if (spotlightConfig) {
+            dispatch(setColumnConfig(spotlightConfig));
+        }
+    }, [dispatch, spotlightConfig]);
 
     useEffect(
         function handleRefetchOnViewChange() {
