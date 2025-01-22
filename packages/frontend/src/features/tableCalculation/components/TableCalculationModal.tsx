@@ -1,5 +1,6 @@
 import {
     CustomFormatType,
+    getErrorMessage,
     getItemId,
     NumberSeparator,
     TableCalculationType,
@@ -138,7 +139,7 @@ const TableCalculationModal: FC<Props> = ({
         } catch (e) {
             addToastError({
                 title: 'Error saving',
-                subtitle: e.message,
+                subtitle: getErrorMessage(e),
                 key: 'table-calculation-modal',
             });
         }
