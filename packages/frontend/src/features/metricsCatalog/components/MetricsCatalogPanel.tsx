@@ -311,24 +311,27 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
                 const canManageExplore = user.data.ability.can(
                     'manage',
-                    'Explore',
+                    subject('Explore', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
                 );
 
                 const canManageMetricsTree = user.data.ability.can(
                     'manage',
-                    'MetricsTree',
+                    subject('MetricsTree', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
                 );
 
                 const canManageSpotlight = user.data.ability.can(
                     'manage',
-                    'SpotlightTableConfig',
+                    subject('SpotlightTableConfig', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
                 );
-
-                console.log('canManageSpotlight', canManageSpotlight);
-                console.log('canManageTags', canManageTags);
-                console.log('canRefreshCatalog', canRefreshCatalog);
-                console.log('canManageExplore', canManageExplore);
-                console.log('canManageMetricsTree', canManageMetricsTree);
 
                 dispatch(setUser({ userUuid: user.data.userUuid }));
 
