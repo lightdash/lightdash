@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noUncheckedIndexedAccess": true,
+        "useUnknownInCatchVariables": true,
+        "noImplicitAny": true, 
+        "@typescript-eslint/no-explicit-any": "error"
+
+    },
+    "exclude": [
+       
+    ]
+} 
