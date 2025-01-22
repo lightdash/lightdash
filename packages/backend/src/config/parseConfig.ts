@@ -68,9 +68,14 @@ export const getObjectFromEnvironmentVariable = (
     }
     try {
         return JSON.parse(raw);
-    } catch (e) {
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            throw new ParseError(
+                `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: ${e.message}`,
+            );
+        }
         throw new ParseError(
-            `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: ${e.message}`,
+            `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: Unknown error`,
         );
     }
 };

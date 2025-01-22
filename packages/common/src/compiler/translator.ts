@@ -12,7 +12,12 @@ import {
     type LineageGraph,
 } from '../types/dbt';
 import { MissingCatalogEntryError, ParseError } from '../types/errors';
-import { type Explore, type ExploreError, type Table } from '../types/explore';
+import {
+    InlineErrorType,
+    type Explore,
+    type ExploreError,
+    type Table,
+} from '../types/explore';
 import {
     defaultSql,
     DimensionType,
@@ -611,7 +616,7 @@ export const convertExplores = async (
                 };
 
                 return [[...accTables, tableWithLineage], accErrors];
-            } catch (e) {
+            } catch (e: unknown) {
                 const exploreError: ExploreError = {
                     name: model.name,
                     label: meta.label || friendlyName(model.name),
@@ -619,10 +624,14 @@ export const convertExplores = async (
                     groupLabel: meta.group_label,
                     errors: [
                         {
-                            type: e.name,
+                            type:
+                                e instanceof ParseError
+                                    ? InlineErrorType.METADATA_PARSE_ERROR
+                                    : InlineErrorType.NO_DIMENSIONS_FOUND,
                             message:
-                                e.message ||
-                                `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
+                                e instanceof Error
+                                    ? e.message
+                                    : `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
                         },
                     ],
                 };
@@ -666,12 +675,25 @@ export const convertExplores = async (
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             return {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
                 groupLabel: meta.group_label,
-                errors: [{ type: e.name, message: e.message }],
+
+                errors: [
+                    {
+                        // TODO improve parsing of error type
+                        type:
+                            e instanceof ParseError
+                                ? InlineErrorType.METADATA_PARSE_ERROR
+                                : InlineErrorType.NO_DIMENSIONS_FOUND,
+                        message:
+                            e instanceof Error
+                                ? e.message
+                                : `Could not convert dbt model: "${model.name}" is not a valid model`,
+                    },
+                ],
             };
         }
     });

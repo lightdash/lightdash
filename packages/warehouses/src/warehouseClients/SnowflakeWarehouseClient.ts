@@ -202,8 +202,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         try {
             connection = createConnection(this.connectionOptions);
             await Util.promisify(connection.connect.bind(connection))();
-        } catch (e) {
-            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
+        } catch (e: unknown) {
+            throw new WarehouseConnectionError(
+                `Snowflake error: ${
+                    e instanceof Error ? e.message : 'Unknown error'
+                }`,
+            );
         }
         try {
             if (this.connectionOptions.warehouse) {
@@ -385,8 +389,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 database,
             });
             await Util.promisify(connection.connect.bind(connection))();
-        } catch (e) {
-            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
+        } catch (e: unknown) {
+            throw new WarehouseConnectionError(
+                `Snowflake error: ${
+                    e instanceof Error ? e.message : 'Unknown error'
+                }`,
+            );
         }
         try {
             return await this.executeStatement(connection, sqlText);

@@ -121,9 +121,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             throw new WarehouseConnectionError(
-                `Failed connection to ${credentials.project} in ${credentials.location}. ${e.message}`,
+                `Failed connection to ${credentials.project} in ${
+                    credentials.location
+                }. ${e instanceof Error ? e.message : 'Unknown error'}`,
             );
         }
     }
@@ -215,9 +217,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             });
 
             await streamPromise;
-        } catch (e) {
-            const response = e?.response as bigquery.IJob;
-            const responseError = response?.status?.errorResult || e;
+        } catch (e: unknown) {
+            const response = (e as { response?: bigquery.IJob })?.response;
+            const responseError =
+                response?.status?.errorResult || (e as bigquery.IErrorProto);
             throw this.parseError(responseError, query);
         }
     }
