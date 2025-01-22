@@ -442,30 +442,43 @@ export function applyCustomFormat(
                 return formatNumberValue(Number(value), format);
 
             const { compactValue, compactSuffix } = applyCompact(value, format);
+            const lowerCurrency = format.currency.toLowerCase();
+
+            // Handle legacy format case (Format enum values are lowercase)
+            if (Object.values(Format).includes(lowerCurrency as Format)) {
+                const symbol = {
+                    [Format.USD]: '$',
+                    [Format.EUR]: '€',
+                    [Format.GBP]: '£',
+                    [Format.DKK]: 'kr',
+                }[lowerCurrency];
+
+                // Format the number
+                const formattedValue = formatNumberValue(compactValue, {
+                    ...format,
+                    separator:
+                        lowerCurrency === Format.DKK
+                            ? NumberSeparator.PERIOD_COMMA
+                            : format.separator,
+                });
+
+                const valueWithSuffix = `${formattedValue}${compactSuffix}`;
+                const useSuffix =
+                    lowerCurrency === Format.DKK ||
+                    format.separator === NumberSeparator.PERIOD_COMMA;
+
+                return useSuffix
+                    ? `${valueWithSuffix} ${symbol}`
+                    : `${symbol}${valueWithSuffix}`;
+            }
+
+            // Handle standard currency codes (uppercase)
             const upperCurrency = format.currency.toUpperCase();
-
-            // Set separator based on currency
-            const separator =
-                upperCurrency === 'DKK'
-                    ? NumberSeparator.PERIOD_COMMA
-                    : format.separator;
-
-            // Format the number using our standard number formatting
-            const formattedValue = formatNumberValue(compactValue, {
-                ...format,
-                separator,
-            });
-
-            // Add compact suffix
-            const valueWithSuffix = `${formattedValue}${compactSuffix}`;
-
-            // Get currency info
             type CurrencyInfo = {
                 symbol: string;
                 position: 'prefix' | 'suffix';
             };
 
-            // Define standard currency formats
             const currencyMap: Record<string, CurrencyInfo> = {
                 USD: { symbol: '$', position: 'prefix' },
                 EUR: { symbol: '€', position: 'prefix' },
@@ -474,22 +487,26 @@ export function applyCustomFormat(
                 DKK: { symbol: 'kr', position: 'suffix' },
             };
 
-            // Get currency info with proper symbol and position
+            // Format the number
+            const formattedValue = formatNumberValue(compactValue, {
+                ...format,
+                separator: format.separator,
+            });
+
+            const valueWithSuffix = `${formattedValue}${compactSuffix}`;
             const currencyInfo = currencyMap[upperCurrency];
+
             if (!currencyInfo) {
-                // For unknown currencies, just append the currency code
+                // For unknown currencies, append the currency code
                 return `${valueWithSuffix} ${upperCurrency}`;
             }
 
-            // When using PERIOD_COMMA separator or DKK, always use suffix position
-            const position =
-                separator === NumberSeparator.PERIOD_COMMA ||
-                upperCurrency === 'DKK'
-                    ? 'suffix'
-                    : currencyInfo.position;
+            // Determine symbol position
+            const useSuffix =
+                currencyInfo.position === 'suffix' ||
+                format.separator === NumberSeparator.PERIOD_COMMA;
 
-            // Return with appropriate currency symbol placement
-            return position === 'suffix'
+            return useSuffix
                 ? `${valueWithSuffix} ${currencyInfo.symbol}`
                 : `${currencyInfo.symbol}${valueWithSuffix}`;
         }
