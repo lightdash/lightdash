@@ -342,8 +342,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     };
                 } catch (error) {
                     console.error(
-                        `Error fetching partition info for dataset ${dataset.id}:`,
-                        error,
+                        `Error fetching partition info for dataset ${
+                            dataset.id
+                        }: ${getErrorMessage(error)}`,
                     );
                     return {
                         datasetId: dataset.id,

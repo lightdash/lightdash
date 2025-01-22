@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-import { LightdashError, ValidationTarget } from '@lightdash/common';
+import {
+    getErrorMessage,
+    LightdashError,
+    ValidationTarget,
+} from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
 import { validate } from 'uuid';
 import { findDbtDefaultProfile } from './dbt/profile';
@@ -749,7 +753,7 @@ ${styles.bold('Examples:')}
     .action(generateExposuresHandler);
 
 const errorHandler = (err: Error) => {
-    console.error(styles.error(err.message || 'Error had no message'));
+    console.error(styles.error(getErrorMessage(err)));
     if (err.name === 'AuthorizationError') {
         console.error(
             `Looks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,
