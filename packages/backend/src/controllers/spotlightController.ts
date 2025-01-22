@@ -36,7 +36,7 @@ export class SpotlightController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('201', 'Success')
+    @SuccessResponse('201', 'Created')
     @Post('/table/config')
     @OperationId('postSpotlightTableConfig')
     async postSpotlightTableConfig(
@@ -85,7 +85,7 @@ export class SpotlightController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('204', 'Success')
+    @SuccessResponse('204', 'Deleted')
     @Delete('/table/config')
     @OperationId('resetSpotlightTableConfig')
     async resetSpotlightTableConfig(
@@ -96,7 +96,7 @@ export class SpotlightController extends BaseController {
             .getSpotlightService()
             .resetSpotlightTableConfig(req.user!, projectUuid);
 
-        this.setStatus(204);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: undefined,

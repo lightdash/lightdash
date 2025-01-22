@@ -13932,7 +13932,7 @@
                 "operationId": "postSpotlightTableConfig",
                 "responses": {
                     "201": {
-                        "description": "Success",
+                        "description": "Created",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -14016,7 +14016,7 @@
                 "operationId": "resetSpotlightTableConfig",
                 "responses": {
                     "204": {
-                        "description": "Success",
+                        "description": "Deleted",
                         "content": {
                             "application/json": {
                                 "schema": {
