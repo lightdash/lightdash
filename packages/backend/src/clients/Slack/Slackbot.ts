@@ -118,24 +118,38 @@ export class SlackBot {
                 this.addEventListeners(app);
             }
         } catch (e: unknown) {
-            Logger.error(`Unable to start Slack app ${e}`);
+            Logger.error(
+                `Unable to start Slack app ${
+                    e instanceof Error ? e.message : String(e)
+                }`,
+            );
         }
     }
 
     protected addEventListeners(app: App) {
-        app.event('link_shared', async (m) => {
-            const { event, client, context } = m;
+        app.event('link_shared', async ({ event, client, context }) => {
+            if (
+                !event ||
+                typeof event !== 'object' ||
+                !('message_ts' in event) ||
+                !('channel' in event)
+            ) {
+                Logger.error('Invalid event structure');
+                return;
+            }
             await this.unfurlSlackUrls({
                 event: {
-                    message_ts: event.message_ts,
-                    channel: event.channel,
-                    links: event.links,
-                    user: event.user,
+                    message_ts: String(event.message_ts),
+                    channel: String(event.channel),
+                    links: Array.isArray(event.links) ? event.links : [],
+                    user: event.user ? String(event.user) : undefined,
                 },
                 client,
                 context: {
-                    botUserId: context.botUserId || '',
-                    teamId: context.teamId,
+                    botUserId: context.botUserId
+                        ? String(context.botUserId)
+                        : '',
+                    teamId: context.teamId ? String(context.teamId) : '',
                 },
             });
         });
@@ -159,13 +173,13 @@ export class SlackBot {
                     event: 'share_slack.unfurl_error',
                     userId: event.user,
                     properties: {
-                        error: `${e}`,
+                        error: e instanceof Error ? e.message : String(e),
                     },
                 });
                 Logger.error(
                     `Unable to unfurl on slack ${JSON.stringify(
                         unfurlBlocks,
-                    )}: ${JSON.stringify(e)}`,
+                    )}: ${e instanceof Error ? e.message : String(e)}`,
                 );
             });
     }
@@ -267,7 +281,7 @@ export class SlackBot {
                     userId: eventUserId,
 
                     properties: {
-                        error: `${e}`,
+                        error: e instanceof Error ? e.message : String(e),
                     },
                 });
             }
