@@ -149,15 +149,21 @@ export class OpenIDClientOktaStrategy extends Strategy {
                     { message: 'Unexpected error processing user information' },
                     401,
                 );
-            } catch (e) {
+            } catch (e: unknown) {
                 if (e instanceof LightdashError) {
                     return this.fail({ message: e.message }, 401);
                 }
-                Logger.warn(`Unexpected error while authorizing user: ${e}`);
-                return this.error(e);
+                Logger.warn(
+                    `Unexpected error while authorizing user: ${String(e)}`,
+                );
+                return this.error(
+                    e instanceof Error ? e : new Error(String(e)),
+                );
             }
-        } catch (err) {
-            return this.error(err);
+        } catch (err: unknown) {
+            return this.error(
+                err instanceof Error ? err : new Error(String(err)),
+            );
         }
     }
 }

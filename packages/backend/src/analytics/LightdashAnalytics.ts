@@ -1344,16 +1344,16 @@ export class LightdashAnalytics extends Analytics {
             });
 
             return results;
-        } catch (e) {
+        } catch (e: unknown) {
             await this.track({
                 ...payload,
                 event: `${payload.event}.error`,
                 properties: {
                     ...payload.properties,
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
-            Logger.error(`Error in scheduler task: ${e}`);
+            Logger.error(`Error in scheduler task: ${String(e)}`);
             throw e;
         }
     }

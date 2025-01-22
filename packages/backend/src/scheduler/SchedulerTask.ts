@@ -975,7 +975,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 status: SchedulerJobStatus.COMPLETED,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             this.analytics.track({
                 event: 'validation.error',
                 userId: payload.userUuid,
@@ -983,7 +983,7 @@ export default class SchedulerTask {
                     context: payload.context,
                     organizationId: payload.organizationUuid,
                     projectId: payload.projectUuid,
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
 
@@ -992,7 +992,7 @@ export default class SchedulerTask {
                 jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: e instanceof Error ? e.message : String(e) },
             });
             throw e;
         }
@@ -1029,13 +1029,13 @@ export default class SchedulerTask {
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.userUuid,
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
             throw e; // Cascade error to it can be retried by graphile
@@ -1062,17 +1062,19 @@ export default class SchedulerTask {
                 details: { ...baseLog.details, ...details },
                 status: SchedulerJobStatus.COMPLETED,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     ...baseLog.details,
-                    error: e.message,
-                    ...(e?.data ?? {}),
+                    error: e instanceof Error ? e.message : String(e),
+                    ...(e instanceof Error && 'data' in e
+                        ? (e as any).data
+                        : {}),
                 },
             });
-            Logger.error(`Error in scheduler task: ${e}`);
+            Logger.error(`Error in scheduler task: ${String(e)}`);
             throw e;
         }
     }

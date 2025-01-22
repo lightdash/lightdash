@@ -2973,10 +2973,12 @@ export class ProjectService extends BaseService {
             }
             this.logger.error(
                 `Failed to compile all explores:${
-                    e instanceof Error ? e.stack : e
+                    e instanceof Error ? e.stack : String(e)
                 }`,
             );
-            const errorResponse = errorHandler(e);
+            const errorResponse = errorHandler(
+                e instanceof Error ? e : new Error(String(e)),
+            );
             this.analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,

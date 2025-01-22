@@ -646,14 +646,14 @@ export class PromoteService extends BaseService {
                 upstreamChart,
             );
             return promotionChanges.charts[0].data;
-        } catch (e) {
+        } catch (e: unknown) {
             Logger.error(`Unable to promote chart`, e);
             await this.trackAnalytics(
                 user,
                 'promote.error',
                 promotedChart,
                 upstreamChart,
-                e.message,
+                e instanceof Error ? e.message : String(e),
             );
             throw e;
         }
@@ -1299,14 +1299,14 @@ export class PromoteService extends BaseService {
                 upstreamDashboard,
             );
             return promotionChanges.dashboards[0].data;
-        } catch (e) {
+        } catch (e: unknown) {
             Logger.error(`Unable to promote dashboard`, e);
             await this.trackAnalytics(
                 user,
                 'promote.error',
                 promotedDashboard,
                 upstreamDashboard,
-                e.message,
+                e instanceof Error ? e.message : String(e),
             );
             throw e;
         }
