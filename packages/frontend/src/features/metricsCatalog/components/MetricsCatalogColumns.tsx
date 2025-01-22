@@ -96,11 +96,13 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
 
             return (
                 <Button
+                    component="a"
+                    href={url.toString()}
+                    target="_blank"
                     size="xs"
                     compact
                     color="gray.6"
                     variant="subtle"
-                    onClick={() => window.open(url.toString(), '_blank')}
                     leftIcon={<TableFilled />}
                     fz="sm"
                     c="dark.4"
