@@ -363,3 +363,6 @@ export class UnexpectedGoogleSheetsError extends LightdashError {
         });
     }
 }
+
+export const getErrorMessage = (e: unknown) =>
+    e instanceof Error ? e.message : `Unknown ${typeof e} error`;

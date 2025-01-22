@@ -2,6 +2,7 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
+    getErrorMessage,
     WarehouseConnectionError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -275,9 +276,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                         );
 
                         throw new WarehouseConnectionError(
-                            `Could not open SSH tunnel: ${
-                                e instanceof Error ? e.message : 'Unknown error'
-                            }`,
+                            `Could not open SSH tunnel: ${getErrorMessage(e)}`,
                         );
                     }
                 }

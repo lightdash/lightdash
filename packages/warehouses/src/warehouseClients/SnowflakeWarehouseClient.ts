@@ -1,6 +1,7 @@
 import {
     CreateSnowflakeCredentials,
     DimensionType,
+    getErrorMessage,
     isWeekDay,
     Metric,
     MetricType,
@@ -204,9 +205,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
-                `Snowflake error: ${
-                    e instanceof Error ? e.message : 'Unknown error'
-                }`,
+                `Snowflake error: ${getErrorMessage(e)}`,
             );
         }
         try {
@@ -391,9 +390,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
-                `Snowflake error: ${
-                    e instanceof Error ? e.message : 'Unknown error'
-                }`,
+                `Snowflake error: ${getErrorMessage(e)}`,
             );
         }
         try {
