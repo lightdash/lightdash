@@ -264,6 +264,7 @@ export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
 export * from './visualizations/types/IResultsRunner';
 export * from './types/spotlightTableConfig';
+export * from './utils/loadLightdashProjectConfig';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

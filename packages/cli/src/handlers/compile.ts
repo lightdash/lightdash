@@ -8,6 +8,7 @@ import {
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
+    loadLightdashProjectConfig,
     ParseError,
     WarehouseCatalog,
 } from '@lightdash/common';
@@ -22,7 +23,6 @@ import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
-import { loadLightdashProjectConfig } from '../lightdash-config';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
