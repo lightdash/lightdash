@@ -25,8 +25,6 @@ export class SpotlightTableConfigModel {
         projectUuid: string,
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
-        // TODO: permissions check
-
         await this.database(SpotlightTableConfigTableName)
             .insert({
                 project_uuid: projectUuid,
@@ -41,8 +39,6 @@ export class SpotlightTableConfigModel {
     async getSpotlightTableConfig(
         projectUuid: string,
     ): Promise<SpotlightTableConfig | undefined> {
-        // TODO: permissions check
-
         const result = await this.database(SpotlightTableConfigTableName)
             .where('project_uuid', projectUuid)
             .first();
