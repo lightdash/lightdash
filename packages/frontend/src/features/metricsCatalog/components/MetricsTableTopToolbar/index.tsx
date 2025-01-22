@@ -1,6 +1,7 @@
 import {
+    DEFAULT_COLUMN_CONFIG,
+    SpotlightTableColumns,
     type CatalogField,
-    type SpotlightTableColumns,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -16,18 +17,18 @@ import {
     Tooltip,
     type GroupProps,
     Button,
+    Box,
 } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
     IconGripVertical,
     IconList,
-    IconRotate2,
     IconSearch,
     IconSitemap,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -64,6 +65,7 @@ import {
     setColumnVisibility,
     resetColumnConfig,
 } from '../../store/metricsCatalogSlice';
+import { isEqual } from 'lodash';
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -82,7 +84,7 @@ type MetricsTableTopToolbarProps = GroupProps & {
 };
 
 const SortableColumn: FC<{
-    column: { name: string; uuid: string; visible: boolean };
+    column: { name: string; uuid: string; visible: boolean; frozen: boolean };
     onToggleVisibility: () => void;
 }> = ({ column, onToggleVisibility }) => {
     const { attributes, listeners, setNodeRef, transform, transition } =
@@ -96,19 +98,29 @@ const SortableColumn: FC<{
     };
 
     return (
-        <Group ref={setNodeRef} style={style} position="apart" my={2} p={2}>
+        <Group ref={setNodeRef} style={style} position="apart" h={28}>
             <Group spacing={4}>
-                <ActionIcon
-                    size="xs"
-                    color="gray.5"
-                    {...attributes}
-                    {...listeners}
+                <Tooltip
+                    variant="xs"
+                    disabled={!column.frozen}
+                    label={`The ${column.name} column is pinned for usability`}
+                    position="top"
                 >
-                    <MantineIcon icon={IconGripVertical} />
-                </ActionIcon>
+                    <Box>
+                        <ActionIcon
+                            size="xs"
+                            color="gray.5"
+                            {...attributes}
+                            {...listeners}
+                            disabled={column.frozen}
+                        >
+                            <MantineIcon icon={IconGripVertical} />
+                        </ActionIcon>
+                    </Box>
+                </Tooltip>
                 <Text
                     variant="subtle"
-                    size="xs"
+                    fz={13}
                     radius="md"
                     fw={500}
                     color="dark.5"
@@ -119,6 +131,9 @@ const SortableColumn: FC<{
             <ActionIcon
                 size="xs"
                 color="gray.5"
+                sx={{
+                    visibility: column.frozen ? 'hidden' : 'visible',
+                }}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     onToggleVisibility();
@@ -196,6 +211,14 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         (col) => col.id === over?.id,
                     );
 
+                    // Prevent reordering if trying to move around the metric column
+                    if (
+                        active.id === SpotlightTableColumns.METRIC ||
+                        over?.id === SpotlightTableColumns.METRIC
+                    ) {
+                        return;
+                    }
+
                     // Get current column order or default to column ids if no order is set
                     const currentOrder =
                         table.getState().columnOrder.length > 0
@@ -258,6 +281,29 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
             dispatch,
             savedTableConfig,
         ]);
+
+        const hasConfigChanges = useMemo(() => {
+            const referenceConfig =
+                savedTableConfig?.columnConfig ?? DEFAULT_COLUMN_CONFIG;
+
+            const referenceFormatted = {
+                columnOrder: referenceConfig.map((c) => c.column),
+                columnVisibility: Object.fromEntries(
+                    referenceConfig.map((c) => [c.column, c.isVisible]),
+                ),
+            };
+
+            const orderChanged = !isEqual(
+                columnConfig.columnOrder,
+                referenceFormatted.columnOrder,
+            );
+            const visibilityChanged = !isEqual(
+                columnConfig.columnVisibility,
+                referenceFormatted.columnVisibility,
+            );
+
+            return orderChanged || visibilityChanged;
+        }, [savedTableConfig, columnConfig]);
 
         return (
             <Group {...props}>
@@ -356,7 +402,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 variant="xs"
                                 multiline
                                 maw={150}
-                                label="Customize the table columns and their visibility"
+                                label="Manage column visibility"
                                 position="top"
                             >
                                 <ActionIcon
@@ -368,9 +414,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 </ActionIcon>
                             </Tooltip>
                         </Popover.Target>
-                        <Popover.Dropdown px={4} py={4} miw={200}>
-                            <Stack spacing={4}>
-                                <Stack spacing={0}>
+                        <Popover.Dropdown p="sm" miw={200}>
+                            <Stack spacing="sm">
+                                <Stack spacing={2}>
                                     <DndContext
                                         sensors={sensors}
                                         collisionDetection={closestCenter}
@@ -396,6 +442,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                             uuid: column.id,
                                                             visible:
                                                                 column.getIsVisible(),
+                                                            frozen:
+                                                                column.id ===
+                                                                SpotlightTableColumns.METRIC,
                                                         }}
                                                         onToggleVisibility={() => {
                                                             handleVisibilityChange(
@@ -409,28 +458,29 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     </DndContext>
                                 </Stack>
 
+                                <Divider color="gray.1" />
                                 <Group position="apart" mt={4}>
-                                    {/* Only show save/reset buttons for users with permission */}
                                     {canManageSpotlight ? (
                                         <>
                                             <Button
-                                                compact
                                                 size="xs"
-                                                variant="subtle"
-                                                leftIcon={
-                                                    <MantineIcon
-                                                        icon={IconRotate2}
-                                                    />
-                                                }
-                                                color="gray"
+                                                variant="default"
+                                                radius="md"
+                                                h={28}
                                                 onClick={handleReset}
+                                                disabled={!hasConfigChanges}
+                                                sx={(theme) => ({
+                                                    border: `1px solid ${theme.colors.gray[2]}`,
+                                                    boxShadow:
+                                                        theme.shadows.subtle,
+                                                })}
                                             >
                                                 Reset
                                             </Button>
                                             <Button
-                                                compact
                                                 size="xs"
-                                                color="dark"
+                                                h={28}
+                                                variant="darkPrimary"
                                                 onClick={handleSave}
                                                 loading={
                                                     isCreatingSpotlightConfig
@@ -441,11 +491,17 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         </>
                                     ) : (
                                         <Button
-                                            compact
+                                            fullWidth
                                             size="xs"
-                                            variant="subtle"
-                                            color="red"
+                                            h={28}
+                                            radius="md"
+                                            variant="default"
                                             onClick={handleReset}
+                                            disabled={!hasConfigChanges}
+                                            sx={(theme) => ({
+                                                border: `1px solid ${theme.colors.gray[2]}`,
+                                                boxShadow: theme.shadows.subtle,
+                                            })}
                                         >
                                             Reset my view
                                         </Button>

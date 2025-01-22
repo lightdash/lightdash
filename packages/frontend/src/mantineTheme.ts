@@ -66,6 +66,30 @@ export const getMantineThemeOverride = (overrides?: {
     },
 
     components: {
+        Button: {
+            variants: {
+                darkPrimary: (theme) => ({
+                    root: {
+                        border: `1px solid #414E62`,
+                        boxShadow: '0px 0px 0px 1px #151C24',
+                        background: theme.fn.linearGradient(
+                            180,
+                            '#202B37',
+                            '#151C24',
+                        ),
+                        borderRadius: theme.radius.md,
+                        color: theme.colors.gray[0],
+                        ...theme.fn.hover({
+                            background: theme.colors.dark[4],
+                        }),
+                        '&[data-disabled]': {
+                            boxShadow: theme.shadows.subtle,
+                            color: theme.colors.gray[5],
+                        },
+                    },
+                }),
+            },
+        },
         Kbd: {
             styles: (theme, _params) => ({
                 root: {

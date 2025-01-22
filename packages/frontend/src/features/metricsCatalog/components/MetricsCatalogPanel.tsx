@@ -324,6 +324,12 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     'SpotlightTableConfig',
                 );
 
+                console.log('canManageSpotlight', canManageSpotlight);
+                console.log('canManageTags', canManageTags);
+                console.log('canRefreshCatalog', canRefreshCatalog);
+                console.log('canManageExplore', canManageExplore);
+                console.log('canManageMetricsTree', canManageMetricsTree);
+
                 dispatch(setUser({ userUuid: user.data.userUuid }));
 
                 dispatch(

@@ -383,9 +383,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 .getAllColumns()
                 .some((c) => c.getIsResizing());
 
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
+            const isLastVisibleColumn =
+                props.table
+                    .getVisibleLeafColumns()
+                    .findIndex((col) => col.id === props.column.id) ===
+                props.table.getVisibleLeafColumns().length - 1;
 
             return {
                 bg: 'gray.0',
@@ -398,7 +400,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
-                              isLastColumn
+                              isLastVisibleColumn
                                   ? 'transparent'
                                   : theme.colors.gray[2]
                           }`,
@@ -453,9 +455,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             },
         },
         mantineTableBodyCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
+            const isLastVisibleColumn =
+                props.table
+                    .getVisibleLeafColumns()
+                    .findIndex((col) => col.id === props.column.id) ===
+                props.table.getVisibleLeafColumns().length - 1;
 
             const isLastRow = flatData.length === props.row.index + 1;
             const hasScroll = tableContainerRef.current
@@ -468,7 +472,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: isLastColumn
+                    borderRight: isLastVisibleColumn
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
                     // This is needed to remove the bottom border of the last row when there are rows

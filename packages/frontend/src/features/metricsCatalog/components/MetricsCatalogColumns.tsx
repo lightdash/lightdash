@@ -1,5 +1,5 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Anchor, Box, Flex, Group, Text } from '@mantine/core';
+import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
@@ -11,6 +11,7 @@ import {
     Popularity,
     Tag,
     Table,
+    TableFilled,
 } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
@@ -32,7 +33,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric',
         enableSorting: true,
         enableEditing: false,
-        size: 400,
+        size: 350,
         Header: ({ column }) => (
             <MetricCatalogColumnHeaderCell Icon={Hash}>
                 {column.columnDef.header}
@@ -69,7 +70,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Table',
         enableSorting: false,
         enableEditing: false,
-        size: 120,
+        size: 150,
         Header: ({ column }) => (
             <MetricCatalogColumnHeaderCell Icon={Table} tooltipLabel="Table">
                 {column.columnDef.header}
@@ -94,9 +95,30 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             url.search = exploreUrl.search;
 
             return (
-                <Anchor href={url.toString()} target="_blank">
+                <Button
+                    size="xs"
+                    compact
+                    color="gray.6"
+                    variant="subtle"
+                    onClick={() => window.open(url.toString(), '_blank')}
+                    leftIcon={<TableFilled />}
+                    fz="sm"
+                    c="dark.4"
+                    fw={500}
+                    sx={{
+                        '&[data-disabled]': {
+                            backgroundColor: 'transparent',
+                            fontWeight: 400,
+                        },
+                    }}
+                    styles={(theme) => ({
+                        leftIcon: {
+                            marginRight: theme.spacing.xxs,
+                        },
+                    })}
+                >
                     {renderedCellValue}
-                </Anchor>
+                </Button>
             );
         },
     },
@@ -104,7 +126,8 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: SpotlightTableColumns.DESCRIPTION,
         enableSorting: false,
         enableEditing: false,
-        size: 500,
+        size: 400,
+        minSize: 200,
         header: 'Description',
         Header: ({ column }) => (
             <MetricCatalogColumnHeaderCell
@@ -123,8 +146,8 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
-        size: 300,
-        minSize: 180,
+        size: 270,
+        minSize: 150,
         mantineTableBodyCellProps: () => {
             return {
                 pos: 'relative',
@@ -278,6 +301,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: true,
         enableEditing: false,
         size: 150,
+        minSize: 100,
         mantineTableBodyCellProps: () => {
             return {
                 sx: {
