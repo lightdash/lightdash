@@ -3172,9 +3172,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const explores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
+        const explores = Object.values(cachedExplores);
+
         if (!explores) {
             return [];
         }
@@ -3383,9 +3385,10 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const explores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
+        const explores = Object.values(cachedExplores);
 
         return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
             if (!isExploreError(explore)) {
@@ -4685,9 +4688,11 @@ export class ProjectService extends BaseService {
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
             throw new ForbiddenError();
         }
-        const allExplores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
+        const allExplores = Object.values(cachedExplores);
+
         const validExplores = allExplores?.filter(
             (explore) => explore.type !== ExploreType.VIRTUAL,
         );
