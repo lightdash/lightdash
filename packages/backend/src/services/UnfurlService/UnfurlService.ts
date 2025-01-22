@@ -509,9 +509,13 @@ export class UnfurlService extends BaseService {
                                         chartRequestErrors += 1;
                                     }
                                 },
-                                (error) => {
+                                (error: unknown) => {
                                     this.logger.error(
-                                        `Headless browser response buffer error: ${error.message}`,
+                                        `Headless browser response buffer error: ${
+                                            error instanceof Error
+                                                ? error.message
+                                                : String(error)
+                                        }`,
                                     );
                                     chartRequestErrors += 1;
                                 },
@@ -734,7 +738,7 @@ export class UnfurlService extends BaseService {
 
                     Sentry.captureException(e);
                     hasError = true;
-                    span.addEvent(e);
+                    span.addEvent(String(e));
                     span.setAttributes({
                         'page.type': lightdashPage,
                         url,

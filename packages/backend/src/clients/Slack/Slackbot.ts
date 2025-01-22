@@ -156,7 +156,7 @@ export class SlackBot {
     }
 
     private async sendUnfurl(
-        event: { message_ts: string; channel: string },
+        event: { message_ts: string; channel: string; user?: string },
         originalUrl: string,
         unfurl: Unfurl,
         client: WebClient,

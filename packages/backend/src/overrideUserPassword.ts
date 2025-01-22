@@ -41,7 +41,11 @@ import { UserModel } from './models/UserModel';
         Logger.info(`Successfully updated user (${user.userUuid}) password!`);
         process.exit();
     } catch (error) {
-        Logger.error(`Error overriding user password: ${error.message}`);
+        Logger.error(
+            `Error overriding user password: ${
+                error instanceof Error ? error.message : String(error)
+            }`,
+        );
         process.exit(1);
     }
 })();

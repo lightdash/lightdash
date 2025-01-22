@@ -215,7 +215,9 @@ export class DbtCliClient implements DbtClient {
                 `Failed to run "${dbtExec} ${command.join(
                     ' ',
                 )}" with dbt version "${this.dbtVersion}"`,
-                DbtCliClient.parseDbtJsonLogs(e.all),
+                DbtCliClient.parseDbtJsonLogs(
+                    e instanceof Error && 'all' in e ? e.all : undefined,
+                ),
             );
         }
     }
