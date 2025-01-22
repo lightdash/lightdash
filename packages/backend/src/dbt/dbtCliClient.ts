@@ -209,15 +209,19 @@ export class DbtCliClient implements DbtClient {
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
             Logger.error(
-                `Error running dbt command with version ${this.dbtVersion}: ${e}`,
+                `Error running dbt command with version ${
+                    this.dbtVersion
+                }: ${getErrorMessage(e)}`,
             );
-
-            throw new DbtError(
-                `Failed to run "${dbtExec} ${command.join(
-                    ' ',
-                )}" with dbt version "${this.dbtVersion}"`,
-                DbtCliClient.parseDbtJsonLogs(e.all),
-            );
+            if (e instanceof Error && 'all' in e && typeof e.all === 'string') {
+                throw new DbtError(
+                    `Failed to run "${dbtExec} ${command.join(
+                        ' ',
+                    )}" with dbt version "${this.dbtVersion}"`,
+                    DbtCliClient.parseDbtJsonLogs(e.all),
+                );
+            }
+            throw e;
         }
     }
 

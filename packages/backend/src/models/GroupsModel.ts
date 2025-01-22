@@ -18,6 +18,7 @@ import {
 import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import differenceBy from 'lodash/differenceBy';
+import { DatabaseError } from 'pg';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
     DbGroupMembership,
@@ -271,7 +272,7 @@ export class GroupsModel {
                 return row.group_uuid;
             } catch (error) {
                 // Unique violation in PostgreSQL
-                if (error.code === '23505') {
+                if (error instanceof DatabaseError && error.code === '23505') {
                     throw new AlreadyExistsError(`Group name already exists`);
                 }
                 throw error; // Re-throw other errors
@@ -420,7 +421,10 @@ export class GroupsModel {
                         .where('group_uuid', groupUuid);
                 } catch (error) {
                     // Unique violation in PostgreSQL
-                    if (error.code === '23505') {
+                    if (
+                        error instanceof DatabaseError &&
+                        error.code === '23505'
+                    ) {
                         throw new AlreadyExistsError(
                             `Group name already exists`,
                         );

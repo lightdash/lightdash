@@ -2977,7 +2977,12 @@ export class ProjectService extends BaseService {
                     e instanceof Error ? e.stack : e
                 }`,
             );
-            const errorResponse = errorHandler(e);
+            const errorResponse =
+                e instanceof Error
+                    ? errorHandler(e)
+                    : new UnexpectedServerError(
+                          `Unknown error during refreshAllTables: ${typeof e}`,
+                      );
             this.analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,

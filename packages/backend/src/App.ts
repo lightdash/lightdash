@@ -3,6 +3,8 @@
 import './sentry'; // Sentry has to be initialized before anything else
 
 import {
+    ApiError,
+    ApiErrorResponse,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
@@ -542,7 +544,8 @@ export default class App {
                         method: req.method,
                     },
                 });
-                res.status(errorResponse.statusCode).send({
+
+                const apiErrorResponse: ApiError = {
                     status: 'error',
                     error: {
                         statusCode: errorResponse.statusCode,
@@ -554,7 +557,8 @@ export default class App {
                                 ? Sentry.lastEventId()
                                 : undefined,
                     },
-                });
+                };
+                res.status(errorResponse.statusCode).send(apiErrorResponse);
             },
         );
 

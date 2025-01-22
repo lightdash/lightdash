@@ -64,6 +64,7 @@ import {
     VizColumn,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
+import { instance } from 'apache-arrow/visitor/typecomparator';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -1070,7 +1071,9 @@ export default class SchedulerTask {
                 details: {
                     ...baseLog.details,
                     error: getErrorMessage(e),
-                    ...(e?.data ?? {}),
+                    ...(e instanceof Error && 'data' in e && e?.data
+                        ? e.data
+                        : {}),
                 },
             });
             Logger.error(`Error in scheduler task: ${e}`);
@@ -1945,7 +1948,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
             const shouldDisableSync =
                 e instanceof ForbiddenError ||
@@ -2195,7 +2198,7 @@ export default class SchedulerTask {
                 jobGroup: jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
 
             if (e instanceof NotEnoughResults) {

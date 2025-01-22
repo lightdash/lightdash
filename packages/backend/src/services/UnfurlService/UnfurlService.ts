@@ -701,7 +701,7 @@ export class UnfurlService extends BaseService {
                                 e,
                             )}`,
                         );
-                        span.addEvent(e);
+                        span.addEvent(getErrorMessage(e));
                         span.setAttributes({
                             'page.type': lightdashPage,
                             url,
@@ -737,7 +737,7 @@ export class UnfurlService extends BaseService {
 
                     Sentry.captureException(e);
                     hasError = true;
-                    span.addEvent(e);
+                    span.addEvent(getErrorMessage(e));
                     span.setAttributes({
                         'page.type': lightdashPage,
                         url,

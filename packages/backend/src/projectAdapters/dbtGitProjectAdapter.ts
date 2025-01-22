@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    getErrorMessage,
     NotFoundError,
     SupportedDbtVersions,
     UnexpectedGitError,
@@ -40,7 +41,12 @@ const stripTokensFromUrls = (raw: string) => {
     return raw.replace(pattern, '//*****@');
 };
 
-const gitErrorHandler = (e: Error, repository: string) => {
+const gitErrorHandler = (e: unknown, repository: string) => {
+    if (!(e instanceof Error)) {
+        throw new UnexpectedServerError(
+            `Unexpected git error: ${getErrorMessage(e)}`,
+        );
+    }
     if (e.message.includes('Authentication failed')) {
         throw new AuthorizationError(
             'Git credentials not recognized for this repository',

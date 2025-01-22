@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getErrorMessage,
     type OrganizationMemberProfile,
     type Space,
 } from '@lightdash/common';
