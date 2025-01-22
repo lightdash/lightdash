@@ -99,8 +99,50 @@ export default class EmailClient {
         },
     ) {
         if (this.transporter) {
+            const logoAttachments = [
+                {
+                    filename: 'lightdash-logo.png',
+                    path: path.join(
+                        __dirname,
+                        '../../../../frontend/public/lightdash-logo.png',
+                    ),
+                    cid: 'lightdash-logo',
+                },
+                {
+                    filename: 'twitter.png',
+                    path: path.join(
+                        __dirname,
+                        '../../../../frontend/public/twitter.png',
+                    ),
+                    cid: 'twitter-logo',
+                },
+                {
+                    filename: 'github.png',
+                    path: path.join(
+                        __dirname,
+                        '../../../../frontend/public/github.png',
+                    ),
+                    cid: 'github-logo',
+                },
+                {
+                    filename: 'linkedin.png',
+                    path: path.join(
+                        __dirname,
+                        '../../../../frontend/public/linkedin.png',
+                    ),
+                    cid: 'linkedin-logo',
+                },
+            ];
+
+            const emailOptions = {
+                ...options,
+                attachments: Array.isArray(options.attachments)
+                    ? [...options.attachments, ...logoAttachments]
+                    : [...logoAttachments],
+            };
+
             try {
-                const info = await this.transporter.sendMail(options);
+                const info = await this.transporter.sendMail(emailOptions);
                 Logger.debug(`Email sent: ${info.messageId}`);
             } catch (error) {
                 throw new SmptError(`Failed to send email. ${error}`, {
