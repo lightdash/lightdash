@@ -2,6 +2,7 @@ import {
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
+    DEFAULT_SPOTLIGHT_CONFIG,
     getCompiledModels,
     getDbtManifestVersion,
     getModelsFromManifest,
@@ -33,6 +34,25 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
+};
+
+const readAndLoadLightdashProjectConfig = async (projectDir: string) => {
+    const configPath = path.join(projectDir, 'lightdash.config.yml');
+    try {
+        return await loadLightdashProjectConfig(
+            await fs.readFile(configPath, 'utf8'),
+        );
+    } catch (e) {
+        GlobalState.debug(`No lightdash.config.yml found in ${configPath}`);
+
+        if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+            // Return default config if file doesn't exist
+            return {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            };
+        }
+        throw e;
+    }
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
@@ -130,9 +150,8 @@ ${errors.join('')}`),
         `> Loading lightdash project config from ${absoluteProjectPath}`,
     );
 
-    const configPath = path.join(absoluteProjectPath, 'lightdash.config.yml');
-    const lightdashProjectConfig = await loadLightdashProjectConfig(
-        await fs.readFile(configPath, 'utf8'),
+    const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
+        absoluteProjectPath,
     );
 
     GlobalState.debug(`> Loaded lightdash project config`);

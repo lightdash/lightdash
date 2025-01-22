@@ -90,9 +90,21 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             'lightdash.config.yml',
         );
 
-        return loadLightdashProjectConfig(
-            await fs.readFile(configPath, 'utf8'),
-        );
+        try {
+            return await loadLightdashProjectConfig(
+                await fs.readFile(configPath, 'utf8'),
+            );
+        } catch (e) {
+            Logger.debug(`No lightdash.config.yml found in ${configPath}`);
+
+            if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+                // Return default config if file doesn't exist
+                return {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                };
+            }
+            throw e;
+        }
     }
 
     public async compileAllExplores(
