@@ -219,10 +219,19 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             await streamPromise;
         } catch (e: unknown) {
-            const response = (e as { response?: bigquery.IJob })?.response;
-            const responseError =
-                response?.status?.errorResult || (e as bigquery.IErrorProto);
-            throw this.parseError(responseError, query);
+            const isIJob = (error: unknown): error is bigquery.IJob =>
+                error !== null &&
+                typeof error === 'object' &&
+                'status' in error;
+
+            if (isIJob(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.status?.errorResult;
+                if (responseError) {
+                    throw this.parseError(responseError, query);
+                }
+            }
+            throw e;
         }
     }
 
