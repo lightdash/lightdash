@@ -20,6 +20,6 @@ module.exports = {
         'no-case-declarations': 'off',
         'no-template-curly-in-string': 'off',
         'no-restricted-syntax': 'off',
-        eqeqeq: 'error',
+        eqeqeq: 'error'
     },
 };
