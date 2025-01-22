@@ -785,13 +785,13 @@ export default class SchedulerTask {
                     organizationUuid: user.organizationUuid,
                 });
             }
-        } catch (e) {
+        } catch (e: unknown) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
             throw e;
@@ -902,13 +902,13 @@ export default class SchedulerTask {
                     organizationUuid: user.organizationUuid,
                 });
             }
-        } catch (e) {
+        } catch (e: unknown) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
             throw e;
@@ -1266,13 +1266,13 @@ export default class SchedulerTask {
                 userId: payload.userUuid,
                 properties: analyticsProperties,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.userUuid,
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
 
@@ -1497,12 +1497,12 @@ export default class SchedulerTask {
                 targetType: 'email',
                 status: SchedulerJobStatus.COMPLETED,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
-                    error: `${e}`,
+                    error: e instanceof Error ? e.message : String(e),
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerEmailTargetUuid,
@@ -1519,7 +1519,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'email',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: e instanceof Error ? e.message : String(e) },
             });
 
             throw e; // Cascade error to it can be retried by graphile
@@ -1927,12 +1927,12 @@ export default class SchedulerTask {
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.COMPLETED,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
-                    error: `${e}`,
+                    error: e instanceof Error ? e.message : String(e),
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: undefined,
@@ -1948,7 +1948,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: e instanceof Error ? e.message : String(e) },
             });
             const shouldDisableSync =
                 e instanceof ForbiddenError ||
@@ -2182,7 +2182,7 @@ export default class SchedulerTask {
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
             });
-        } catch (e) {
+        } catch (e: unknown) {
             this.analytics.track({
                 event: 'scheduler_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
@@ -2198,7 +2198,7 @@ export default class SchedulerTask {
                 jobGroup: jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: e instanceof Error ? e.message : String(e) },
             });
 
             if (e instanceof NotEnoughResults) {
