@@ -10,6 +10,7 @@ import {
     type Metric,
     type Source,
 } from './field';
+import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type TableBase } from './table';
 
 export type ExploreJoin = {
@@ -57,6 +58,12 @@ export type Explore = {
     ymlPath?: string;
     sqlPath?: string;
     type?: ExploreType;
+    // Spotlight config for this explore
+    spotlight: {
+        visibility: Required<
+            NonNullable<LightdashProjectConfig['spotlight']>
+        >['default_visibility'];
+    };
 };
 
 export enum InlineErrorType {

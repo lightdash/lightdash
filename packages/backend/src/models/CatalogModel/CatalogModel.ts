@@ -51,6 +51,12 @@ import {
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
 
+export enum CatalogSearchContext {
+    SPOTLIGHT = 'spotlight',
+    CATALOG = 'catalog',
+    METRICS_EXPLORER = 'metricsExplorer',
+}
+
 export type CatalogModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
@@ -183,6 +189,7 @@ export class CatalogModel {
         userAttributes,
         paginateArgs,
         sortArgs,
+        context,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -192,11 +199,12 @@ export class CatalogModel {
         searchRankFunction?: (args: {
             database: Knex;
             variables: Record<string, string>;
-        }) => Knex.Raw<any>;
+        }) => Knex.Raw;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
+        context: CatalogSearchContext;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         const searchRankRawSql = searchRankFunction({
             database: this.database,
@@ -304,6 +312,13 @@ export class CatalogModel {
                     ],
                 );
             });
+
+        if (context === CatalogSearchContext.SPOTLIGHT) {
+            catalogItemsQuery = catalogItemsQuery.where(
+                `${CatalogTableName}.spotlight_show`,
+                true,
+            );
+        }
 
         if (exploreName) {
             catalogItemsQuery = catalogItemsQuery.andWhere(
