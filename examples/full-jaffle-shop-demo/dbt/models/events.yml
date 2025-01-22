@@ -89,6 +89,9 @@ models:
             in_jpy:
               type: sum
               format: 'jpy'
+            in_dkk:
+              type: sum
+              format: 'dkk'
             in_eur:
               type: sum
               format: 'eur'
