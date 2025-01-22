@@ -3151,7 +3151,9 @@ export class ProjectService extends BaseService {
                     Sentry.captureException(e);
                 }
                 this.logger.error(
-                    `Background job failed:${e instanceof Error ? e.stack : e}`,
+                    `Background job failed:${
+                        e instanceof Error ? e.stack : String(e)
+                    }`,
                 );
             });
     }

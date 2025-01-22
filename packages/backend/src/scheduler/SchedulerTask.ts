@@ -415,7 +415,9 @@ export default class SchedulerTask {
                     }
                 } catch (e) {
                     Logger.error(
-                        `Unable to download CSV on scheduled task: ${e}`,
+                        `Unable to download CSV on scheduled task: ${
+                            e instanceof Error ? e.message : String(e)
+                        }`,
                     );
 
                     if (this.slackClient.isEnabled) {
@@ -437,7 +439,7 @@ export default class SchedulerTask {
                         userId: userUuid,
                         properties: {
                             ...baseAnalyticsProperties,
-                            error: `${e}`,
+                            error: e instanceof Error ? e.message : String(e),
                         },
                     });
                     throw e; // cascade error
