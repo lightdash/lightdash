@@ -249,6 +249,7 @@ export function getCustomFormatFromLegacy({
         case Format.GBP:
         case Format.USD:
         case Format.JPY:
+        case Format.DKK:
             return {
                 type: CustomFormatType.CURRENCY,
                 currency: format.toUpperCase(),
