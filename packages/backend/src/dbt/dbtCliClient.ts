@@ -4,6 +4,7 @@ import {
     DbtLog,
     DbtPackages,
     DbtRpcGetManifestResults,
+    getErrorMessage,
     isDbtLog,
     isDbtPackages,
     isDbtRpcManifestResults,
@@ -41,7 +42,9 @@ export const getDbtConfig = async (
         config = loadYaml(await fs.readFile(configPath, 'utf-8'));
     } catch (e) {
         throw new ParseError(
-            `dbt_project.yml was not found or isn't a valid yaml document: ${e.message}`,
+            `dbt_project.yml was not found or isn't a valid yaml document: ${getErrorMessage(
+                e,
+            )}`,
             {},
         );
     }

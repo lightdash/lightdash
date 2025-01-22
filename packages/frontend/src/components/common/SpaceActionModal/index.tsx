@@ -105,7 +105,7 @@ const SpaceModal: FC<ActionModalProps> = ({
         } catch (e: any) {
             showToastError({
                 title: 'Error saving',
-                subtitle: e.message,
+                subtitle: getErrorMessage(e),
             });
         }
     };

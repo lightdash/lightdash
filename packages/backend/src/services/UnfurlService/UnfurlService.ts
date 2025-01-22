@@ -5,6 +5,7 @@ import {
     ChartType,
     DownloadFileType,
     ForbiddenError,
+    getErrorMessage,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     LightdashPage,
@@ -511,7 +512,9 @@ export class UnfurlService extends BaseService {
                                 },
                                 (error) => {
                                     this.logger.error(
-                                        `Headless browser response buffer error: ${error.message}`,
+                                        `Headless browser response buffer error: ${getErrorMessage(
+                                            error,
+                                        )}`,
                                     );
                                     chartRequestErrors += 1;
                                 },
@@ -682,18 +685,21 @@ export class UnfurlService extends BaseService {
                     });
                     return imageBuffer;
                 } catch (e) {
+                    const errorMessage = getErrorMessage(e);
                     const isRetryableError =
                         e instanceof playwright.errors.TimeoutError ||
                         // Following error messages were taken from the Playwright source code
-                        e.message.includes('Protocol error') ||
-                        e.message.includes('Target crashed') ||
-                        e.message.includes(
+                        errorMessage.includes('Protocol error') ||
+                        errorMessage.includes('Target crashed') ||
+                        errorMessage.includes(
                             'Target page, context or browser has been closed',
                         );
 
                     if (isRetryableError && retries) {
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                                e,
+                            )}`,
                         );
                         span.addEvent(e);
                         span.setAttributes({
@@ -746,7 +752,9 @@ export class UnfurlService extends BaseService {
                     });
 
                     this.logger.error(
-                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                            e,
+                        )}`,
                     );
                     throw e;
                 } finally {

@@ -1,6 +1,7 @@
 import {
     AlreadyExistsError,
     CreateGroup,
+    getErrorMessage,
     Group,
     GroupMember,
     GroupMembership,
@@ -424,7 +425,7 @@ export class GroupsModel {
                             `Group name already exists`,
                         );
                     }
-                    throw new UnexpectedDatabaseError(error.message);
+                    throw new UnexpectedDatabaseError(getErrorMessage(error));
                 }
             }
 
