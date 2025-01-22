@@ -1,3 +1,10 @@
+## [0.1460.1](https://github.com/lightdash/lightdash/compare/0.1460.0...0.1460.1) (2025-01-22)
+
+
+### Bug Fixes
+
+* identify filtered explore error on missing dimension ([#13353](https://github.com/lightdash/lightdash/issues/13353)) ([5db23cd](https://github.com/lightdash/lightdash/commit/5db23cd6045acc2d74c9e03a16f6acd739162330))
+
 # [0.1460.0](https://github.com/lightdash/lightdash/compare/0.1459.3...0.1460.0) (2025-01-22)
 
 
