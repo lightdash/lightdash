@@ -702,7 +702,7 @@ export default class SchedulerTask {
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
-                    error: `${e}`,
+                    error: e instanceof Error ? e.message : String(e),
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerSlackTargetUuid,
@@ -721,7 +721,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'slack',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: e instanceof Error ? e.message : String(e) },
             });
 
             if (e instanceof SlackInstallationNotFoundError) {
@@ -852,7 +852,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e,
+                    error: e instanceof Error ? e.message : String(e),
                 },
             });
             // Update legacy job
