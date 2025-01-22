@@ -5,16 +5,19 @@ describe('SQL Runner (new)', () => {
 
     beforeEach(() => {
         cy.login();
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sql-runner`).then(
-            () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+        cy.wait(3000);
+        cy.contains('New').click();
+        cy.contains('SQL runner')
+            .click()
+            .then(() => {
                 cy.request(
                     `/api/v1/projects/${SEED_PROJECT.project_uuid}/sqlRunner/tables`,
                 ).then((response) => {
                     // eslint-disable-next-line prefer-destructuring
                     schema = Object.keys(response.body.results)[0];
                 });
-            },
-        );
+            });
     });
 
     it('Should verify that the query is autocompleted, run, and the results are displayed', () => {
