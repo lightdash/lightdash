@@ -86,6 +86,9 @@ models:
             in_gbp:
               type: sum
               format: 'gbp'
+            in_jpy:
+              type: sum
+              format: 'jpy'
             in_eur:
               type: sum
               format: 'eur'
