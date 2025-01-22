@@ -1,3 +1,10 @@
+# [0.1460.0](https://github.com/lightdash/lightdash/compare/0.1459.3...0.1460.0) (2025-01-22)
+
+
+### Features
+
+* Support Japanese Yen format ([#13346](https://github.com/lightdash/lightdash/issues/13346)) ([88cf9b2](https://github.com/lightdash/lightdash/commit/88cf9b2de1596f82e55756a6104ce348d7ce197a))
+
 ## [0.1459.3](https://github.com/lightdash/lightdash/compare/0.1459.2...0.1459.3) (2025-01-21)
 
 
