@@ -82,6 +82,9 @@ export const getMantineThemeOverride = (overrides?: {
                         ...theme.fn.hover({
                             background: theme.colors.dark[4],
                         }),
+                        '&[data-loading]': {
+                            boxShadow: theme.shadows.subtle,
+                        },
                         '&[data-disabled]': {
                             boxShadow: theme.shadows.subtle,
                             color: theme.colors.gray[5],

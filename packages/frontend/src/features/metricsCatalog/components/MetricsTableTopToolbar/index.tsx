@@ -422,7 +422,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 </ActionIcon>
                             </Tooltip>
                         </Popover.Target>
-                        <Popover.Dropdown p="sm" miw={200}>
+                        <Popover.Dropdown p="sm" miw={270}>
                             <Stack spacing="sm">
                                 <Stack spacing={2}>
                                     <DndContext
