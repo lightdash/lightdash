@@ -3267,6 +3267,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         organizationUuid?: string,
+        includeUnfilteredTables: boolean = true,
     ): Promise<Explore> {
         return Sentry.startSpan(
             {
@@ -3292,7 +3293,10 @@ export class ProjectService extends BaseService {
                         `Explore "${exploreName}" has an error.`,
                     );
                 }
-                return explore;
+                if (includeUnfilteredTables) {
+                    return explore;
+                }
+                return { ...explore, unfilteredTables: undefined };
             },
         );
     }

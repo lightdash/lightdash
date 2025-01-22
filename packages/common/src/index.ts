@@ -494,7 +494,7 @@ export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];
 
-export type ApiExploreResults = Explore;
+export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
