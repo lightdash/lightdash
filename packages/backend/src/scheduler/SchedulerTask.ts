@@ -442,7 +442,7 @@ export default class SchedulerTask {
                             error: e instanceof Error ? e.message : String(e),
                         },
                     });
-                    throw e; // cascade error
+                    throw e instanceof Error ? e : new Error(String(e)); // cascade error
                 }
                 break;
             default:
