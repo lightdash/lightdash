@@ -77,7 +77,10 @@ describe('getFilteredExplore', () => {
     test('should return same explore if it doesnt need filtering', () => {
         expect(
             getFilteredExplore(EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES, {}),
-        ).toStrictEqual(EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES);
+        ).toStrictEqual({
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+            unfilteredTables: EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables,
+        });
     });
     test('should throw error if it doesnt have permission for main table', () => {
         expect(() =>
