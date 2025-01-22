@@ -51,7 +51,10 @@ export interface UpdatedByUser {
     firstName: string;
     lastName: string;
 }
-export const isSessionUser = (user: any): user is SessionUser =>
+export const isSessionUser = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    user: any,
+): user is SessionUser =>
     typeof user === 'object' &&
     user !== null &&
     user.userUuid &&
@@ -70,7 +73,10 @@ export interface OpenIdUser {
     };
 }
 
-export const isOpenIdUser = (user: any): user is OpenIdUser =>
+export const isOpenIdUser = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    user: any,
+): user is OpenIdUser =>
     typeof user === 'object' &&
     user !== null &&
     user.userUuid === undefined &&

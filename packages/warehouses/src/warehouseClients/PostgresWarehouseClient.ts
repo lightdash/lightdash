@@ -155,6 +155,7 @@ export class PostgresClient<
     }
 
     static convertQueryResultFields(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fields: QueryResult<any>['fields'],
     ): Record<string, { type: DimensionType }> {
         return fields.reduce(
@@ -172,6 +173,7 @@ export class PostgresClient<
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
@@ -250,7 +252,9 @@ export class PostgresClient<
                                 objectMode: true,
                                 write(
                                     chunk: {
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         row: any;
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         fields: QueryResult<any>['fields'];
                                     },
                                     encoding,

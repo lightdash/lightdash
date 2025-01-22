@@ -24,6 +24,7 @@ const columnBase = {
     table_name: config[0].table.toUpperCase(),
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const columns: Record<string, any>[] = [
     {
         ...columnBase,
@@ -168,6 +169,7 @@ export const expectedWarehouseSchema = {
     },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const expectedFields: Record<string, any> = {
     MYSTRINGCOLUMN: { type: DimensionType.STRING },
     MYNUMBERCOLUMN: { type: DimensionType.NUMBER },
@@ -178,6 +180,7 @@ export const expectedFields: Record<string, any> = {
     MYOBJECTCOLUMN: { type: DimensionType.STRING },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const expectedRow: Record<string, any> = {
     MYSTRINGCOLUMN: 'string value',
     MYNUMBERCOLUMN: 100,

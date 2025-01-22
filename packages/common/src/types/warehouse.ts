@@ -32,6 +32,7 @@ export type WarehouseTables = {
 
 export type WarehouseResults = {
     fields: Record<string, { type: DimensionType }>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rows: Record<string, any>[];
 };
 
@@ -49,6 +50,7 @@ export interface WarehouseClient {
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
             tags: Record<string, string>;
             timezone?: string;
@@ -67,6 +69,7 @@ export interface WarehouseClient {
         sql: string,
         tags: Record<string, string>,
         timezone?: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         values?: any[],
     ): Promise<WarehouseResults>;
 
@@ -97,6 +100,7 @@ export interface WarehouseClient {
     ): Promise<WarehouseCatalog>;
 
     parseWarehouseCatalog(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog;

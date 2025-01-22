@@ -83,6 +83,7 @@ export class CartesianChartDataModel {
     static getValueFormatter(format: Format | undefined) {
         if (format === Format.PERCENT) {
             // Echarts doesn't export the types for this function
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (params: any) => {
                 const value =
                     params.value[params.dimensionNames[params.encode.y[0]]];
@@ -488,6 +489,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Record<string, any> {
         const transformedData = this.pivotedChartData;
 

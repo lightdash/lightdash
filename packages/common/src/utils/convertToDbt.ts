@@ -96,6 +96,7 @@ function updateModelNode(
                 );
             }
             return columnNode;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any,
     };
 }

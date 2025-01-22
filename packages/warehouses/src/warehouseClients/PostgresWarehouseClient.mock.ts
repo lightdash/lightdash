@@ -18,6 +18,7 @@ const columnBase = {
     table_name: config[0].table,
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const columns: Record<string, any>[] = [
     {
         ...columnBase,

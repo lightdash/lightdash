@@ -39,13 +39,17 @@ export interface AdditionalMetric {
     formatOptions?: CustomFormat;
 }
 
-export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
+export const isAdditionalMetric = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value: any,
+): value is AdditionalMetric =>
     value?.table &&
     value?.name &&
     !value?.fieldType &&
     !isCustomDimension(value);
 
 export const hasFormatOptions = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any,
 ): value is { formatOptions: CustomFormat } => !!value.formatOptions;
 
@@ -88,10 +92,12 @@ export const getAdditionalMetricLabel = (item: AdditionalMetric) =>
 type FilterGroupResponse =
     | {
           id: string;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           or: any[];
       }
     | {
           id: string;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           and: any[];
       };
 export type FiltersResponse = {
@@ -150,8 +156,11 @@ export type MetricQueryRequest = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
     filters: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dimensions?: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         metrics?: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tableCalculations?: any;
     };
     sorts: SortField[]; // Sorts for the data

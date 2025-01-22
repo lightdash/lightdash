@@ -68,6 +68,7 @@ export type SchedulerLog = {
     status: SchedulerJobStatus;
     target?: string;
     targetType?: 'email' | 'slack' | 'gsheets';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     details?: Record<string, any>;
 };
 
@@ -452,6 +453,7 @@ export type ApiJobStatusResponse = {
     status: 'ok';
     results: {
         status: SchedulerJobStatus;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         details: Record<string, any> | null;
     };
 };

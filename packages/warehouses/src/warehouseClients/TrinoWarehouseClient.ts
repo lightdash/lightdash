@@ -125,9 +125,11 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
     const s: string[] = schema.map((e) => e.name);
     return data.map((i) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const item: { [key: string]: any } = {};
         i.map((column, index) => {
             const name: string = s[index];
@@ -157,6 +159,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         let session: Trino;
         try {
             session = await client.create(this.connectionOptions);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -234,6 +237,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     rows: resultHandler(schema, queryResult.value.data ?? []),
                 });
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -253,6 +257,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     query = await session.query(queryTableSchema(request));
                     const result = (await query.next()).value.data ?? [];
                     return result;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (e: any) {
                     throw new WarehouseQueryError(e.message);
                 } finally {

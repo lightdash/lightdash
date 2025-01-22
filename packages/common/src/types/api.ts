@@ -9,4 +9,5 @@ export enum RequestMethod {
 export const isRequestMethod = (
     value: string | undefined,
 ): value is RequestMethod =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     !!value && Object.values(RequestMethod).includes(value as any);

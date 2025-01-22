@@ -45,6 +45,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
@@ -57,6 +58,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         values?: any[],
     ) {
         let fields: WarehouseResults['fields'] = {};
@@ -115,6 +117,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     }
 
     parseWarehouseCatalog(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {

@@ -45,6 +45,7 @@ export enum BigqueryFieldType {
     ARRAY = 'ARRAY',
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseCell = (cell: any) => {
     if (
         cell === undefined ||
@@ -105,6 +106,7 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseRow = (row: Record<string, any>[]) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
@@ -135,6 +137,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;

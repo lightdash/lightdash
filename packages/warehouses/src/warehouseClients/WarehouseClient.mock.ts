@@ -29,6 +29,7 @@ export const expectedWarehouseSchema: WarehouseCatalog = {
     },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const expectedFields: Record<string, any> = {
     myStringColumn: { type: DimensionType.STRING },
     myNumberColumn: { type: DimensionType.NUMBER },
@@ -39,6 +40,7 @@ export const expectedFields: Record<string, any> = {
     myObjectColumn: { type: DimensionType.STRING },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const expectedRow: Record<string, any> = {
     myStringColumn: 'string value',
     myNumberColumn: 100,

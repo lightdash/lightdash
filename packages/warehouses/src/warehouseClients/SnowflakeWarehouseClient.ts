@@ -112,6 +112,7 @@ export const mapFieldType = (type: string): DimensionType => {
     }
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseCell = (cell: any) => {
     if (cell instanceof Date) {
         return new Date(cell);
@@ -120,10 +121,12 @@ const parseCell = (cell: any) => {
     return cell;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseRow = (row: Record<string, any>) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
@@ -194,6 +197,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
@@ -281,6 +285,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         sqlText: string,
         streamCallback: (data: WarehouseResults) => void,
         options?: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
         },
     ): Promise<void> {
@@ -341,6 +346,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async executeStatement(connection: Connection, sqlText: string) {
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             rows: any[];
         }>((resolve, reject) => {
             connection.execute({
@@ -502,6 +508,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             undefined,
             databaseName ? [databaseName] : undefined,
         );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return rows.map((row: Record<string, any>) => ({
             database: row.table_catalog,
             schema: row.table_schema,

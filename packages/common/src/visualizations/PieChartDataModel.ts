@@ -357,6 +357,7 @@ export class PieChartDataModel {
         return transformedData.fileUrl;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getSpec(display?: VizPieChartDisplay): Record<string, any> {
         const transformedData = this.pivotedChartData;
 

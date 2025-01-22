@@ -97,6 +97,7 @@ export const schema = {
         },
     ],
 };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const rows: Record<string, any>[] = [
     {
         myStringColumn: 'string value',

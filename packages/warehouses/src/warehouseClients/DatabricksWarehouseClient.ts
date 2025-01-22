@@ -214,6 +214,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -231,6 +232,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
@@ -285,12 +287,14 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
             } while (await query.hasMoreRows());
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
             try {
                 if (query) await query.close();
                 await close();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (e: any) {
                 // Only console error. Don't allow close errors to override the original error
                 console.error(
@@ -324,11 +328,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                             tableName: request.table,
                         });
                         return (await query.fetchAll()) as SchemaResult[];
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (e: any) {
                         throw new WarehouseQueryError(e.message);
                     } finally {
                         try {
                             if (query) await query.close();
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } catch (e: any) {
                             // Only console error. Don't allow close errors to override the original error
                             console.error(
@@ -339,11 +345,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                     }
                 },
             );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
             try {
                 await close();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (e: any) {
                 // Only console error. Don't allow close errors to override the original error
                 console.error(

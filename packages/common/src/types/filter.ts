@@ -61,7 +61,9 @@ export type FieldTarget = {
 export interface FilterRule<
     O = ConditionalOperator,
     T = FieldTarget,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     V = any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     S = any,
 > extends ConditionalRule<O, V> {
     id: string;
@@ -84,7 +86,9 @@ export type DashboardTileTarget = DashboardFieldTarget | false;
 export type DashboardFilterRule<
     O = ConditionalOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     V = any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     S = any,
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
@@ -110,6 +114,7 @@ export type DateFilterSettings = {
 export type DateFilterRule = FilterRule<
     ConditionalOperator,
     unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any,
     DateFilterSettings
 >;

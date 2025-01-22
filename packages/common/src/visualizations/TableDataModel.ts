@@ -134,6 +134,7 @@ export class TableDataModel {
 
     // eslint-disable-next-line class-methods-use-this
     getSpec(_display?: VizTableDisplay): {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         spec: Record<string, any>;
         tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
     } {

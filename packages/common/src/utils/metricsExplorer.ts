@@ -231,6 +231,7 @@ export const MAX_SEGMENT_DIMENSION_UNIQUE_VALUES = 10;
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metricRows: Record<string, any>[],
     segmentDimensionId: string | null,
 ): {
@@ -316,7 +317,9 @@ export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
     compareDimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metricRows: Record<string, any>[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     compareMetricRows: Record<string, any>[],
     query: MetricExplorerQuery,
     timeFrame: TimeFrames,

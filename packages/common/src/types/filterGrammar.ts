@@ -5,6 +5,7 @@ import { FilterOperator, type MetricFilterRule } from './filter';
 
 export type ParsedFilter = {
     type: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     values: any[];
     is?: boolean;
     date_interval?: string;
@@ -216,6 +217,7 @@ export const parseOperator = (
 };
 
 export const parseFilters = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawFilters: Record<string, any>[] | undefined,
 ): MetricFilterRule[] => {
     if (!rawFilters || rawFilters.length === 0) {
