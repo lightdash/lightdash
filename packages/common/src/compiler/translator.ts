@@ -648,8 +648,8 @@ export const convertExplores = async (
         (model) => tableLookup[model.name] !== undefined,
     );
 
-    const exploreCompiler = new ExploreCompiler(warehouseClient);
-
+    const exploreCompiler = new ExploreCompiler(warehouseClient) as any;
+    console.debug('explorecompiler', exploreCompiler.bleh);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
         try {
