@@ -105,6 +105,12 @@ describe('Formatting', () => {
                         currency: Format.EUR,
                     }),
                 ).toEqual('€5.00');
+                expect(
+                    applyCustomFormat(5, {
+                        type: CustomFormatType.CURRENCY,
+                        currency: Format.JPY,
+                    }),
+                ).toEqual('¥5');
             });
 
             test('if Format is percent it should return the right format', () => {

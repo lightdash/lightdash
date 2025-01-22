@@ -32,7 +32,7 @@
         },
         "Format": {
             "type": "string",
-            "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"]
+            "enum": ["km", "mi", "usd", "gbp", "eur", "jpy", "id", "percent"]
         },
         "Urls": {
             "type": "array",
