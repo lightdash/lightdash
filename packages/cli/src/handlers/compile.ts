@@ -13,6 +13,7 @@ import {
     WarehouseCatalog,
 } from '@lightdash/common';
 import path from 'path';
+import { promises as fs } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
@@ -129,9 +130,9 @@ ${errors.join('')}`),
         `> Loading lightdash project config from ${absoluteProjectPath}`,
     );
 
-    // TODO: Should we load config again?
+    const configPath = path.join(absoluteProjectPath, 'lightdash.config.yml');
     const lightdashProjectConfig = await loadLightdashProjectConfig(
-        path.join(absoluteProjectPath, 'lightdash.config.yml'),
+        await fs.readFile(configPath, 'utf8'),
     );
 
     GlobalState.debug(`> Loaded lightdash project config`);

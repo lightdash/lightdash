@@ -27,6 +27,7 @@ import {
     SupportedDbtVersions,
     type LightdashProjectConfig,
 } from '@lightdash/common';
+import { promises as fs } from 'fs';
 import { WarehouseClient } from '@lightdash/warehouses';
 import path from 'path';
 import Logger from '../logging/logger';
@@ -89,7 +90,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             'lightdash.config.yml',
         );
 
-        return loadLightdashProjectConfig(configPath);
+        return loadLightdashProjectConfig(
+            await fs.readFile(configPath, 'utf8'),
+        );
     }
 
     public async compileAllExplores(

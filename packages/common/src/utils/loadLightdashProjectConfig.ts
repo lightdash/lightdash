@@ -1,4 +1,3 @@
-import { promises as fs } from 'fs';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
 import betterAjvErrors from 'better-ajv-errors';
@@ -10,10 +9,10 @@ import lightdashProjectConfigSchema from '../schemas/json/lightdash-project-conf
 import { ParseError } from '../types/errors';
 
 export const loadLightdashProjectConfig = async (
-    configPath: string,
+    yamlFileContents: string,
 ): Promise<LightdashProjectConfig> => {
     try {
-        const configFile = yaml.load(await fs.readFile(configPath, 'utf8'));
+        const configFile = yaml.load(yamlFileContents);
         const ajv = new Ajv({ coerceTypes: true });
         const validate = ajv.compile<LightdashProjectConfig>(
             lightdashProjectConfigSchema,
@@ -27,7 +26,7 @@ export const loadLightdashProjectConfig = async (
                 { indent: 2 },
             );
             throw new ParseError(
-                `Invalid lightdash.config.yml at ${configPath}\n${errors}`,
+                `Invalid lightdash.config.yml with errors:\n${errors}`,
             );
         }
 
