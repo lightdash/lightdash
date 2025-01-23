@@ -5,7 +5,14 @@ import {
     type CartesianChartDisplay,
     type ChartKind,
 } from '@lightdash/common';
-import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
+import {
+    Box,
+    Group,
+    SegmentedControl,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
@@ -63,15 +70,20 @@ export const SingleSeriesConfiguration = ({
                 })}
             >
                 <Config.Subheading>{reference}</Config.Subheading>
-                <Config.Group>
+                <Config.Group grow spacing={0}>
                     <Config.Label>Label</Config.Label>
-                    <Group spacing="xs" noWrap>
-                        <ColorSelector
-                            color={color}
-                            onColorChange={(c) => onColorChange(reference, c)}
-                            swatches={colors}
-                        />
+                    <Group spacing="xs" noWrap grow position="left">
+                        <Box w="20px">
+                            <ColorSelector
+                                color={color}
+                                onColorChange={(c) =>
+                                    onColorChange(reference, c)
+                                }
+                                swatches={colors}
+                            />
+                        </Box>
                         <TextInput
+                            maw="100%"
                             radius="md"
                             value={label}
                             onChange={(e) =>
@@ -80,7 +92,7 @@ export const SingleSeriesConfiguration = ({
                         />
                     </Group>
                 </Config.Group>
-                <Config.Group>
+                <Config.Group grow spacing={0} noWrap>
                     <Config.Label>Chart Type</Config.Label>
                     <CartesianChartTypeConfig
                         canSelectDifferentTypeFromBaseChart={true}
@@ -91,10 +103,10 @@ export const SingleSeriesConfiguration = ({
                         onChangeType={(value) => onTypeChange(reference, value)}
                     />
                 </Config.Group>
-                <Config.Group>
+                <Config.Group grow spacing={0} noWrap>
                     <Config.Label>Y Axis</Config.Label>
                     <SegmentedControl
-                        sx={{ alignSelf: 'center' }}
+                        sx={{ minWidth: '130px' }}
                         radius="md"
                         data={[
                             {
@@ -109,7 +121,7 @@ export const SingleSeriesConfiguration = ({
                             {
                                 value: 'right',
                                 label: (
-                                    <Group spacing="xs" noWrap>
+                                    <Group spacing="xs" noWrap position="right">
                                         <Text>Right</Text>
                                         <MantineIcon icon={IconAlignRight} />
                                     </Group>
@@ -127,7 +139,7 @@ export const SingleSeriesConfiguration = ({
                         }
                     />
                 </Config.Group>
-                <Config.Group>
+                <Config.Group grow spacing={0} noWrap>
                     <Config.Label>Value labels</Config.Label>
                     <CartesianChartValueLabelConfig
                         valueLabelPosition={

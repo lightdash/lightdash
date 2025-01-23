@@ -70,7 +70,6 @@ export const CartesianChartTypeConfig: FC<Props> = ({ onChangeType, type }) => {
             ) => value && onChangeType(value)}
             styles={(theme) => ({
                 input: {
-                    width: '150px',
                     fontWeight: 500,
                 },
                 item: {

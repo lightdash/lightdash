@@ -1,11 +1,17 @@
-import { Box, Group as MantineGroup, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Group as MantineGroup,
+    Stack,
+    Text,
+    type GroupProps,
+} from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
 
 interface ConfigComponent extends FC<PropsWithChildren> {
     Section: FC<PropsWithChildren>;
     Heading: FC<PropsWithChildren>;
     Subheading: FC<PropsWithChildren>;
-    Group: FC<PropsWithChildren>;
+    Group: FC<PropsWithChildren & GroupProps>;
     Label: FC<PropsWithChildren>;
 }
 
@@ -33,8 +39,10 @@ const Label: FC<PropsWithChildren> = ({ children }) => (
     </Text>
 );
 
-const Group: FC<PropsWithChildren> = ({ children }) => (
-    <MantineGroup position="apart">{children}</MantineGroup>
+const Group: FC<PropsWithChildren & GroupProps> = ({ children, ...props }) => (
+    <MantineGroup position="apart" {...props}>
+        {children}
+    </MantineGroup>
 );
 
 Config.Section = Section;

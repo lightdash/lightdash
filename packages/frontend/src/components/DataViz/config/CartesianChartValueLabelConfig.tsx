@@ -83,7 +83,6 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
             }
             styles={(theme) => ({
                 input: {
-                    width: '110px',
                     fontWeight: 500,
                 },
                 item: {
