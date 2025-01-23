@@ -1,9 +1,9 @@
 import {
     DbtPackages,
-    DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     Explore,
     ExploreError,
+    LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 

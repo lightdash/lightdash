@@ -1,4 +1,4 @@
-import { type SupportedDbtAdapter } from '../types/dbt';
+import { type DbtRawModelNode, type SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import {
     type CompiledExploreJoin,
@@ -29,6 +29,7 @@ import {
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
+import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -78,6 +79,8 @@ export type UncompiledExplore = {
     ymlPath?: string;
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
+    meta: DbtRawModelNode['meta'];
 };
 
 const getReferencedTable = (
@@ -110,6 +113,8 @@ export class ExploreCompiler {
         warehouse,
         ymlPath,
         sqlPath,
+        spotlightConfig,
+        meta,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -245,7 +250,17 @@ export class ExploreCompiler {
             this.compileJoin(j, includedTables),
         );
 
+        const spotlightVisibility =
+            meta.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+
         return {
+            ...(spotlightVisibility !== undefined
+                ? {
+                      spotlight: {
+                          visibility: spotlightVisibility,
+                      },
+                  }
+                : {}),
             name,
             label,
             tags,

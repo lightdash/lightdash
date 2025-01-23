@@ -532,6 +532,9 @@ importers:
       ajv-formats:
         specifier: ^2.1.0
         version: 2.1.1(ajv@8.11.0)
+      better-ajv-errors:
+        specifier: ^1.2.0
+        version: 1.2.0(ajv@8.11.0)
       cronstrue:
         specifier: ^2.23.0
         version: 2.23.0
@@ -541,6 +544,9 @@ importers:
       dependency-graph:
         specifier: ^0.11.0
         version: 0.11.0
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.0
       liquidjs:
         specifier: ^10.0.0
         version: 10.0.0
@@ -569,6 +575,9 @@ importers:
         specifier: ^3.22.4
         version: 3.23.3
     devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/pegjs':
         specifier: ^0.10.3
         version: 0.10.3

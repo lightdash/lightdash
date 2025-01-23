@@ -1,4 +1,9 @@
-import type { AdditionalMetric, currencies, DefaultTimeDimension } from '..';
+import type {
+    AdditionalMetric,
+    currencies,
+    DefaultTimeDimension,
+    LightdashProjectConfig,
+} from '..';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
 import { type TimeFrames } from './timeFrames';
@@ -447,6 +452,11 @@ export interface Metric extends Field {
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
     defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
+    spotlight?: {
+        visibility: Required<
+            NonNullable<LightdashProjectConfig['spotlight']>
+        >['default_visibility'];
+    };
 }
 
 export const isFilterableDimension = (
