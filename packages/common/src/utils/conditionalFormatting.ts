@@ -253,4 +253,4 @@ export const getConditionalFormattingColor = (
     );
 };
 
-export const bruno = (): number => 'hi im bruno';
+export const bruno = (): string => 'hi im bruno';
