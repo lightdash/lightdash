@@ -126,9 +126,6 @@ export const explore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'valid_explore',
     label: 'valid_explore',
-    spotlight: {
-        visibility: 'show',
-    },
     tags: [],
     baseTable: 'table',
     joinedTables: [],
@@ -166,9 +163,6 @@ export const explore: Explore = {
                     compiledSql: 'compiledSql',
                     tablesReferences: undefined,
                     hidden: false,
-                    spotlight: {
-                        visibility: 'show',
-                    },
                 },
             },
             lineageGraph: {},
@@ -199,9 +193,6 @@ export const exploreWithJoin: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'joined_explore',
     label: 'joined_explore',
-    spotlight: {
-        visibility: 'show',
-    },
     tags: [],
     baseTable: 'another_table',
     joinedTables: [], // This would normally be set, but we don't need it for this test
@@ -240,9 +231,6 @@ export const exploreWithJoin: Explore = {
                     compiledSql: 'compiledSql',
                     tablesReferences: undefined,
                     hidden: false,
-                    spotlight: {
-                        visibility: 'show',
-                    },
                 },
             },
             lineageGraph: {},
