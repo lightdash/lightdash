@@ -44,6 +44,7 @@ export class ExploreController extends BaseController {
     async SetExplores(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         @Body() body: any[], // tsoa doesn't seem to work with explores from CLI
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);

@@ -12,6 +12,7 @@ import {
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {
         throw new ParameterError();
@@ -23,6 +24,7 @@ export const sanitizeStringParam = (value: any) => {
     return trimmedValue;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const sanitizeEmailParam = (value: any) => {
     const email = sanitizeStringParam(value);
     if (!validateEmail(email)) {

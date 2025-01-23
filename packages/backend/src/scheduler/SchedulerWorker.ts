@@ -187,6 +187,7 @@ export class SchedulerWorker extends SchedulerTask {
             },
 
             handleScheduledDelivery: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -220,6 +221,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             sendSlackNotification: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -253,6 +255,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             sendEmailNotification: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -285,6 +288,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             uploadGsheets: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
@@ -312,6 +316,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             downloadCsv: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
@@ -345,6 +350,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             uploadGsheetFromQuery: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -380,6 +386,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             createProjectWithCompile: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -397,6 +404,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             compileProject: async (payload: any, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'compileProject',
@@ -413,6 +421,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             testAndCompileProject: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -430,6 +439,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             validateProject: async (payload: any, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'validateProject',
@@ -445,6 +455,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             [sqlRunnerJob]: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
@@ -477,6 +488,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [sqlRunnerPivotQueryJob]: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -511,6 +523,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [semanticLayerQueryJob]: async (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 payload: any,
                 helpers: JobHelpers,
             ) => {
@@ -544,6 +557,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             [indexCatalogJob]: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(

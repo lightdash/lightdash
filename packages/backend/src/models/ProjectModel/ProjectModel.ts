@@ -124,10 +124,13 @@ export class ProjectModel {
             ...incompleteConfig,
             ...sensitiveDbtCredentialsFieldNames.reduce(
                 (sum, secretKey) =>
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     !(incompleteConfig as any)[secretKey] &&
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (completeConfig as any)[secretKey]
                         ? {
                               ...sum,
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               [secretKey]: (completeConfig as any)[secretKey],
                           }
                         : sum,
@@ -147,10 +150,13 @@ export class ProjectModel {
             ...incompleteConfig,
             ...sensitiveCredentialsFieldNames.reduce(
                 (sum, secretKey) =>
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     !(incompleteConfig as any)[secretKey] &&
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (completeConfig as any)[secretKey]
                         ? {
                               ...sum,
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               [secretKey]: (completeConfig as any)[secretKey],
                           }
                         : sum,
@@ -729,6 +735,7 @@ export class ProjectModel {
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
                 ([key]) =>
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),
         ) as DbtProjectConfig;
@@ -737,6 +744,7 @@ export class ProjectModel {
             ? (Object.fromEntries(
                   Object.entries(sensitiveCredentials).filter(
                       ([key]) =>
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           !sensitiveCredentialsFieldNames.includes(key as any),
                   ),
               ) as WarehouseCredentials)
@@ -1187,6 +1195,7 @@ export class ProjectModel {
                 role,
                 user_id: user.user_id,
             });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             if (
                 error instanceof DatabaseError &&
@@ -1733,6 +1742,7 @@ export class ProjectModel {
             const copyChartVersionContent = async (
                 table: string,
                 excludedFields: string[],
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 fieldPreprocess: { [field: string]: (value: any) => any } = {},
             ) => {
                 const content = await trx(table)
@@ -1775,6 +1785,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 { custom_range: (value: any) => JSON.stringify(value) },
             );
             await copyChartVersionContent(
@@ -1790,6 +1801,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
                 ['saved_queries_version_additional_metric_id', 'uuid'],
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 { filters: (value: any) => JSON.stringify(value) },
             );
 

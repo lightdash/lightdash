@@ -1,5 +1,6 @@
 import {
     friendlyName,
+    getErrorMessage,
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
@@ -240,9 +241,9 @@ export class SlackClient {
                 ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 ...slackMessageArgs,
             })
-            .catch((e: any) => {
+            .catch((e) => {
                 Logger.error(
-                    `Unable to post message on Slack: ${JSON.stringify(e)}`,
+                    `Unable to post message on Slack: ${getErrorMessage(e)}`,
                 );
                 throw e;
             });
@@ -276,9 +277,9 @@ export class SlackClient {
                         ? { icon_url: appProfilePhotoUrl }
                         : {}),
                 })
-                .catch((e: any) => {
+                .catch((e) => {
                     Logger.error(
-                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${JSON.stringify(
+                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${getErrorMessage(
                             e,
                         )}`,
                     );

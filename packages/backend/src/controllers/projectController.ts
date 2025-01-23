@@ -871,7 +871,9 @@ export class ProjectController extends BaseController {
             ChartAsCode,
             'metricQuery' | 'chartConfig' | 'description'
         > & {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             chartConfig: any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             metricQuery: any;
             description?: string | null; // Allow both undefined and null
         },
@@ -901,7 +903,9 @@ export class ProjectController extends BaseController {
             DashboardAsCode,
             'filters' | 'tiles' | 'description'
         > & {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             filters: any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             tiles: any;
             description?: string | null; // Allow both undefined and null
         }, // Simplify filter type for tsoa

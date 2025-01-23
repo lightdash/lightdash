@@ -74,6 +74,7 @@ export const warehouseClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     parseWarehouseCatalog(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
@@ -131,6 +132,7 @@ export const bigqueryClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     parseWarehouseCatalog(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {

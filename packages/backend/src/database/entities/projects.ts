@@ -65,6 +65,7 @@ export type ProjectTable = Knex.CompositeTableType<
 
 export type DbCachedExplores = {
     project_uuid: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     explores: any;
 };
 
@@ -75,6 +76,7 @@ export type DbCachedExplore = {
     project_uuid: string;
     name: string;
     table_names: string[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     explore: any;
 };
 
@@ -85,6 +87,7 @@ export type CachedExploreTable = Knex.CompositeTableType<
 
 export type DbCachedWarehouse = {
     project_uuid: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     warehouse: any;
 };
 

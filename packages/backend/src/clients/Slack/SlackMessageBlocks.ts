@@ -451,6 +451,7 @@ export const getUnfurlBlocks = (
 
 export const getNotificationChannelErrorBlocks = (
     schedulerName: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     error: any,
     resourceUrl: string,
     type: 'Scheduled delivery' | 'Google Sync' = 'Scheduled delivery',

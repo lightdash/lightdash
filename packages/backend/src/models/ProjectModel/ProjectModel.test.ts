@@ -25,6 +25,7 @@ import {
 
 function queryMatcher(
     tableName: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params: any[] = [],
 ): FunctionQueryMatcher {
     return ({ sql, bindings }: RawQuery) =>

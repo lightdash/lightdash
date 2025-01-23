@@ -268,6 +268,7 @@ export default class App {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             knex: this.database as any,
             createtable: false,
             tablename: 'sessions',

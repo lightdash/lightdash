@@ -126,6 +126,7 @@ if (
                 'analytics.lightdash.com',
                 'intercom.io',
             ];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             page.on('request', (request: any) => {
                 const requestUrl = request.url();
                 if (blockedUrls.includes(requestUrl)) {
@@ -145,6 +146,7 @@ if (
             await page.waitForSelector(selector);
             const element = await page.$(selector);
             if (isDashboard) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 await page.evaluate((sel: any) => {
                     // @ts-ignore
                     const elements = document.querySelectorAll(sel);

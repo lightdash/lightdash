@@ -1,4 +1,5 @@
 import {
+    getErrorMessage,
     LightdashMode,
     SlackInstallationNotFoundError,
 } from '@lightdash/common';
@@ -21,7 +22,9 @@ import { slackOptions } from './SlackOptions';
 const notifySlackError = async (
     error: unknown,
     url: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     client: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     event: any,
     { appProfilePhotoUrl }: { appProfilePhotoUrl?: string },
 ): Promise<void> => {
@@ -38,8 +41,10 @@ const notifySlackError = async (
             ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
             text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
-        .catch((er: any) =>
-            Logger.error(`Unable send slack error message: ${er} `),
+        .catch((er: unknown) =>
+            Logger.error(
+                `Unable send slack error message: ${getErrorMessage(er)}`,
+            ),
         );
 };
 
@@ -126,9 +131,11 @@ export class SlackBot {
     }
 
     private async sendUnfurl(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         event: any,
         originalUrl: string,
         unfurl: Unfurl,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         client: any,
     ) {
         const unfurlBlocks = getUnfurlBlocks(originalUrl, unfurl);
@@ -138,12 +145,12 @@ export class SlackBot {
                 channel: event.channel,
                 unfurls: unfurlBlocks,
             })
-            .catch((e: any) => {
+            .catch((e: unknown) => {
                 this.analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: event.user,
                     properties: {
-                        error: `${e}`,
+                        error: `${getErrorMessage(e)}`,
                     },
                 });
                 Logger.error(
@@ -154,6 +161,7 @@ export class SlackBot {
             });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async unfurlSlackUrls(message: any) {
         const { event, client, context } = message;
         let appProfilePhotoUrl: string | undefined;
@@ -162,6 +170,7 @@ export class SlackBot {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         event.links.map(async (l: any) => {
             const eventUserId = context.botUserId;
 

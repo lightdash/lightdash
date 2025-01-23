@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/node';
 import { Job } from 'graphile-worker';
 import Logger from '../logging/logger';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
     let timer: NodeJS.Timeout;
     return Promise.race([
@@ -13,6 +14,7 @@ async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
 }
 
 export async function tryJobOrTimeout(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     prom: Promise<any>,
     job: Job,
     time: number,

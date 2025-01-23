@@ -34,7 +34,8 @@ export class GoogleDriveClient {
             lightdashConfig.auth.google.oauth2ClientSecret !== undefined;
     }
 
-    private async getCredentials(refreshToken: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private async getCredentials(refreshToken: string): Promise<any> {
         try {
             const credentials = {
                 type: 'authorized_user',
@@ -104,7 +105,7 @@ export class GoogleDriveClient {
                     ],
                 },
             })
-            .catch((error: any) => {
+            .catch((error) => {
                 if (
                     error.code === 400 &&
                     error.errors[0]?.message.includes(tabName)
@@ -217,6 +218,7 @@ export class GoogleDriveClient {
     }
 
     static formatCell(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         value: any,
         item?: Field | TableCalculation | CustomDimension | Metric,
     ) {

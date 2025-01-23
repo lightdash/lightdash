@@ -8,12 +8,14 @@ export type DbAnalyticsChartViews = {
     chart_uuid: string;
     user_uuid: string;
     timestamp: Date;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: Record<string, any>;
 };
 export type DbAnalyticsDashboardViews = {
     dashboard_uuid: string;
     user_uuid: string;
     timestamp: Date;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: Record<string, any>;
 };
 

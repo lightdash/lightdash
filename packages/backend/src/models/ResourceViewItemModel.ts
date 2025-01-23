@@ -57,6 +57,7 @@ const getCharts = async (
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .orderBy('pinned_chart.order', 'asc')) as Record<string, any>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
@@ -140,6 +141,7 @@ const getDashboards = async (
             updated_by_user_last_name: 'users.last_name',
         })
         .orderBy('pinned_dashboard.order', 'asc')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.DASHBOARD =
         ResourceViewItemType.DASHBOARD;
@@ -170,6 +172,7 @@ const getAllSpaces = async (
     projectUuid: string,
     pinnedListUuid: string,
 ): Promise<ResourceViewSpaceItem[]> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { rows } = await knex.raw<{ rows: Record<string, any>[] }>(
         `
             select

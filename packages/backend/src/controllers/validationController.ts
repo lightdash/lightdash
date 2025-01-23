@@ -47,7 +47,8 @@ export class ValidationController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body()
-        body: { explores?: any[]; validationTargets?: ValidationTarget[] }, // TODO: This should be (Explore| ExploreError)[] but using this type will not process metrics/dimensions
+        body: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { explores?: any[]; validationTargets?: ValidationTarget[] }, // TODO: This should be (Explore| ExploreError)[] but using this type will not process metrics/dimensions
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
         const context = getRequestMethod(

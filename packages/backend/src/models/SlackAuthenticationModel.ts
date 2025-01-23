@@ -131,6 +131,7 @@ export class SlackAuthenticationModel {
         };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async deleteInstallation(installQuery: any) {
         const teamId = getTeamId(installQuery);
 

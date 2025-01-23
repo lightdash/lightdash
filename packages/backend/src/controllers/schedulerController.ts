@@ -95,6 +95,7 @@ export class SchedulerController extends BaseController {
     async patch(
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         @Body() body: any, // TODO: It should be UpdateSchedulerAndTargetsWithoutId but tsoa returns an error
     ): Promise<ApiSchedulerAndTargetsResponse> {
         this.setStatus(200);
@@ -228,6 +229,7 @@ export class SchedulerController extends BaseController {
     @OperationId('sendScheduler')
     async post(
         @Request() req: express.Request,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         @Body() body: any, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
     ): Promise<ApiTestSchedulerResponse> {
         this.setStatus(200);

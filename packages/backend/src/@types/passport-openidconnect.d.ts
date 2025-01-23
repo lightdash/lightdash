@@ -34,7 +34,9 @@ declare module 'passport-openidconnect' {
         (
             req: express.Request,
             issuer: string,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             profile: any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             done: (error: any, user?: any, options?: IVerifyOptions) => void,
         ): void;
     }
@@ -42,7 +44,9 @@ declare module 'passport-openidconnect' {
     interface VerifyFunction {
         (
             issuer: string,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             profile: any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             done: (error: any, user?: any, options?: IVerifyOptions) => void,
         ): void;
     }

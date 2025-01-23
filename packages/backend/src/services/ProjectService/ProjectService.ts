@@ -1773,6 +1773,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         chartUuid: string,
         context: QueryExecutionContext,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
@@ -1817,11 +1818,13 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         query: any;
         metricQuery: MetricQuery;
         queryTags: RunQueryTags;
         invalidateCache?: boolean;
     }): Promise<{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
     }> {
@@ -1973,6 +1976,7 @@ export class ProjectService extends BaseService {
         granularity?: DateGranularity;
         chartUuid: string | undefined; // for analytics
     }): Promise<{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -3858,6 +3862,7 @@ export class ProjectService extends BaseService {
                 },
             );
             return charts.data.length > 0;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             return false;
         }
@@ -4864,7 +4869,7 @@ export class ProjectService extends BaseService {
         );
 
         const charts = await Promise.all(chartPromises);
-
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return charts.reduce<any[]>((acc, chart) => {
             const customMetrics = chart.metricQuery.additionalMetrics;
 

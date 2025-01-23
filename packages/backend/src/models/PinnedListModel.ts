@@ -176,6 +176,7 @@ export class PinnedListModel {
         itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const promises: Promise<any>[] = [];
             itemsOrder.forEach((item) => {
                 switch (item.type) {

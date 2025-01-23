@@ -640,6 +640,7 @@ export class MetricsExplorerService<
                 metricQuery,
             );
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let compareRows: Record<string, any>[] | undefined;
         let compareDateRange: MetricExplorerDateRange | undefined;
 

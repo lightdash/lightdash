@@ -10,7 +10,9 @@ class EventEmitterWithExecutionContent
     extends EventEmitter
     implements WorkerEvents
 {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     on(event: string | symbol, listener: (...args: any[]) => void): this {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return super.on(event, (...args: any[]) => {
             const { worker, job } = args[0] as { worker?: Worker; job?: Job };
             const executionContext: ExecutionContextInfo = {};

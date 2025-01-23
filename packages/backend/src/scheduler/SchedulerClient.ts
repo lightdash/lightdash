@@ -96,6 +96,7 @@ export class SchedulerClient {
             connectionString: lightdashConfig.database.connectionUri,
         })
             .then((utils) => utils)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .catch((e: any) => {
                 Logger.error('Error migrating graphile worker', e);
                 process.exit(1);
@@ -106,6 +107,7 @@ export class SchedulerClient {
         task: string,
         jobId: string,
         runAt: Date,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         payload: any,
         funct: () => Promise<void>,
     ) {
@@ -168,6 +170,7 @@ export class SchedulerClient {
     private static async addJob(
         graphileClient: WorkerUtils,
         identifier: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         payload: any,
         scheduledAt: Date,
         priority: JobPriority,
@@ -468,6 +471,7 @@ export class SchedulerClient {
                     status: SchedulerJobStatus.SCHEDULED,
                 });
             });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             Logger.error(
                 `Unable to schedule job for scheduler ${scheduler.schedulerUuid}`,
@@ -516,6 +520,7 @@ export class SchedulerClient {
                 `Creating ${promises.length} notification jobs for scheduler ${schedulerUuid}`,
             );
             return await Promise.all(promises);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             Logger.error(
                 `Unable to schedule notification job for scheduler ${schedulerUuid}`,

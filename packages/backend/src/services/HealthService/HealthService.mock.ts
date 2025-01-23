@@ -81,4 +81,5 @@ export const BaseResponse: HealthState = {
 export const userMock = {
     userUuid: 'uuid',
     organizationUuid: 'orguuid',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any as SessionUser;

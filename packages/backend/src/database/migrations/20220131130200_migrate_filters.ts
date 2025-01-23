@@ -21,6 +21,7 @@ interface OldFilterGroup {
 
 export type FilterRule<
     O = string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     V = any,
     S extends object | undefined = undefined,
 > = {
@@ -90,6 +91,7 @@ export async function up(knex: Knex): Promise<void> {
             }[]
         >(['saved_queries_version_id', 'filters']);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const promises: Promise<any>[] = [];
         savedCharts.forEach(({ saved_queries_version_id, filters }) => {
             promises.push(

@@ -28,6 +28,7 @@ export class AnalyticsService extends BaseService {
     async getUserActivity(
         projectUuid: string,
         user: SessionUser,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<any> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');

@@ -42,6 +42,7 @@ type DbtCloudEnvironmentResponse = {
                         uniqueId: string;
                         name: string;
                         description: string;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         meta: any;
                         tags: string[];
                         filePath: string;
@@ -63,12 +64,14 @@ type DbtCloudEnvironmentResponse = {
                         releaseVersion: string;
                         contractEnforced: boolean;
                         patchPath: string;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         config: any;
                         catalog: {
                             columns: {
                                 name: string;
                                 description: string;
                                 type: string;
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 meta: any;
                             };
                         };
@@ -179,6 +182,7 @@ export class DbtMetadataApiClient implements DbtClient {
         });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     static parseError(e: any): DbtError {
         const errors: string[] | undefined = e?.response?.errors?.map(
             (innerError: { message: string }) => {
@@ -276,6 +280,7 @@ export class DbtMetadataApiClient implements DbtClient {
                             columns: Object.values(
                                 node.catalog?.columns || [],
                             ).reduce<DbtModelNode['columns']>(
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 (acc, column: any) => {
                                     acc[column.name] = {
                                         name: column.name,

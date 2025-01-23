@@ -63,7 +63,7 @@ export default class EmailClient {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
                 },
             );
-
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             this.transporter.verify((error: any) => {
                 if (error) {
                     throw new SmptError(
@@ -92,12 +92,8 @@ export default class EmailClient {
         }
     }
 
-    private async sendEmail(
-        options: Mail.Options & {
-            template: string;
-            context: Record<string, any>;
-        },
-    ) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private async sendEmail(options: any): Promise<void> {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);

@@ -206,6 +206,7 @@ export class CsvService extends BaseService {
     }
 
     static convertRowToCsv(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         row: Record<string, any>,
         itemMap: ItemsMap,
         onlyRaw: boolean,
@@ -262,6 +263,7 @@ export class CsvService extends BaseService {
     }
 
     static async writeRowsToFile(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[],
         onlyRaw: boolean,
         metricQuery: MetricQuery,
@@ -277,6 +279,7 @@ export class CsvService extends BaseService {
         const selectedFieldIds = [
             ...metricQuery.metrics,
             ...metricQuery.dimensions,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
         ].filter((id) => !hiddenFields.includes(id));
 
@@ -319,6 +322,7 @@ export class CsvService extends BaseService {
         const rowTransformer = new Transform({
             objectMode: true,
             transform(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 chunk: any,
                 encoding: BufferEncoding,
                 callback: TransformCallback,
@@ -373,6 +377,7 @@ export class CsvService extends BaseService {
         return convertSqlToCsv(results, customLabels);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     couldBeTruncated(rows: Record<string, any>[]) {
         if (rows.length === 0) return false;
 
@@ -455,6 +460,7 @@ This method can be memory intensive
     }: {
         name?: string;
         projectUuid: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows: Record<string, any>[];
         itemMap: ItemsMap;
         metricQuery: MetricQuery;

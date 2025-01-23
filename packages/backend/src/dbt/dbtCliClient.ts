@@ -27,6 +27,7 @@ type RawDbtProjectConfig = {
     'target-dir'?: string;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isRawDbtConfig = (raw: any): raw is RawDbtProjectConfig =>
     typeof raw === 'object' &&
     raw !== null &&
@@ -290,6 +291,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private async loadDbtTargetArtifact(filename: string): Promise<any> {
         const targetDir = await this._getTargetDirectory();
 
@@ -304,6 +306,7 @@ export class DbtCliClient implements DbtClient {
     static async loadDbtFile(
         fullPath: string,
         fileType: 'JSON' | 'YML' = 'JSON',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<any> {
         try {
             Logger.debug(`Load dbt artifact: ${fullPath}`);

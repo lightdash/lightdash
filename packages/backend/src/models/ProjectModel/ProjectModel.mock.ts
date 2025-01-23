@@ -41,6 +41,7 @@ const bigqueryCredentials: CreateBigqueryCredentials = {
 export const encryptionUtilMock = {
     encrypt: jest.fn(() => Buffer.from('encrypted')),
     decrypt: jest.fn((encrypted: Buffer) => encrypted.toString()),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any as EncryptionUtil;
 
 export const projectUuid = 'project uuid';
@@ -86,6 +87,7 @@ export const expectedProject: Project = {
     dbtConnection: {
         environment_id: 'environment_id',
         type: DbtProjectType.DBT_CLOUD_IDE,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any as DbtCloudIDEProjectConfig,
     warehouseConnection: {
         dataset: 'name',

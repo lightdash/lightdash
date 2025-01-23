@@ -165,6 +165,7 @@ export class SqlRunnerController extends BaseController {
         @Path() fileId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<any> {
         this.setStatus(200);
         this.setHeader('Content-Type', 'application/json');

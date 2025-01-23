@@ -80,6 +80,7 @@ export class SavedChartController extends BaseController {
     async postDashboardTile(
         @Body()
         body: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             dashboardFilters: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
@@ -225,6 +226,7 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Body()
         body: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             dashboardFilters?: any; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
         },
@@ -306,6 +308,7 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Body()
         body: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             dashboardFilters: any; // DashboardFilters; temp disable validation
             tileUuid?: string;
             // Csv properties
