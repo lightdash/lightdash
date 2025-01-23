@@ -1,5 +1,5 @@
 import { Stack } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
@@ -20,6 +20,18 @@ import {
 } from '../hooks/useProject';
 import useApp from '../providers/App/useApp';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
+
+const test = () => {
+    return Promise.resolve(1);
+};
+
+const test2 = async () => {
+    try {
+        return await test();
+    } catch (error) {
+        console.error(error);
+    }
+};
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
@@ -46,6 +58,10 @@ const Home: FC = () => {
     const error = onboarding.error || project.error;
 
     useUnmount(() => onboarding.remove());
+
+    useEffect(() => {
+        test2().then(console.log).catch(console.error);
+    }, []);
 
     if (isLoading) {
         return <PageSpinner />;
