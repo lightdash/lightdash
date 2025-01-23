@@ -6,6 +6,7 @@ import {
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
+    DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     ExploreError,
     friendlyName,
@@ -16,6 +17,7 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    loadLightdashProjectConfig,
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
@@ -23,8 +25,11 @@ import {
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
+    type LightdashProjectConfig,
 } from '@lightdash/common';
+import { promises as fs } from 'fs';
 import { WarehouseClient } from '@lightdash/warehouses';
+import path from 'path';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -37,16 +42,20 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtVersion: SupportedDbtVersions;
 
+    dbtProjectDir?: string;
+
     constructor(
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
         cachedWarehouse: CachedWarehouse,
         dbtVersion: SupportedDbtVersions,
+        dbtProjectDir?: string,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
         this.dbtVersion = dbtVersion;
+        this.dbtProjectDir = dbtProjectDir;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -67,6 +76,35 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return this.dbtClient.getDbtPackages();
         }
         return undefined;
+    }
+
+    private async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+        if (!this.dbtProjectDir) {
+            return {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            };
+        }
+
+        const configPath = path.join(
+            this.dbtProjectDir,
+            'lightdash.config.yml',
+        );
+
+        try {
+            const fileContents = await fs.readFile(configPath, 'utf8');
+            const config = await loadLightdashProjectConfig(fileContents);
+            return config;
+        } catch (e) {
+            Logger.debug(`No lightdash.config.yml found in ${configPath}`);
+
+            if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+                // Return default config if file doesn't exist
+                return {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                };
+            }
+            throw e;
+        }
     }
 
     public async compileAllExplores(
@@ -143,6 +181,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 : Object.values(manifest.metrics),
         );
 
+        const lightdashProjectConfig = await this.getLightdashProjectConfig();
+
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
             if (this.cachedWarehouse?.warehouseCatalog === undefined) {
@@ -165,6 +205,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 metrics,
                 this.warehouseClient,
+                lightdashProjectConfig,
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -202,6 +243,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     adapterType,
                     metrics,
                     this.warehouseClient,
+                    lightdashProjectConfig,
                 );
                 return [...explores, ...failedExplores];
             }

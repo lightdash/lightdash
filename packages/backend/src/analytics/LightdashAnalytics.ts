@@ -5,6 +5,7 @@ import {
     ChartKind,
     ChartType,
     DbtProjectType,
+    getErrorMessage,
     getRequestMethod,
     LightdashInstallType,
     LightdashMode,
@@ -1353,7 +1354,7 @@ export class LightdashAnalytics extends Analytics {
                 event: `${payload.event}.error`,
                 properties: {
                     ...payload.properties,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
             Logger.error(`Error in scheduler task: ${e}`);

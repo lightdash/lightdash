@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     MAX_METRICS_TREE_NODE_COUNT,
     type CatalogItem,
+    SpotlightTableColumns,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -54,12 +55,14 @@ import {
     setSearch,
     setTableSorting,
     toggleMetricExploreModal,
+    setColumnConfig,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import Canvas from './Canvas';
+import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
@@ -272,7 +275,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         return flatData.some((item) => item.categories?.length);
     }, [flatData]);
 
-    const noMeticsAvailable = useMemo(() => {
+    const noMetricsAvailable = useMemo(() => {
         return (
             flatData.length === 0 &&
             !isLoading &&
@@ -282,6 +285,28 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             categoryFilters.length === 0
         );
     }, [flatData, isLoading, isFetching, search, categoryFilters, hasNextPage]);
+
+    // Get column config from Redux
+    const columnConfig = useAppSelector(
+        (state) => state.metricsCatalog.columnConfig,
+    );
+
+    // Only fetch saved config on initial load
+    const { data: spotlightConfig } = useSpotlightTableConfig({
+        projectUuid,
+    });
+
+    const columnVisibilityWithPermissions = useMemo(
+        () => ({
+            ...columnConfig.columnVisibility,
+            [SpotlightTableColumns.CATEGORIES]:
+                columnConfig.columnVisibility[
+                    SpotlightTableColumns.CATEGORIES
+                ] &&
+                (canManageTags || dataHasCategories),
+        }),
+        [columnConfig.columnVisibility, canManageTags, dataHasCategories],
+    );
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -355,9 +380,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 .getAllColumns()
                 .some((c) => c.getIsResizing());
 
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
+            const isLastVisibleColumn =
+                props.table
+                    .getVisibleLeafColumns()
+                    .findIndex((col) => col.id === props.column.id) ===
+                props.table.getVisibleLeafColumns().length - 1;
 
             return {
                 bg: 'gray.0',
@@ -370,7 +397,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
-                              isLastColumn
+                              isLastVisibleColumn
                                   ? 'transparent'
                                   : theme.colors.gray[2]
                           }`,
@@ -425,9 +452,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             },
         },
         mantineTableBodyCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
+            const isLastVisibleColumn =
+                props.table
+                    .getVisibleLeafColumns()
+                    .findIndex((col) => col.id === props.column.id) ===
+                props.table.getVisibleLeafColumns().length - 1;
 
             const isLastRow = flatData.length === props.row.index + 1;
             const hasScroll = tableContainerRef.current
@@ -440,7 +469,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: isLastColumn
+                    borderRight: isLastVisibleColumn
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
                     // This is needed to remove the bottom border of the last row when there are rows
@@ -473,6 +502,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     isValidMetricsNodeCount={isValidMetricsNodeCount}
                     isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                     metricCatalogView={metricCatalogView}
+                    table={table}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -506,7 +536,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             </Box>
         ),
         renderEmptyRowsFallback: () => {
-            return noMeticsAvailable ? (
+            return noMetricsAvailable ? (
                 <SuboptimalState
                     title="No metrics defined in this project"
                     action={
@@ -547,6 +577,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
+            columnOrder: columnConfig.columnOrder,
+            columnVisibility: columnVisibilityWithPermissions,
         },
         mantineLoadingOverlayProps: {
             loaderProps: {
@@ -555,9 +587,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
-            columnVisibility: {
-                categories: false,
-            },
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
@@ -570,11 +599,12 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         editDisplayMode: 'cell',
     });
 
+    // Initialize Redux state from API config whenever we load it via the API
     useEffect(() => {
-        table.setColumnVisibility({
-            categories: canManageTags || dataHasCategories,
-        });
-    }, [canManageTags, dataHasCategories, table]);
+        if (spotlightConfig) {
+            dispatch(setColumnConfig(spotlightConfig));
+        }
+    }, [dispatch, spotlightConfig]);
 
     useEffect(
         function handleRefetchOnViewChange() {
@@ -624,6 +654,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             isValidMetricsNodeCount={isValidMetricsNodeCount}
                             isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                             metricCatalogView={metricCatalogView}
+                            table={table}
                         />
                         <Divider color="gray.2" />
                     </Box>

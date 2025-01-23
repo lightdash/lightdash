@@ -14,6 +14,8 @@ import { SshController } from './../controllers/sshController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SqlRunnerController } from './../controllers/sqlRunnerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SpotlightController } from './../controllers/spotlightController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SpaceController } from './../controllers/spaceController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SlackController } from './../controllers/slackController';
@@ -1425,6 +1427,11 @@ const models: TsoaRoute.Models = {
         enums: ['hidden', 'top', 'bottom', 'left', 'right', 'inside'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AxisSide: {
+        dataType: 'refEnum',
+        enums: [0, 1],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChartDisplay: {
         dataType: 'refAlias',
         type: {
@@ -1461,7 +1468,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            whichYAxis: { dataType: 'double' },
+                            whichYAxis: { ref: 'AxisSide' },
                             valueLabelPosition: {
                                 ref: 'ValueLabelPositionOptions',
                             },
@@ -2162,6 +2169,58 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'PullRequestCreated', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpotlightTableColumns: {
+        dataType: 'refEnum',
+        enums: [
+            'label',
+            'tableLabel',
+            'description',
+            'categories',
+            'chartUsage',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ColumnConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    isVisible: { dataType: 'boolean', required: true },
+                    column: { ref: 'SpotlightTableColumns', required: true },
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SpotlightTableConfig.columnConfig_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                columnConfig: { ref: 'ColumnConfig', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetSpotlightTableConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'Pick_SpotlightTableConfig.columnConfig_',
+                    required: true,
+                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -3930,6 +3989,19 @@ const models: TsoaRoute.Models = {
                 ref: 'Record_string.string-or-string-Array_',
             },
             defaultTimeDimension: { ref: 'DefaultTimeDimension' },
+            spotlight: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    visibility: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['show'] },
+                            { dataType: 'enum', enums: ['hide'] },
+                        ],
+                        required: true,
+                    },
+                },
+            },
         },
         additionalProperties: true,
     },
@@ -9278,6 +9350,19 @@ const models: TsoaRoute.Models = {
                 ref: 'Record_string.string-or-string-Array_',
             },
             defaultTimeDimension: { ref: 'DefaultTimeDimension' },
+            spotlight: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    visibility: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['show'] },
+                            { dataType: 'enum', enums: ['hide'] },
+                        ],
+                        required: true,
+                    },
+                },
+            },
             compiledSql: { dataType: 'string', required: true },
             tablesReferences: {
                 dataType: 'union',
@@ -10369,6 +10454,25 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 label: { dataType: 'string', required: true },
+                spotlight: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                visibility: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'enum', enums: ['show'] },
+                                        { dataType: 'enum', enums: ['hide'] },
+                                    ],
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 warehouse: {
                     dataType: 'union',
                     subSchemas: [
@@ -14591,6 +14695,195 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'writeBackCreatePr',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpotlightController_postSpotlightTableConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Pick_SpotlightTableConfig.columnConfig_',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/spotlight/table/config',
+        ...fetchMiddlewares<RequestHandler>(SpotlightController),
+        ...fetchMiddlewares<RequestHandler>(
+            SpotlightController.prototype.postSpotlightTableConfig,
+        ),
+
+        async function SpotlightController_postSpotlightTableConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSpotlightController_postSpotlightTableConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SpotlightController>(
+                        SpotlightController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'postSpotlightTableConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpotlightController_getSpotlightTableConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/spotlight/table/config',
+        ...fetchMiddlewares<RequestHandler>(SpotlightController),
+        ...fetchMiddlewares<RequestHandler>(
+            SpotlightController.prototype.getSpotlightTableConfig,
+        ),
+
+        async function SpotlightController_getSpotlightTableConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSpotlightController_getSpotlightTableConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SpotlightController>(
+                        SpotlightController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getSpotlightTableConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpotlightController_resetSpotlightTableConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/projects/:projectUuid/spotlight/table/config',
+        ...fetchMiddlewares<RequestHandler>(SpotlightController),
+        ...fetchMiddlewares<RequestHandler>(
+            SpotlightController.prototype.resetSpotlightTableConfig,
+        ),
+
+        async function SpotlightController_resetSpotlightTableConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSpotlightController_resetSpotlightTableConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SpotlightController>(
+                        SpotlightController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'resetSpotlightTableConfig',
                     controller,
                     response,
                     next,

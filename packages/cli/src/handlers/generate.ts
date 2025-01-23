@@ -1,4 +1,8 @@
-import { getModelsFromManifest, ParseError } from '@lightdash/common';
+import {
+    getErrorMessage,
+    getModelsFromManifest,
+    ParseError,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
@@ -156,7 +160,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                         : ymlString,
                 );
             } catch (e) {
-                const msg = e instanceof Error ? e.message : '-';
+                const msg = getErrorMessage(e);
                 throw new ParseError(
                     `Failed to write file ${outputFilePath}\n ${msg}`,
                 );
@@ -167,7 +171,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 )}`,
             );
         } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '-';
+            const msg = getErrorMessage(e);
             await LightdashAnalytics.track({
                 event: 'generate.error',
                 properties: {

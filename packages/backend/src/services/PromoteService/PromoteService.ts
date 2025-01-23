@@ -4,6 +4,7 @@ import {
     ChartSummary,
     DashboardDAO,
     ForbiddenError,
+    getErrorMessage,
     isChartTile,
     NotFoundError,
     ParameterError,
@@ -653,7 +654,7 @@ export class PromoteService extends BaseService {
                 'promote.error',
                 promotedChart,
                 upstreamChart,
-                e.message,
+                getErrorMessage(e),
             );
             throw e;
         }
@@ -1306,7 +1307,7 @@ export class PromoteService extends BaseService {
                 'promote.error',
                 promotedDashboard,
                 upstreamDashboard,
-                e.message,
+                getErrorMessage(e),
             );
             throw e;
         }

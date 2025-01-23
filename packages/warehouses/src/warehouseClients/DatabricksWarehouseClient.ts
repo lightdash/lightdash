@@ -8,6 +8,7 @@ import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIServi
 import {
     CreateDatabricksCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     ParseError,
@@ -216,7 +217,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
-            throw new WarehouseConnectionError(e.message);
+            throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
         return {
@@ -289,7 +290,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             } while (await query.hasMoreRows());
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
-            throw new WarehouseQueryError(e.message);
+            throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             try {
                 if (query) await query.close();
@@ -330,7 +331,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                         return (await query.fetchAll()) as SchemaResult[];
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } catch (e: any) {
-                        throw new WarehouseQueryError(e.message);
+                        throw new WarehouseQueryError(getErrorMessage(e));
                     } finally {
                         try {
                             if (query) await query.close();
@@ -347,7 +348,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             );
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
-            throw new WarehouseQueryError(e.message);
+            throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             try {
                 await close();

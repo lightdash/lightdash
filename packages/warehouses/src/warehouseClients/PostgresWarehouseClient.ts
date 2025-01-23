@@ -2,6 +2,7 @@ import {
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     SupportedDbtAdapter,
@@ -190,7 +191,7 @@ export class PostgresClient<
             });
 
             pool.on('error', (err) => {
-                console.error(`Postgres pool error ${err.message}`);
+                console.error(`Postgres pool error ${getErrorMessage(err)}`);
                 reject(err);
             });
 
@@ -198,7 +199,7 @@ export class PostgresClient<
                 // On each new client initiated, need to register for error(this is a serious bug on pg, the client throw errors although it should not)
                 _client.on('error', (err: Error) => {
                     console.error(
-                        `Postgres client connect error ${err.message}`,
+                        `Postgres client connect error ${getErrorMessage(err)}`,
                     );
                     reject(err);
                 });
@@ -216,7 +217,9 @@ export class PostgresClient<
                 }
 
                 client.on('error', (e) => {
-                    console.error(`Postgres client error ${e.message}`);
+                    console.error(
+                        `Postgres client error ${getErrorMessage(e)}`,
+                    );
                     reject(e);
                     done();
                 });

@@ -1,4 +1,8 @@
-import { type CatalogField, type Tag } from '@lightdash/common';
+import {
+    getErrorMessage,
+    type CatalogField,
+    type Tag,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -119,7 +123,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     });
                 } catch (error) {
                     // TODO: Add toast on error
-                    console.error('Error adding tag:', error);
+                    console.error(
+                        `Error adding tag: ${getErrorMessage(error)}`,
+                    );
                 }
             },
             [
@@ -146,7 +152,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         tagUuid,
                     });
                 } catch (error) {
-                    console.error('Error removing tag', error);
+                    console.error(
+                        `Error removing tag: ${getErrorMessage(error)}`,
+                    );
                 }
             },
             [projectUuid, untagCatalogItemMutation, catalogSearchUuid],

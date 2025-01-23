@@ -39,6 +39,7 @@ import {
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
+import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 
 @Route('/api/v1/projects/{projectUuid}/dataCatalog')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -72,7 +73,12 @@ export class CatalogController extends BaseController {
 
         const { data: results } = await this.services
             .getCatalogService()
-            .getCatalog(req.user!, projectUuid, query);
+            .getCatalog(
+                req.user!,
+                projectUuid,
+                query,
+                CatalogSearchContext.CATALOG,
+            );
 
         return {
             status: 'ok',
@@ -211,6 +217,7 @@ export class CatalogController extends BaseController {
             .getMetricsCatalog(
                 req.user!,
                 projectUuid,
+                CatalogSearchContext.SPOTLIGHT,
                 paginateArgs,
                 {
                     searchQuery: search,
@@ -271,7 +278,11 @@ export class CatalogController extends BaseController {
 
         const results = await this.services
             .getCatalogService()
-            .getAllCatalogMetricsWithTimeDimensions(req.user!, projectUuid);
+            .getAllCatalogMetricsWithTimeDimensions(
+                req.user!,
+                projectUuid,
+                CatalogSearchContext.SPOTLIGHT,
+            );
 
         return {
             status: 'ok',
@@ -298,7 +309,12 @@ export class CatalogController extends BaseController {
 
         const results = await this.services
             .getCatalogService()
-            .getSegmentDimensions(req.user!, projectUuid, tableName);
+            .getSegmentDimensions(
+                req.user!,
+                projectUuid,
+                tableName,
+                CatalogSearchContext.METRICS_EXPLORER,
+            );
 
         return {
             status: 'ok',
