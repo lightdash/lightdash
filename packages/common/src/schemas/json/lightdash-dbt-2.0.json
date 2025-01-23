@@ -145,6 +145,7 @@
                                                     "mi",
                                                     "usd",
                                                     "gbp",
+                                                    "jpy",
                                                     "eur",
                                                     "percent",
                                                     "id"
@@ -185,6 +186,23 @@
                                                     "field",
                                                     "interval"
                                                 ]
+                                            },
+                                            "spotlight": {
+                                                "type": "object",
+                                                "description": "Set the visibility of a metric in Spotlight",
+                                                "properties": {
+                                                    "visibility": {
+                                                        "type": "string",
+                                                        "enum": ["show", "hide"]
+                                                    }
+                                                },
+                                                "anyOf": [
+                                                    {
+                                                        "required": [
+                                                            "visibility"
+                                                        ]
+                                                    }
+                                                ]
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -211,6 +229,17 @@
                                     }
                                 },
                                 "required": ["field", "interval"]
+                            },
+                            "spotlight": {
+                                "type": "object",
+                                "description": "Set the visibility of all metrics in this model in Spotlight",
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["show", "hide"]
+                                    }
+                                },
+                                "anyOf": [{ "required": ["visibility"] }]
                             }
                         }
                     },
@@ -311,6 +340,7 @@
                                                                 "km",
                                                                 "mi",
                                                                 "usd",
+                                                                "jpy",
                                                                 "gbp",
                                                                 "eur",
                                                                 "percent",
@@ -351,6 +381,26 @@
                                                             "required": [
                                                                 "field",
                                                                 "interval"
+                                                            ]
+                                                        },
+                                                        "spotlight": {
+                                                            "type": "object",
+                                                            "description": "Set the visibility of a metric in Spotlight",
+                                                            "properties": {
+                                                                "visibility": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "show",
+                                                                        "hide"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "anyOf": [
+                                                                {
+                                                                    "required": [
+                                                                        "visibility"
+                                                                    ]
+                                                                }
                                                             ]
                                                         }
                                                     },
@@ -396,6 +446,7 @@
                                                         "km",
                                                         "mi",
                                                         "usd",
+                                                        "jpy",
                                                         "gbp",
                                                         "eur",
                                                         "percent",
@@ -596,6 +647,7 @@
                                     "km",
                                     "mi",
                                     "usd",
+                                    "jpy",
                                     "gbp",
                                     "eur",
                                     "percent",
@@ -622,6 +674,17 @@
                                     }
                                 },
                                 "required": ["field", "interval"]
+                            },
+                            "spotlight": {
+                                "type": "object",
+                                "description": "Set the visibility of a metric in Spotlight",
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["show", "hide"]
+                                    }
+                                },
+                                "anyOf": [{ "required": ["visibility"] }]
                             }
                         }
                     }

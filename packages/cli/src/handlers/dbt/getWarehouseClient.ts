@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
+    getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
     ParseError,
@@ -59,8 +60,9 @@ const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
         }
         return connectionType[1];
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
-        throw new ParseError(`Failed to get connection type:\n  ${msg}`);
+        throw new ParseError(
+            `Failed to get connection type:\n  ${getErrorMessage(e)}`,
+        );
     }
 };
 

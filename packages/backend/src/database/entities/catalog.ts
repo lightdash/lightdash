@@ -21,6 +21,7 @@ export type DbCatalog = {
     chart_usage: number | null;
     icon: CatalogItemIcon | null;
     table_name: string;
+    spotlight_show: boolean;
 };
 
 export type DbCatalogIn = Pick<
@@ -35,6 +36,7 @@ export type DbCatalogIn = Pick<
     | 'required_attributes'
     | 'chart_usage'
     | 'table_name'
+    | 'spotlight_show'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =

@@ -1,13 +1,13 @@
+import { subject } from '@casl/ability';
 import {
+    ForbiddenError,
     NotFoundError,
     type SessionUser,
     type SpotlightTableConfig,
-    ForbiddenError,
 } from '@lightdash/common';
-import { subject } from '@casl/ability';
 import { LightdashConfig } from '../../config/parseConfig';
-import { BaseService } from '../BaseService';
 import type { SpotlightTableConfigModel } from '../../models/SpotlightTableConfigModel';
+import { BaseService } from '../BaseService';
 
 export type SpotlightArguments = {
     lightdashConfig: LightdashConfig;

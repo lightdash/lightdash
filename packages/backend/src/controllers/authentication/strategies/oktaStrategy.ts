@@ -154,10 +154,16 @@ export class OpenIDClientOktaStrategy extends Strategy {
                     return this.fail({ message: e.message }, 401);
                 }
                 Logger.warn(`Unexpected error while authorizing user: ${e}`);
-                return this.error(e);
+                if (e instanceof Error) return this.error(e);
+                throw new UnexpectedServerError(
+                    `Unexpected error while authorizing user: ${e}`,
+                );
             }
         } catch (err) {
-            return this.error(err);
+            if (err instanceof Error) return this.error(err);
+            throw new UnexpectedServerError(
+                `Unexpected error while authorizing user: ${err}`,
+            );
         }
     }
 }

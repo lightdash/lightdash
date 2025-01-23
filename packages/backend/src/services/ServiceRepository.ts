@@ -34,12 +34,12 @@ import { SemanticLayerService } from './SemanticLayerService/SemanticLayerServic
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
+import { SpotlightService } from './SpotlightService/SpotlightService';
 import { SshKeyPairService } from './SshKeyPairService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
-import { SpotlightService } from './SpotlightService/SpotlightService';
 
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to

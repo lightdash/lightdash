@@ -353,6 +353,9 @@ export const LIGHTDASH_TABLE_WITH_GROUP_BLOCK: Omit<Table, 'lineageGraph'> = {
             table: 'myTable',
             tableLabel: 'My table',
             type: MetricType.COUNT_DISTINCT,
+            spotlight: {
+                visibility: 'show',
+            },
         },
     },
     groupDetails: {
@@ -439,6 +442,9 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 0,
+            spotlight: {
+                visibility: 'show',
+            },
         },
         dbt_metric_2: {
             description: 'Description',
@@ -460,6 +466,9 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 1,
+            spotlight: {
+                visibility: 'show',
+            },
         },
         dbt_metric_3: {
             description: 'Description',
@@ -481,6 +490,9 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 2,
+            spotlight: {
+                visibility: 'show',
+            },
         },
         dbt_metric_4: {
             description: 'Description',
@@ -502,6 +514,9 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 3,
+            spotlight: {
+                visibility: 'show',
+            },
         },
         dbt_metric_5: {
             description: 'Description',
@@ -523,6 +538,9 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 4,
+            spotlight: {
+                visibility: 'show',
+            },
         },
     },
 };
@@ -551,6 +569,9 @@ export const LIGHTDASH_TABLE_WITH_DBT_V9_METRICS: Omit<Table, 'lineageGraph'> =
                 groups: [],
                 filters: [],
                 index: 0,
+                spotlight: {
+                    visibility: 'show',
+                },
             },
         },
     };
@@ -678,6 +699,9 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             index: 0,
             dimensionReference: 'myTable_user_id',
             requiredAttributes: undefined,
+            spotlight: {
+                visibility: 'show',
+            },
         },
         total_num_participating_athletes: {
             fieldType: FieldType.METRIC,
@@ -701,6 +725,9 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             index: 1,
             dimensionReference: 'myTable_num_participating_athletes',
             requiredAttributes: undefined,
+            spotlight: {
+                visibility: 'show',
+            },
         },
     },
 };

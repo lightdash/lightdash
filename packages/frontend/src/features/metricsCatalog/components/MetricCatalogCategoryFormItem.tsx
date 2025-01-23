@@ -1,4 +1,4 @@
-import { type CatalogItem } from '@lightdash/common';
+import { getErrorMessage, type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -57,7 +57,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                 });
                 close();
             } catch (error) {
-                console.error('Tag update failed:', error);
+                console.error(`Tag update failed: ${getErrorMessage(error)}`);
             }
         }
     }, [editColor, editName, projectUuid, category, updateTag, close]);
@@ -68,7 +68,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                 deleteTag({ projectUuid, tagUuid: category.tagUuid });
                 close();
             } catch (error) {
-                console.error('Tag deletion failed:', error);
+                console.error(`Tag deletion failed: ${getErrorMessage(error)}`);
             }
         }
     }, [deleteTag, projectUuid, category, close]);

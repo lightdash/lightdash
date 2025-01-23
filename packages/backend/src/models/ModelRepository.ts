@@ -34,6 +34,7 @@ import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
+import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
@@ -41,7 +42,6 @@ import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 /**
  * Interface outlining all models. Add new models to
  * this list (in alphabetical order, please!).

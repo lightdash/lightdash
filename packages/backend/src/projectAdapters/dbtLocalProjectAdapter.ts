@@ -40,6 +40,12 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             useDbtLs,
             selector,
         });
-        super(dbtClient, warehouseClient, cachedWarehouse, dbtVersion);
+        super(
+            dbtClient,
+            warehouseClient,
+            cachedWarehouse,
+            dbtVersion,
+            projectDir,
+        );
     }
 }

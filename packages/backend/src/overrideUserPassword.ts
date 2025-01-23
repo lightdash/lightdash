@@ -1,4 +1,4 @@
-import { NotFoundError } from '@lightdash/common';
+import { getErrorMessage, NotFoundError } from '@lightdash/common';
 import knex from 'knex';
 import { lightdashConfig } from './config/lightdashConfig';
 import knexConfig from './knexfile';
@@ -41,7 +41,9 @@ import { UserModel } from './models/UserModel';
         Logger.info(`Successfully updated user (${user.userUuid}) password!`);
         process.exit();
     } catch (error) {
-        Logger.error(`Error overriding user password: ${error.message}`);
+        Logger.error(
+            `Error overriding user password: ${getErrorMessage(error)}`,
+        );
         process.exit(1);
     }
 })();
