@@ -7,7 +7,6 @@ import {
     friendlyName,
     type Dimension,
 } from '../types/field';
-import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { WarehouseTypes } from '../types/projects';
 import { type WarehouseClient } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
@@ -61,8 +60,6 @@ export const createVirtualView = (
         joinedTables: [],
         tables: { [virtualViewName]: compiledTable },
         targetDatabase: warehouseClient.getAdapterType(),
-        // NOTE: Users can't create metrics in virtual views, so this is irrelevant
-        spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
         meta: {},
     });
 

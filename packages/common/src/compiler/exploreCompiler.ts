@@ -79,7 +79,7 @@ export type UncompiledExplore = {
     ymlPath?: string;
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
     meta: DbtRawModelNode['meta'];
 };
 
@@ -251,12 +251,16 @@ export class ExploreCompiler {
         );
 
         const spotlightVisibility =
-            meta.spotlight?.visibility ?? spotlightConfig.default_visibility;
+            meta.spotlight?.visibility ?? spotlightConfig?.default_visibility;
 
         return {
-            spotlight: {
-                visibility: spotlightVisibility,
-            },
+            ...(spotlightVisibility !== undefined
+                ? {
+                      spotlight: {
+                          visibility: spotlightVisibility,
+                      },
+                  }
+                : {}),
             name,
             label,
             tags,

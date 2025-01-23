@@ -432,7 +432,7 @@ type ConvertModelMetricArgs = {
     tableLabel: string;
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
 };
 export const convertModelMetric = ({
     modelName,
@@ -446,7 +446,7 @@ export const convertModelMetric = ({
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
-        metric.spotlight?.visibility ?? spotlightConfig.default_visibility;
+        metric.spotlight?.visibility ?? spotlightConfig?.default_visibility;
 
     return {
         fieldType: FieldType.METRIC,
@@ -485,9 +485,13 @@ export const convertModelMetric = ({
                   },
               }
             : null),
-        spotlight: {
-            visibility: spotlightVisibility,
-        },
+        ...(spotlightVisibility !== undefined
+            ? {
+                  spotlight: {
+                      visibility: spotlightVisibility,
+                  },
+              }
+            : {}),
     };
 };
 
