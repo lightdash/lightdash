@@ -1,6 +1,6 @@
 import {
+    ApiError,
     DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
-    type ApiError,
     type ApiGetSpotlightTableConfig,
     type ApiSuccessEmpty,
     type SpotlightTableConfig,
