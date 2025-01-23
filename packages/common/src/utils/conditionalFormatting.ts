@@ -252,3 +252,5 @@ export const getConditionalFormattingColor = (
         'Unknown conditional formatting config',
     );
 };
+
+export const bruno = (): number => 'hi im bruno';

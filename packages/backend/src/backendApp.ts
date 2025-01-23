@@ -1,21 +1,22 @@
+import { bruno } from '@lightdash/common';
 import App from './App';
 import { lightdashConfig } from './config/lightdashConfig';
 import knexConfig from './knexfile';
 
-const test = () => {
+const test = (_arg: number) => {
     console.log('alalala');
     return Promise.resolve(1);
 };
 
+const numPromise = (num: number) => Promise.resolve(num);
+
 const test2 = async () => {
     console.log('alalala2');
 
-    try {
-        return await test();
-    } catch (error) {
-        console.error(error);
-        return 2;
-    }
+    console.log(bruno());
+
+    const alalal2 = await test(await numPromise(1));
+    return alalal2;
 };
 
 const app = new App({
