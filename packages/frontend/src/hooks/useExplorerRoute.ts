@@ -2,10 +2,13 @@ import {
     ChartType,
     CustomDimensionType,
     DateGranularity,
+    getItemId,
     isCartesianChartConfig,
+    type ChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
     type CustomDimension,
+    type Metric,
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
@@ -16,7 +19,6 @@ import {
 } from '../providers/Explorer/types';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
-
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     tableName: '',
     metricQuery: {
@@ -259,4 +261,30 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
             }
         }
     }, [pathParams, search, showToastError]);
+};
+
+export const createMetricPreviewUnsavedChartVersion = (
+    metric: Pick<Metric, 'name' | 'table'>,
+): CreateSavedChartVersion => {
+    let chartConfig: ChartConfig = {
+        type: ChartType.BIG_NUMBER,
+        config: {},
+    };
+
+    return {
+        ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+        tableName: metric.table,
+        chartConfig,
+        metricQuery: {
+            ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+            exploreName: metric.table,
+            dimensions: [],
+            metrics: [
+                getItemId({
+                    name: metric.name,
+                    table: metric.table,
+                }),
+            ],
+        },
+    };
 };

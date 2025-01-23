@@ -60,6 +60,7 @@ export const ChartDataTable = ({
                 ...flexProps?.sx,
             }}
             className="sentry-block ph-no-capture"
+            data-testid="chart-data-table"
         >
             <TableStyled>
                 <Tooltip.Group>

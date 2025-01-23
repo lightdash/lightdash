@@ -1,3 +1,17 @@
+# [0.1462.0](https://github.com/lightdash/lightdash/compare/0.1461.0...0.1462.0) (2025-01-22)
+
+
+### Features
+
+* sql runner style grouped series ([#13366](https://github.com/lightdash/lightdash/issues/13366)) ([51b9ac4](https://github.com/lightdash/lightdash/commit/51b9ac461878631565942ae97c93b352bd917a80))
+
+# [0.1461.0](https://github.com/lightdash/lightdash/compare/0.1460.1...0.1461.0) (2025-01-22)
+
+
+### Features
+
+* allow curating Spotlight's table ([#13355](https://github.com/lightdash/lightdash/issues/13355)) ([7417319](https://github.com/lightdash/lightdash/commit/741731967a2d7b4c903359cb8ccf7f55075e07c5))
+
 ## [0.1460.1](https://github.com/lightdash/lightdash/compare/0.1460.0...0.1460.1) (2025-01-22)
 
 
