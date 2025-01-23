@@ -1,3 +1,10 @@
+## [0.1462.1](https://github.com/lightdash/lightdash/compare/0.1462.0...0.1462.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* add jpy format to lightdash dbt json file ([#13387](https://github.com/lightdash/lightdash/issues/13387)) ([9645bf6](https://github.com/lightdash/lightdash/commit/9645bf6ad348a9177b0afb15478dd7931b423262))
+
 # [0.1462.0](https://github.com/lightdash/lightdash/compare/0.1461.0...0.1462.0) (2025-01-22)
 
 
