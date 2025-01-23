@@ -1424,6 +1424,10 @@
                 "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
                 "type": "string"
             },
+            "AxisSide": {
+                "enum": [0, 1],
+                "type": "number"
+            },
             "CartesianChartDisplay": {
                 "properties": {
                     "stack": {
@@ -1448,8 +1452,7 @@
                         "additionalProperties": {
                             "properties": {
                                 "whichYAxis": {
-                                    "type": "number",
-                                    "format": "double"
+                                    "$ref": "#/components/schemas/AxisSide"
                                 },
                                 "valueLabelPosition": {
                                     "$ref": "#/components/schemas/ValueLabelPositionOptions"

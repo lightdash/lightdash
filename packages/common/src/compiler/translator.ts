@@ -450,7 +450,7 @@ export const convertTable = (
                                 ...spotlightConfig,
                                 default_visibility:
                                     model.meta.spotlight?.visibility ??
-                                    spotlightConfig?.default_visibility,
+                                    spotlightConfig.default_visibility,
                             },
                         }),
                     ],

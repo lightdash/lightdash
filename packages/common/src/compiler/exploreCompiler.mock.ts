@@ -95,6 +95,9 @@ export const exploreBase: Explore = {
     name: '',
     label: '',
     tags: [],
+    spotlight: {
+        visibility: 'show',
+    },
     baseTable: 'a',
     joinedTables: [],
     tables: {},
@@ -1484,6 +1487,9 @@ export const exploreWithMetricNumberCompiled: Explore = {
     ymlPath: exploreWithMetricNumber.ymlPath,
     sqlPath: exploreWithMetricNumber.sqlPath,
     groupLabel: exploreWithMetricNumber.groupLabel,
+    spotlight: {
+        visibility: 'show',
+    },
     joinedTables: [],
     tables: {
         a: {
