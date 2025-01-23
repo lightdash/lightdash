@@ -1424,10 +1424,6 @@
                 "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
                 "type": "string"
             },
-            "AxisSide": {
-                "enum": [0, 1],
-                "type": "number"
-            },
             "CartesianChartDisplay": {
                 "properties": {
                     "stack": {
@@ -1452,7 +1448,8 @@
                         "additionalProperties": {
                             "properties": {
                                 "whichYAxis": {
-                                    "$ref": "#/components/schemas/AxisSide"
+                                    "type": "number",
+                                    "format": "double"
                                 },
                                 "valueLabelPosition": {
                                     "$ref": "#/components/schemas/ValueLabelPositionOptions"
@@ -4334,6 +4331,16 @@
                     },
                     "defaultTimeDimension": {
                         "$ref": "#/components/schemas/DefaultTimeDimension"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -9987,6 +9994,16 @@
                     "defaultTimeDimension": {
                         "$ref": "#/components/schemas/DefaultTimeDimension"
                     },
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
+                    },
                     "compiledSql": {
                         "type": "string"
                     },
@@ -11137,6 +11154,16 @@
                     },
                     "label": {
                         "type": "string"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
                     },
                     "warehouse": {
                         "type": "string"
@@ -13019,7 +13046,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1461.0",
+        "version": "0.1462.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
