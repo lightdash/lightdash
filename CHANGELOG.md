@@ -1,3 +1,10 @@
+## [0.1462.2](https://github.com/lightdash/lightdash/compare/0.1462.1...0.1462.2) (2025-01-23)
+
+
+### Bug Fixes
+
+* get spotlight config and tags authorized in demo ([#13389](https://github.com/lightdash/lightdash/issues/13389)) ([d479c14](https://github.com/lightdash/lightdash/commit/d479c14edf0015181c95e3aa9d8b7f4ebafb8712))
+
 ## [0.1462.1](https://github.com/lightdash/lightdash/compare/0.1462.0...0.1462.1) (2025-01-23)
 
 
