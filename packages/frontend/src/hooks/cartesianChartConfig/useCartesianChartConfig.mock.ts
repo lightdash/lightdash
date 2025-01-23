@@ -56,6 +56,9 @@ export const explore: Explore = {
     joinedTables: [],
     tables: { dimension: compiledTable },
     targetDatabase: SupportedDbtAdapter.BIGQUERY,
+    spotlight: {
+        visibility: 'show',
+    },
 };
 
 export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {

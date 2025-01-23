@@ -50,6 +50,9 @@ const useSqlQueryVisualization = ({
                             compiledSql: '',
                             tablesReferences: [SQL_RESULTS_TABLE_NAME],
                             hidden: false,
+                            spotlight: {
+                                visibility: 'show',
+                            },
                         };
                         return {
                             ...acc,
@@ -150,6 +153,9 @@ const useSqlQueryVisualization = ({
                 },
             },
             targetDatabase: SupportedDbtAdapter.POSTGRES,
+            spotlight: {
+                visibility: 'show',
+            },
         }),
         [fields],
     );
