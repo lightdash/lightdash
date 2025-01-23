@@ -111,6 +111,7 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
+import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -152,7 +153,6 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
-import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 
 dayjs.extend(utc);
 
@@ -173,9 +173,9 @@ export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/share';
 export * from './types/api/sort';
+export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
-export * from './types/api/spotlight';
 export * from './types/catalog';
 export * from './types/coder';
 export * from './types/comments';
@@ -224,6 +224,7 @@ export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
+export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
@@ -248,6 +249,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
@@ -263,8 +265,6 @@ export * from './visualizations/PieChartDataModel';
 export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
 export * from './visualizations/types/IResultsRunner';
-export * from './types/spotlightTableConfig';
-export * from './utils/loadLightdashProjectConfig';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

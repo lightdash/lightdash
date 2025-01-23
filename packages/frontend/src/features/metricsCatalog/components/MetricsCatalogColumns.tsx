@@ -6,12 +6,16 @@ import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
+    createMetricPreviewUnsavedChartVersion,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
+import {
     Description,
     Hash,
     Popularity,
-    Tag,
     Table,
     TableFilled,
+    Tag,
 } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
@@ -22,10 +26,6 @@ import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
-import {
-    createMetricPreviewUnsavedChartVersion,
-    getExplorerUrlFromCreateSavedChartVersion,
-} from '../../../hooks/useExplorerRoute';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {

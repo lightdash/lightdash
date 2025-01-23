@@ -43,10 +43,10 @@ import {
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
 import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
+import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import CollapsedNode, {
     type CollapsedNodeData,
 } from './TreeComponents/nodes/CollapsedNode';
-import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import ExpandedNode, {
     type ExpandedNodeData,
 } from './TreeComponents/nodes/ExpandedNode';

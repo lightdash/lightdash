@@ -1,15 +1,15 @@
 import {
     assertUnreachable,
     DimensionType,
-    type PivotChartData,
     SemanticLayerFieldType,
     VizAggregationOptions,
     VizIndexType,
+    type PivotChartData,
+    type PivotValuesColumn,
     type RunPivotQuery,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type VizColumn,
-    type PivotValuesColumn,
 } from '@lightdash/common';
 import { apiGetSemanticLayerQueryResults } from '../semanticViewer/api/requests';
 
