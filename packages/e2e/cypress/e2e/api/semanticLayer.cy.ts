@@ -5,6 +5,7 @@ const projectUuid = SEED_PROJECT.project_uuid;
 
 // TODO test different semantic layers (project config)
 describe.skip('Lightdash semantic layer', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let views: any[];
     beforeEach(() => {
         cy.login();

@@ -4,6 +4,7 @@ import { chartMock } from '../../support/mocks';
 const apiUrl = '/api/v2';
 
 describe('Lightdash catalog all tables and fields', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let content: any[] = [];
     beforeEach(() => {
         cy.login();
