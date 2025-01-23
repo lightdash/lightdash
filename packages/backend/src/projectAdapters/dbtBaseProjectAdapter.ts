@@ -91,9 +91,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         );
 
         try {
-            return await loadLightdashProjectConfig(
-                await fs.readFile(configPath, 'utf8'),
-            );
+            const fileContents = await fs.readFile(configPath, 'utf8');
+            const config = await loadLightdashProjectConfig(fileContents);
+            return config;
         } catch (e) {
             Logger.debug(`No lightdash.config.yml found in ${configPath}`);
 

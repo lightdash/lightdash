@@ -39,9 +39,9 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 const readAndLoadLightdashProjectConfig = async (projectDir: string) => {
     const configPath = path.join(projectDir, 'lightdash.config.yml');
     try {
-        return await loadLightdashProjectConfig(
-            await fs.readFile(configPath, 'utf8'),
-        );
+        const fileContents = await fs.readFile(configPath, 'utf8');
+        const config = await loadLightdashProjectConfig(fileContents);
+        return config;
     } catch (e) {
         GlobalState.debug(`No lightdash.config.yml found in ${configPath}`);
 
