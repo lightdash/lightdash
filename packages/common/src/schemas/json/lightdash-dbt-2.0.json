@@ -146,6 +146,7 @@
                                                     "usd",
                                                     "gbp",
                                                     "eur",
+                                                    "jpy",
                                                     "percent",
                                                     "id"
                                                 ]
@@ -341,6 +342,7 @@
                                                                 "usd",
                                                                 "gbp",
                                                                 "eur",
+                                                                "jpy",
                                                                 "percent",
                                                                 "id"
                                                             ]
@@ -446,6 +448,7 @@
                                                         "usd",
                                                         "gbp",
                                                         "eur",
+                                                        "jpy",
                                                         "percent",
                                                         "id"
                                                     ]
@@ -646,6 +649,7 @@
                                     "usd",
                                     "gbp",
                                     "eur",
+                                    "jpy",
                                     "percent",
                                     "id"
                                 ]
