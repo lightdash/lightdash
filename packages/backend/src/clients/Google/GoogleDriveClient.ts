@@ -34,8 +34,7 @@ export class GoogleDriveClient {
             lightdashConfig.auth.google.oauth2ClientSecret !== undefined;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private async getCredentials(refreshToken: string): Promise<any> {
+    private async getCredentials(refreshToken: string) {
         try {
             const credentials = {
                 type: 'authorized_user',
