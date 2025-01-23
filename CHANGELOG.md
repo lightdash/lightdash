@@ -1,3 +1,10 @@
+# [0.1463.0](https://github.com/lightdash/lightdash/compare/0.1462.2...0.1463.0) (2025-01-23)
+
+
+### Features
+
+* add visibility config to metrics via yaml ([#13381](https://github.com/lightdash/lightdash/issues/13381)) ([24a49cd](https://github.com/lightdash/lightdash/commit/24a49cd378381a0143169dc976a0fb2c1e40d796))
+
 ## [0.1462.2](https://github.com/lightdash/lightdash/compare/0.1462.1...0.1462.2) (2025-01-23)
 
 
