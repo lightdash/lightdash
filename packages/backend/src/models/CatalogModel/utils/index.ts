@@ -1,5 +1,6 @@
 import {
     CatalogType,
+    DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     FieldType,
     friendlyName,
@@ -12,13 +13,20 @@ import {
     type ChartFieldUpdates,
     type ChartFieldUsageChanges,
     type ExploreError,
+    type Metric,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
 import { DbCatalogIn } from '../../../database/entities/catalog';
 import { DbTag } from '../../../database/entities/tags';
 
-const getSpotlightShow = (spotlight: Explore['spotlight']) =>
-    spotlight.visibility === 'show';
+const getSpotlightShow = (
+    spotlight?: Explore['spotlight'] | Metric['spotlight'],
+) => {
+    const visibility =
+        spotlight?.visibility || DEFAULT_SPOTLIGHT_CONFIG.default_visibility;
+
+    return visibility === 'show';
+};
 
 type CatalogInsertWithYamlTags = DbCatalogIn & { assigned_yaml_tags?: DbTag[] };
 
@@ -70,7 +78,7 @@ export const convertExploresToCatalog = (
                               (tag) =>
                                   tag.yaml_reference &&
                                   // TODO: remove / check if necessary
-                                  field.spotlight.categories?.includes(
+                                  field.spotlight?.categories?.includes(
                                       tag.yaml_reference,
                                   ),
                           )

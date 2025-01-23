@@ -55,11 +55,7 @@ export class SpotlightController extends BaseController {
         };
     }
 
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/table/config')
     @OperationId('getSpotlightTableConfig')

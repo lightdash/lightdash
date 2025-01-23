@@ -20,16 +20,15 @@ import {
     type Dimension,
     type Metric,
 } from '../types/field';
-import { type WarehouseClient } from '../types/warehouse';
-
+import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
 } from '../types/timeFrames';
+import { type WarehouseClient } from '../types/warehouse';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
-import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -79,7 +78,7 @@ export type UncompiledExplore = {
     ymlPath?: string;
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
     meta: DbtRawModelNode['meta'];
 };
 
@@ -251,13 +250,18 @@ export class ExploreCompiler {
         );
 
         const spotlightVisibility =
-            meta.spotlight?.visibility ?? spotlightConfig.default_visibility;
+            meta.spotlight?.visibility ?? spotlightConfig?.default_visibility;
 
         return {
-            spotlight: {
-                visibility: spotlightVisibility,
-                categories: meta.spotlight?.categories,
-            },
+            // TODO SPOTLIGHT: check how to handle categories
+            ...(spotlightVisibility !== undefined
+                ? {
+                      spotlight: {
+                          visibility: spotlightVisibility,
+                          categories: meta.spotlight?.categories,
+                      },
+                  }
+                : {}),
             name,
             label,
             tags,

@@ -30,10 +30,7 @@ import {
     type Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
-import {
-    DEFAULT_SPOTLIGHT_CONFIG,
-    type LightdashProjectConfig,
-} from '../types/lightdashProjectConfig';
+import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseClient } from '../types/warehouse';
@@ -214,7 +211,7 @@ const convertDbtMetricToLightdashMetric = (
     metric: DbtMetric,
     tableName: string,
     tableLabel: string,
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>,
+    spotlightConfig: LightdashProjectConfig['spotlight'],
 ): Metric => {
     let sql: string;
     let type: MetricType;
@@ -298,10 +295,15 @@ const convertDbtMetricToLightdashMetric = (
                       : [metric.meta.tags],
               }
             : {}),
-        spotlight: {
-            visibility: spotlightVisibility,
-            categories: [],
-        },
+        // TODO SPOTLIGHT: check how to handle categories or if irrelevant
+        ...(spotlightVisibility !== undefined
+            ? {
+                  spotlight: {
+                      visibility: spotlightVisibility,
+                      categories: [],
+                  },
+              }
+            : {}),
     };
 };
 
@@ -309,7 +311,7 @@ export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
     dbtMetrics: DbtMetric[],
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>,
+    spotlightConfig: LightdashProjectConfig['spotlight'],
     startOfWeek?: WeekDay | null,
 ): Omit<Table, 'lineageGraph'> => {
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
@@ -624,10 +626,6 @@ export const convertExplores = async (
     const [tables, exploreErrors] = models.reduce(
         ([accTables, accErrors], model) => {
             const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
-            const spotlightConfig = {
-                ...DEFAULT_SPOTLIGHT_CONFIG,
-                ...lightdashProjectConfig.spotlight,
-            };
             // If there are any errors compiling the table return an ExploreError
             try {
                 // base dimensions and metrics
@@ -638,7 +636,7 @@ export const convertExplores = async (
                     adapterType,
                     model,
                     tableMetrics,
-                    spotlightConfig,
+                    lightdashProjectConfig.spotlight,
                     warehouseClient.getStartOfWeek(),
                 );
 
@@ -711,10 +709,7 @@ export const convertExplores = async (
                 warehouse: model.config?.snowflake_warehouse,
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
-                spotlightConfig: {
-                    ...DEFAULT_SPOTLIGHT_CONFIG,
-                    ...lightdashProjectConfig.spotlight,
-                },
+                spotlightConfig: lightdashProjectConfig.spotlight,
                 meta,
             });
         } catch (e: unknown) {

@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
 import type { SpotlightTableConfig } from '@lightdash/common';
+import { Knex } from 'knex';
 import type { LightdashConfig } from '../config/parseConfig';
 import {
     convertRow,

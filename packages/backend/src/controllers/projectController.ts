@@ -797,11 +797,7 @@ export class ProjectController extends BaseController {
         };
     }
 
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Put('{projectUuid}/tags/yaml')
     @OperationId('replaceYamlTags') // TODO: should this be renamed to upsert?

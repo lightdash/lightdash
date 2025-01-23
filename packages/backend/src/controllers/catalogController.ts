@@ -33,13 +33,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
-import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 
 @Route('/api/v1/projects/{projectUuid}/dataCatalog')
 @Response<ApiErrorPayload>('default', 'Error')

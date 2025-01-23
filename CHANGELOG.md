@@ -1,3 +1,31 @@
+# [0.1463.0](https://github.com/lightdash/lightdash/compare/0.1462.2...0.1463.0) (2025-01-23)
+
+
+### Features
+
+* add visibility config to metrics via yaml ([#13381](https://github.com/lightdash/lightdash/issues/13381)) ([24a49cd](https://github.com/lightdash/lightdash/commit/24a49cd378381a0143169dc976a0fb2c1e40d796))
+
+## [0.1462.2](https://github.com/lightdash/lightdash/compare/0.1462.1...0.1462.2) (2025-01-23)
+
+
+### Bug Fixes
+
+* get spotlight config and tags authorized in demo ([#13389](https://github.com/lightdash/lightdash/issues/13389)) ([d479c14](https://github.com/lightdash/lightdash/commit/d479c14edf0015181c95e3aa9d8b7f4ebafb8712))
+
+## [0.1462.1](https://github.com/lightdash/lightdash/compare/0.1462.0...0.1462.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* add jpy format to lightdash dbt json file ([#13387](https://github.com/lightdash/lightdash/issues/13387)) ([9645bf6](https://github.com/lightdash/lightdash/commit/9645bf6ad348a9177b0afb15478dd7931b423262))
+
+# [0.1462.0](https://github.com/lightdash/lightdash/compare/0.1461.0...0.1462.0) (2025-01-22)
+
+
+### Features
+
+* sql runner style grouped series ([#13366](https://github.com/lightdash/lightdash/issues/13366)) ([51b9ac4](https://github.com/lightdash/lightdash/commit/51b9ac461878631565942ae97c93b352bd917a80))
+
 # [0.1461.0](https://github.com/lightdash/lightdash/compare/0.1460.1...0.1461.0) (2025-01-22)
 
 

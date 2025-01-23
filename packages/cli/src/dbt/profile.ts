@@ -1,4 +1,8 @@
-import { CreateWarehouseCredentials, ParseError } from '@lightdash/common';
+import {
+    CreateWarehouseCredentials,
+    getErrorMessage,
+    ParseError,
+} from '@lightdash/common';
 import { accessSync, constants, promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import { homedir } from 'os';
@@ -24,7 +28,7 @@ export const loadDbtTarget = async ({
         const rendered = renderProfilesYml(raw);
         allProfiles = yaml.load(rendered) as Profiles;
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(
             `Could not find a valid profiles.yml file at ${profilePath}:\n  ${msg}`,
         );

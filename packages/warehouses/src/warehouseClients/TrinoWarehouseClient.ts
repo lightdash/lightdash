@@ -1,6 +1,7 @@
 import {
     CreateTrinoCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     SupportedDbtAdapter,
@@ -158,7 +159,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             session = await client.create(this.connectionOptions);
         } catch (e: any) {
-            throw new WarehouseConnectionError(e.message);
+            throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
         return {
@@ -196,7 +197,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
             if (queryResult.value.error) {
                 throw new WarehouseQueryError(
-                    queryResult.value.error.message ??
+                    getErrorMessage(queryResult.value.error) ??
                         'Unexpected error in query execution',
                 );
             }
@@ -235,7 +236,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 });
             }
         } catch (e: any) {
-            throw new WarehouseQueryError(e.message);
+            throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             await close();
         }
@@ -254,7 +255,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     const result = (await query.next()).value.data ?? [];
                     return result;
                 } catch (e: any) {
-                    throw new WarehouseQueryError(e.message);
+                    throw new WarehouseQueryError(getErrorMessage(e));
                 } finally {
                     if (query) void close();
                 }

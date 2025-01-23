@@ -59,10 +59,8 @@ export type Explore = {
     sqlPath?: string;
     type?: ExploreType;
     // Spotlight config for this explore
-    spotlight: {
-        visibility: Required<
-            NonNullable<LightdashProjectConfig['spotlight']>
-        >['default_visibility'];
+    spotlight?: {
+        visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
 };

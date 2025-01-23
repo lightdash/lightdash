@@ -16,6 +16,7 @@ import {
     friendlyName,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
+    getErrorMessage,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -132,7 +133,7 @@ export const convertSqlToCsv = (
             },
             (err, output) => {
                 if (err) {
-                    reject(new Error(err.message));
+                    reject(new Error(getErrorMessage(err)));
                 }
                 resolve(output);
             },
@@ -496,7 +497,7 @@ This method can be memory intensive
                             },
                             (err, output) => {
                                 if (err) {
-                                    reject(new Error(err.message));
+                                    reject(new Error(getErrorMessage(err)));
                                 }
                                 resolve(output);
                             },

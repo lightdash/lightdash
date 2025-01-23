@@ -15,8 +15,6 @@ export interface ProjectAdapter {
     test(): Promise<void>;
 
     destroy(): Promise<void>;
-
-    getLightdashProjectConfig(): Promise<LightdashProjectConfig>;
 }
 
 export interface DbtClient {

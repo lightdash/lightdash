@@ -1,4 +1,5 @@
 import { DepGraph } from 'dependency-graph';
+import { getCategoriesFromResource } from '../compiler/lightdashProjectConfig';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
 import {
@@ -19,10 +20,9 @@ import {
     type Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
+import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
-import { type LightdashProjectConfig } from './lightdashProjectConfig';
-import { getCategoriesFromResource } from '../compiler/lightdashProjectConfig';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -85,7 +85,7 @@ type DbtModelLightdashConfig = {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
         >['default_visibility'];
-        categories?: string[];
+        categories?: string[]; // yaml_reference
     };
 };
 
@@ -158,7 +158,7 @@ export type DbtColumnLightdashMetric = {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
         >['default_visibility'];
-        categories: string[];
+        categories?: string[]; // yaml_reference
     };
 } & DbtLightdashFieldTags;
 
@@ -435,7 +435,7 @@ type ConvertModelMetricArgs = {
     tableLabel: string;
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
     modelCategories?: string[];
 };
 export const convertModelMetric = ({
@@ -451,8 +451,7 @@ export const convertModelMetric = ({
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
-        metric.spotlight?.visibility ?? spotlightConfig.default_visibility;
-
+        metric.spotlight?.visibility ?? spotlightConfig?.default_visibility;
     const metricCategories = Array.from(
         new Set([...modelCategories, ...(metric.spotlight?.categories || [])]),
     );
@@ -501,10 +500,15 @@ export const convertModelMetric = ({
                   },
               }
             : null),
-        spotlight: {
-            visibility: spotlightVisibility,
-            categories: spotlightCategories,
-        },
+        // TODO SPOTLIGHT: check how to handle categories or if irrelevant
+        ...(spotlightVisibility !== undefined
+            ? {
+                  spotlight: {
+                      visibility: spotlightVisibility,
+                      categories: spotlightCategories,
+                  },
+              }
+            : {}),
     };
 };
 

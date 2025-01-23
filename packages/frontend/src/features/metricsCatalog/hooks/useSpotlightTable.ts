@@ -1,9 +1,10 @@
 import {
-    type ApiError,
-    type ApiSuccessEmpty,
-    type ApiGetSpotlightTableConfig,
-    type SpotlightTableConfig,
     DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
+    isApiError,
+    type ApiError,
+    type ApiGetSpotlightTableConfig,
+    type ApiSuccessEmpty,
+    type SpotlightTableConfig,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -25,7 +26,7 @@ const getSpotlightTableConfig = async ({
             body: undefined,
         });
     } catch (e) {
-        if (e.error.statusCode === 404) {
+        if (isApiError(e) && e.error.statusCode === 404) {
             return {
                 columnConfig: DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
             };

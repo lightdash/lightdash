@@ -21,11 +21,11 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo, type FC } from 'react';
-import { useChangeIndicatorStyles } from '../../../../styles/useChangeIndicatorStyles';
+import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { calculateComparisonValue } from '../../../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
-import { calculateComparisonValue } from '../../../../../../hooks/useBigNumberConfig';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useChangeIndicatorStyles } from '../../../../styles/useChangeIndicatorStyles';
 
 const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
     change,

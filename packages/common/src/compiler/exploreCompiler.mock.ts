@@ -95,6 +95,9 @@ export const exploreBase: Explore = {
     name: '',
     label: '',
     tags: [],
+    spotlight: {
+        visibility: 'show',
+    },
     baseTable: 'a',
     joinedTables: [],
     tables: {},
@@ -102,9 +105,6 @@ export const exploreBase: Explore = {
     warehouse: undefined,
     sqlPath: undefined,
     ymlPath: undefined,
-    spotlight: {
-        visibility: 'show',
-    },
 };
 
 export const exploreOneEmptyTable: UncompiledExplore = {

@@ -1202,6 +1202,7 @@ export class CatalogService<
         const allCatalogMetrics = await this.catalogModel.search({
             projectUuid,
             userAttributes,
+            context,
             catalogSearch: {
                 type: CatalogType.Field,
                 filter: CatalogFilter.Metrics,
@@ -1264,6 +1265,7 @@ export class CatalogService<
             projectUuid,
             userAttributes,
             exploreName: tableName,
+            context,
             catalogSearch: {
                 type: CatalogType.Field,
                 filter: CatalogFilter.Dimensions,

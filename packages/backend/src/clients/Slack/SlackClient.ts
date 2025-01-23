@@ -1,5 +1,6 @@
 import {
     friendlyName,
+    getErrorMessage,
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
@@ -142,7 +143,9 @@ export class SlackClient {
                     ? [...allChannels, ...conversations.channels]
                     : allChannels;
             } catch (e) {
-                Logger.error(`Unable to fetch slack channels ${e}`);
+                Logger.error(
+                    `Unable to fetch slack channels: ${getErrorMessage(e)}`,
+                );
                 Sentry.captureException(e);
                 break;
             }
@@ -166,7 +169,9 @@ export class SlackClient {
                     ? [...allUsers, ...users.members]
                     : allUsers;
             } catch (e) {
-                Logger.error(`Unable to fetch slack users ${e}`);
+                Logger.error(
+                    `Unable to fetch slack users: ${getErrorMessage(e)}`,
+                );
                 Sentry.captureException(e);
 
                 break;
@@ -211,7 +216,9 @@ export class SlackClient {
             await Promise.all(joinPromises);
         } catch (e) {
             Logger.error(
-                `Unable to join channels ${channels} on organization ${organizationUuid}: ${e}`,
+                `Unable to join channels ${channels} on organization ${organizationUuid}: ${getErrorMessage(
+                    e,
+                )}`,
             );
         }
     }
@@ -466,7 +473,9 @@ export class SlackClient {
             });
             return { url: slackFileUrl, expiring: false };
         } catch (e) {
-            Logger.error(`Failed to upload image to slack: ${e}`);
+            Logger.error(
+                `Failed to upload image to slack: ${getErrorMessage(e)}`,
+            );
             return { url: imageUrl, expiring: true };
         }
     }

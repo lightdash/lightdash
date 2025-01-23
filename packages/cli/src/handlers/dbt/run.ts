@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { getErrorMessage, ParseError } from '@lightdash/common';
 import { Command } from 'commander';
 import execa from 'execa';
 import { LightdashAnalytics } from '../../analytics/analytics';
@@ -44,7 +44,7 @@ export const dbtRunHandler = async (
         });
         await subprocess;
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         await LightdashAnalytics.track({
             event: 'dbt_command.error',
             properties: {

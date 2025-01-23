@@ -5,12 +5,12 @@ import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 export const getCategoriesFromResource = (
     resourceType: 'metric' | 'model',
     resourceName: string,
-    spotlightConfig: Required<NonNullable<LightdashProjectConfig['spotlight']>>,
+    spotlightConfig: LightdashProjectConfig['spotlight'] | undefined,
     resourceCategories: string[] | undefined = [],
 ) => {
     // Get all valid category references from the global spotlight config
     const categoriesDefinedInProjectConfig =
-        Object.keys(spotlightConfig.categories) || [];
+        Object.keys(spotlightConfig?.categories || {}) || [];
 
     // Check if any metric categories aren't defined in the global config
     const invalidCategories = resourceCategories.filter(

@@ -20,8 +20,8 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { v4 as uuid4 } from 'uuid';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
 import {
     appendNewTilesToBottom,

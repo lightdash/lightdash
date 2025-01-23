@@ -145,6 +145,7 @@
                                                     "mi",
                                                     "usd",
                                                     "gbp",
+                                                    "jpy",
                                                     "eur",
                                                     "percent",
                                                     "id"
@@ -243,7 +244,7 @@
                             },
                             "spotlight": {
                                 "type": "object",
-                                "description": "Set the visibility of all metrics in this model in Spotlight",
+                                "description": "Set the visibility and/or categories of a metric in Spotlight",
                                 "properties": {
                                     "visibility": {
                                         "type": "string",
@@ -361,6 +362,7 @@
                                                                 "km",
                                                                 "mi",
                                                                 "usd",
+                                                                "jpy",
                                                                 "gbp",
                                                                 "eur",
                                                                 "percent",
@@ -478,6 +480,7 @@
                                                         "km",
                                                         "mi",
                                                         "usd",
+                                                        "jpy",
                                                         "gbp",
                                                         "eur",
                                                         "percent",
@@ -678,6 +681,7 @@
                                     "km",
                                     "mi",
                                     "usd",
+                                    "jpy",
                                     "gbp",
                                     "eur",
                                     "percent",

@@ -51,16 +51,16 @@ import {
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
 
-export type CatalogModelArguments = {
-    database: Knex;
-    lightdashConfig: LightdashConfig;
-};
-
 export enum CatalogSearchContext {
     SPOTLIGHT = 'spotlight',
     CATALOG = 'catalog',
     METRICS_EXPLORER = 'metricsExplorer',
 }
+
+export type CatalogModelArguments = {
+    database: Knex;
+    lightdashConfig: LightdashConfig;
+};
 
 export class CatalogModel {
     protected database: Knex;
@@ -229,7 +229,7 @@ export class CatalogModel {
         searchRankFunction?: (args: {
             database: Knex;
             variables: Record<string, string>;
-        }) => Knex.Raw<any>;
+        }) => Knex.Raw;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
         paginateArgs?: KnexPaginateArgs;

@@ -17,7 +17,7 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
-    lightdashProjectConfigSchema,
+    loadLightdashProjectConfig,
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
@@ -28,10 +28,8 @@ import {
     type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import path from 'path';
-import Ajv from 'ajv';
-import * as yaml from 'js-yaml';
 import { promises as fs } from 'fs';
+import path from 'path';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -80,33 +78,25 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+    private async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+        if (!this.dbtProjectDir) {
+            return {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            };
+        }
+
+        const configPath = path.join(
+            this.dbtProjectDir,
+            'lightdash.config.yml',
+        );
+
         try {
-            const ajv = new Ajv({ coerceTypes: true });
+            const fileContents = await fs.readFile(configPath, 'utf8');
+            const config = await loadLightdashProjectConfig(fileContents);
+            return config;
+        } catch (e) {
+            Logger.debug(`No lightdash.config.yml found in ${configPath}`);
 
-            if (!this.dbtProjectDir) {
-                return {
-                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
-                };
-            }
-
-            const configPath = path.join(
-                this.dbtProjectDir,
-                'lightdash.config.yml',
-            );
-            const configFile = yaml.load(await fs.readFile(configPath, 'utf8'));
-            const validate = ajv.compile<LightdashProjectConfig>(
-                lightdashProjectConfigSchema,
-            );
-
-            if (!validate(configFile)) {
-                throw new ParseError(
-                    `Invalid lightdash.config.yml at ${configPath}\n`,
-                );
-            }
-
-            return configFile;
-        } catch (e: unknown) {
             if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
                 // Return default config if file doesn't exist
                 return {

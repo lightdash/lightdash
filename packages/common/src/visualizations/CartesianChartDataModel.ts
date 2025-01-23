@@ -19,6 +19,7 @@ import {
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
+    type AxisSide,
     type PivotChartData,
     type PivotChartLayout,
     type VizCartesianChartConfig,
@@ -512,11 +513,14 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesDisplay = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                );
-
                 const seriesColumnId = seriesColumn.pivotColumnName;
+
+                // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
+                // If there is no display object for the seriesColumnId, we also referenceField for compatibility with
+                // the old display object that stored display info by the field, not the ID.
+                const seriesDisplay =
+                    display?.series?.[seriesColumnId] ??
+                    display?.series?.[seriesColumn.referenceField];
 
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
@@ -734,7 +738,7 @@ export type CartesianChartDisplay = {
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
             // whichAxis maps to the yAxis index in Echarts.
-            whichYAxis?: number;
+            whichYAxis?: AxisSide;
         };
     };
     legend?: {

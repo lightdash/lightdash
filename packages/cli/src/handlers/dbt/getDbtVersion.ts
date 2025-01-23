@@ -1,6 +1,7 @@
 import {
     DbtVersionOption,
     DbtVersionOptionLatest,
+    getErrorMessage,
     getLatestSupportDbtVersion,
     ParseError,
     SupportedDbtVersions,
@@ -29,7 +30,7 @@ const getDbtCLIVersion = async () => {
             throw new ParseError(`Can't locate dbt --version: ${logs}`);
         return version[0].split(':')[1].trim();
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(`Failed to get dbt --version:\n  ${msg}`);
     }
 };
