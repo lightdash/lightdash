@@ -22,6 +22,7 @@ import {
 } from '../types/field';
 import { type WarehouseClient } from '../types/warehouse';
 
+import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
@@ -29,7 +30,6 @@ import {
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
-import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
