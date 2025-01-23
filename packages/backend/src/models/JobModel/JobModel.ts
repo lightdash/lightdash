@@ -3,6 +3,7 @@ import {
     CreateJob,
     DbtError,
     DbtLog,
+    getErrorMessage,
     Job,
     JobLabels,
     JobStatusType,
@@ -192,7 +193,7 @@ export class JobModel {
                 jobUuid,
                 JobStepStatusType.ERROR,
                 jobStepType,
-                e.message,
+                getErrorMessage(e),
                 e instanceof DbtError ? e.logs : [],
             );
             await this.update(jobUuid, { jobStatus: JobStatusType.ERROR });

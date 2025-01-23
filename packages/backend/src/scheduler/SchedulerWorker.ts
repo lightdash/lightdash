@@ -1,4 +1,5 @@
 import {
+    getErrorMessage,
     indexCatalogJob,
     SchedulerJobStatus,
     semanticLayerQueryJob,
@@ -214,7 +215,7 @@ export class SchedulerWorker extends SchedulerTask {
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
@@ -247,7 +248,7 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'slack',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
@@ -280,7 +281,7 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'email',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
@@ -307,7 +308,7 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'gsheets',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
@@ -338,7 +339,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
@@ -373,7 +374,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
@@ -470,7 +471,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
@@ -504,7 +505,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
@@ -538,7 +539,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
@@ -569,7 +570,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },

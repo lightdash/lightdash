@@ -12,6 +12,7 @@ import {
     formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
+    getErrorMessage,
     getHiddenTableFields,
     getHumanReadableCronExpression,
     getItemMap,
@@ -63,6 +64,7 @@ import {
     VizColumn,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
+import { instance } from 'apache-arrow/visitor/typecomparator';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -719,7 +721,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'slack',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
 
             if (e instanceof SlackInstallationNotFoundError) {
@@ -789,7 +791,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
             throw e;
@@ -906,7 +908,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
             throw e;
@@ -983,7 +985,7 @@ export default class SchedulerTask {
                     context: payload.context,
                     organizationId: payload.organizationUuid,
                     projectId: payload.projectUuid,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
 
@@ -992,7 +994,7 @@ export default class SchedulerTask {
                 jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
             throw e;
         }
@@ -1035,7 +1037,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.userUuid,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
             throw e; // Cascade error to it can be retried by graphile
@@ -1068,8 +1070,10 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     ...baseLog.details,
-                    error: e.message,
-                    ...(e?.data ?? {}),
+                    error: getErrorMessage(e),
+                    ...(e instanceof Error && 'data' in e && e?.data
+                        ? e.data
+                        : {}),
                 },
             });
             Logger.error(`Error in scheduler task: ${e}`);
@@ -1268,7 +1272,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.userUuid,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
 
@@ -1515,7 +1519,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'email',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
 
             throw e; // Cascade error to it can be retried by graphile
@@ -1944,7 +1948,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
             const shouldDisableSync =
                 e instanceof ForbiddenError ||
@@ -2194,7 +2198,7 @@ export default class SchedulerTask {
                 jobGroup: jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: e.message },
+                details: { error: getErrorMessage(e) },
             });
 
             if (e instanceof NotEnoughResults) {

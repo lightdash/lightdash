@@ -1,6 +1,7 @@
 import {
     DbtModelNode,
     getCompiledModels,
+    getErrorMessage,
     getModelsFromManifest,
     ParseError,
     SupportedDbtVersions,
@@ -73,7 +74,7 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         console.error(stdout);
         console.error(stderr);
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
 };
@@ -149,7 +150,7 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
         console.error(stderr);
         return models;
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(
             `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );

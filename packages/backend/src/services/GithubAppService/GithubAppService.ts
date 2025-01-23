@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AuthorizationError,
     ForbiddenError,
+    getErrorMessage,
     isUserWithOrg,
     MissingConfigError,
     NotFoundError,
@@ -191,7 +192,7 @@ export class GithubAppService extends BaseService {
                 properties: {
                     organizationId: user.organizationUuid!,
                     byAdmin: setup_action !== 'request',
-                    error: error.message,
+                    error: getErrorMessage(error),
                 },
             });
             throw error;

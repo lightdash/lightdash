@@ -8,6 +8,7 @@ import {
     AuthorizationError,
     ChartAsCode,
     DashboardAsCode,
+    getErrorMessage,
     PromotionAction,
     PromotionChanges,
 } from '@lightdash/common';
@@ -450,7 +451,11 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         } catch (error) {
             changes[`${type} with errors`] =
                 (changes[`${type} with errors`] ?? 0) + 1;
-            console.error(styles.error(`Error upserting ${type}: ${error}`));
+            console.error(
+                styles.error(
+                    `Error upserting ${type}: ${getErrorMessage(error)}`,
+                ),
+            );
 
             await LightdashAnalytics.track({
                 event: 'download.error',
@@ -459,7 +464,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                     organizationId: config.user?.organizationUuid,
                     projectId,
                     type,
-                    error: `${error}`,
+                    error: getErrorMessage(error),
                 },
             });
         }
@@ -558,14 +563,16 @@ export const uploadHandler = async (
 
         logUploadChanges(changes);
     } catch (error) {
-        console.error(styles.error(`\nError downloading ${error}`));
+        console.error(
+            styles.error(`\nError downloading: ${getErrorMessage(error)}`),
+        );
         await LightdashAnalytics.track({
             event: 'download.error',
             properties: {
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
                 projectId,
-                error: `${error}`,
+                error: getErrorMessage(error),
             },
         });
     }
