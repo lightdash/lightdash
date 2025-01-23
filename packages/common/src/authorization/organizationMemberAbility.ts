@@ -88,6 +88,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'MetricsTree', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'SpotlightTableConfig', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.viewer(member, { can });
@@ -245,6 +248,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
+        });
+        can('manage', 'SpotlightTableConfig', {
+            organizationUuid: member.organizationUuid,
         });
     },
     admin(member, { can }) {

@@ -274,7 +274,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     return undefined;
                 }
                 throw new WarehouseConnectionError(
-                    `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${e.message}`,
+                    `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${getErrorMessage(
+                        e,
+                    )}`,
                 );
             });
         });
@@ -345,8 +347,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     };
                 } catch (error) {
                     console.error(
-                        `Error fetching partition info for dataset ${dataset.id}:`,
-                        error,
+                        `Error fetching partition info for dataset ${
+                            dataset.id
+                        }: ${getErrorMessage(error)}`,
                     );
                     return {
                         datasetId: dataset.id,
@@ -414,7 +417,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     parseError(error: bigquery.IErrorProto, query: string = '') {
         // if the error has no reason, return a generic error
         if (!error?.reason) {
-            return new WarehouseQueryError(error?.message || 'Unknown error');
+            return new WarehouseQueryError(getErrorMessage(error));
         }
         switch (error?.reason) {
             // if query is mistyped
@@ -457,6 +460,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 break;
         }
         // otherwise return a generic error
-        return new WarehouseQueryError(error?.message || 'Unknown error');
+        return new WarehouseQueryError(getErrorMessage(error));
     }
 }

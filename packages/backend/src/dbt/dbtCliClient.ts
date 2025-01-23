@@ -4,6 +4,7 @@ import {
     DbtLog,
     DbtPackages,
     DbtRpcGetManifestResults,
+    getErrorMessage,
     isDbtLog,
     isDbtPackages,
     isDbtRpcManifestResults,
@@ -11,7 +12,7 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import execa from 'execa';
+import execa, { ExecaError, ExecaReturnValue } from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
@@ -42,7 +43,9 @@ export const getDbtConfig = async (
         config = loadYaml(await fs.readFile(configPath, 'utf-8'));
     } catch (e) {
         throw new ParseError(
-            `dbt_project.yml was not found or isn't a valid yaml document: ${e.message}`,
+            `dbt_project.yml was not found or isn't a valid yaml document: ${getErrorMessage(
+                e,
+            )}`,
             {},
         );
     }
@@ -207,15 +210,25 @@ export class DbtCliClient implements DbtClient {
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
             Logger.error(
-                `Error running dbt command with version ${this.dbtVersion}: ${e}`,
+                `Error running dbt command with version ${
+                    this.dbtVersion
+                }: ${getErrorMessage(e)}`,
             );
-
-            throw new DbtError(
-                `Failed to run "${dbtExec} ${command.join(
-                    ' ',
-                )}" with dbt version "${this.dbtVersion}"`,
-                DbtCliClient.parseDbtJsonLogs(e.all),
-            );
+            // TODO parse ExecaError
+            const execaError = e as Partial<ExecaError>;
+            if (
+                execaError &&
+                'all' in execaError &&
+                typeof execaError.all === 'string'
+            ) {
+                throw new DbtError(
+                    `Failed to run "${dbtExec} ${command.join(
+                        ' ',
+                    )}" with dbt version "${this.dbtVersion}"`,
+                    DbtCliClient.parseDbtJsonLogs(execaError.all),
+                );
+            }
+            throw e;
         }
     }
 

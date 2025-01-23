@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { getErrorMessage, ParseError } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import { promises as fs } from 'fs';
 import { ajv } from '../../../ajv';
@@ -87,7 +87,7 @@ export const getBigqueryCredentialsFromServiceAccount = async (
                 string
             >;
         } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '-';
+            const msg = getErrorMessage(e);
             throw new ParseError(
                 `Cannot read keyfile for bigquery target expect at: ${keyfilePath}:\n  ${msg}`,
             );

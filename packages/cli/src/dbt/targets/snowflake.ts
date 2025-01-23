@@ -1,5 +1,6 @@
 import {
     CreateSnowflakeCredentials,
+    getErrorMessage,
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -110,7 +111,7 @@ export const convertSnowflakeSchema = async (
             try {
                 privateKey = await fs.readFile(keyfilePath, 'utf8');
             } catch (e: unknown) {
-                const msg = e instanceof Error ? e.message : '-';
+                const msg = getErrorMessage(e);
                 throw new ParseError(
                     `Cannot read keyfile for snowflake target at: ${keyfilePath}:\n  ${msg}`,
                 );

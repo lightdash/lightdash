@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { getErrorMessage, ParseError } from '@lightdash/common';
 import execa from 'execa';
 import path from 'path';
 import { loadDbtTarget } from '../../dbt/profile';
@@ -21,8 +21,9 @@ const getDbtCloudTargetName = async (): Promise<string> => {
         }
         return targetName[1];
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
-        throw new ParseError(`Failed to get profile target name:\n  ${msg}`);
+        throw new ParseError(
+            `Failed to get profile target name:\n  ${getErrorMessage(e)}`,
+        );
     }
 };
 

@@ -1,6 +1,7 @@
 import {
     CreateTrinoCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     SupportedDbtAdapter,
@@ -161,7 +162,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             session = await client.create(this.connectionOptions);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
-            throw new WarehouseConnectionError(e.message);
+            throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
         return {
@@ -199,7 +200,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
             if (queryResult.value.error) {
                 throw new WarehouseQueryError(
-                    queryResult.value.error.message ??
+                    getErrorMessage(queryResult.value.error) ??
                         'Unexpected error in query execution',
                 );
             }
@@ -239,7 +240,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
-            throw new WarehouseQueryError(e.message);
+            throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             await close();
         }
@@ -259,7 +260,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     return result;
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (e: any) {
-                    throw new WarehouseQueryError(e.message);
+                    throw new WarehouseQueryError(getErrorMessage(e));
                 } finally {
                     if (query) void close();
                 }

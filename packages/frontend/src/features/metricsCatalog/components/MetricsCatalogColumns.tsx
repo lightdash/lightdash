@@ -1,5 +1,5 @@
-import { type CatalogField } from '@lightdash/common';
-import { Box, Flex, Group, Text } from '@mantine/core';
+import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
+import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
@@ -10,6 +10,8 @@ import {
     Hash,
     Popularity,
     Tag,
+    Table,
+    TableFilled,
 } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
@@ -20,14 +22,18 @@ import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
+import {
+    createMetricPreviewUnsavedChartVersion,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
-        accessorKey: 'label',
+        accessorKey: SpotlightTableColumns.METRIC,
         header: 'Metric',
         enableSorting: true,
         enableEditing: false,
-        size: 400,
+        size: 350,
         Header: ({ column }) => (
             <MetricCatalogColumnHeaderCell Icon={Hash}>
                 {column.columnDef.header}
@@ -60,10 +66,70 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         },
     },
     {
-        accessorKey: 'description',
+        accessorKey: SpotlightTableColumns.TABLE,
+        header: 'Table',
         enableSorting: false,
         enableEditing: false,
-        size: 500,
+        size: 150,
+        Header: ({ column }) => (
+            <MetricCatalogColumnHeaderCell Icon={Table} tooltipLabel="Table">
+                {column.columnDef.header}
+            </MetricCatalogColumnHeaderCell>
+        ),
+        Cell: ({ row, renderedCellValue }) => {
+            const projectUuid = useAppSelector(
+                (state) => state.metricsCatalog.projectUuid,
+            );
+
+            const savedChartVersion = createMetricPreviewUnsavedChartVersion({
+                name: row.original.name,
+                table: row.original.tableName,
+            });
+
+            const exploreUrl = getExplorerUrlFromCreateSavedChartVersion(
+                projectUuid,
+                savedChartVersion,
+            );
+
+            const url = new URL(exploreUrl.pathname, window.location.origin);
+            url.search = exploreUrl.search;
+
+            return (
+                <Button
+                    component="a"
+                    href={url.toString()}
+                    target="_blank"
+                    size="xs"
+                    compact
+                    color="gray.6"
+                    variant="subtle"
+                    leftIcon={<TableFilled />}
+                    fz="sm"
+                    c="dark.4"
+                    fw={500}
+                    sx={{
+                        '&[data-disabled]': {
+                            backgroundColor: 'transparent',
+                            fontWeight: 400,
+                        },
+                    }}
+                    styles={(theme) => ({
+                        leftIcon: {
+                            marginRight: theme.spacing.xxs,
+                        },
+                    })}
+                >
+                    {renderedCellValue}
+                </Button>
+            );
+        },
+    },
+    {
+        accessorKey: SpotlightTableColumns.DESCRIPTION,
+        enableSorting: false,
+        enableEditing: false,
+        size: 400,
+        minSize: 200,
         header: 'Description',
         Header: ({ column }) => (
             <MetricCatalogColumnHeaderCell
@@ -78,12 +144,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         },
     },
     {
-        accessorKey: 'categories',
+        accessorKey: SpotlightTableColumns.CATEGORIES,
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
-        size: 300,
-        minSize: 180,
+        size: 270,
+        minSize: 150,
         mantineTableBodyCellProps: () => {
             return {
                 pos: 'relative',
@@ -232,11 +298,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         },
     },
     {
-        accessorKey: 'chartUsage',
+        accessorKey: SpotlightTableColumns.CHART_USAGE,
         header: 'Popularity',
         enableSorting: true,
         enableEditing: false,
         size: 150,
+        minSize: 100,
         mantineTableBodyCellProps: () => {
             return {
                 sx: {
