@@ -1,8 +1,8 @@
 import {
     DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
     SpotlightTableColumns,
-    type SpotlightTableConfig,
     type CatalogField,
+    type SpotlightTableConfig,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { MRT_SortingState } from 'mantine-react-table';

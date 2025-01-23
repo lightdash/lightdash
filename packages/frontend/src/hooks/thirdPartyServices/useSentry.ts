@@ -1,10 +1,10 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
 import {
-    init,
-    setUser,
-    setTag,
     browserTracingIntegration,
+    init,
     replayIntegration,
+    setTag,
+    setUser,
 } from '@sentry/react';
 import { useEffect, useState } from 'react';
 

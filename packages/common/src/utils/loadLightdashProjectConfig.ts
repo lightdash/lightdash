@@ -1,12 +1,12 @@
 import Ajv from 'ajv';
-import * as yaml from 'js-yaml';
 import betterAjvErrors from 'better-ajv-errors';
+import * as yaml from 'js-yaml';
+import lightdashProjectConfigSchema from '../schemas/json/lightdash-project-config-1.0.json';
+import { ParseError } from '../types/errors';
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
     type LightdashProjectConfig,
 } from '../types/lightdashProjectConfig';
-import lightdashProjectConfigSchema from '../schemas/json/lightdash-project-config-1.0.json';
-import { ParseError } from '../types/errors';
 
 export const loadLightdashProjectConfig = async (
     yamlFileContents: string,

@@ -6,12 +6,12 @@ import {
     VizAggregationOptions,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
+    type PivotValuesColumn,
     type SortByDirection,
     type ValueLabelPositionOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
-    type PivotValuesColumn,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';

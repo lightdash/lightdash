@@ -27,8 +27,8 @@ import {
     SupportedDbtVersions,
     type LightdashProjectConfig,
 } from '@lightdash/common';
-import { promises as fs } from 'fs';
 import { WarehouseClient } from '@lightdash/warehouses';
+import { promises as fs } from 'fs';
 import path from 'path';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
