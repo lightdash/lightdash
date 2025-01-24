@@ -1,4 +1,6 @@
 declare module '@rudderstack/rudder-sdk-node' {
+    import { AnyType } from '@lightdash/common';
+
     interface Options {
         flushAt?: number;
         flushInterval?: number;
