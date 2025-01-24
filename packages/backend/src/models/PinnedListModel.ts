@@ -1,5 +1,4 @@
 import {
-    AnyType,
     CreatePinnedItem,
     DeletePinnedItem,
     isCreateChartPinnedItem,
