@@ -22,7 +22,7 @@ export async function down(knex: Knex): Promise<void> {
         SlackChannelProjectMappingsTable,
         (tableBuilder) => {
             tableBuilder.dropUnique(['slack_channel_id', 'organization_uuid']);
-            tableBuilder.dropPrimary('uuid');
+            tableBuilder.dropPrimary('slack_channel_project_mapping_uuid');
             tableBuilder.primary(['project_uuid', 'organization_uuid']);
         },
     );
