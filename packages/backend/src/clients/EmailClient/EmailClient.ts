@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateProjectMember,
     InviteLink,
     PasswordResetLink,
@@ -63,8 +64,7 @@ export default class EmailClient {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
                 },
             );
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            this.transporter.verify((error: any) => {
+            this.transporter.verify((error: AnyType) => {
                 if (error) {
                     throw new SmptError(
                         `Failed to verify email transporter. ${error}`,
@@ -92,8 +92,7 @@ export default class EmailClient {
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private async sendEmail(options: any): Promise<void> {
+    private async sendEmail(options: AnyType): Promise<void> {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);

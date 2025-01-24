@@ -7,11 +7,15 @@
         "requestBodies": {},
         "responses": {},
         "schemas": {
+            "AnyType": {
+                "description": "This AnyType is an alias for any\nThe goal is to make it easier to identify any type in the codebase\nwithout having to eslint-disable all the time\nThese are only used on legacy `any` types, don't use it for new types.\nThis is added on a separate file to avoid circular dependencies."
+            },
             "ApiErrorPayload": {
                 "properties": {
                     "error": {
                         "properties": {
                             "data": {
+                                "$ref": "#/components/schemas/AnyType",
                                 "description": "Optional data containing details of the error"
                             },
                             "message": {
@@ -3079,10 +3083,12 @@
                 ],
                 "type": "string"
             },
-            "FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+            "FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_": {
                 "properties": {
                     "values": {
-                        "items": {},
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
                         "type": "array"
                     },
                     "operator": {
@@ -3094,7 +3100,9 @@
                     "target": {
                         "$ref": "#/components/schemas/DashboardFieldTarget"
                     },
-                    "settings": {},
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
                     "disabled": {
                         "type": "boolean"
                     },
@@ -3128,7 +3136,7 @@
             "DashboardFilterRule": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_"
                     },
                     {
                         "properties": {
@@ -3291,7 +3299,7 @@
                 "enum": ["scheduled", "started", "completed", "error"],
                 "type": "string"
             },
-            "Record_string.any_": {
+            "Record_string.AnyType_": {
                 "properties": {},
                 "additionalProperties": {},
                 "type": "object",
@@ -3300,7 +3308,7 @@
             "SchedulerLog": {
                 "properties": {
                     "details": {
-                        "$ref": "#/components/schemas/Record_string.any_"
+                        "$ref": "#/components/schemas/Record_string.AnyType_"
                     },
                     "targetType": {
                         "type": "string",
@@ -3495,7 +3503,7 @@
                             "details": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Record_string.any_"
+                                        "$ref": "#/components/schemas/Record_string.AnyType_"
                                     }
                                 ],
                                 "nullable": true
@@ -3544,7 +3552,9 @@
                     {
                         "properties": {
                             "or": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             },
                             "id": {
@@ -3557,7 +3567,9 @@
                     {
                         "properties": {
                             "and": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             },
                             "id": {
@@ -3750,7 +3762,9 @@
             "MetricFilterRule": {
                 "properties": {
                     "values": {
-                        "items": {},
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
                         "type": "array"
                     },
                     "operator": {
@@ -3768,7 +3782,9 @@
                         "required": ["fieldRef"],
                         "type": "object"
                     },
-                    "settings": {},
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
                     "disabled": {
                         "type": "boolean"
                     },
@@ -4392,7 +4408,9 @@
                                 "$ref": "#/components/schemas/Record_string.Item-or-AdditionalMetric_"
                             },
                             "rows": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             },
                             "cacheMetadata": {
@@ -4488,9 +4506,15 @@
                     },
                     "filters": {
                         "properties": {
-                            "tableCalculations": {},
-                            "metrics": {},
-                            "dimensions": {}
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
                         },
                         "type": "object"
                     },
@@ -4602,7 +4626,9 @@
             "FilterRule": {
                 "properties": {
                     "values": {
-                        "items": {},
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
                         "type": "array"
                     },
                     "operator": {
@@ -4614,7 +4640,9 @@
                     "target": {
                         "$ref": "#/components/schemas/FieldTarget"
                     },
-                    "settings": {},
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
                     "disabled": {
                         "type": "boolean"
                     },
@@ -13049,7 +13077,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1462.0",
+        "version": "0.1463.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13114,7 +13142,9 @@
                                         "type": "array"
                                     },
                                     "explores": {
-                                        "items": {},
+                                        "items": {
+                                            "$ref": "#/components/schemas/AnyType"
+                                        },
                                         "type": "array"
                                     }
                                 },
@@ -14869,6 +14899,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
+                                "$ref": "#/components/schemas/AnyType",
                                 "description": "the new scheduler data"
                             }
                         }
@@ -15100,6 +15131,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
+                                "$ref": "#/components/schemas/AnyType",
                                 "description": "the create scheduler data"
                             }
                         }
@@ -15348,7 +15380,9 @@
                                     "invalidateCache": {
                                         "type": "boolean"
                                     },
-                                    "dashboardFilters": {}
+                                    "dashboardFilters": {
+                                        "$ref": "#/components/schemas/AnyType"
+                                    }
                                 },
                                 "required": [
                                     "dashboardUuid",
@@ -15601,7 +15635,9 @@
                                     "invalidateCache": {
                                         "type": "boolean"
                                     },
-                                    "dashboardFilters": {}
+                                    "dashboardFilters": {
+                                        "$ref": "#/components/schemas/AnyType"
+                                    }
                                 },
                                 "type": "object"
                             }
@@ -15764,7 +15800,9 @@
                                     "tileUuid": {
                                         "type": "string"
                                     },
-                                    "dashboardFilters": {}
+                                    "dashboardFilters": {
+                                        "$ref": "#/components/schemas/AnyType"
+                                    }
                                 },
                                 "required": ["onlyRaw", "dashboardFilters"],
                                 "type": "object"
@@ -17243,8 +17281,12 @@
                                                 "type": "string",
                                                 "nullable": true
                                             },
-                                            "metricQuery": {},
-                                            "chartConfig": {}
+                                            "metricQuery": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "chartConfig": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            }
                                         },
                                         "required": [
                                             "metricQuery",
@@ -17319,8 +17361,12 @@
                                                 "type": "string",
                                                 "nullable": true
                                             },
-                                            "tiles": {},
-                                            "filters": {}
+                                            "tiles": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "filters": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            }
                                         },
                                         "required": ["tiles", "filters"],
                                         "type": "object"
@@ -19160,7 +19206,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             }
                         }

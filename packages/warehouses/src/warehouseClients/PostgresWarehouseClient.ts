@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
     DimensionType,
@@ -156,8 +157,7 @@ export class PostgresClient<
     }
 
     static convertQueryResultFields(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        fields: QueryResult<any>['fields'],
+        fields: QueryResult<AnyType>['fields'],
     ): Record<string, { type: DimensionType }> {
         return fields.reduce(
             (acc, { name, dataTypeID }) => ({
@@ -174,8 +174,7 @@ export class PostgresClient<
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -255,10 +254,8 @@ export class PostgresClient<
                                 objectMode: true,
                                 write(
                                     chunk: {
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        row: any;
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        fields: QueryResult<any>['fields'];
+                                        row: AnyType;
+                                        fields: QueryResult<AnyType>['fields'];
                                     },
                                     encoding,
                                     callback,

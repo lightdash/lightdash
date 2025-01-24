@@ -8,6 +8,7 @@ import {
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
+    AnyType,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -45,8 +46,7 @@ export enum BigqueryFieldType {
     ARRAY = 'ARRAY',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const parseCell = (cell: any) => {
+const parseCell = (cell: AnyType) => {
     if (
         cell === undefined ||
         cell === null ||
@@ -106,8 +106,7 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const parseRow = (row: Record<string, any>[]) =>
+const parseRow = (row: Record<string, AnyType>[]) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
@@ -137,8 +136,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },

@@ -11,6 +11,7 @@ import {
     type CustomFormat,
 } from '../types/field';
 import { type AdditionalMetric } from '../types/metricQuery';
+import { type AnyType } from '../types/any';
 
 function convertFormatOptionsToFormat(
     formatOptions?: CustomFormat,
@@ -96,8 +97,7 @@ function updateModelNode(
                 );
             }
             return columnNode;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }) as any,
+        }) as AnyType,
     };
 }
 

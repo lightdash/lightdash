@@ -1,4 +1,5 @@
 import {
+    AnyType,
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
@@ -136,8 +137,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             const compiledModels = getCompiledModels(manifestModels, undefined);
             Logger.info(`Compiled models ${compiledModels.length}`);
             models = compiledModels.filter(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+                (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
             ) as DbtRawModelNode[];
             Logger.info(`Filtered models ${models.length}`);
         } else {
@@ -145,8 +145,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             // If selector is not provided, we use all the models from the manifest
             // models with invalid metadata will compile to failed Explores
             models = Object.values(manifest.nodes).filter(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+                (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
             ) as DbtRawModelNode[];
             Logger.info(`Filtered models ${models.length}`);
         }

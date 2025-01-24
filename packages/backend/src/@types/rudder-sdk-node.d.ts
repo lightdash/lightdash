@@ -8,28 +8,22 @@ declare module '@rudderstack/rudder-sdk-node' {
     interface Identify {
         anonymousId?: string;
         userId?: string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        traits?: Record<string, any>;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        context?: Record<string, any>;
+        traits?: Record<string, AnyType>;
+        context?: Record<string, AnyType>;
     }
     interface Group {
         anonymousId?: string;
         userId?: string;
         groupId: string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        traits?: Record<string, any>;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        context?: Record<string, any>;
+        traits?: Record<string, AnyType>;
+        context?: Record<string, AnyType>;
     }
     export interface Track {
         userId?: string;
         anonymousId?: string;
         event: string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        properties?: Record<string, any>;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        context?: Record<string, any>;
+        properties?: Record<string, AnyType>;
+        context?: Record<string, AnyType>;
     }
 
     declare class Analytics {

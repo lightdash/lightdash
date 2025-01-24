@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateTrinoCredentials,
     DimensionType,
     getErrorMessage,
@@ -126,12 +127,13 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
+const resultHandler = (
+    schema: { [key: string]: AnyType }[],
+    data: AnyType[][],
+) => {
     const s: string[] = schema.map((e) => e.name);
     return data.map((i) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const item: { [key: string]: any } = {};
+        const item: { [key: string]: AnyType } = {};
         i.map((column, index) => {
             const name: string = s[index];
             item[name] = column;
@@ -160,8 +162,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         let session: Trino;
         try {
             session = await client.create(this.connectionOptions);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
+        } catch (e: AnyType) {
             throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
@@ -238,8 +239,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     rows: resultHandler(schema, queryResult.value.data ?? []),
                 });
             }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
+        } catch (e: AnyType) {
             throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             await close();
@@ -258,8 +258,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     query = await session.query(queryTableSchema(request));
                     const result = (await query.next()).value.data ?? [];
                     return result;
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } catch (e: any) {
+                } catch (e: AnyType) {
                     throw new WarehouseQueryError(getErrorMessage(e));
                 } finally {
                     if (query) void close();

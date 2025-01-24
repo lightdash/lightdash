@@ -199,7 +199,6 @@ export class CatalogModel {
         searchRankFunction?: (args: {
             database: Knex;
             variables: Record<string, string>;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) => Knex.Raw;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;

@@ -153,6 +153,7 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
+import { type AnyType } from './types/any';
 
 dayjs.extend(utc);
 
@@ -265,6 +266,7 @@ export * from './visualizations/types';
 export * from './visualizations/types/IResultsRunner';
 export * from './types/spotlightTableConfig';
 export * from './utils/loadLightdashProjectConfig';
+export * from './types/any';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {
@@ -404,8 +406,7 @@ export const SEED_GROUP = {
 
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
-) => // eslint-disable-next-line @typescript-eslint/no-explicit-any
-any
+) => AnyType
     ? A
     : never;
 
@@ -1122,8 +1123,7 @@ export function itemsInMetricQuery(
 
 function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any,
+    value: AnyType,
 ) {
     const isTimestamp =
         isField(field) &&
@@ -1139,8 +1139,7 @@ function formatRawValue(
 }
 
 export function formatRows(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rows: { [col: string]: any }[],
+    rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
     return rows.map((row) => {
@@ -1163,12 +1162,10 @@ export function formatRows(
     });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isObject = (object: any) => object != null && typeof object === 'object';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const removeEmptyProperties = (object: Record<string, any>) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const newObj: Record<string, any> = {};
+const isObject = (object: AnyType) =>
+    object != null && typeof object === 'object';
+export const removeEmptyProperties = (object: Record<string, AnyType>) => {
+    const newObj: Record<string, AnyType> = {};
     Object.keys(object).forEach((key) => {
         if (object[key] === Object(object[key]))
             newObj[key] = removeEmptyProperties(object[key]);
@@ -1178,10 +1175,8 @@ export const removeEmptyProperties = (object: Record<string, any>) => {
     return newObj;
 };
 export const deepEqual = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    object1: Record<string, any>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    object2: Record<string, any>,
+    object1: Record<string, AnyType>,
+    object2: Record<string, AnyType>,
 ): boolean => {
     const keys1 = Object.keys(object1);
     const keys2 = Object.keys(object2);
@@ -1189,10 +1184,8 @@ export const deepEqual = (
         return false;
     }
     return keys1.every((key) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const val1: any = object1[key];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const val2: any = object2[key];
+        const val1: AnyType = object1[key];
+        const val2: AnyType = object2[key];
         const areObjects = isObject(val1) && isObject(val2);
         return !(
             (areObjects && !deepEqual(val1, val2)) ||

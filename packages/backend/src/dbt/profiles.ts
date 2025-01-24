@@ -1,4 +1,5 @@
 import {
+    AnyType,
     assertUnreachable,
     CreateWarehouseCredentials,
     WarehouseTypes,
@@ -14,8 +15,7 @@ const envVar = (v: string) => `LIGHTDASH_DBT_PROFILE_VAR_${v.toUpperCase()}`;
 const envVarReference = (v: string) => `{{ env_var('${envVar(v)}') }}`;
 
 type CredentialsTarget = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    target: Record<string, any>;
+    target: Record<string, AnyType>;
     environment: Record<string, string>;
     files?: Record<string, string>;
 };

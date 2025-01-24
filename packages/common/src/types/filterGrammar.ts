@@ -2,11 +2,11 @@ import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UnexpectedServerError } from './errors';
 import { FilterOperator, type MetricFilterRule } from './filter';
+import { type AnyType } from './any';
 
 export type ParsedFilter = {
     type: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    values: any[];
+    values: AnyType[];
     is?: boolean;
     date_interval?: string;
 };
@@ -217,8 +217,7 @@ export const parseOperator = (
 };
 
 export const parseFilters = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rawFilters: Record<string, any>[] | undefined,
+    rawFilters: Record<string, AnyType>[] | undefined,
 ): MetricFilterRule[] => {
     if (!rawFilters || rawFilters.length === 0) {
         return [];

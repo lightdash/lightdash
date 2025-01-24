@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateDashboardMarkdownTile,
     DashboardTileTypes,
     deepEqual,
@@ -45,8 +46,7 @@ import {
 
 function queryMatcher(
     tableName: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    params: any[] = [],
+    params: AnyType[] = [],
 ): FunctionQueryMatcher {
     return ({ sql, bindings }: RawQuery) =>
         sql.includes(tableName) &&

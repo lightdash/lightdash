@@ -1,12 +1,11 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v2';
 const projectUuid = SEED_PROJECT.project_uuid;
 
 // TODO test different semantic layers (project config)
 describe.skip('Lightdash semantic layer', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let views: any[];
+    let views: AnyType[];
     beforeEach(() => {
         cy.login();
     });

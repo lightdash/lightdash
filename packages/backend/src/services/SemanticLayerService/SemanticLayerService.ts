@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AnyType,
     assertUnreachable,
     ForbiddenError,
     MissingConfigError,
@@ -162,8 +163,7 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
             organizationUuid,
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return this.analytics.wrapEvent<any[]>(
+        return this.analytics.wrapEvent<AnyType[]>(
             {
                 event: 'semantic_layer.get_views', // started, completed, error suffix when using wrapEvent
                 userId: user.userUuid,

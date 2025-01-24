@@ -1,3 +1,4 @@
+import { type AnyType } from '../types/any';
 import { DimensionType } from '../types/field';
 import { type RawResultRow } from '../types/results';
 import { type ChartKind } from '../types/savedCharts';
@@ -357,8 +358,7 @@ export class PieChartDataModel {
         return transformedData.fileUrl;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getSpec(display?: VizPieChartDisplay): Record<string, any> {
+    getSpec(display?: VizPieChartDisplay): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
         if (!transformedData) {

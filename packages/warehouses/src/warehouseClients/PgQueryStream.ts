@@ -1,3 +1,4 @@
+import { AnyType } from '@lightdash/common';
 import { Connection, QueryResult, Submittable } from 'pg';
 import Cursor from 'pg-cursor';
 import { Readable } from 'stream';
@@ -6,18 +7,15 @@ interface QueryStreamConfig {
     batchSize?: number;
     highWaterMark?: number;
     rowMode?: 'array';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    types?: any;
+    types?: AnyType;
 }
 
 // Note: this is a copy of the QueryStream class from pg-query-stream with the following changes:
 // - change pipe to return the row and the results fields
 class QueryStream extends Readable implements Submittable {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    cursor: any;
+    cursor: AnyType;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _result: any;
+    _result: AnyType;
 
     handleRowDescription: Function;
 
@@ -35,8 +33,7 @@ class QueryStream extends Readable implements Submittable {
 
     public constructor(
         text: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        values?: any[],
+        values?: AnyType[],
         config: QueryStreamConfig = {},
     ) {
         const { batchSize, highWaterMark = 100 } = config;
@@ -86,8 +83,7 @@ class QueryStream extends Readable implements Submittable {
     public _read(size: number) {
         this.cursor.read(
             size,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (err: Error, rows: any[], result: QueryResult<any>) => {
+            (err: Error, rows: AnyType[], result: QueryResult<AnyType>) => {
                 if (err) {
                     // https://nodejs.org/api/stream.html#stream_errors_while_reading
                     this.destroy(err);

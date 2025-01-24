@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AnyType,
     BinType,
     ChartConfig,
     ChartKind,
@@ -76,8 +77,7 @@ type DbSavedChartDetails = {
     description: string | undefined;
     saved_queries_version_id: number;
     explore_name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    filters: any;
+    filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null;
     chart_type: ChartConfig['type'];

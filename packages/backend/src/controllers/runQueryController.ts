@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AnyType,
     ApiErrorPayload,
     ApiQueryResults,
     CacheMetadata,
@@ -30,8 +31,7 @@ export type ApiRunQueryResponse = {
     results: {
         metricQuery: MetricQueryResponse; // tsoa doesn't support complex types like MetricQuery
         cacheMetadata: CacheMetadata;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rows: any[];
+        rows: AnyType[];
         fields?: Record<string, Item | AdditionalMetric>;
     };
 };

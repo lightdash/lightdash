@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiCalculateTotalResponse,
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
@@ -867,10 +868,8 @@ export class ProjectController extends BaseController {
             ChartAsCode,
             'metricQuery' | 'chartConfig' | 'description'
         > & {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            chartConfig: any;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            metricQuery: any;
+            chartConfig: AnyType;
+            metricQuery: AnyType;
             description?: string | null; // Allow both undefined and null
         },
         @Request() req: express.Request,
@@ -899,10 +898,8 @@ export class ProjectController extends BaseController {
             DashboardAsCode,
             'filters' | 'tiles' | 'description'
         > & {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            filters: any;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            tiles: any;
+            filters: AnyType;
+            tiles: AnyType;
             description?: string | null; // Allow both undefined and null
         }, // Simplify filter type for tsoa
         @Request() req: express.Request,

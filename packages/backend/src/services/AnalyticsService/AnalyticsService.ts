@@ -1,4 +1,9 @@
-import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
+import {
+    AnyType,
+    ForbiddenError,
+    isUserWithOrg,
+    SessionUser,
+} from '@lightdash/common';
 
 import { subject } from '@casl/ability';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -28,8 +33,7 @@ export class AnalyticsService extends BaseService {
     async getUserActivity(
         projectUuid: string,
         user: SessionUser,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ): Promise<any> {
+    ): Promise<AnyType> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

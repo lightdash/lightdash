@@ -1,4 +1,5 @@
 import {
+    AnyType,
     OrganizationMemberRole,
     UserActivity,
     UserWithCount,
@@ -229,8 +230,7 @@ export class AnalyticsModel {
             chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
             dashboardViews: dashboardViews.rows,
             userMostViewedDashboards: userMostViewedDashboards.rows.map(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (row: any) => ({
+                (row: AnyType) => ({
                     userUuid: row.user_uuid,
                     firstName: row.first_name,
                     lastName: row.last_name,

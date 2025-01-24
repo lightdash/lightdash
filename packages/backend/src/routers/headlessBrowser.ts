@@ -1,4 +1,4 @@
-import { ForbiddenError, getErrorMessage } from '@lightdash/common';
+import { AnyType, ForbiddenError, getErrorMessage } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import express from 'express';
 import playwright from 'playwright';
@@ -126,8 +126,7 @@ if (
                 'analytics.lightdash.com',
                 'intercom.io',
             ];
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            page.on('request', (request: any) => {
+            page.on('request', (request: AnyType) => {
                 const requestUrl = request.url();
                 if (blockedUrls.includes(requestUrl)) {
                     request.abort();
@@ -146,8 +145,7 @@ if (
             await page.waitForSelector(selector);
             const element = await page.$(selector);
             if (isDashboard) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await page.evaluate((sel: any) => {
+                await page.evaluate((sel: AnyType) => {
                     // @ts-ignore
                     const elements = document.querySelectorAll(sel);
                     elements.forEach((el) => el.parentNode.removeChild(el));

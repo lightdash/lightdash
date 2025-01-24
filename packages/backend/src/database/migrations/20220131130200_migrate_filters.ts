@@ -1,3 +1,4 @@
+import { AnyType } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -21,8 +22,7 @@ interface OldFilterGroup {
 
 export type FilterRule<
     O = string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    V = any,
+    V = AnyType,
     S extends object | undefined = undefined,
 > = {
     id: string;

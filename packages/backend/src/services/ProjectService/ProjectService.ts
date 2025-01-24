@@ -4,6 +4,7 @@ import {
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
+    AnyType,
     ApiChartAndResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -1774,8 +1775,10 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         chartUuid: string,
         context: QueryExecutionContext,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
+    ): Promise<{
+        rows: Record<string, AnyType>[];
+        cacheMetadata: CacheMetadata;
+    }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
@@ -1819,14 +1822,12 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        query: any;
+        query: AnyType;
         metricQuery: MetricQuery;
         queryTags: RunQueryTags;
         invalidateCache?: boolean;
     }): Promise<{
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rows: Record<string, any>[];
+        rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
     }> {
         return wrapSentryTransaction(
@@ -1977,8 +1978,7 @@ export class ProjectService extends BaseService {
         granularity?: DateGranularity;
         chartUuid: string | undefined; // for analytics
     }): Promise<{
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rows: Record<string, any>[];
+        rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
     }> {
@@ -3868,8 +3868,7 @@ export class ProjectService extends BaseService {
                 },
             );
             return charts.data.length > 0;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
+        } catch (e: AnyType) {
             return false;
         }
     }
@@ -4875,8 +4874,7 @@ export class ProjectService extends BaseService {
         );
 
         const charts = await Promise.all(chartPromises);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return charts.reduce<any[]>((acc, chart) => {
+        return charts.reduce<AnyType[]>((acc, chart) => {
             const customMetrics = chart.metricQuery.additionalMetrics;
 
             if (customMetrics === undefined || customMetrics.length === 0)

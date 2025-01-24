@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AnyType,
     CreateInviteLink,
     InviteLink,
     LightdashUser,
@@ -24,8 +25,7 @@ export const openIdUser: OpenIdUser = {
 export const openIdUserWithInvalidIssuer: OpenIdUser = {
     openId: {
         ...openIdUser.openId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        issuerType: 'invalid_issuer' as any,
+        issuerType: 'invalid_issuer' as AnyType,
     },
 };
 

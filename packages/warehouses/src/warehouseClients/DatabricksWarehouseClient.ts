@@ -6,6 +6,7 @@ import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
+    AnyType,
     CreateDatabricksCredentials,
     DimensionType,
     getErrorMessage,
@@ -215,8 +216,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
+        } catch (e: AnyType) {
             throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
@@ -233,8 +233,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -288,15 +287,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
             } while (await query.hasMoreRows());
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
+        } catch (e: AnyType) {
             throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             try {
                 if (query) await query.close();
                 await close();
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } catch (e: any) {
+            } catch (e: AnyType) {
                 // Only console error. Don't allow close errors to override the original error
                 console.error(
                     'Error closing Databricks session on streamQuery',
@@ -329,14 +326,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                             tableName: request.table,
                         });
                         return (await query.fetchAll()) as SchemaResult[];
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    } catch (e: any) {
+                    } catch (e: AnyType) {
                         throw new WarehouseQueryError(getErrorMessage(e));
                     } finally {
                         try {
                             if (query) await query.close();
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        } catch (e: any) {
+                        } catch (e: AnyType) {
                             // Only console error. Don't allow close errors to override the original error
                             console.error(
                                 'Error closing Databricks query on getCatalog',
@@ -346,14 +341,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                     }
                 },
             );
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
+        } catch (e: AnyType) {
             throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             try {
                 await close();
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } catch (e: any) {
+            } catch (e: AnyType) {
                 // Only console error. Don't allow close errors to override the original error
                 console.error(
                     'Error closing Databricks session on getCatalog',

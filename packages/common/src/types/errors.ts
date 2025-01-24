@@ -1,19 +1,18 @@
 // eslint-disable-next-line max-classes-per-file
+import { type AnyType } from './any';
 import { type DbtLog } from './job';
 
 type LightdashErrorParams = {
     message: string;
     name: string;
     statusCode: number;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: { [key: string]: any };
+    data: { [key: string]: AnyType };
 };
 
 export class LightdashError extends Error {
     statusCode: number;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: { [key: string]: any };
+    data: { [key: string]: AnyType };
 
     constructor({ message, name, statusCode, data }: LightdashErrorParams) {
         super(message);
@@ -26,8 +25,7 @@ export class LightdashError extends Error {
 export class ForbiddenError extends LightdashError {
     constructor(
         message = "You don't have access to this resource or action",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -41,8 +39,7 @@ export class ForbiddenError extends LightdashError {
 export class DeactivatedAccountError extends LightdashError {
     constructor(
         message = 'Your account has been deactivated. Please contact your organization administrator.',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -56,8 +53,7 @@ export class DeactivatedAccountError extends LightdashError {
 export class AuthorizationError extends LightdashError {
     constructor(
         message = "You don't have authorization to perform this action",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -93,8 +89,7 @@ export class ExpiredError extends LightdashError {
 export class ParameterError extends LightdashError {
     constructor(
         message: string = 'Incorrect parameters',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: Record<string, any> = {},
+        data: Record<string, AnyType> = {},
     ) {
         super({
             message,
@@ -106,11 +101,7 @@ export class ParameterError extends LightdashError {
 }
 
 export class NonCompiledModelError extends LightdashError {
-    constructor(
-        message: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
-    ) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'NonCompiledModelError',
@@ -121,11 +112,7 @@ export class NonCompiledModelError extends LightdashError {
 }
 
 export class MissingCatalogEntryError extends LightdashError {
-    constructor(
-        message: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any },
-    ) {
+    constructor(message: string, data: { [key: string]: AnyType }) {
         super({
             message,
             name: 'MissingCatalogEntryError',
@@ -149,8 +136,7 @@ export class MissingWarehouseCredentialsError extends LightdashError {
 export class UnexpectedServerError extends LightdashError {
     constructor(
         message = 'Something went wrong.',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -164,8 +150,7 @@ export class UnexpectedServerError extends LightdashError {
 export class UnexpectedGitError extends LightdashError {
     constructor(
         message = 'Unexpected error in Git adapter',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -179,8 +164,7 @@ export class UnexpectedGitError extends LightdashError {
 export class UnexpectedDatabaseError extends LightdashError {
     constructor(
         message = 'Unexpected error in Lightdash database.',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -194,8 +178,7 @@ export class UnexpectedDatabaseError extends LightdashError {
 export class ParseError extends LightdashError {
     constructor(
         message = 'Error parsing dbt project and lightdash metadata',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
@@ -209,8 +192,7 @@ export class ParseError extends LightdashError {
 export class CompileError extends LightdashError {
     constructor(
         message = 'Error compiling sql from Lightdash configuration',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: Record<string, any> = {},
+        data: Record<string, AnyType> = {},
     ) {
         super({
             message,
@@ -224,8 +206,7 @@ export class CompileError extends LightdashError {
 export class FieldReferenceError extends LightdashError {
     constructor(
         message = 'Failed to reference field in dbt project',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: Record<string, any> = {},
+        data: Record<string, AnyType> = {},
     ) {
         super({
             message,
@@ -284,11 +265,7 @@ export class WarehouseConnectionError extends LightdashError {
 }
 
 export class WarehouseQueryError extends LightdashError {
-    constructor(
-        message: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
-    ) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'WarehouseQueryError',
@@ -299,11 +276,7 @@ export class WarehouseQueryError extends LightdashError {
 }
 
 export class SmptError extends LightdashError {
-    constructor(
-        message: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
-    ) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'SmptError',
@@ -381,8 +354,7 @@ export class SlackInstallationNotFoundError extends LightdashError {
 export class UnexpectedGoogleSheetsError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google sheets client',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { [key: string]: any } = {},
+        data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,

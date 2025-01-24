@@ -1,5 +1,9 @@
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
-import { CreateDatabricksCredentials, WarehouseTypes } from '@lightdash/common';
+import {
+    AnyType,
+    CreateDatabricksCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 
 export const credentials: CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS,
@@ -97,8 +101,7 @@ export const schema = {
         },
     ],
 };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const rows: Record<string, any>[] = [
+export const rows: Record<string, AnyType>[] = [
     {
         myStringColumn: 'string value',
         myNumberColumn: 100,

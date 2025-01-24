@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CustomDimension,
     DimensionType,
     Field,
@@ -217,8 +218,7 @@ export class GoogleDriveClient {
     }
 
     static formatCell(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        value: any,
+        value: AnyType,
         item?: Field | TableCalculation | CustomDimension | Metric,
     ) {
         // We don't want to use formatItemValue directly because the format for some types on Gsheets

@@ -1,11 +1,10 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 
 const apiUrl = '/api/v2';
 
 describe('Lightdash catalog all tables and fields', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let content: any[] = [];
+    let content: AnyType[] = [];
     beforeEach(() => {
         cy.login();
     });

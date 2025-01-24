@@ -1,3 +1,4 @@
+import { AnyType } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AnalyticsChartViewsTableName = 'analytics_chart_views';
@@ -8,15 +9,13 @@ export type DbAnalyticsChartViews = {
     chart_uuid: string;
     user_uuid: string;
     timestamp: Date;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    context: Record<string, any>;
+    context: Record<string, AnyType>;
 };
 export type DbAnalyticsDashboardViews = {
     dashboard_uuid: string;
     user_uuid: string;
     timestamp: Date;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    context: Record<string, any>;
+    context: Record<string, AnyType>;
 };
 
 export type AnalyticsDashboardViews = Knex.CompositeTableType<

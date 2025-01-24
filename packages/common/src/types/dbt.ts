@@ -22,6 +22,7 @@ import { parseFilters } from './filterGrammar';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
+import { type AnyType } from './any';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -73,8 +74,7 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    required_filters?: { [key: string]: any }[];
+    required_filters?: { [key: string]: AnyType }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
     default_time_dimension?: {
@@ -150,8 +150,7 @@ export type DbtColumnLightdashMetric = {
     groups?: string[];
     urls?: FieldUrl[];
     show_underlying_values?: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    filters?: { [key: string]: any }[];
+    filters?: { [key: string]: AnyType }[];
     percentile?: number;
     default_time_dimension?: DefaultTimeDimension;
     spotlight?: {
@@ -262,8 +261,7 @@ export interface DbtRpcDocsGenerateResults {
 }
 
 export const isDbtRpcDocsGenerateResults = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcDocsGenerateResults =>
     'nodes' in results &&
     typeof results.nodes === 'object' &&
@@ -286,8 +284,7 @@ export interface DbtPackages {
 }
 
 export const isDbtPackages = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtPackages => 'packages' in results;
 
 export type V9MetricRef = {
@@ -300,8 +297,7 @@ export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
     typeof x === 'object' && x !== null && 'name' in x;
 
 export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    meta?: Record<string, any> & DbtMetricLightdashMetadata;
+    meta?: Record<string, AnyType> & DbtMetricLightdashMetadata;
     refs?: string[][] | V9MetricRef[];
 };
 
@@ -310,8 +306,7 @@ export type DbtMetricLightdashMetadata = {
     group_label?: string;
     groups?: string[];
     show_underlying_values?: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    filters: Record<string, any>[];
+    filters: Record<string, AnyType>[];
 };
 
 export type DbtDoc = {
@@ -337,8 +332,7 @@ export interface DbtManifestMetadata extends DbtRawManifestMetadata {
     adapter_type: SupportedDbtAdapter;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isDbtRawManifestMetadata = (x: any): x is DbtRawManifestMetadata =>
+const isDbtRawManifestMetadata = (x: AnyType): x is DbtRawManifestMetadata =>
     typeof x === 'object' &&
     x !== null &&
     'dbt_schema_version' in x &&
@@ -360,8 +354,7 @@ export interface DbtRpcGetManifestResults {
 }
 
 export const isDbtRpcManifestResults = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcGetManifestResults =>
     'manifest' in results &&
     typeof results.manifest === 'object' &&
@@ -376,8 +369,7 @@ export interface DbtRpcCompileResults {
 }
 
 export const isDbtRpcCompileResults = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcCompileResults =>
     'results' in results &&
     Array.isArray(results.results) &&
@@ -394,8 +386,7 @@ export const isDbtRpcCompileResults = (
 
 export interface DbtRpcRunSqlResults {
     results: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        table: { column_names: string[]; rows: any[][] };
+        table: { column_names: string[]; rows: AnyType[][] };
     }[];
 }
 

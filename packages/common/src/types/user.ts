@@ -2,6 +2,7 @@ import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
+import { type AnyType } from './any';
 
 export interface LightdashUser {
     userUuid: string;
@@ -51,10 +52,7 @@ export interface UpdatedByUser {
     firstName: string;
     lastName: string;
 }
-export const isSessionUser = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user: any,
-): user is SessionUser =>
+export const isSessionUser = (user: AnyType): user is SessionUser =>
     typeof user === 'object' &&
     user !== null &&
     user.userUuid &&
@@ -73,10 +71,7 @@ export interface OpenIdUser {
     };
 }
 
-export const isOpenIdUser = (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user: any,
-): user is OpenIdUser =>
+export const isOpenIdUser = (user: AnyType): user is OpenIdUser =>
     typeof user === 'object' &&
     user !== null &&
     user.userUuid === undefined &&

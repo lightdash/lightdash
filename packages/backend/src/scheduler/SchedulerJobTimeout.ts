@@ -1,9 +1,15 @@
 import * as Sentry from '@sentry/node';
+
+import { AnyType } from '@lightdash/common';
+
 import { Job } from 'graphile-worker';
 import Logger from '../logging/logger';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
+async function timeout(
+    prom: Promise<AnyType>,
+    time: number,
+    exception: Symbol,
+) {
     let timer: NodeJS.Timeout;
     return Promise.race([
         prom,
@@ -14,8 +20,7 @@ async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
 }
 
 export async function tryJobOrTimeout(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prom: Promise<any>,
+    prom: Promise<AnyType>,
     job: Job,
     time: number,
     onTimeout: (job: Job, error: Error) => Promise<void> = async () => {},

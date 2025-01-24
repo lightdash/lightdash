@@ -1,3 +1,5 @@
+import { type AnyType } from './any';
+
 export enum RequestMethod {
     CLI = 'CLI',
     CLI_CI = 'CLI_CI',
@@ -9,5 +11,4 @@ export enum RequestMethod {
 export const isRequestMethod = (
     value: string | undefined,
 ): value is RequestMethod =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    !!value && Object.values(RequestMethod).includes(value as any);
+    !!value && Object.values(RequestMethod).includes(value as AnyType);

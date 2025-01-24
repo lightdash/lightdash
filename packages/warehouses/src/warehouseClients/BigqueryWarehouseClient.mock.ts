@@ -1,5 +1,9 @@
 import { BigQueryDate, BigQueryTimestamp } from '@google-cloud/bigquery';
-import { CreateBigqueryCredentials, WarehouseTypes } from '@lightdash/common';
+import {
+    AnyType,
+    CreateBigqueryCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { Readable } from 'stream';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
@@ -56,8 +60,7 @@ export const getTableResponse = {
     getMetadata: jest.fn(() => [metadata]),
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const rows: Record<string, any>[] = [
+export const rows: Record<string, AnyType>[] = [
     {
         myStringColumn: 'string value',
         myNumberColumn: 100,

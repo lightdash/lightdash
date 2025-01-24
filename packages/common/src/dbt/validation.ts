@@ -23,6 +23,7 @@ import dbtManifestSchemaV12 from './schemas/manifestV12.json';
 import dbtManifestSchemaV7 from './schemas/manifestV7.json';
 import dbtManifestSchemaV8 from './schemas/manifestV8.json';
 import dbtManifestSchemaV9 from './schemas/manifestV9.json';
+import { type AnyType } from '../types/any';
 
 const ajv = new Ajv2020();
 ajv.addMetaSchema(draft7MetaSchema); // add backward compatibility with draft-07
@@ -54,10 +55,8 @@ export class ManifestValidator {
     }
 
     static isValid = (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        validator: ValidateFunction<any>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: any,
+        validator: ValidateFunction<AnyType>,
+        data: AnyType,
     ): [true, undefined] | [false, string] => {
         const isValid = validator(data);
         if (!isValid) {

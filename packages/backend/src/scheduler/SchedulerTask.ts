@@ -1,4 +1,5 @@
 import {
+    AnyType,
     assertUnreachable,
     CompileProjectPayload,
     CreateProject,
@@ -1528,8 +1529,7 @@ export default class SchedulerTask {
 
     static isPositiveThresholdAlert(
         thresholds: ThresholdOptions[],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        results: Record<string, any>[],
+        results: Record<string, AnyType>[],
     ): boolean {
         if (thresholds.length < 1 || results.length < 1) {
             return false;

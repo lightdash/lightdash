@@ -28,6 +28,7 @@ import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
+import { type AnyType } from '../types/any';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
@@ -231,8 +232,7 @@ export const MAX_SEGMENT_DIMENSION_UNIQUE_VALUES = 10;
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metricRows: Record<string, any>[],
+    metricRows: Record<string, AnyType>[],
     segmentDimensionId: string | null,
 ): {
     dataPoints: Array<MetricExploreDataPoint>;
@@ -317,10 +317,8 @@ export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
     compareDimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    metricRows: Record<string, any>[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    compareMetricRows: Record<string, any>[],
+    metricRows: Record<string, AnyType>[],
+    compareMetricRows: Record<string, AnyType>[],
     query: MetricExplorerQuery,
     timeFrame: TimeFrames,
 ): {

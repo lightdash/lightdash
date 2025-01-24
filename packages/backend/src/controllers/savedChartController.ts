@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
@@ -80,8 +81,7 @@ export class SavedChartController extends BaseController {
     async postDashboardTile(
         @Body()
         body: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            dashboardFilters: any; // DashboardFilters; temp disable validation
+            dashboardFilters: AnyType; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
             dashboardUuid: string;
@@ -226,8 +226,7 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Body()
         body: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            dashboardFilters?: any; // DashboardFilters; temp disable validation
+            dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
         },
         @Request() req: express.Request,
@@ -308,8 +307,7 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Body()
         body: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            dashboardFilters: any; // DashboardFilters; temp disable validation
+            dashboardFilters: AnyType; // DashboardFilters; temp disable validation
             tileUuid?: string;
             // Csv properties
             onlyRaw: boolean;

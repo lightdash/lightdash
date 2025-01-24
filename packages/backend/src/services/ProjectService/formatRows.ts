@@ -1,14 +1,8 @@
-import {
-    Field,
-    formatRows,
-    ItemsMap,
-    TableCalculation,
-} from '@lightdash/common';
+import { AnyType, formatRows, ItemsMap } from '@lightdash/common';
 import { parentPort, workerData } from 'worker_threads';
 
 type Args = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rows: Record<string, any>[];
+    rows: Record<string, AnyType>[];
     itemMap: ItemsMap;
 };
 

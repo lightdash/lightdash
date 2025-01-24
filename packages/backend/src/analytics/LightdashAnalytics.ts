@@ -1,6 +1,7 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import { Type } from '@aws-sdk/client-s3';
 import {
+    AnyType,
     CartesianSeriesType,
     ChartKind,
     ChartType,
@@ -639,8 +640,7 @@ type PermissionsUpdated = BaseTrack & {
         userId: string;
         userIdUpdated: string;
         organizationPermissions: OrganizationMemberRole;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        projectPermissions: any;
+        projectPermissions: AnyType;
         newUser: boolean;
         generatedInvite: boolean;
     };
@@ -1226,8 +1226,7 @@ type LightdashAnalyticsArguments = {
 export class LightdashAnalytics extends Analytics {
     private readonly lightdashConfig: LightdashConfig;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly lightdashContext: Record<string, any>;
+    private readonly lightdashContext: Record<string, AnyType>;
 
     constructor({
         lightdashConfig,
@@ -1326,8 +1325,7 @@ export class LightdashAnalytics extends Analytics {
     async wrapEvent<T>(
         payload: WrapTypedEvent,
         func: () => Promise<T>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        extraProperties?: (r: T) => any,
+        extraProperties?: (r: T) => AnyType,
     ) {
         try {
             this.track({

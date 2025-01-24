@@ -1,4 +1,9 @@
-import { ParameterError, SshKeyPair, validateEmail } from '@lightdash/common';
+import {
+    AnyType,
+    ParameterError,
+    SshKeyPair,
+    validateEmail,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { CustomSamplingContext } from '@sentry/types';
 import { generateKeyPair } from 'crypto';
@@ -12,8 +17,7 @@ import {
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const sanitizeStringParam = (value: any) => {
+export const sanitizeStringParam = (value: AnyType) => {
     if (!value || typeof value !== 'string') {
         throw new ParameterError();
     }
@@ -24,8 +28,7 @@ export const sanitizeStringParam = (value: any) => {
     return trimmedValue;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const sanitizeEmailParam = (value: any) => {
+export const sanitizeEmailParam = (value: AnyType) => {
     const email = sanitizeStringParam(value);
     if (!validateEmail(email)) {
         throw new ParameterError();

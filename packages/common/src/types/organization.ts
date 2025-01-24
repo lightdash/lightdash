@@ -1,3 +1,4 @@
+import { type AnyType } from './any';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
 import { type ProjectType, type WarehouseTypes } from './projects';
@@ -96,8 +97,7 @@ export const AllowedEmailDomainsRoles: Array<AllowedEmailDomainsRole> = [
 export function isAllowedEmailDomainsRole(
     role: OrganizationMemberRole,
 ): role is AllowedEmailDomainsRole {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return AllowedEmailDomainsRoles.includes(role as any);
+    return AllowedEmailDomainsRoles.includes(role as AnyType);
 }
 
 export type AllowedEmailDomainProjectsRole =

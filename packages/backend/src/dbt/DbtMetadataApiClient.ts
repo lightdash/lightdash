@@ -1,4 +1,5 @@
 import {
+    AnyType,
     DbtError,
     DbtModelNode,
     DbtRpcGetManifestResults,
@@ -42,8 +43,7 @@ type DbtCloudEnvironmentResponse = {
                         uniqueId: string;
                         name: string;
                         description: string;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        meta: any;
+                        meta: AnyType;
                         tags: string[];
                         filePath: string;
                         database: string;
@@ -64,15 +64,13 @@ type DbtCloudEnvironmentResponse = {
                         releaseVersion: string;
                         contractEnforced: boolean;
                         patchPath: string;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        config: any;
+                        config: AnyType;
                         catalog: {
                             columns: {
                                 name: string;
                                 description: string;
                                 type: string;
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                meta: any;
+                                meta: AnyType;
                             };
                         };
                     };
@@ -182,8 +180,7 @@ export class DbtMetadataApiClient implements DbtClient {
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    static parseError(e: any): DbtError {
+    static parseError(e: AnyType): DbtError {
         const errors: string[] | undefined = e?.response?.errors?.map(
             (innerError: { message: string }) => {
                 if (
@@ -280,8 +277,7 @@ export class DbtMetadataApiClient implements DbtClient {
                             columns: Object.values(
                                 node.catalog?.columns || [],
                             ).reduce<DbtModelNode['columns']>(
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                (acc, column: any) => {
+                                (acc, column: AnyType) => {
                                     acc[column.name] = {
                                         name: column.name,
                                         description: column.description,

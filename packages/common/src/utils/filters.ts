@@ -48,6 +48,7 @@ import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
+import { type AnyType } from '../types/any';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -175,8 +176,7 @@ export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    values?: any[] | null,
+    values?: AnyType[] | null,
 ): T => {
     const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -288,8 +288,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
 
 export const createFilterRuleFromField = (
     field: FilterableField,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value?: any,
+    value?: AnyType,
 ): FilterRule =>
     getFilterRuleWithDefaultValue(
         field,
@@ -340,10 +339,8 @@ export const applyDefaultTileTargets = (
     filterRule: DashboardFilterRule<
         FilterOperator,
         DashboardFieldTarget,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        any
+        AnyType,
+        AnyType
     >,
     field: FilterableDimension,
     availableTileFilters: Record<string, FilterableDimension[] | undefined>,
@@ -391,8 +388,7 @@ export const createDashboardFilterRuleFromField = ({
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value?: any;
+    value?: AnyType;
 };
 
 export const addFilterRule = ({
@@ -400,8 +396,7 @@ export const addFilterRule = ({
     field,
     value,
 }: AddFilterRuleArgs): Filters => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const groupKey = ((f: any) => {
+    const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
             return 'dimensions';
         }
@@ -465,8 +460,7 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  */
 export const isDimensionValueInvalidDate = (
     item: FilterableField,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any,
+    value: AnyType,
 ) => isDateItem(item) && value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
 
 /**

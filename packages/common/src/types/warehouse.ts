@@ -1,4 +1,5 @@
 import { type WeekDay } from '../utils/timeFrames';
+import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
@@ -32,8 +33,7 @@ export type WarehouseTables = {
 
 export type WarehouseResults = {
     fields: Record<string, { type: DimensionType }>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rows: Record<string, any>[];
+    rows: Record<string, AnyType>[];
 };
 
 export interface WarehouseClient {
@@ -50,8 +50,7 @@ export interface WarehouseClient {
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            values?: any[];
+            values?: AnyType[];
             tags: Record<string, string>;
             timezone?: string;
         },
@@ -69,8 +68,7 @@ export interface WarehouseClient {
         sql: string,
         tags: Record<string, string>,
         timezone?: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        values?: any[],
+        values?: AnyType[],
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
@@ -100,8 +98,7 @@ export interface WarehouseClient {
     ): Promise<WarehouseCatalog>;
 
     parseWarehouseCatalog(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog;
 

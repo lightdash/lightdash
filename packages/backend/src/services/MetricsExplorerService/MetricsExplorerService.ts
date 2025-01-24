@@ -640,8 +640,7 @@ export class MetricsExplorerService<
                 metricQuery,
             );
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let compareRows: Record<string, any>[] | undefined;
+        let compareRows: Record<string, AnyType>[] | undefined;
         let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {

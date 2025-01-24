@@ -27,6 +27,7 @@ import {
     type VizConfigErrors,
 } from './types';
 import { type IResultsRunner } from './types/IResultsRunner';
+import { type AnyType } from '../types/any';
 
 // Empty config as default. This makes sense to be defined by the DataModel,
 // but is this the right place?
@@ -84,8 +85,7 @@ export class CartesianChartDataModel {
     static getValueFormatter(format: Format | undefined) {
         if (format === Format.PERCENT) {
             // Echarts doesn't export the types for this function
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (params: any) => {
+            return (params: AnyType) => {
                 const value =
                     params.value[params.dimensionNames[params.encode.y[0]]];
 
@@ -490,8 +490,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ): Record<string, any> {
+    ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
         if (!transformedData) {
