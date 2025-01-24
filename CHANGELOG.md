@@ -1,3 +1,10 @@
+## [0.1464.2](https://github.com/lightdash/lightdash/compare/0.1464.1...0.1464.2) (2025-01-24)
+
+
+### Bug Fixes
+
+* missing id format in lightdash metadata ([#13409](https://github.com/lightdash/lightdash/issues/13409)) ([7047fbf](https://github.com/lightdash/lightdash/commit/7047fbf9b2893e91aa756f3dd4db0165b4db5cf6))
+
 ## [0.1464.1](https://github.com/lightdash/lightdash/compare/0.1464.0...0.1464.1) (2025-01-24)
 
 
