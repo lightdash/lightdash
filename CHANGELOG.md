@@ -1,3 +1,10 @@
+# [0.1464.0](https://github.com/lightdash/lightdash/compare/0.1463.0...0.1464.0) (2025-01-24)
+
+
+### Features
+
+* add support for danish krone ([#13397](https://github.com/lightdash/lightdash/issues/13397)) ([b5ba6b8](https://github.com/lightdash/lightdash/commit/b5ba6b89cc544ac46cf463d7a5d373005ebf939d))
+
 # [0.1463.0](https://github.com/lightdash/lightdash/compare/0.1462.2...0.1463.0) (2025-01-23)
 
 
