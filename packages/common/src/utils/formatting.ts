@@ -42,7 +42,6 @@ export const currencies = [
     'CLP',
     'COP',
     'CZK',
-    'DKK',
     'HKD',
     'HUF',
     'INR',
@@ -393,19 +392,6 @@ export function applyCustomFormat(
                 compactValue,
                 format,
             ).replace(/\u00A0/, ' ');
-
-            console.log(
-                'currencyFormatted',
-                JSON.stringify(
-                    {
-                        compactValue,
-                        compactSuffix,
-                        currencyFormatted,
-                    },
-                    null,
-                    2,
-                ),
-            );
 
             return `${currencyFormatted}${compactSuffix}`;
         case CustomFormatType.DATE:
