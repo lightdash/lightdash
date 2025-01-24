@@ -1,6 +1,7 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
     Divider,
     Group,
@@ -13,7 +14,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
-import { IconDots, IconTrash } from '@tabler/icons-react';
+import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -180,12 +181,14 @@ type Props = {
     category: CatalogItem['categories'][number];
     onClick?: () => void;
     onSubPopoverChange?: (isOpen: boolean) => void;
+    canEdit: boolean;
 };
 
 export const MetricCatalogCategoryFormItem: FC<Props> = ({
     category,
     onClick,
     onSubPopoverChange,
+    canEdit,
 }) => {
     const { ref: hoverRef, hovered } = useHover<HTMLDivElement>();
 
@@ -206,11 +209,33 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
         >
             <UnstyledButton onClick={onClick} h="100%" w="90%" pos="absolute" />
             <CatalogCategory category={category} onClick={onClick} />
-            <EditPopover
-                hovered={hovered}
-                category={category}
-                onOpenChange={onSubPopoverChange}
-            />
+
+            {canEdit && (
+                <EditPopover
+                    hovered={hovered}
+                    category={category}
+                    onOpenChange={onSubPopoverChange}
+                />
+            )}
+
+            {!canEdit && (
+                <Tooltip
+                    variant="xs"
+                    maw={200}
+                    position="top"
+                    withinPortal
+                    label="This category was created in the .yml config and its properties cannot be edited"
+                >
+                    <Box
+                        p="xxs"
+                        sx={{
+                            visibility: hovered ? 'visible' : 'hidden',
+                        }}
+                    >
+                        <MantineIcon icon={IconCode} color="gray.6" size={14} />
+                    </Box>
+                </Tooltip>
+            )}
         </Group>
     );
 };
