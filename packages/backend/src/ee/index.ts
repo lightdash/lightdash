@@ -4,6 +4,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
+import knexConfig from './database/knexfile';
 import { AiModel } from './models/AiModel';
 import { CommercialCatalogModel } from './models/CommercialCatalogModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -27,10 +28,12 @@ type EnterpriseAppArguments = Pick<
     | 'modelProviders'
     | 'customExpressMiddlewares'
     | 'slackBotFactory'
+    | 'knexConfig'
 >;
 
 export function getEnterpriseAppArguments(): EnterpriseAppArguments {
     return {
+        knexConfig,
         serviceProviders: {
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
