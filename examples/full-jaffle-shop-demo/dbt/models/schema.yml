@@ -69,8 +69,6 @@ models:
               spotlight:
                 visibility: hide
               type: max
-              spotlight:
-                visibility: hide
       - name: first_order
         description: Date of the customers first order
         meta:
