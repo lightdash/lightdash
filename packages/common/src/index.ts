@@ -111,6 +111,7 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
+import { type AnyType } from './types/any';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
@@ -153,8 +154,6 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
-import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
-import { type AnyType } from './types/any';
 
 dayjs.extend(utc);
 
@@ -169,6 +168,7 @@ export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
 export * from './types/analytics';
+export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
@@ -267,10 +267,6 @@ export * from './visualizations/PieChartDataModel';
 export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
 export * from './visualizations/types/IResultsRunner';
-export * from './types/spotlightTableConfig';
-export * from './utils/loadLightdashProjectConfig';
-export * from './types/any';
-
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

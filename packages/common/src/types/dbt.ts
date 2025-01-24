@@ -1,6 +1,7 @@
 import { DepGraph } from 'dependency-graph';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
+import { type AnyType } from './any';
 import {
     type ColumnInfo,
     type CompiledModelNode,
@@ -22,8 +23,6 @@ import { parseFilters } from './filterGrammar';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
-import { type LightdashProjectConfig } from './lightdashProjectConfig';
-import { type AnyType } from './any';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
