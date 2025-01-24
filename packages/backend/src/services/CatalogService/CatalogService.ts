@@ -1210,7 +1210,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            context,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1273,7 +1272,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            context,
         });
 
         const allDimensions = catalogDimensions.data
