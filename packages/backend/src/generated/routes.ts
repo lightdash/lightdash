@@ -3989,6 +3989,19 @@ const models: TsoaRoute.Models = {
                 ref: 'Record_string.string-or-string-Array_',
             },
             defaultTimeDimension: { ref: 'DefaultTimeDimension' },
+            spotlight: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    visibility: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['show'] },
+                            { dataType: 'enum', enums: ['hide'] },
+                        ],
+                        required: true,
+                    },
+                },
+            },
         },
         additionalProperties: true,
     },
@@ -9337,6 +9350,19 @@ const models: TsoaRoute.Models = {
                 ref: 'Record_string.string-or-string-Array_',
             },
             defaultTimeDimension: { ref: 'DefaultTimeDimension' },
+            spotlight: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    visibility: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['show'] },
+                            { dataType: 'enum', enums: ['hide'] },
+                        ],
+                        required: true,
+                    },
+                },
+            },
             compiledSql: { dataType: 'string', required: true },
             tablesReferences: {
                 dataType: 'union',
@@ -10428,6 +10454,25 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 label: { dataType: 'string', required: true },
+                spotlight: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                visibility: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'enum', enums: ['show'] },
+                                        { dataType: 'enum', enums: ['hide'] },
+                                    ],
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 warehouse: {
                     dataType: 'union',
                     subSchemas: [

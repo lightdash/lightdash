@@ -60,6 +60,7 @@ export const createVirtualView = (
         joinedTables: [],
         tables: { [virtualViewName]: compiledTable },
         targetDatabase: warehouseClient.getAdapterType(),
+        meta: {},
     });
 
     const virtualView = {

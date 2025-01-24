@@ -21,6 +21,7 @@ import {
 import { parseFilters } from './filterGrammar';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
+import { type LightdashProjectConfig } from './lightdashProjectConfig';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -79,6 +80,11 @@ type DbtModelLightdashConfig = {
     default_time_dimension?: {
         field: string;
         interval: TimeFrames;
+    };
+    spotlight?: {
+        visibility?: NonNullable<
+            LightdashProjectConfig['spotlight']
+        >['default_visibility'];
     };
 };
 
@@ -148,6 +154,11 @@ export type DbtColumnLightdashMetric = {
     filters?: { [key: string]: any }[];
     percentile?: number;
     default_time_dimension?: DefaultTimeDimension;
+    spotlight?: {
+        visibility?: NonNullable<
+            LightdashProjectConfig['spotlight']
+        >['default_visibility'];
+    };
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -423,6 +434,7 @@ export const isDbtRpcRunSqlResults = (
             'rows' in result.table &&
             Array.isArray(result.table.rows),
     );
+
 type ConvertModelMetricArgs = {
     modelName: string;
     name: string;
@@ -431,6 +443,7 @@ type ConvertModelMetricArgs = {
     tableLabel: string;
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
 };
 export const convertModelMetric = ({
     modelName,
@@ -440,8 +453,12 @@ export const convertModelMetric = ({
     tableLabel,
     dimensionReference,
     requiredAttributes,
+    spotlightConfig,
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
+    const spotlightVisibility =
+        metric.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+
     return {
         fieldType: FieldType.METRIC,
         name,
@@ -479,14 +496,24 @@ export const convertModelMetric = ({
                   },
               }
             : null),
+        ...(spotlightVisibility !== undefined
+            ? {
+                  spotlight: {
+                      visibility: spotlightVisibility,
+                  },
+              }
+            : {}),
     };
 };
+
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
     metric: DbtColumnLightdashMetric;
     dimensionName?: string;
     dimensionSql: string;
     requiredAttributes?: Record<string, string | string[]>;
+    modelCategories?: string[];
 };
+
 export const convertColumnMetric = ({
     modelName,
     dimensionName,
@@ -496,6 +523,7 @@ export const convertColumnMetric = ({
     source,
     tableLabel,
     requiredAttributes,
+    spotlightConfig,
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -525,6 +553,7 @@ export const convertColumnMetric = ({
                   },
               }
             : null),
+        spotlightConfig,
     });
 
 export enum DbtManifestVersion {
