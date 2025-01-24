@@ -97,6 +97,7 @@ export const exploreBase: Explore = {
     tags: [],
     spotlight: {
         visibility: 'show',
+        categories: [],
     },
     baseTable: 'a',
     joinedTables: [],
@@ -1489,6 +1490,7 @@ export const exploreWithMetricNumberCompiled: Explore = {
     groupLabel: exploreWithMetricNumber.groupLabel,
     spotlight: {
         visibility: 'show',
+        categories: [],
     },
     joinedTables: [],
     tables: {
