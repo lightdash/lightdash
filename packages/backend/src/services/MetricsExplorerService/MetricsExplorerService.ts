@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AnyType,
     assertUnreachable,
     Dimension,
     FilterRule,
