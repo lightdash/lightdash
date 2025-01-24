@@ -387,6 +387,7 @@ export enum Format {
     GBP = 'gbp',
     EUR = 'eur',
     JPY = 'jpy',
+    DKK = 'dkk',
     ID = 'id',
     PERCENT = 'percent',
 }

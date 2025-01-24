@@ -111,6 +111,12 @@ describe('Formatting', () => {
                         currency: Format.JPY,
                     }),
                 ).toEqual('¥5');
+                expect(
+                    applyCustomFormat(5, {
+                        type: CustomFormatType.CURRENCY,
+                        currency: Format.DKK,
+                    }),
+                ).toEqual('DKK 5.00');
             });
 
             test('if Format is percent it should return the right format', () => {
@@ -1059,6 +1065,7 @@ describe('Formatting', () => {
                 '€1.00',
                 '£1.00',
                 '¥1',
+                'DKK 1.00',
                 'CHF 1.00',
                 'CA$1.00',
                 'A$1.00',
@@ -1068,7 +1075,6 @@ describe('Formatting', () => {
                 'CLP 1',
                 'COP 1.00',
                 'CZK 1.00',
-                'DKK 1.00',
                 'HK$1.00',
                 'HUF 1.00',
                 '₹1.00',

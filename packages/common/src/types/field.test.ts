@@ -112,6 +112,7 @@ describe('field util functions', () => {
             expect(isFormat('gbp')).toBe(true);
             expect(isFormat('eur')).toBe(true);
             expect(isFormat('jpy')).toBe(true);
+            expect(isFormat('dkk')).toBe(true);
             expect(isFormat('id')).toBe(true);
             expect(isFormat('percent')).toBe(true);
         });

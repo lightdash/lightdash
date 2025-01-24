@@ -1414,7 +1414,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Format: {
         dataType: 'refEnum',
-        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'jpy', 'id', 'percent'],
+        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'jpy', 'dkk', 'id', 'percent'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'CartesianSeriesType.LINE': {

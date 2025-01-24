@@ -32,6 +32,7 @@ export const currencies = [
     'EUR',
     'GBP',
     'JPY',
+    'DKK',
     'CHF',
     'CAD',
     'AUD',
@@ -41,7 +42,6 @@ export const currencies = [
     'CLP',
     'COP',
     'CZK',
-    'DKK',
     'HKD',
     'HUF',
     'INR',
@@ -249,6 +249,7 @@ export function getCustomFormatFromLegacy({
         case Format.GBP:
         case Format.USD:
         case Format.JPY:
+        case Format.DKK:
             return {
                 type: CustomFormatType.CURRENCY,
                 currency: format.toUpperCase(),
