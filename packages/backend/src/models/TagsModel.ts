@@ -85,16 +85,6 @@ export class TagsModel {
                     ),
             );
 
-            // get all yaml tags that are in the project but are not in the yamlTags array
-            const yamlTagsToDelete = projectYamlTags.filter(
-                (projectYamlTag) =>
-                    !yamlTags.some(
-                        (yamlTag) =>
-                            yamlTag.yaml_reference ===
-                            projectYamlTag.yaml_reference,
-                    ),
-            );
-
             // get all updates for the existing project yaml tags
             const yamlTagUpdates = yamlTags.reduce<Record<string, DbTagUpdate>>(
                 (acc, yamlTag) => {
@@ -104,7 +94,11 @@ export class TagsModel {
                             yamlTag.yaml_reference,
                     );
 
-                    if (projectYamlTag) {
+                    if (
+                        projectYamlTag &&
+                        (projectYamlTag.name !== yamlTag.name ||
+                            projectYamlTag.color !== yamlTag.color)
+                    ) {
                         acc[projectYamlTag.tag_uuid] = {
                             color: yamlTag.color,
                             name: yamlTag.name,
@@ -116,16 +110,14 @@ export class TagsModel {
                 {},
             );
 
-            if (yamlTagsToDelete.length > 0) {
-                // delete all yaml tags that are in the project but are not in the yamlTags array
-                await trx(TagsTableName)
-                    .where('project_uuid', projectUuid)
-                    .whereIn(
-                        'tag_uuid',
-                        yamlTagsToDelete.map((t) => t.tag_uuid),
-                    )
-                    .delete();
-            }
+            // delete all yaml tags that are in the project but are not in the yamlTags array
+            await trx(TagsTableName)
+                .where('project_uuid', projectUuid)
+                .whereNotIn(
+                    'yaml_reference',
+                    yamlTags.map((t) => t.yaml_reference),
+                )
+                .delete();
 
             if (yamlTagsToCreate.length > 0) {
                 // create all yaml tags that are not in the project but are in the yamlTags array
