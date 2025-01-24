@@ -77,7 +77,6 @@ export const convertExploresToCatalog = (
                         ? projectYamlTags.filter(
                               (tag) =>
                                   tag.yaml_reference &&
-                                  // TODO: remove / check if necessary
                                   field.spotlight?.categories?.includes(
                                       tag.yaml_reference,
                                   ),
