@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ActivateUser,
+    AnyType,
     ArgumentsOf,
     assertUnreachable,
     AuthorizationError,
@@ -1516,7 +1517,7 @@ export class UserService extends BaseService {
             refresh.requestNewAccessToken(
                 'google',
                 refreshToken,
-                (err: any, accessToken: string, _refreshToken, result) => {
+                (err: AnyType, accessToken: string, _refreshToken, result) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;

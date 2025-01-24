@@ -1,4 +1,6 @@
 import {
+    AnyType,
+    getErrorMessage,
     LightdashMode,
     SlackInstallationNotFoundError,
 } from '@lightdash/common';
@@ -21,8 +23,8 @@ import { slackOptions } from './SlackOptions';
 const notifySlackError = async (
     error: unknown,
     url: string,
-    client: any,
-    event: any,
+    client: AnyType,
+    event: AnyType,
     { appProfilePhotoUrl }: { appProfilePhotoUrl?: string },
 ): Promise<void> => {
     /** Expected slack errors:
@@ -38,8 +40,10 @@ const notifySlackError = async (
             ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
             text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
-        .catch((er: any) =>
-            Logger.error(`Unable send slack error message: ${er} `),
+        .catch((er: unknown) =>
+            Logger.error(
+                `Unable send slack error message: ${getErrorMessage(er)}`,
+            ),
         );
 };
 
@@ -126,10 +130,10 @@ export class SlackBot {
     }
 
     private async sendUnfurl(
-        event: any,
+        event: AnyType,
         originalUrl: string,
         unfurl: Unfurl,
-        client: any,
+        client: AnyType,
     ) {
         const unfurlBlocks = getUnfurlBlocks(originalUrl, unfurl);
         await client.chat
@@ -138,12 +142,12 @@ export class SlackBot {
                 channel: event.channel,
                 unfurls: unfurlBlocks,
             })
-            .catch((e: any) => {
+            .catch((e: unknown) => {
                 this.analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: event.user,
                     properties: {
-                        error: `${e}`,
+                        error: `${getErrorMessage(e)}`,
                     },
                 });
                 Logger.error(
@@ -154,7 +158,7 @@ export class SlackBot {
             });
     }
 
-    async unfurlSlackUrls(message: any) {
+    async unfurlSlackUrls(message: AnyType) {
         const { event, client, context } = message;
         let appProfilePhotoUrl: string | undefined;
 
@@ -162,7 +166,7 @@ export class SlackBot {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
-        event.links.map(async (l: any) => {
+        event.links.map(async (l: AnyType) => {
             const eventUserId = context.botUserId;
 
             try {

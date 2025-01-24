@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AnyType,
     assertUnreachable,
     Dimension,
     FilterRule,
@@ -640,7 +641,7 @@ export class MetricsExplorerService<
                 metricQuery,
             );
 
-        let compareRows: Record<string, any>[] | undefined;
+        let compareRows: Record<string, AnyType>[] | undefined;
         let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {

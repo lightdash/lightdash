@@ -1,6 +1,7 @@
 import { DepGraph } from 'dependency-graph';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
+import { type AnyType } from './any';
 import {
     type ColumnInfo,
     type CompiledModelNode,
@@ -73,7 +74,7 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
-    required_filters?: { [key: string]: any }[];
+    required_filters?: { [key: string]: AnyType }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
     default_time_dimension?: {
@@ -149,7 +150,7 @@ export type DbtColumnLightdashMetric = {
     groups?: string[];
     urls?: FieldUrl[];
     show_underlying_values?: string[];
-    filters?: { [key: string]: any }[];
+    filters?: { [key: string]: AnyType }[];
     percentile?: number;
     default_time_dimension?: DefaultTimeDimension;
     spotlight?: {
@@ -260,7 +261,7 @@ export interface DbtRpcDocsGenerateResults {
 }
 
 export const isDbtRpcDocsGenerateResults = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcDocsGenerateResults =>
     'nodes' in results &&
     typeof results.nodes === 'object' &&
@@ -283,7 +284,7 @@ export interface DbtPackages {
 }
 
 export const isDbtPackages = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtPackages => 'packages' in results;
 
 export type V9MetricRef = {
@@ -296,7 +297,7 @@ export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
     typeof x === 'object' && x !== null && 'name' in x;
 
 export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
-    meta?: Record<string, any> & DbtMetricLightdashMetadata;
+    meta?: Record<string, AnyType> & DbtMetricLightdashMetadata;
     refs?: string[][] | V9MetricRef[];
 };
 
@@ -305,7 +306,7 @@ export type DbtMetricLightdashMetadata = {
     group_label?: string;
     groups?: string[];
     show_underlying_values?: string[];
-    filters: Record<string, any>[];
+    filters: Record<string, AnyType>[];
 };
 
 export type DbtDoc = {
@@ -331,7 +332,7 @@ export interface DbtManifestMetadata extends DbtRawManifestMetadata {
     adapter_type: SupportedDbtAdapter;
 }
 
-const isDbtRawManifestMetadata = (x: any): x is DbtRawManifestMetadata =>
+const isDbtRawManifestMetadata = (x: AnyType): x is DbtRawManifestMetadata =>
     typeof x === 'object' &&
     x !== null &&
     'dbt_schema_version' in x &&
@@ -353,7 +354,7 @@ export interface DbtRpcGetManifestResults {
 }
 
 export const isDbtRpcManifestResults = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcGetManifestResults =>
     'manifest' in results &&
     typeof results.manifest === 'object' &&
@@ -368,7 +369,7 @@ export interface DbtRpcCompileResults {
 }
 
 export const isDbtRpcCompileResults = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcCompileResults =>
     'results' in results &&
     Array.isArray(results.results) &&
@@ -385,7 +386,7 @@ export const isDbtRpcCompileResults = (
 
 export interface DbtRpcRunSqlResults {
     results: {
-        table: { column_names: string[]; rows: any[][] };
+        table: { column_names: string[]; rows: AnyType[][] };
     }[];
 }
 
@@ -407,6 +408,7 @@ export const convertToGroups = (
 };
 
 export const isDbtRpcRunSqlResults = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     results: Record<string, any>,
 ): results is DbtRpcRunSqlResults =>
     'results' in results &&

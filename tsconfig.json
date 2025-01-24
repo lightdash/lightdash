@@ -2,7 +2,6 @@
     // "noUncheckedIndexedAccess": true,
     "useUnknownInCatchVariables": true,
     "noImplicitAny": true
-
  },
     "references": [
         {

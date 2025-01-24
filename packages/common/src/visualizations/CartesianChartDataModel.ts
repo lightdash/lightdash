@@ -1,4 +1,5 @@
 import { intersectionBy } from 'lodash';
+import { type AnyType } from '../types/any';
 import {
     capitalize,
     CustomFormatType,
@@ -84,7 +85,7 @@ export class CartesianChartDataModel {
     static getValueFormatter(format: Format | undefined) {
         if (format === Format.PERCENT) {
             // Echarts doesn't export the types for this function
-            return (params: any) => {
+            return (params: AnyType) => {
                 const value =
                     params.value[params.dimensionNames[params.encode.y[0]]];
 
@@ -489,7 +490,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
-    ): Record<string, any> {
+    ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
         if (!transformedData) {

@@ -1,8 +1,15 @@
 import * as Sentry from '@sentry/node';
+
+import { AnyType } from '@lightdash/common';
+
 import { Job } from 'graphile-worker';
 import Logger from '../logging/logger';
 
-async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
+async function timeout(
+    prom: Promise<AnyType>,
+    time: number,
+    exception: Symbol,
+) {
     let timer: NodeJS.Timeout;
     return Promise.race([
         prom,
@@ -13,7 +20,7 @@ async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
 }
 
 export async function tryJobOrTimeout(
-    prom: Promise<any>,
+    prom: Promise<AnyType>,
     job: Job,
     time: number,
     onTimeout: (job: Job, error: Error) => Promise<void> = async () => {},

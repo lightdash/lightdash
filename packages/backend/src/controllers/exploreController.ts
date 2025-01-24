@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiCompiledQueryResults,
     ApiErrorPayload,
     ApiExploreResults,
@@ -44,7 +45,7 @@ export class ExploreController extends BaseController {
     async SetExplores(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: any[], // tsoa doesn't seem to work with explores from CLI
+        @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.services

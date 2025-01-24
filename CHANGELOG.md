@@ -1,3 +1,17 @@
+## [0.1464.1](https://github.com/lightdash/lightdash/compare/0.1464.0...0.1464.1) (2025-01-24)
+
+
+### Bug Fixes
+
+* max update depth after react 19 ([#13372](https://github.com/lightdash/lightdash/issues/13372)) ([76d177b](https://github.com/lightdash/lightdash/commit/76d177b2dd910947d3a4d0765860a2b1aace3fe9))
+
+# [0.1464.0](https://github.com/lightdash/lightdash/compare/0.1463.0...0.1464.0) (2025-01-24)
+
+
+### Features
+
+* add support for danish krone ([#13397](https://github.com/lightdash/lightdash/issues/13397)) ([b5ba6b8](https://github.com/lightdash/lightdash/commit/b5ba6b89cc544ac46cf463d7a5d373005ebf939d))
+
 # [0.1463.0](https://github.com/lightdash/lightdash/compare/0.1462.2...0.1463.0) (2025-01-23)
 
 

@@ -1,4 +1,5 @@
 import groupBy from 'lodash/groupBy';
+import { type AnyType } from '../types/any';
 import {
     type DbtColumnLightdashMetric,
     type DbtModelColumn,
@@ -96,7 +97,7 @@ function updateModelNode(
                 );
             }
             return columnNode;
-        }) as any,
+        }) as AnyType,
     };
 }
 

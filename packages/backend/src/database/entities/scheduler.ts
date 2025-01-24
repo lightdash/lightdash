@@ -1,4 +1,5 @@
 import {
+    AnyType,
     assertUnreachable,
     isEmailTarget,
     isSlackTarget,
@@ -25,7 +26,7 @@ export type SchedulerDb = {
     timezone: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
-    options: Record<string, any>;
+    options: Record<string, AnyType>;
     filters: string | null;
     custom_viewport_width: number | null;
     thresholds: string | null;
@@ -108,7 +109,7 @@ export type SchedulerLogDb = {
     status: string;
     target: string | null;
     target_type: string | null;
-    details: Record<string, any> | null;
+    details: Record<string, AnyType> | null;
 };
 
 export type SchedulerLogTable = Knex.CompositeTableType<

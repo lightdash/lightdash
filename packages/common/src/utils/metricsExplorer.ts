@@ -3,6 +3,7 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { groupBy, mapKeys, type Dictionary } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { type AnyType } from '../types/any';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
 import { type CompiledTable } from '../types/explore';
@@ -231,7 +232,7 @@ export const MAX_SEGMENT_DIMENSION_UNIQUE_VALUES = 10;
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
-    metricRows: Record<string, any>[],
+    metricRows: Record<string, AnyType>[],
     segmentDimensionId: string | null,
 ): {
     dataPoints: Array<MetricExploreDataPoint>;
@@ -316,8 +317,8 @@ export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
     compareDimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
-    metricRows: Record<string, any>[],
-    compareMetricRows: Record<string, any>[],
+    metricRows: Record<string, AnyType>[],
+    compareMetricRows: Record<string, AnyType>[],
     query: MetricExplorerQuery,
     timeFrame: TimeFrames,
 ): {

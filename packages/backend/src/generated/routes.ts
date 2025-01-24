@@ -73,6 +73,11 @@ import { iocContainer } from './../services/tsoaServiceContainer';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
 const models: TsoaRoute.Models = {
+    AnyType: {
+        dataType: 'refAlias',
+        type: { dataType: 'any', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiErrorPayload: {
         dataType: 'refAlias',
         type: {
@@ -81,7 +86,7 @@ const models: TsoaRoute.Models = {
                 error: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        data: { dataType: 'any' },
+                        data: { ref: 'AnyType' },
                         message: { dataType: 'string' },
                         name: { dataType: 'string', required: true },
                         statusCode: { dataType: 'double', required: true },
@@ -1409,7 +1414,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Format: {
         dataType: 'refEnum',
-        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'jpy', 'id', 'percent'],
+        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'jpy', 'dkk', 'id', 'percent'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'CartesianSeriesType.LINE': {
@@ -2980,14 +2985,17 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_': {
+    'FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_': {
         dataType: 'refObject',
         properties: {
-            values: { dataType: 'array', array: { dataType: 'any' } },
+            values: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AnyType' },
+            },
             operator: { ref: 'ConditionalOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'DashboardFieldTarget', required: true },
-            settings: { dataType: 'any' },
+            settings: { ref: 'AnyType' },
             disabled: { dataType: 'boolean' },
             required: { dataType: 'boolean' },
         },
@@ -3022,7 +3030,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                    ref: 'FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -3176,7 +3184,7 @@ const models: TsoaRoute.Models = {
         enums: ['scheduled', 'started', 'completed', 'error'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.any_': {
+    'Record_string.AnyType_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -3191,7 +3199,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                details: { ref: 'Record_string.any_' },
+                details: { ref: 'Record_string.AnyType_' },
                 targetType: {
                     dataType: 'union',
                     subSchemas: [
@@ -3361,7 +3369,7 @@ const models: TsoaRoute.Models = {
                         details: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'Record_string.any_' },
+                                { ref: 'Record_string.AnyType_' },
                                 { dataType: 'enum', enums: [null] },
                             ],
                             required: true,
@@ -3409,7 +3417,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         or: {
                             dataType: 'array',
-                            array: { dataType: 'any' },
+                            array: { dataType: 'refAlias', ref: 'AnyType' },
                             required: true,
                         },
                         id: { dataType: 'string', required: true },
@@ -3420,7 +3428,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         and: {
                             dataType: 'array',
-                            array: { dataType: 'any' },
+                            array: { dataType: 'refAlias', ref: 'AnyType' },
                             required: true,
                         },
                         id: { dataType: 'string', required: true },
@@ -3613,7 +3621,10 @@ const models: TsoaRoute.Models = {
     MetricFilterRule: {
         dataType: 'refObject',
         properties: {
-            values: { dataType: 'array', array: { dataType: 'any' } },
+            values: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AnyType' },
+            },
             operator: { ref: 'ConditionalOperator', required: true },
             id: { dataType: 'string', required: true },
             target: {
@@ -3623,7 +3634,7 @@ const models: TsoaRoute.Models = {
                 },
                 required: true,
             },
-            settings: { dataType: 'any' },
+            settings: { ref: 'AnyType' },
             disabled: { dataType: 'boolean' },
             required: { dataType: 'boolean' },
         },
@@ -4038,7 +4049,7 @@ const models: TsoaRoute.Models = {
                         },
                         rows: {
                             dataType: 'array',
-                            array: { dataType: 'any' },
+                            array: { dataType: 'refAlias', ref: 'AnyType' },
                             required: true,
                         },
                         cacheMetadata: { ref: 'CacheMetadata', required: true },
@@ -4127,9 +4138,9 @@ const models: TsoaRoute.Models = {
                 filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        tableCalculations: { dataType: 'any' },
-                        metrics: { dataType: 'any' },
-                        dimensions: { dataType: 'any' },
+                        tableCalculations: { ref: 'AnyType' },
+                        metrics: { ref: 'AnyType' },
+                        dimensions: { ref: 'AnyType' },
                     },
                     required: true,
                 },
@@ -4230,11 +4241,14 @@ const models: TsoaRoute.Models = {
     FilterRule: {
         dataType: 'refObject',
         properties: {
-            values: { dataType: 'array', array: { dataType: 'any' } },
+            values: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AnyType' },
+            },
             operator: { ref: 'ConditionalOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'FieldTarget', required: true },
-            settings: { dataType: 'any' },
+            settings: { ref: 'AnyType' },
             disabled: { dataType: 'boolean' },
             required: { dataType: 'boolean' },
         },
@@ -12316,7 +12330,10 @@ export function RegisterRoutes(app: Router) {
                     dataType: 'array',
                     array: { dataType: 'refEnum', ref: 'ValidationTarget' },
                 },
-                explores: { dataType: 'array', array: { dataType: 'any' } },
+                explores: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AnyType' },
+                },
             },
         },
     };
@@ -15795,7 +15812,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: { in: 'body', name: 'body', required: true, dataType: 'any' },
+        body: { in: 'body', name: 'body', required: true, ref: 'AnyType' },
     };
     app.patch(
         '/api/v1/schedulers/:schedulerUuid',
@@ -16104,7 +16121,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: { in: 'body', name: 'body', required: true, dataType: 'any' },
+        body: { in: 'body', name: 'body', required: true, ref: 'AnyType' },
     };
     app.post(
         '/api/v1/schedulers/send',
@@ -16386,7 +16403,7 @@ export function RegisterRoutes(app: Router) {
                     required: true,
                 },
                 invalidateCache: { dataType: 'boolean' },
-                dashboardFilters: { dataType: 'any', required: true },
+                dashboardFilters: { ref: 'AnyType', required: true },
             },
         },
         chartUuid: {
@@ -16725,7 +16742,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 invalidateCache: { dataType: 'boolean' },
-                dashboardFilters: { dataType: 'any' },
+                dashboardFilters: { ref: 'AnyType' },
             },
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
@@ -16929,7 +16946,7 @@ export function RegisterRoutes(app: Router) {
                 },
                 onlyRaw: { dataType: 'boolean', required: true },
                 tileUuid: { dataType: 'string' },
-                dashboardFilters: { dataType: 'any', required: true },
+                dashboardFilters: { ref: 'AnyType', required: true },
             },
         },
     };
@@ -18938,8 +18955,8 @@ export function RegisterRoutes(app: Router) {
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
-                        metricQuery: { dataType: 'any', required: true },
-                        chartConfig: { dataType: 'any', required: true },
+                        metricQuery: { ref: 'AnyType', required: true },
+                        chartConfig: { ref: 'AnyType', required: true },
                     },
                 },
             ],
@@ -19024,8 +19041,8 @@ export function RegisterRoutes(app: Router) {
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
-                        tiles: { dataType: 'any', required: true },
-                        filters: { dataType: 'any', required: true },
+                        tiles: { ref: 'AnyType', required: true },
+                        filters: { ref: 'AnyType', required: true },
                     },
                 },
             ],
@@ -21482,7 +21499,7 @@ export function RegisterRoutes(app: Router) {
             name: 'body',
             required: true,
             dataType: 'array',
-            array: { dataType: 'any' },
+            array: { dataType: 'refAlias', ref: 'AnyType' },
         },
     };
     app.put(
