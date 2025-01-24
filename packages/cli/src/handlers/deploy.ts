@@ -17,13 +17,13 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
+import { loadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
-import { loadLightdashProjectConfig } from '../lightdash-config';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;

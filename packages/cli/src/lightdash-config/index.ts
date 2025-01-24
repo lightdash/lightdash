@@ -1,8 +1,8 @@
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
     LightdashProjectConfig,
-    ParseError,
     lightdashProjectConfigSchema,
+    ParseError,
 } from '@lightdash/common';
 import betterAjvErrors from 'better-ajv-errors';
 import { promises as fs } from 'fs';
