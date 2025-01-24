@@ -5163,7 +5163,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'create',
+                'manage',
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
@@ -5207,7 +5207,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'delete',
+                'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
@@ -5237,7 +5237,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'update',
+                'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
@@ -5274,7 +5274,21 @@ export class ProjectService extends BaseService {
             yamlReference: NonNullable<Tag['yamlReference']>;
         })[],
     ) {
-        // TODO: implement permissions
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Tags', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const yamlTagsIn = yamlTags.map((tag) => ({
             project_uuid: projectUuid,
