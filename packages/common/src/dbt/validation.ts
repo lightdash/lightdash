@@ -3,6 +3,7 @@ import addFormats from 'ajv-formats';
 import Ajv2020 from 'ajv/dist/2020';
 import draft7MetaSchema from 'ajv/dist/refs/json-schema-draft-07.json';
 import { type AnyValidateFunction } from 'ajv/dist/types';
+import { type AnyType } from '../types/any';
 import {
     type DbtManifestVersion,
     type DbtMetric,
@@ -23,7 +24,6 @@ import dbtManifestSchemaV12 from './schemas/manifestV12.json';
 import dbtManifestSchemaV7 from './schemas/manifestV7.json';
 import dbtManifestSchemaV8 from './schemas/manifestV8.json';
 import dbtManifestSchemaV9 from './schemas/manifestV9.json';
-import { type AnyType } from '../types/any';
 
 const ajv = new Ajv2020();
 ajv.addMetaSchema(draft7MetaSchema); // add backward compatibility with draft-07

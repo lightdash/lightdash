@@ -1,8 +1,8 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
+import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
-import { type AnyType } from './any';
 
 export interface LightdashUser {
     userUuid: string;

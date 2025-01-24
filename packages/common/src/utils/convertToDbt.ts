@@ -1,4 +1,5 @@
 import groupBy from 'lodash/groupBy';
+import { type AnyType } from '../types/any';
 import {
     type DbtColumnLightdashMetric,
     type DbtModelColumn,
@@ -11,7 +12,6 @@ import {
     type CustomFormat,
 } from '../types/field';
 import { type AdditionalMetric } from '../types/metricQuery';
-import { type AnyType } from '../types/any';
 
 function convertFormatOptionsToFormat(
     formatOptions?: CustomFormat,

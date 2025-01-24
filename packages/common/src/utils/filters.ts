@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Table } from '../types/explore';
 import {
@@ -48,7 +49,6 @@ import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
-import { type AnyType } from '../types/any';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,

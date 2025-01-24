@@ -1,4 +1,5 @@
 import { intersectionBy } from 'lodash';
+import { type AnyType } from '../types/any';
 import {
     capitalize,
     CustomFormatType,
@@ -27,7 +28,6 @@ import {
     type VizConfigErrors,
 } from './types';
 import { type IResultsRunner } from './types/IResultsRunner';
-import { type AnyType } from '../types/any';
 
 // Empty config as default. This makes sense to be defined by the DataModel,
 // but is this the right place?

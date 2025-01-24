@@ -3,6 +3,7 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { groupBy, mapKeys, type Dictionary } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { type AnyType } from '../types/any';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
 import { type CompiledTable } from '../types/explore';
@@ -28,7 +29,6 @@ import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
-import { type AnyType } from '../types/any';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
