@@ -18,13 +18,19 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
         max: lightdashConfig.database.maxConnections || 10,
     },
     migrations: {
-        directory: path.join(__dirname, './database/migrations'),
+        directory: [
+            path.join(__dirname, './database/migrations'),
+            path.join(__dirname, './ee/database/migrations'),
+        ],
         tableName: 'knex_migrations',
         extension: 'ts',
         loadExtensions: ['.ts'],
     },
     seeds: {
-        directory: './database/seeds/development',
+        directory: [
+            path.join(__dirname, './database/seeds/development'),
+            path.join(__dirname, './ee/database/seeds/development'),
+        ],
         loadExtensions: ['.ts'],
     },
 };

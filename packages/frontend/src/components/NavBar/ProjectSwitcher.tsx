@@ -87,6 +87,7 @@ const swappableProjectRoutes = (activeProjectUuid: string) => [
     `/generalSettings/password`,
     `/generalSettings/myWarehouseConnections`,
     `/generalSettings/personalAccessTokens`,
+    `/generalSettings/scimAccessTokens`,
     `/generalSettings/organization`,
     `/generalSettings/userManagement`,
     `/generalSettings/appearance`,

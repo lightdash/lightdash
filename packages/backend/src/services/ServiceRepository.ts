@@ -86,6 +86,7 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
+    scimService: unknown;
 }
 
 /**
@@ -778,6 +779,10 @@ export class ServiceRepository
 
     public getAiService<AiServiceImplT>(): AiServiceImplT {
         return this.getService('aiService');
+    }
+
+    public getScimService<ScimServiceImplT>(): ScimServiceImplT {
+        return this.getService('scimService');
     }
 
     public getSpotlightService(): SpotlightService {

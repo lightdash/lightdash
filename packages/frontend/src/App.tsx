@@ -3,6 +3,10 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { AbilityContext } from './components/common/Authorization/context';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
+import {
+    CommercialMobileRoutes,
+    CommercialWebAppRoutes,
+} from './ee/CommercialRoutes';
 import { ErrorBoundary } from './features/errorBoundary';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import MobileRoutes from './MobileRoutes';
@@ -46,7 +50,9 @@ const router = createBrowserRouter([
                 </ThirdPartyProvider>
             </AppProvider>
         ),
-        children: isMobile ? MobileRoutes : Routes,
+        children: isMobile
+            ? [...MobileRoutes, ...CommercialMobileRoutes]
+            : [...Routes, ...CommercialWebAppRoutes],
     },
 ]);
 const App = () => (

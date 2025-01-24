@@ -1,0 +1,55 @@
+
+### Login
+// @no-log
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Get project config
+GET http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/config
+
+### Save project config
+POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/config
+Content-Type: application/json
+
+{
+    "dashboardUuids": ["fe9ff10c-a314-42f7-bef8-04ec711a13a1"]
+}
+
+### Update dashboards on config
+PATCH http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/config/dashboards
+Content-Type: application/json
+
+{
+    "dashboardUuids": ["fe9ff10c-a314-42f7-bef8-04ec711a13a1"]
+}
+
+### Get embed dashboard
+POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/dashboard
+Lightdash-Embed-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXNoYm9hcmRVdWlkIjoiZmU5ZmYxMGMtYTMxNC00MmY3LWJlZjgtMDRlYzcxMWExM2ExIiwiaWF0IjoxNzAyNjM4OTYzLCJleHAiOjE3MzQxNzQ5NjN9.VYL2e0RC487afLdWozBiOX4NhZp8OTK8T9w6PxHSgks
+Content-Type: application/json
+
+{
+
+}
+
+### Get embed chart
+POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/chart-and-results
+Lightdash-Embed-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXNoYm9hcmRVdWlkIjoiZmU5ZmYxMGMtYTMxNC00MmY3LWJlZjgtMDRlYzcxMWExM2ExIiwiaWF0IjoxNzAyNjM4OTYzLCJleHAiOjE3MzQxNzQ5NjN9.VYL2e0RC487afLdWozBiOX4NhZp8OTK8T9w6PxHSgks
+Content-Type: application/json
+
+{
+    "chartUuid": "e6efe2fa-f884-47ea-ac9b-1e3ebe303b30"
+}
+
+### Generate embed url
+POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/get-embed-url
+Content-Type: application/json
+
+{
+  "dashboardUuid": "53c634a4-203b-48c3-9336-f6e7c3117b0b"
+}

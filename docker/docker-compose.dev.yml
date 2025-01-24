@@ -34,12 +34,21 @@ services:
             - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
             - GROUPS_ENABLED=${GROUPS_ENABLED}
             - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+            - OPENAI_API_KEY=${OPENAI_API_KEY}
+            - OPENAI_MODEL_NAME=${OPENAI_MODEL_NAME}
+            - OPENAI_EMBEDDING_MODEL_NAME=${OPENAI_EMBEDDING_MODEL_NAME}
+            - AI_COPILOT_ENABLED=${AI_COPILOT_ENABLED}
+            - AI_COPILOT_EMBEDDING_SEARCH_ENABLED=${AI_COPILOT_EMBEDDING_SEARCH_ENABLED}
             - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
             - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
             - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
             - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
             - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
             - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
+            - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2}
+            - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
+            - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+            - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
             - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
             - GITHUB_APP_ID=${GITHUB_APP_ID}
             - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -58,7 +67,7 @@ services:
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
     db-dev:
-        image: postgres:15.4
+        image: pgvector/pgvector:pg16
         restart: always
         environment:
             POSTGRES_PASSWORD: password
