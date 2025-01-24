@@ -664,16 +664,6 @@ export class CatalogModel {
             .first();
     }
 
-    // async tagCatalogItemByYamlReference(
-    //     projectUuid: string,
-    //     yamlTagAssignments: {
-    //         catalogSearchUuid: string;
-    //         yamlReference: string;
-    //     }[],
-    // ) {
-    //     // assign tags to catalog items based on yaml reference, in cata
-    // }
-
     async tagCatalogItem(
         user: SessionUser,
         catalogSearchUuid: string,
