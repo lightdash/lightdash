@@ -1,46 +1,6 @@
 import {
-    DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
-    SpotlightTableColumns,
-    type CatalogField,
-} from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Center,
-    Divider,
-    Group,
-    Popover,
-    SegmentedControl,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-    type GroupProps,
-    Button,
-    Box,
-} from '@mantine/core';
-import {
-    IconEye,
-    IconEyeOff,
-    IconGripVertical,
-    IconList,
-    IconSearch,
-    IconSitemap,
-    IconX,
-} from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import useTracking from '../../../../providers/Tracking/useTracking';
-import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
-import { EventName } from '../../../../types/Events';
-import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
-import { MetricCatalogView } from '../../types';
-import CategoriesFilter from './CategoriesFilter';
-import SegmentedControlHoverCard from './SegmentedControlHoverCard';
-import {
-    DndContext,
     closestCenter,
+    DndContext,
     KeyboardSensor,
     PointerSensor,
     useSensor,
@@ -54,20 +14,60 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+    DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
+    SpotlightTableColumns,
+    type CatalogField,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    Button,
+    Center,
+    Divider,
+    Group,
+    Popover,
+    SegmentedControl,
+    Stack,
+    Text,
+    TextInput,
+    Tooltip,
+    type GroupProps,
+} from '@mantine/core';
+import {
+    IconEye,
+    IconEyeOff,
+    IconGripVertical,
+    IconList,
+    IconSearch,
+    IconSitemap,
+    IconX,
+} from '@tabler/icons-react';
+import { isEqual } from 'lodash';
 import { type MRT_TableInstance } from 'mantine-react-table';
+import { memo, useCallback, useMemo, type FC } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
+import { EventName } from '../../../../types/Events';
+import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateSpotlightTableConfig,
     useResetSpotlightTableConfig,
     useSpotlightTableConfig,
 } from '../../hooks/useSpotlightTable';
 import {
-    setColumnOrder,
-    setColumnVisibility,
-    setColumnConfig,
     convertStateToTableColumnConfig,
     convertTableColumnConfigToState,
+    setColumnConfig,
+    setColumnOrder,
+    setColumnVisibility,
 } from '../../store/metricsCatalogSlice';
-import { isEqual } from 'lodash';
+import { MetricCatalogView } from '../../types';
+import CategoriesFilter from './CategoriesFilter';
+import SegmentedControlHoverCard from './SegmentedControlHoverCard';
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;

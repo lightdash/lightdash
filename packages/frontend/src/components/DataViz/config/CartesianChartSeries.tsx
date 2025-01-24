@@ -1,11 +1,11 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
-    type ValueLabelPositionOptions,
+    type AxisSide,
     type CartesianChartDisplay,
     type ChartKind,
     type PivotChartLayout,
-    type AxisSide,
+    type ValueLabelPositionOptions,
 } from '@lightdash/common';
 import { Accordion, SegmentedControl, Stack, Text } from '@mantine/core';
 import { useMemo } from 'react';

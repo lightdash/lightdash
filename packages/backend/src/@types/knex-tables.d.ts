@@ -188,6 +188,10 @@ import {
     SchedulerTableName,
 } from '../database/entities/scheduler';
 import {
+    SpotlightTableConfigTable,
+    SpotlightTableConfigTableName,
+} from '../database/entities/spotlightTableConfig';
+import {
     SshKeyPairTable,
     SshKeyPairTableName,
 } from '../database/entities/sshKeyPairs';
@@ -214,10 +218,6 @@ import {
     WarehouseAvailableTablesTable,
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
-import {
-    SpotlightTableConfigTable,
-    SpotlightTableConfigTableName,
-} from '../database/entities/spotlightTableConfig';
 
 declare module 'knex/types/tables' {
     interface Tables {

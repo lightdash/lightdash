@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
     MAX_METRICS_TREE_NODE_COUNT,
-    type CatalogItem,
     SpotlightTableColumns,
+    type CatalogItem,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -50,19 +50,19 @@ import {
     useMetricsCatalog,
 } from '../hooks/useMetricsCatalog';
 import { useMetricsTree } from '../hooks/useMetricsTree';
+import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 import {
     setCategoryFilters,
+    setColumnConfig,
     setSearch,
     setTableSorting,
     toggleMetricExploreModal,
-    setColumnConfig,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
+import Canvas from './Canvas';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
-import Canvas from './Canvas';
-import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;

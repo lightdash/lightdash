@@ -19,6 +19,7 @@ import {
     type Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
+import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';

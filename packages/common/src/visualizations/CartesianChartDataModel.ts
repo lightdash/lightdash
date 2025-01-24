@@ -16,10 +16,10 @@ import {
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
-    type AxisSide,
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
+    type AxisSide,
     type PivotChartData,
     type PivotChartLayout,
     type VizCartesianChartConfig,

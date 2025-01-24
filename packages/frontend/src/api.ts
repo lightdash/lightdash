@@ -5,7 +5,7 @@ import {
     type ApiError,
     type ApiResponse,
 } from '@lightdash/common';
-import { startSpan, spanToTraceHeader } from '@sentry/react';
+import { spanToTraceHeader, startSpan } from '@sentry/react';
 import fetch from 'isomorphic-fetch';
 
 export const BASE_API_URL =
