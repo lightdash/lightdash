@@ -761,7 +761,7 @@ export class CatalogModel {
         }
 
         if (!includeYamlTags) {
-            query = query.whereNull(`${CatalogTagsTableName}.is_from_yaml`);
+            query = query.where(`${CatalogTagsTableName}.is_from_yaml`, false);
         }
 
         query = query
