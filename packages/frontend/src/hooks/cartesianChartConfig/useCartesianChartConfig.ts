@@ -15,8 +15,8 @@ import {
     type SeriesMetadata,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { produce } from 'immer';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
     type ReferenceLineField,
@@ -476,8 +476,6 @@ const useCartesianChartConfig = ({
                 produce((draft) => {
                     if (!draft) return;
                     draft.series = draft.series?.map((series) => {
-                        console.log('sets stacking', stack, isPivoted);
-
                         const { field } = series.encode.yRef;
                         if (yFields.includes(field)) {
                             return {
