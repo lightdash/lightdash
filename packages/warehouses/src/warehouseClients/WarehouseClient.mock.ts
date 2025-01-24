@@ -1,4 +1,4 @@
-import { DimensionType } from '@lightdash/common';
+import { AnyType, DimensionType } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 
 export const config: {
@@ -29,7 +29,7 @@ export const expectedWarehouseSchema: WarehouseCatalog = {
     },
 };
 
-export const expectedFields: Record<string, any> = {
+export const expectedFields: Record<string, AnyType> = {
     myStringColumn: { type: DimensionType.STRING },
     myNumberColumn: { type: DimensionType.NUMBER },
     myDateColumn: { type: DimensionType.DATE },
@@ -39,7 +39,7 @@ export const expectedFields: Record<string, any> = {
     myObjectColumn: { type: DimensionType.STRING },
 };
 
-export const expectedRow: Record<string, any> = {
+export const expectedRow: Record<string, AnyType> = {
     myStringColumn: 'string value',
     myNumberColumn: 100,
     myDateColumn: new Date('2021-03-10T00:00:00.000Z'),

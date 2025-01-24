@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiCalculateTotalResponse,
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
@@ -867,8 +868,8 @@ export class ProjectController extends BaseController {
             ChartAsCode,
             'metricQuery' | 'chartConfig' | 'description'
         > & {
-            chartConfig: any;
-            metricQuery: any;
+            chartConfig: AnyType;
+            metricQuery: AnyType;
             description?: string | null; // Allow both undefined and null
         },
         @Request() req: express.Request,
@@ -897,8 +898,8 @@ export class ProjectController extends BaseController {
             DashboardAsCode,
             'filters' | 'tiles' | 'description'
         > & {
-            filters: any;
-            tiles: any;
+            filters: AnyType;
+            tiles: AnyType;
             description?: string | null; // Allow both undefined and null
         }, // Simplify filter type for tsoa
         @Request() req: express.Request,

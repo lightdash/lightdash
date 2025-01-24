@@ -1,4 +1,5 @@
 import {
+    AnyType,
     friendlyName,
     LightdashPage,
     operatorActionValue,
@@ -451,7 +452,7 @@ export const getUnfurlBlocks = (
 
 export const getNotificationChannelErrorBlocks = (
     schedulerName: string,
-    error: any,
+    error: AnyType,
     resourceUrl: string,
     type: 'Scheduled delivery' | 'Google Sync' = 'Scheduled delivery',
     isDisabled: boolean = false,

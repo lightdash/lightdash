@@ -1,4 +1,5 @@
 import {
+    AnyType,
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
@@ -74,7 +75,7 @@ export const warehouseClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');
@@ -131,7 +132,7 @@ export const bigqueryClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');

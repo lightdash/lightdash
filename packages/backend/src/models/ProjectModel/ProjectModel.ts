@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    AnyType,
     assertUnreachable,
     CreateProject,
     createVirtualView,
@@ -124,11 +125,13 @@ export class ProjectModel {
             ...incompleteConfig,
             ...sensitiveDbtCredentialsFieldNames.reduce(
                 (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
+                    !(incompleteConfig as AnyType)[secretKey] &&
+                    (completeConfig as AnyType)[secretKey]
                         ? {
                               ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
+                              [secretKey]: (completeConfig as AnyType)[
+                                  secretKey
+                              ],
                           }
                         : sum,
                 {},
@@ -147,11 +150,13 @@ export class ProjectModel {
             ...incompleteConfig,
             ...sensitiveCredentialsFieldNames.reduce(
                 (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
+                    !(incompleteConfig as AnyType)[secretKey] &&
+                    (completeConfig as AnyType)[secretKey]
                         ? {
                               ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
+                              [secretKey]: (completeConfig as AnyType)[
+                                  secretKey
+                              ],
                           }
                         : sum,
                 {},
@@ -729,7 +734,7 @@ export class ProjectModel {
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
                 ([key]) =>
-                    !sensitiveDbtCredentialsFieldNames.includes(key as any),
+                    !sensitiveDbtCredentialsFieldNames.includes(key as AnyType),
             ),
         ) as DbtProjectConfig;
 
@@ -737,7 +742,9 @@ export class ProjectModel {
             ? (Object.fromEntries(
                   Object.entries(sensitiveCredentials).filter(
                       ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(key as any),
+                          !sensitiveCredentialsFieldNames.includes(
+                              key as AnyType,
+                          ),
                   ),
               ) as WarehouseCredentials)
             : undefined;
@@ -1187,7 +1194,7 @@ export class ProjectModel {
                 role,
                 user_id: user.user_id,
             });
-        } catch (error: any) {
+        } catch (error: AnyType) {
             if (
                 error instanceof DatabaseError &&
                 error.constraint ===
@@ -1733,7 +1740,9 @@ export class ProjectModel {
             const copyChartVersionContent = async (
                 table: string,
                 excludedFields: string[],
-                fieldPreprocess: { [field: string]: (value: any) => any } = {},
+                fieldPreprocess: {
+                    [field: string]: (value: AnyType) => AnyType;
+                } = {},
             ) => {
                 const content = await trx(table)
                     .whereIn('saved_queries_version_id', chartVersionIds)
@@ -1775,7 +1784,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
-                { custom_range: (value: any) => JSON.stringify(value) },
+                { custom_range: (value: AnyType) => JSON.stringify(value) },
             );
             await copyChartVersionContent(
                 SavedChartCustomSqlDimensionsTableName,
@@ -1790,7 +1799,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
                 ['saved_queries_version_additional_metric_id', 'uuid'],
-                { filters: (value: any) => JSON.stringify(value) },
+                { filters: (value: AnyType) => JSON.stringify(value) },
             );
 
             // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8

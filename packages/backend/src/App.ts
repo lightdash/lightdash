@@ -3,6 +3,7 @@
 import './sentry'; // Sentry has to be initialized before anything else
 
 import {
+    AnyType,
     ApiError,
     LightdashError,
     LightdashMode,
@@ -269,7 +270,7 @@ export default class App {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
-            knex: this.database as any,
+            knex: this.database as AnyType,
             createtable: false,
             tablename: 'sessions',
             sidfieldname: 'sid',

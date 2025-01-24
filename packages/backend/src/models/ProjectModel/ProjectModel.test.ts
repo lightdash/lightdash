@@ -1,4 +1,4 @@
-import { ExploreType } from '@lightdash/common';
+import { AnyType, ExploreType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
@@ -25,7 +25,7 @@ import {
 
 function queryMatcher(
     tableName: string,
-    params: any[] = [],
+    params: AnyType[] = [],
 ): FunctionQueryMatcher {
     return ({ sql, bindings }: RawQuery) =>
         sql.includes(tableName) &&

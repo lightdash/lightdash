@@ -111,6 +111,7 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
+import { type AnyType } from './types/any';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
@@ -167,6 +168,7 @@ export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
 export * from './types/analytics';
+export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
@@ -404,7 +406,7 @@ export const SEED_GROUP = {
 
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
-) => any
+) => AnyType
     ? A
     : never;
 
@@ -1121,7 +1123,7 @@ export function itemsInMetricQuery(
 
 function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
-    value: any,
+    value: AnyType,
 ) {
     const isTimestamp =
         isField(field) &&
@@ -1137,7 +1139,7 @@ function formatRawValue(
 }
 
 export function formatRows(
-    rows: { [col: string]: any }[],
+    rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
     return rows.map((row) => {
@@ -1160,9 +1162,10 @@ export function formatRows(
     });
 }
 
-const isObject = (object: any) => object != null && typeof object === 'object';
-export const removeEmptyProperties = (object: Record<string, any>) => {
-    const newObj: Record<string, any> = {};
+const isObject = (object: AnyType) =>
+    object != null && typeof object === 'object';
+export const removeEmptyProperties = (object: Record<string, AnyType>) => {
+    const newObj: Record<string, AnyType> = {};
     Object.keys(object).forEach((key) => {
         if (object[key] === Object(object[key]))
             newObj[key] = removeEmptyProperties(object[key]);
@@ -1172,8 +1175,8 @@ export const removeEmptyProperties = (object: Record<string, any>) => {
     return newObj;
 };
 export const deepEqual = (
-    object1: Record<string, any>,
-    object2: Record<string, any>,
+    object1: Record<string, AnyType>,
+    object2: Record<string, AnyType>,
 ): boolean => {
     const keys1 = Object.keys(object1);
     const keys2 = Object.keys(object2);
@@ -1181,8 +1184,8 @@ export const deepEqual = (
         return false;
     }
     return keys1.every((key) => {
-        const val1: any = object1[key];
-        const val2: any = object2[key];
+        const val1: AnyType = object1[key];
+        const val2: AnyType = object2[key];
         const areObjects = isObject(val1) && isObject(val2);
         return !(
             (areObjects && !deepEqual(val1, val2)) ||

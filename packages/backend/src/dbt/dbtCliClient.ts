@@ -1,4 +1,5 @@
 import {
+    AnyType,
     assertUnreachable,
     DbtError,
     DbtLog,
@@ -28,7 +29,7 @@ type RawDbtProjectConfig = {
     'target-dir'?: string;
 };
 
-const isRawDbtConfig = (raw: any): raw is RawDbtProjectConfig =>
+const isRawDbtConfig = (raw: AnyType): raw is RawDbtProjectConfig =>
     typeof raw === 'object' &&
     raw !== null &&
     (raw['target-dir'] === undefined || typeof raw['target-dir'] === 'string');
@@ -303,7 +304,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    private async loadDbtTargetArtifact(filename: string): Promise<any> {
+    private async loadDbtTargetArtifact(filename: string): Promise<AnyType> {
         const targetDir = await this._getTargetDirectory();
 
         const fullPath = path.join(
@@ -317,7 +318,7 @@ export class DbtCliClient implements DbtClient {
     static async loadDbtFile(
         fullPath: string,
         fileType: 'JSON' | 'YML' = 'JSON',
-    ): Promise<any> {
+    ): Promise<AnyType> {
         try {
             Logger.debug(`Load dbt artifact: ${fullPath}`);
             const file = await fs.readFile(fullPath, 'utf-8');

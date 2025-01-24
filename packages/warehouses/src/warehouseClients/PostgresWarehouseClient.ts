@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
     DimensionType,
@@ -156,7 +157,7 @@ export class PostgresClient<
     }
 
     static convertQueryResultFields(
-        fields: QueryResult<any>['fields'],
+        fields: QueryResult<AnyType>['fields'],
     ): Record<string, { type: DimensionType }> {
         return fields.reduce(
             (acc, { name, dataTypeID }) => ({
@@ -173,7 +174,7 @@ export class PostgresClient<
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -253,8 +254,8 @@ export class PostgresClient<
                                 objectMode: true,
                                 write(
                                     chunk: {
-                                        row: any;
-                                        fields: QueryResult<any>['fields'];
+                                        row: AnyType;
+                                        fields: QueryResult<AnyType>['fields'];
                                     },
                                     encoding,
                                     callback,

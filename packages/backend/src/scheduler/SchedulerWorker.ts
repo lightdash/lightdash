@@ -1,4 +1,5 @@
 import {
+    AnyType,
     getErrorMessage,
     indexCatalogJob,
     SchedulerJobStatus,
@@ -188,7 +189,7 @@ export class SchedulerWorker extends SchedulerTask {
             },
 
             handleScheduledDelivery: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -221,7 +222,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             sendSlackNotification: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -254,7 +255,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             sendEmailNotification: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -286,7 +287,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            uploadGsheets: async (payload: any, helpers: JobHelpers) => {
+            uploadGsheets: async (payload: AnyType, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         'uploadGsheets',
@@ -313,7 +314,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            downloadCsv: async (payload: any, helpers: JobHelpers) => {
+            downloadCsv: async (payload: AnyType, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         'downloadCsv',
@@ -346,7 +347,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             uploadGsheetFromQuery: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -381,7 +382,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             createProjectWithCompile: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await SchedulerClient.processJob(
@@ -398,7 +399,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            compileProject: async (payload: any, helpers: JobHelpers) => {
+            compileProject: async (payload: AnyType, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'compileProject',
                     helpers.job.id,
@@ -414,7 +415,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             testAndCompileProject: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await SchedulerClient.processJob(
@@ -431,7 +432,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            validateProject: async (payload: any, helpers: JobHelpers) => {
+            validateProject: async (payload: AnyType, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'validateProject',
                     helpers.job.id,
@@ -446,7 +447,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [sqlRunnerJob]: async (payload: any, helpers: JobHelpers) => {
+            [sqlRunnerJob]: async (payload: AnyType, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         sqlRunnerJob,
@@ -478,7 +479,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [sqlRunnerPivotQueryJob]: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -512,7 +513,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [semanticLayerQueryJob]: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -545,7 +546,10 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [indexCatalogJob]: async (payload: any, helpers: JobHelpers) => {
+            [indexCatalogJob]: async (
+                payload: AnyType,
+                helpers: JobHelpers,
+            ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         indexCatalogJob,
