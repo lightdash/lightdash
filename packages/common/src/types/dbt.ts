@@ -1,5 +1,8 @@
 import { DepGraph } from 'dependency-graph';
-import { getCategoriesFromResource } from '../compiler/lightdashProjectConfig';
+import {
+    getCategoriesFromResource,
+    getSpotlightConfigurationForResource,
+} from '../compiler/lightdashProjectConfig';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
 import {
@@ -500,15 +503,10 @@ export const convertModelMetric = ({
                   },
               }
             : null),
-        // TODO SPOTLIGHT: check how to handle categories or if irrelevant
-        ...(spotlightVisibility !== undefined
-            ? {
-                  spotlight: {
-                      visibility: spotlightVisibility,
-                      categories: spotlightCategories,
-                  },
-              }
-            : {}),
+        ...getSpotlightConfigurationForResource(
+            spotlightVisibility,
+            spotlightCategories,
+        ),
     };
 };
 

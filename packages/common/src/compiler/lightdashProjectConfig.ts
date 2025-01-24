@@ -1,9 +1,40 @@
-import { CompileError } from '../types/errors';
-import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import { ParseError } from '../types/errors';
+import type { Explore } from '../types/explore';
+import type { Metric } from '../types/field';
+import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
 
-// TODO: document
+/**
+ * Get the spotlight configuration for a resource
+ * @param visibility - The visibility of the resource
+ * @param categories - The categories of the resource
+ * @returns The spotlight configuration for the resource
+ */
+export const getSpotlightConfigurationForResource = (
+    visibility?: LightdashProjectConfig['spotlight']['default_visibility'],
+    categories?: string[],
+): Pick<Explore, 'spotlight'> | Pick<Metric, 'spotlight'> => {
+    if (visibility === undefined) {
+        return {};
+    }
+
+    return {
+        spotlight: {
+            visibility,
+            categories,
+        },
+    };
+};
+
+/**
+ * Get the categories from the resource and validate them against the project config
+ * @param resourceType - The type of the resource
+ * @param resourceName - The name of the resource
+ * @param spotlightConfig - The spotlight config
+ * @param resourceCategories - The categories from the resource
+ * @returns The categories from the resource
+ */
 export const getCategoriesFromResource = (
-    resourceType: 'metric' | 'model',
+    resourceType: 'metric' | 'explore',
     resourceName: string,
     spotlightConfig: LightdashProjectConfig['spotlight'] | undefined,
     resourceCategories: string[] | undefined = [],
@@ -18,7 +49,7 @@ export const getCategoriesFromResource = (
     );
 
     if (invalidCategories.length > 0) {
-        throw new CompileError(
+        throw new ParseError(
             `Invalid spotlight categories found in ${resourceType} '${resourceName}': ${invalidCategories.join(
                 ', ',
             )}. Categories must be defined in project config.`,
