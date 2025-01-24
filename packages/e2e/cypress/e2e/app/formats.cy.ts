@@ -5,7 +5,7 @@ describe('Explore', () => {
         cy.login();
     });
 
-    it('Should query in explore with formats and rounds', () => {
+    it.only('Should query in explore with formats and rounds', () => {
         const urlParam = {
             tableName: 'events',
             metricQuery: {
