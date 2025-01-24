@@ -747,7 +747,7 @@ export class ProjectService extends BaseService {
 
                     await this.replaceYamlTags(
                         user,
-                        projectUuid,
+                        newProjectUuid,
                         // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
                         Object.entries(
                             lightdashProjectConfig.spotlight?.categories || {},
