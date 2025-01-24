@@ -1,6 +1,6 @@
+import { AnyType } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import EventEmitter from 'events';
-import { AnyType } from '@lightdash/common';
 
 import { WorkerEvents } from 'graphile-worker';
 import { Job, Worker } from 'graphile-worker/dist/interfaces';

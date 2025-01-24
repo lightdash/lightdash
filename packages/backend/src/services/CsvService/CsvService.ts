@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    AnyType,
     ApiSqlQueryResults,
     applyDimensionOverrides,
     ChartType,
@@ -39,7 +40,6 @@ import {
     SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
-    AnyType,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
