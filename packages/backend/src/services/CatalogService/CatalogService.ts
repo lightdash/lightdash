@@ -318,6 +318,7 @@ export class CatalogService<
     async indexCatalog(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        userUuid: string | undefined,
     ) {
         const exploresWithCachedExploreUuid =
             await this.projectModel.getCachedExploresWithUuid(
@@ -331,6 +332,7 @@ export class CatalogService<
             projectUuid,
             exploresWithCachedExploreUuid,
             projectYamlTags,
+            userUuid,
         );
     }
 

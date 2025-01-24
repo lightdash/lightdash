@@ -94,10 +94,7 @@ export type DbCatalogTag = {
     is_from_yaml: boolean;
 };
 
-export type DbCatalogTagIn = Pick<
-    DbCatalogTag,
-    'catalog_search_uuid' | 'tag_uuid' | 'created_by_user_uuid' | 'is_from_yaml'
->;
+export type DbCatalogTagIn = Omit<DbCatalogTag, 'created_at'>;
 
 export type CatalogTagsTable = Knex.CompositeTableType<
     DbCatalogTag,

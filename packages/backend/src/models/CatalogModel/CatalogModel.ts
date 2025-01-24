@@ -76,6 +76,7 @@ export class CatalogModel {
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
         projectYamlTags: DbTag[],
+        userUuid: string | undefined,
     ): Promise<{
         catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
@@ -141,8 +142,8 @@ export class CatalogModel {
                                                     result.catalog_search_uuid,
                                                 tag_uuid: tag.tag_uuid,
                                                 is_from_yaml: true,
-                                                // TODO: handle created_by_user_uuid
-                                                created_by_user_uuid: null,
+                                                created_by_user_uuid:
+                                                    userUuid ?? null,
                                             }));
                                         }
                                         return [];

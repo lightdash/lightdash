@@ -2248,6 +2248,7 @@ export default class SchedulerTask {
                     await this.catalogService.indexCatalog(
                         payload.projectUuid,
                         payload.explores,
+                        payload.userUuid,
                     );
 
                 await this.catalogService.migrateCatalogItemTags(
