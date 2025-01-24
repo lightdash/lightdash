@@ -18,6 +18,8 @@ expressly stated herein. Subject to the foregoing, it is forbidden to copy, merg
 and/or sell the Software. The full text of this Source Available License shall be included in all copies or substantial
 portions of the Software.
 
+This license is automatically terminated if you breach its terms, including failure to maintain a valid Enterprise Subscription.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
 WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
@@ -25,5 +27,3 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
 For all third party components incorporated into the Lightdash Software, those components are licensed under the
 original license provided by the owner of the applicable component.
-
-This license is automatically terminated if you breach its terms, including failure to maintain a valid Enterprise Subscription
