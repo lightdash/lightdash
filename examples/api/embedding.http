@@ -30,7 +30,7 @@ Content-Type: application/json
 
 ### Get embed dashboard
 POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/dashboard
-Lightdash-Embed-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXNoYm9hcmRVdWlkIjoiZmU5ZmYxMGMtYTMxNC00MmY3LWJlZjgtMDRlYzcxMWExM2ExIiwiaWF0IjoxNzAyNjM4OTYzLCJleHAiOjE3MzQxNzQ5NjN9.VYL2e0RC487afLdWozBiOX4NhZp8OTK8T9w6PxHSgks
+Lightdash-Embed-Token: <embed_token>
 Content-Type: application/json
 
 {
@@ -39,7 +39,7 @@ Content-Type: application/json
 
 ### Get embed chart
 POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/chart-and-results
-Lightdash-Embed-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXNoYm9hcmRVdWlkIjoiZmU5ZmYxMGMtYTMxNC00MmY3LWJlZjgtMDRlYzcxMWExM2ExIiwiaWF0IjoxNzAyNjM4OTYzLCJleHAiOjE3MzQxNzQ5NjN9.VYL2e0RC487afLdWozBiOX4NhZp8OTK8T9w6PxHSgks
+Lightdash-Embed-Token: <embed_token>
 Content-Type: application/json
 
 {
