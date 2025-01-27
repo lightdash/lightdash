@@ -20,6 +20,7 @@ import {
     LIGHTDASH_TABLE_WITH_GROUP_BLOCK,
     LIGHTDASH_TABLE_WITH_GROUP_LABEL,
     LIGHTDASH_TABLE_WITH_METRICS,
+    LIGHTDASH_TABLE_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_ADDITIONAL_DIMENSIONS,
@@ -28,6 +29,7 @@ import {
     MODEL_WITH_GROUPS_BLOCK,
     MODEL_WITH_GROUP_LABEL,
     MODEL_WITH_METRIC,
+    MODEL_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
@@ -310,5 +312,16 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
+    });
+
+    it.only('should convert dbt model with metrics in meta and keep model spotlight override', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE,
+                [DBT_METRIC],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE);
     });
 });

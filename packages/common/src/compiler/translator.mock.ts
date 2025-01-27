@@ -741,6 +741,47 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
     },
 };
 
+export const MODEL_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE: DbtModelNode = {
+    ...MODEL_WITH_METRIC,
+    meta: {
+        spotlight: {
+            visibility: 'hide',
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...LIGHTDASH_TABLE_WITH_METRICS,
+    metrics: {
+        ...{
+            dbt_metric_1: {
+                ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1,
+                spotlight: {
+                    ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1
+                        .spotlight,
+                    visibility: 'hide',
+                },
+            },
+        },
+        ...Object.fromEntries(
+            Object.entries(LIGHTDASH_TABLE_WITH_METRICS.metrics).map(
+                ([key, metric]) => [
+                    key,
+                    {
+                        ...metric,
+                        spotlight: { ...metric.spotlight, visibility: 'hide' },
+                        index: (metric.index ?? 0) + 1,
+                    },
+                ],
+            ),
+        ),
+    },
+    dimensions: LIGHTDASH_TABLE_WITH_METRICS.dimensions,
+};
+
 export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
     relation_name: string;
 } = {
