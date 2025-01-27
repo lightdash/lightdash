@@ -136,6 +136,9 @@ export const lightdashConfigMock: LightdashConfig = {
     staticIp: '',
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
+    license: {
+        licenseKey: null,
+    },
     groups: {
         enabled: false,
     },
