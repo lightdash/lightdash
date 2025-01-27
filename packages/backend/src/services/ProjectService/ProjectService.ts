@@ -24,6 +24,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    CustomDimensionType,
     CustomFormatType,
     DashboardAvailableFilters,
     DashboardBasicDetails,
@@ -2604,27 +2605,14 @@ export class ProjectService extends BaseService {
                 `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
             );
         }
-        const autocompleteDimensionFilters: OrFilterGroup[] = [
+        const autocompleteDimensionFilters: FilterGroupItem[] = [
             {
                 id: uuidv4(),
-                or: [
-                    {
-                        id: uuidv4(),
-                        target: {
-                            fieldId,
-                        },
-                        operator: FilterOperator.EQUALS,
-                        values: [search],
-                    },
-                    {
-                        id: uuidv4(),
-                        target: {
-                            fieldId,
-                        },
-                        operator: FilterOperator.INCLUDE,
-                        values: [`%${search}%`],
-                    },
-                ],
+                target: {
+                    fieldId,
+                },
+                operator: FilterOperator.INCLUDE,
+                values: [search],
             },
         ];
         if (filters) {
@@ -2636,14 +2624,11 @@ export class ProjectService extends BaseService {
                         filter.target.fieldId,
                     ),
             );
-            autocompleteDimensionFilters.push({
-                id: uuidv4(),
-                or: [...filtersCompatibleWithExplore],
-            });
+            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [getItemId(field)],
+            dimensions: [getItemId(field), 'custom_sql_match_priority'],
             metrics: [],
             filters: {
                 dimensions: {
@@ -2651,12 +2636,24 @@ export class ProjectService extends BaseService {
                     and: autocompleteDimensionFilters,
                 },
             },
+            customDimensions: [
+                {
+                    id: 'custom_sql_match_priority',
+                    name: 'match_priority',
+                    table,
+                    type: CustomDimensionType.SQL,
+                    sql: `CASE 
+                            WHEN ${field.sql} = '${search}' THEN 2
+                            WHEN LOWER(${field.sql}) = LOWER('${search}') THEN 1
+                            ELSE 0 
+                          END`,
+                    dimensionType: field.type,
+                },
+            ],
             tableCalculations: [],
             sorts: [
                 {
-                    fieldId: `CASE WHEN LOWER(${getItemId(
-                        field,
-                    )}) = LOWER('${search}') THEN 0 ELSE 1 END`,
+                    fieldId: 'custom_sql_match_priority',
                     descending: false,
                 },
                 {
