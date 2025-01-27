@@ -1,3 +1,10 @@
+# [0.1467.0](https://github.com/lightdash/lightdash/compare/0.1466.1...0.1467.0) (2025-01-27)
+
+
+### Features
+
+* handle yml-vs-ui catagories on spotlight ([#13408](https://github.com/lightdash/lightdash/issues/13408)) ([3372557](https://github.com/lightdash/lightdash/commit/3372557f626d0ff57b320355b9d7aff2e48e5882))
+
 ## [0.1466.1](https://github.com/lightdash/lightdash/compare/0.1466.0...0.1466.1) (2025-01-27)
 
 
