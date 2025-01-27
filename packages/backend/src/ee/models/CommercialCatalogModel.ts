@@ -8,7 +8,12 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { CatalogTableName, DbCatalogIn } from '../../database/entities/catalog';
+import {
+    CatalogTableName,
+    DbCatalogIn,
+    type DbCatalog,
+} from '../../database/entities/catalog';
+import { DbTag } from '../../database/entities/tags';
 import {
     CatalogModel,
     CatalogModelArguments,
@@ -119,13 +124,17 @@ export class CommercialCatalogModel extends CatalogModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
+        projectYamlTags: DbTag[],
+        userUuid: string | undefined,
     ): Promise<{
-        catalogInserts: DbCatalogIn[];
+        catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
     }> {
         const { catalogInserts, catalogFieldMap } = await super.indexCatalog(
             projectUuid,
             cachedExplores,
+            projectYamlTags,
+            userUuid,
         );
 
         const { enabled: copilotEnabled, embeddingSearchEnabled } =
