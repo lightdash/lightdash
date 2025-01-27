@@ -13,6 +13,7 @@ import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsSemanticLayer from '../components/SettingsSemanticLayer';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
+import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { useProject } from '../hooks/useProject';
 
 const ProjectSettings: FC = () => {
@@ -68,6 +69,10 @@ const ProjectSettings: FC = () => {
             {
                 path: '*',
                 element: <Navigate to={`/generalSettings`} />,
+            },
+            {
+                path: '/embed', // commercial route
+                element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
     }, [projectUuid]);

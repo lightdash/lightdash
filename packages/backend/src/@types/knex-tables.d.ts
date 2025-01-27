@@ -218,6 +218,28 @@ import {
     WarehouseAvailableTablesTable,
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
+import {
+    AiPromptTable,
+    AiPromptTableName,
+    AiSlackPromptTable,
+    AiSlackPromptTableName,
+    AiSlackThreadTable,
+    AiSlackThreadTableName,
+    AiThreadTable,
+    AiThreadTableName,
+} from '../ee/database/entities/ai';
+import {
+    DashboardSummariesTable,
+    DashboardSummariesTableName,
+} from '../ee/database/entities/dashboardSummaries';
+import {
+    ScimOrganizationAccessTokenTable,
+    ScimOrganizationAccessTokenTableName,
+} from '../ee/database/entities/scim';
+import {
+    SlackChannelProjectMappingsTable,
+    SlackChannelProjectMappingsTableName,
+} from '../ee/database/entities/slackChannelProjectMappings';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -290,12 +312,19 @@ declare module 'knex/types/tables' {
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
+        [AiThreadTableName]: AiThreadTable;
+        [AiSlackThreadTableName]: AiSlackThreadTable;
+        [AiPromptTableName]: AiPromptTable;
+        [AiSlackPromptTableName]: AiSlackPromptTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
+        [DashboardSummariesTableName]: DashboardSummariesTable;
         [CatalogTableName]: CatalogTable;
+        [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
+        [ScimOrganizationAccessTokenTableName]: ScimOrganizationAccessTokenTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
     }

@@ -16,6 +16,7 @@ export type ApiSlackCustomSettingsResponse = {
 export type SlackChannelProjectMapping = {
     projectUuid: string;
     slackChannelId: string;
+    availableTags: string[] | null;
 };
 
 export type SlackAppCustomSettings = {

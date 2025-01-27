@@ -93,6 +93,7 @@ export type ModelManifest = {
     aiModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
+    scimOrganizationAccessTokenModel: unknown;
 };
 
 /**
@@ -529,6 +530,10 @@ export class ModelRepository
             'tagsModel',
             () => new TagsModel({ database: this.database }),
         );
+    }
+
+    public getScimOrganizationAccessTokenModel<ModelImplT>(): ModelImplT {
+        return this.getModel('scimOrganizationAccessTokenModel');
     }
 
     public getSpotlightTableConfigModel(): SpotlightTableConfigModel {

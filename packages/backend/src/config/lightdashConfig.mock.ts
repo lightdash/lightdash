@@ -150,6 +150,17 @@ export const lightdashConfigMock: LightdashConfig = {
         csvCellsLimit: 100000,
         timezone: undefined,
     },
+    ai: {
+        copilot: {
+            enabled: false,
+        },
+    },
+    embedding: {
+        enabled: false,
+    },
+    scim: {
+        enabled: false,
+    },
     security: {
         contentSecurityPolicy: {
             reportOnly: false,

@@ -1,4 +1,7 @@
-import { type SlackAppCustomSettings } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    type SlackAppCustomSettings,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -17,7 +20,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import {
     IconAlertCircle,
     IconDeviceFloppy,
@@ -27,12 +30,16 @@ import {
 } from '@tabler/icons-react';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { z } from 'zod';
+import ChannelProjectMappings from '../../../ee/features/aiCopilot/components/ChannelProjectMappings';
 import {
     useDeleteSlack,
     useGetSlack,
     useSlackChannels,
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useProjects } from '../../../hooks/useProjects';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -41,7 +48,28 @@ import { hasRequiredScopes } from './utils';
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 const MAX_SLACK_CHANNELS = 100000;
 
+const formSchema = z.object({
+    notificationChannel: z.string().min(1).nullable(),
+    appProfilePhotoUrl: z.string().url().nullable(),
+    slackChannelProjectMappings: z.array(
+        z.object({
+            projectUuid: z
+                .string({ message: 'You must select a project' })
+                .uuid({ message: 'Invalid project' }),
+            slackChannelId: z
+                .string({
+                    message: 'You must select a Slack channel',
+                })
+                .min(1),
+            availableTags: z.array(z.string().min(1)).nullable(),
+        }),
+    ),
+});
+
 const SlackSettingsPanel: FC = () => {
+    const { data: aiCopilotFlag } = useFeatureFlag(
+        CommercialFeatureFlags.AiCopilot,
+    );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
@@ -62,7 +90,9 @@ const SlackSettingsPanel: FC = () => {
         initialValues: {
             notificationChannel: null,
             appProfilePhotoUrl: null,
+            slackChannelProjectMappings: [],
         },
+        validate: zodResolver(formSchema),
     });
 
     const { setFieldValue, onSubmit } = form;
@@ -73,6 +103,8 @@ const SlackSettingsPanel: FC = () => {
         const initialValues = {
             notificationChannel: slackInstallation.notificationChannel ?? null,
             appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
+            slackChannelProjectMappings:
+                slackInstallation.slackChannelProjectMappings ?? [],
         };
 
         if (form.initialized) {
@@ -92,6 +124,17 @@ const SlackSettingsPanel: FC = () => {
             })) ?? []
         );
     }, [slackChannels]);
+
+    const { data: projects } = useProjects();
+
+    const projectOptions = useMemo(() => {
+        return (
+            projects?.map((project) => ({
+                value: project.projectUuid,
+                label: project.name,
+            })) ?? []
+        );
+    }, [projects]);
 
     let responsiveChannelsSearchEnabled =
         slackChannelOptions.length >= MAX_SLACK_CHANNELS || search.length > 0; // enable responvive channels search if there are more than MAX_SLACK_CHANNELS defined channels
@@ -210,6 +253,13 @@ const SlackSettingsPanel: FC = () => {
                                     }
                                 />
                             </Group>
+                            {aiCopilotFlag?.enabled && (
+                                <ChannelProjectMappings
+                                    form={form}
+                                    channelOptions={slackChannelOptions}
+                                    projectOptions={projectOptions}
+                                />
+                            )}
                         </Stack>
                         <Stack align="end" mt="xl">
                             <Group spacing="sm">
