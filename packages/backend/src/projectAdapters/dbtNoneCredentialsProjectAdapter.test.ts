@@ -9,7 +9,7 @@ const mockProjectAdapter = new DbtNoneCredentialsProjectAdapter({
 });
 
 describe('getLightdashProjectConfig', () => {
-    it('should return the default config', async () => {
+    it('should return the default lightdash project config', async () => {
         const config = await mockProjectAdapter.getLightdashProjectConfig();
         expect(config).toEqual({
             spotlight: DEFAULT_SPOTLIGHT_CONFIG,
