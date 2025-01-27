@@ -1,3 +1,10 @@
+# [0.1466.0](https://github.com/lightdash/lightdash/compare/0.1465.0...0.1466.0) (2025-01-27)
+
+
+### Features
+
+* ee features ([#13402](https://github.com/lightdash/lightdash/issues/13402)) ([3164fa8](https://github.com/lightdash/lightdash/commit/3164fa88173e374fa2a585f26aa07cc9332a1695))
+
 # [0.1465.0](https://github.com/lightdash/lightdash/compare/0.1464.3...0.1465.0) (2025-01-27)
 
 
