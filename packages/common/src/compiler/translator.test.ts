@@ -320,7 +320,7 @@ describe('convert tables from dbt models', () => {
     });
 });
 
-describe.only('spotlight config', () => {
+describe('spotlight config', () => {
     it('should convert dbt model with metrics when no categories are defined', () => {
         expect(
             convertTable(
