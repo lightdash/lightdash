@@ -17,25 +17,6 @@ import {
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
 
-export const sanitizeStringParam = (value: AnyType) => {
-    if (!value || typeof value !== 'string') {
-        throw new ParameterError();
-    }
-    const trimmedValue = value.trim();
-    if (trimmedValue.length <= 0) {
-        throw new ParameterError();
-    }
-    return trimmedValue;
-};
-
-export const sanitizeEmailParam = (value: AnyType) => {
-    const email = sanitizeStringParam(value);
-    if (!validateEmail(email)) {
-        throw new ParameterError();
-    }
-    return email;
-};
-
 export const isDbPinnedChart = (data: DbPinnedItem): data is DbPinnedChart =>
     'saved_chart_uuid' in data && !!data.saved_chart_uuid;
 

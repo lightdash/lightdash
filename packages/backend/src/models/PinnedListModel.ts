@@ -1,5 +1,4 @@
 import {
-    AnyType,
     CreatePinnedItem,
     DeletePinnedItem,
     isCreateChartPinnedItem,
@@ -177,7 +176,7 @@ export class PinnedListModel {
         itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            const promises: Promise<AnyType>[] = [];
+            const promises: Promise<number>[] = [];
             itemsOrder.forEach((item) => {
                 switch (item.type) {
                     case ResourceViewItemType.CHART: {
