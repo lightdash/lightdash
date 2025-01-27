@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ResourceViewChartItem,
     ResourceViewDashboardItem,
     ResourceViewItemType,
@@ -57,7 +58,7 @@ const getCharts = async (
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
-        .orderBy('pinned_chart.order', 'asc')) as Record<string, any>[];
+        .orderBy('pinned_chart.order', 'asc')) as Record<string, AnyType>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
         type: resourceType,
@@ -140,7 +141,7 @@ const getDashboards = async (
             updated_by_user_last_name: 'users.last_name',
         })
         .orderBy('pinned_dashboard.order', 'asc')
-        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
+        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, AnyType>[];
     const resourceType: ResourceViewItemType.DASHBOARD =
         ResourceViewItemType.DASHBOARD;
     const items = rows.map((row) => ({
@@ -170,7 +171,7 @@ const getAllSpaces = async (
     projectUuid: string,
     pinnedListUuid: string,
 ): Promise<ResourceViewSpaceItem[]> => {
-    const { rows } = await knex.raw<{ rows: Record<string, any>[] }>(
+    const { rows } = await knex.raw<{ rows: Record<string, AnyType>[] }>(
         `
             select
                 o.organization_uuid,

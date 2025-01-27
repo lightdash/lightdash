@@ -1,7 +1,9 @@
 import {
+    AnyType,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     SupportedDbtAdapter,
@@ -155,7 +157,7 @@ export class PostgresClient<
     }
 
     static convertQueryResultFields(
-        fields: QueryResult<any>['fields'],
+        fields: QueryResult<AnyType>['fields'],
     ): Record<string, { type: DimensionType }> {
         return fields.reduce(
             (acc, { name, dataTypeID }) => ({
@@ -172,7 +174,7 @@ export class PostgresClient<
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -188,7 +190,7 @@ export class PostgresClient<
             });
 
             pool.on('error', (err) => {
-                console.error(`Postgres pool error ${err.message}`);
+                console.error(`Postgres pool error ${getErrorMessage(err)}`);
                 reject(err);
             });
 
@@ -196,7 +198,7 @@ export class PostgresClient<
                 // On each new client initiated, need to register for error(this is a serious bug on pg, the client throw errors although it should not)
                 _client.on('error', (err: Error) => {
                     console.error(
-                        `Postgres client connect error ${err.message}`,
+                        `Postgres client connect error ${getErrorMessage(err)}`,
                     );
                     reject(err);
                 });
@@ -214,7 +216,9 @@ export class PostgresClient<
                 }
 
                 client.on('error', (e) => {
-                    console.error(`Postgres client error ${e.message}`);
+                    console.error(
+                        `Postgres client error ${getErrorMessage(e)}`,
+                    );
                     reject(e);
                     done();
                 });
@@ -250,8 +254,8 @@ export class PostgresClient<
                                 objectMode: true,
                                 write(
                                     chunk: {
-                                        row: any;
-                                        fields: QueryResult<any>['fields'];
+                                        row: AnyType;
+                                        fields: QueryResult<AnyType>['fields'];
                                     },
                                     encoding,
                                     callback,

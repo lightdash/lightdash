@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateProjectMember,
     InviteLink,
     PasswordResetLink,
@@ -63,8 +64,7 @@ export default class EmailClient {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
                 },
             );
-
-            this.transporter.verify((error: any) => {
+            this.transporter.verify((error: AnyType) => {
                 if (error) {
                     throw new SmptError(
                         `Failed to verify email transporter. ${error}`,
@@ -82,7 +82,7 @@ export default class EmailClient {
                 hbs({
                     viewEngine: {
                         partialsDir: path.join(__dirname, './templates/'),
-                        defaultLayout: false,
+                        defaultLayout: undefined,
                         extname: '.html',
                     },
                     viewPath: path.join(__dirname, './templates/'),
@@ -92,12 +92,7 @@ export default class EmailClient {
         }
     }
 
-    private async sendEmail(
-        options: Mail.Options & {
-            template: string;
-            context: Record<string, any>;
-        },
-    ) {
+    private async sendEmail(options: AnyType): Promise<void> {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);

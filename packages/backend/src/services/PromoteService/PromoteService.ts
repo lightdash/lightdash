@@ -4,6 +4,7 @@ import {
     ChartSummary,
     DashboardDAO,
     ForbiddenError,
+    getErrorMessage,
     isChartTile,
     NotFoundError,
     ParameterError,
@@ -135,6 +136,7 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         upstreamProjectUuid: string,
         chartUuid: string,
+        includeOrphanChartsWithinDashboard?: boolean,
     ): Promise<{
         promotedChart: PromotedChart;
         upstreamChart: UpstreamChart;
@@ -147,6 +149,7 @@ export class PromoteService extends BaseService {
         const upstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
             slug: savedChart.slug,
+            includeOrphanChartsWithinDashboard,
         });
         if (upstreamCharts.length > 1) {
             throw new AlreadyExistsError(
@@ -651,7 +654,7 @@ export class PromoteService extends BaseService {
                 'promote.error',
                 promotedChart,
                 upstreamChart,
-                e.message,
+                getErrorMessage(e),
             );
             throw e;
         }
@@ -1038,6 +1041,7 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
+        includeOrphanChartsWithinDashboard?: boolean,
     ): Promise<
         [
             PromotionChanges,
@@ -1060,7 +1064,12 @@ export class PromoteService extends BaseService {
         );
 
         const chartPromises = chartUuids.map((chartUuid) =>
-            this.getPromoteCharts(user, upstreamProjectUuid, chartUuid),
+            this.getPromoteCharts(
+                user,
+                upstreamProjectUuid,
+                chartUuid,
+                includeOrphanChartsWithinDashboard,
+            ),
         );
         const charts = await Promise.all(chartPromises);
 
@@ -1298,7 +1307,7 @@ export class PromoteService extends BaseService {
                 'promote.error',
                 promotedDashboard,
                 upstreamDashboard,
-                e.message,
+                getErrorMessage(e),
             );
             throw e;
         }

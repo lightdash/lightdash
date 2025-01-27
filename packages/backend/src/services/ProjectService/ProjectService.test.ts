@@ -30,6 +30,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -69,11 +70,8 @@ const projectModel = {
     getSummary: jest.fn(async () => projectSummary),
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
     updateTablesConfiguration: jest.fn(),
-    getExploresFromCache: jest.fn(async () => allExplores),
     getExploreFromCache: jest.fn(async () => validExplore),
-    findExploresFromCache: jest.fn(async () => ({
-        [validExplore.name]: validExplore,
-    })),
+    findExploresFromCache: jest.fn(async () => allExplores),
     lockProcess: jest.fn((projectUuid, fun) => fun()),
     getWarehouseCredentialsForProject: jest.fn(
         async () => warehouseClientMock.credentials,
@@ -137,6 +135,7 @@ describe('ProjectService', () => {
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
         contentModel: {} as ContentModel,
+        encryptionUtil: {} as EncryptionUtil,
     });
     afterEach(() => {
         jest.clearAllMocks();

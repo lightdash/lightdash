@@ -89,6 +89,7 @@ export enum EventName {
     CREATE_PROJECT_MANUALLY_BUTTON_CLICKED = 'create_project_manually_click.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
+    LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     FORM_STATE_CHANGED = 'form-state.changed',
     ADD_FILTER_CLICKED = 'add_filter.click',
@@ -126,7 +127,6 @@ export enum EventName {
     METRICS_CATALOG_CHART_USAGE_CLICKED = 'metrics_catalog_chart_usage.clicked',
     METRICS_CATALOG_CHART_USAGE_CHART_CLICKED = 'metrics_catalog_chart_usage_chart.clicked',
     METRICS_CATALOG_EXPLORE_CLICKED = 'metrics_catalog_explore.clicked',
-    METRICS_CATALOG_METRIC_NAME_CLICKED = 'metrics_catalog_metric_name.clicked',
     METRICS_CATALOG_CATEGORY_CLICKED = 'metrics_catalog_category.clicked',
     METRICS_CATALOG_CATEGORY_FILTER_APPLIED = 'metrics_catalog_category_filter.applied',
     METRICS_CATALOG_ICON_APPLIED = 'metrics_catalog_icon.applied',
@@ -136,4 +136,9 @@ export enum EventName {
     METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED = 'metrics_catalog_explore_granularity.applied',
     METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED = 'metrics_catalog_explore_segment_by.applied',
     METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED = 'metrics_catalog_explore_time_dimension_override.applied',
+
+    // Metrics Catalog - Trees
+    METRICS_CATALOG_TREES_EDGE_CREATED = 'metrics_catalog_trees_edge.created',
+    METRICS_CATALOG_TREES_EDGE_REMOVED = 'metrics_catalog_trees_edge.removed',
+    METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED = 'metrics_catalog_trees_canvas_mode.clicked',
 }

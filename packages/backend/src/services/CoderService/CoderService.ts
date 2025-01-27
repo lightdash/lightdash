@@ -6,15 +6,13 @@ import {
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
-    DashboardChartTileProperties,
     DashboardDAO,
     DashboardTile,
+    DashboardTileAsCode,
     DashboardTileTypes,
-    DashboardTileWithoutUuids,
     ForbiddenError,
     friendlyName,
     NotFoundError,
-    PromotedChart,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
@@ -42,6 +40,15 @@ type CoderServiceArguments = {
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
 };
+
+const isChartTile = (
+    tile: DashboardTileAsCode,
+): tile is DashboardTileAsCode & {
+    properties: { chartSlug: string; hideTitle: boolean };
+} =>
+    tile.type === DashboardTileTypes.SAVED_CHART ||
+    tile.type === DashboardTileTypes.SQL_CHART ||
+    tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -84,6 +91,7 @@ export class CoderService extends BaseService {
     private static transformChart(
         chart: SavedChartDAO,
         spaceSummary: Pick<SpaceSummary, 'uuid' | 'slug'>[],
+        dashboardSlugs: Record<string, string>,
     ): ChartAsCode {
         const spaceSlug = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
@@ -99,7 +107,9 @@ export class CoderService extends BaseService {
             updatedAt: chart.updatedAt,
             metricQuery: chart.metricQuery,
             chartConfig: chart.chartConfig,
-            dashboardUuid: chart.dashboardUuid,
+            dashboardSlug: chart.dashboardUuid
+                ? dashboardSlugs[chart.dashboardUuid]
+                : undefined,
             slug: chart.slug,
             tableConfig: chart.tableConfig,
 
@@ -126,33 +136,34 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
         }
 
-        const tilesWithoutUuids: DashboardTileWithoutUuids[] =
-            dashboard.tiles.map((tile) => {
-                const tileWithoutUuid: DashboardTileWithoutUuids = {
-                    ...tile,
-                    properties: { ...tile.properties },
-                };
-                delete tileWithoutUuid.uuid;
-                if ('savedChartUuid' in tileWithoutUuid.properties) {
-                    delete tileWithoutUuid.properties.savedChartUuid;
+        const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
+            (tile) => {
+                if (isChartTile(tile)) {
+                    return {
+                        ...tile,
+                        uuid: undefined,
+                        properties: {
+                            title: tile.properties.title,
+                            hideTitle: tile.properties.hideTitle,
+                            chartSlug: tile.properties.chartSlug,
+                        },
+                    };
                 }
-                if ('savedSqlUuid' in tileWithoutUuid.properties) {
-                    delete tileWithoutUuid.properties.savedSqlUuid;
-                }
-                if (
-                    'savedSemanticViewerChartUuid' in tileWithoutUuid.properties
-                ) {
-                    delete tileWithoutUuid.properties
-                        .savedSemanticViewerChartUuid;
-                }
-                return tileWithoutUuid;
-            });
 
+                // Markdown and loom are returned as they are
+                return {
+                    ...tile,
+                    uuid: undefined,
+                };
+            },
+            [],
+        );
         return {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
             tiles: tilesWithoutUuids,
+
             filters: dashboard.filters,
             tabs: dashboard.tabs,
             slug: dashboard.slug,
@@ -165,25 +176,19 @@ export class CoderService extends BaseService {
 
     async convertTileWithSlugsToUuids(
         projectUuid: string,
-        tiles: DashboardTileWithoutUuids[],
+        tiles: DashboardTileAsCode[],
     ): Promise<DashboardTile[]> {
-        const isChartTile = (
-            tile: DashboardTileWithoutUuids,
-        ): tile is DashboardTileWithoutUuids & {
-            properties: { chartSlug: string };
-        } =>
-            tile.type === DashboardTileTypes.SAVED_CHART ||
-            tile.type === DashboardTileTypes.SQL_CHART ||
-            tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
-
         const chartSlugs: string[] = tiles.reduce<string[]>(
             (acc, tile) =>
                 isChartTile(tile) ? [...acc, tile.properties.chartSlug] : acc,
             [],
         );
+
         const charts = await this.savedChartModel.find({
             slugs: chartSlugs,
             projectUuid,
+            excludeChartsSavedInDashboard: false,
+            includeOrphanChartsWithinDashboard: true,
         });
 
         return tiles.map((tile) => {
@@ -191,6 +196,7 @@ export class CoderService extends BaseService {
                 const savedChart = charts.find(
                     (chart) => chart.slug === tile.properties.chartSlug,
                 );
+
                 if (!savedChart) {
                     throw new NotFoundError(
                         `Chart with slug ${tile.properties.chartSlug} not found`,
@@ -223,9 +229,9 @@ export class CoderService extends BaseService {
 
         if (uuids.length > 0) {
             if (type === 'dashboard') {
-                uuidsToSlugs = await this.dashboardModel.getSlugsForUuids(
-                    uuids,
-                );
+                const dashboardSlugs =
+                    await this.dashboardModel.getSlugsForUuids(uuids);
+                uuidsToSlugs = Object.values(dashboardSlugs);
             } else if (type === 'chart') {
                 uuidsToSlugs = await this.savedChartModel.getSlugsForUuids(
                     uuids,
@@ -386,6 +392,7 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
             excludeChartsSavedInDashboard: false,
+            includeOrphanChartsWithinDashboard: true,
         });
         const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
 
@@ -408,10 +415,20 @@ export class CoderService extends BaseService {
         // get all spaces to map  spaceSlug
         const spaceUuids = charts.map((chart) => chart.spaceUuid);
         const spaces = await this.spaceModel.find({ spaceUuids });
+        // get all spaces to map  dashboardSlug
+        const dashboardUuids = charts.reduce<string[]>((acc, chart) => {
+            if (chart.dashboardUuid) {
+                acc.push(chart.dashboardUuid);
+            }
+            return acc;
+        }, []);
+        const dashboards = await this.dashboardModel.getSlugsForUuids(
+            dashboardUuids,
+        );
 
         return {
             charts: charts.map((chart) =>
-                CoderService.transformChart(chart, spaces),
+                CoderService.transformChart(chart, spaces, dashboards),
             ),
             missingIds,
             total: chartSummaries.length,
@@ -444,6 +461,7 @@ export class CoderService extends BaseService {
             slug,
             projectUuid,
             excludeChartsSavedInDashboard: false,
+            includeOrphanChartsWithinDashboard: true,
         });
 
         // If chart does not exist, we can't use promoteService,
@@ -460,17 +478,58 @@ export class CoderService extends BaseService {
                 `Creating chart "${chartAsCode.name}" on project ${projectUuid}`,
             );
 
-            const createChart: CreateSavedChart & {
+            let createChart: CreateSavedChart & {
                 updatedByUser: UpdatedByUser;
                 slug: string;
                 forceSlug: boolean;
-            } = {
-                ...chartAsCode,
-                spaceUuid: space.uuid,
-                dashboardUuid: undefined, // TODO for charts within dashboards, we need to create the dashboard first, use promotion for that
-                updatedByUser: user,
-                forceSlug: true, // do not generate a new unique slug, use the one from chart as code , at this point we know it is going to be unique on this project
             };
+
+            if (chartAsCode.dashboardSlug) {
+                const [dashboard] = await this.dashboardModel.find({
+                    projectUuid,
+                    slug: chartAsCode.dashboardSlug,
+                });
+
+                let dashboardUuid: string = dashboard?.uuid;
+                if (!dashboard) {
+                    // Charts within dashboards need a dashboard first,
+                    // so we will create a placeholder dashboard for this
+                    // which we can update later
+                    console.debug(
+                        'Creating placeholder dashboard for chart within dashboard',
+                        chartAsCode.slug,
+                    );
+                    const newDashboard = await this.dashboardModel.create(
+                        space.uuid,
+                        {
+                            name: friendlyName(chartAsCode.dashboardSlug),
+                            tiles: [],
+                            slug: chartAsCode.dashboardSlug,
+                            forceSlug: true,
+                            tabs: [],
+                        },
+                        user,
+                        projectUuid,
+                    );
+
+                    dashboardUuid = newDashboard.uuid;
+                }
+                createChart = {
+                    ...chartAsCode,
+                    spaceUuid: null,
+                    dashboardUuid,
+                    updatedByUser: user,
+                    forceSlug: true,
+                };
+            } else {
+                createChart = {
+                    ...chartAsCode,
+                    spaceUuid: space.uuid,
+                    dashboardUuid: null,
+                    updatedByUser: user,
+                    forceSlug: true,
+                };
+            }
 
             const newChart = await this.savedChartModel.create(
                 projectUuid,
@@ -515,6 +574,7 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid, // We use the same projectUuid for both promoted and upstream
                 chart.uuid,
+                true, // includeOrphanChartsWithinDashboard
             );
         const updatedChart = {
             ...promotedChart,
@@ -532,7 +592,6 @@ export class CoderService extends BaseService {
             updatedChart,
             upstreamChart,
         );
-
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -674,6 +733,7 @@ export class CoderService extends BaseService {
                 },
                 projectUuid, // We use the same projectUuid for both promoted and upstream
             );
+
         PromoteService.checkPromoteDashboardPermissions(
             user,
             promotedDashboard,
@@ -699,6 +759,7 @@ export class CoderService extends BaseService {
                 user,
                 promotedDashboard,
                 upstreamDashboard,
+                true, // includeOrphanChartsWithinDashboard
             );
 
         // TODO Right now dashboards on promote service always update dashboards
@@ -708,6 +769,7 @@ export class CoderService extends BaseService {
             user,
             promotionChanges,
         );
+
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -722,7 +784,6 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-
         return promotionChanges;
     }
 }

@@ -82,7 +82,7 @@ export const FormatForm: FC<Props> = ({
     const formatType = format.type;
 
     return (
-        <Stack p="sm">
+        <Stack>
             <Flex>
                 <Select
                     withinPortal

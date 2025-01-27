@@ -1,6 +1,8 @@
 import {
+    AnyType,
     CreateTrinoCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     SupportedDbtAdapter,
@@ -125,10 +127,13 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
-const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
+const resultHandler = (
+    schema: { [key: string]: AnyType }[],
+    data: AnyType[][],
+) => {
     const s: string[] = schema.map((e) => e.name);
     return data.map((i) => {
-        const item: { [key: string]: any } = {};
+        const item: { [key: string]: AnyType } = {};
         i.map((column, index) => {
             const name: string = s[index];
             item[name] = column;
@@ -157,8 +162,8 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         let session: Trino;
         try {
             session = await client.create(this.connectionOptions);
-        } catch (e: any) {
-            throw new WarehouseConnectionError(e.message);
+        } catch (e: AnyType) {
+            throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
         return {
@@ -196,7 +201,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
             if (queryResult.value.error) {
                 throw new WarehouseQueryError(
-                    queryResult.value.error.message ??
+                    getErrorMessage(queryResult.value.error) ??
                         'Unexpected error in query execution',
                 );
             }
@@ -234,8 +239,8 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     rows: resultHandler(schema, queryResult.value.data ?? []),
                 });
             }
-        } catch (e: any) {
-            throw new WarehouseQueryError(e.message);
+        } catch (e: AnyType) {
+            throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             await close();
         }
@@ -253,8 +258,8 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     query = await session.query(queryTableSchema(request));
                     const result = (await query.next()).value.data ?? [];
                     return result;
-                } catch (e: any) {
-                    throw new WarehouseQueryError(e.message);
+                } catch (e: AnyType) {
+                    throw new WarehouseQueryError(getErrorMessage(e));
                 } finally {
                     if (query) void close();
                 }

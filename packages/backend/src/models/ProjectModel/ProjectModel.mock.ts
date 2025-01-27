@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ConditionalOperator,
     CreateBigqueryCredentials,
     DbtCloudIDEProjectConfig,
@@ -41,7 +42,7 @@ const bigqueryCredentials: CreateBigqueryCredentials = {
 export const encryptionUtilMock = {
     encrypt: jest.fn(() => Buffer.from('encrypted')),
     decrypt: jest.fn((encrypted: Buffer) => encrypted.toString()),
-} as any as EncryptionUtil;
+} as AnyType as EncryptionUtil;
 
 export const projectUuid = 'project uuid';
 
@@ -86,7 +87,7 @@ export const expectedProject: Project = {
     dbtConnection: {
         environment_id: 'environment_id',
         type: DbtProjectType.DBT_CLOUD_IDE,
-    } as any as DbtCloudIDEProjectConfig,
+    } as AnyType as DbtCloudIDEProjectConfig,
     warehouseConnection: {
         dataset: 'name',
         location: 'name',

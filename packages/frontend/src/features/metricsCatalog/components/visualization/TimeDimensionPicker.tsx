@@ -2,8 +2,8 @@ import {
     type ApiGetMetricPeek,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Group, Select, Text } from '@mantine/core';
-import { IconChevronDown, IconTable } from '@tabler/icons-react';
+import { Box, Select, Text } from '@mantine/core';
+import { IconChevronDown } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useSelectStyles } from '../../styles/useSelectStyles';
@@ -19,22 +19,13 @@ const FieldItem = forwardRef<
     ComponentPropsWithoutRef<'div'> & {
         value: string;
         label: string;
-        tableLabel: string;
         selected: boolean;
     }
->(({ value, label, tableLabel, ...others }, ref) => (
+>(({ value, label, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap position="apart">
-            <Text fz="sm" c="dark.8" fw={500}>
-                {label}
-            </Text>
-            <Group spacing={4} noWrap>
-                <MantineIcon color="gray.6" size={12} icon={IconTable} />
-                <Text fz="xs" c="gray.6" span>
-                    {tableLabel}
-                </Text>
-            </Group>
-        </Group>
+        <Text fz="sm" c="dark.8" fw={500}>
+            {label}
+        </Text>
     </Box>
 ));
 
@@ -54,7 +45,7 @@ export const TimeDimensionPicker: FC<Props> = ({
             data={fields.map((f) => ({
                 value: f.name,
                 label: f.label,
-                tableLabel: f.tableLabel,
+                group: f.tableLabel,
             }))}
             value={dimension?.field}
             onChange={(value) => {

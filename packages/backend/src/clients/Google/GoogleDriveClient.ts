@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CustomDimension,
     DimensionType,
     Field,
@@ -104,7 +105,7 @@ export class GoogleDriveClient {
                     ],
                 },
             })
-            .catch((error: any) => {
+            .catch((error) => {
                 if (
                     error.code === 400 &&
                     error.errors[0]?.message.includes(tabName)
@@ -217,7 +218,7 @@ export class GoogleDriveClient {
     }
 
     static formatCell(
-        value: any,
+        value: AnyType,
         item?: Field | TableCalculation | CustomDimension | Metric,
     ) {
         // We don't want to use formatItemValue directly because the format for some types on Gsheets

@@ -5,6 +5,7 @@ import {
     ChartType,
     DownloadFileType,
     ForbiddenError,
+    getErrorMessage,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     LightdashPage,
@@ -230,19 +231,22 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    static async createImagePdf(
-        imageId: string,
-        buffer: Buffer,
-    ): Promise<string> {
+    private async createImagePdf(id: string, buffer: Buffer): Promise<string> {
         // Converts an image to PDF format,
         // The PDF has the size of the image, not DIN A4
         const pdfDoc = await PDFDocument.create();
         const pngImage = await pdfDoc.embedPng(buffer);
         const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
         page.drawImage(pngImage);
-        const path = `/tmp/${imageId}.pdf`;
         const pdfBytes = await pdfDoc.save();
-        await fsPromise.writeFile(path, pdfBytes);
+
+        let path: string;
+        if (this.s3Client.isEnabled()) {
+            path = await this.s3Client.uploadPdf(Buffer.from(pdfBytes), id);
+        } else {
+            path = `/tmp/${id}.pdf`;
+            await fsPromise.writeFile(path, pdfBytes);
+        }
         return path;
     }
 
@@ -290,8 +294,9 @@ export class UnfurlService extends BaseService {
         let imageUrl;
         let pdfPath;
         if (buffer !== undefined) {
-            if (withPdf)
-                pdfPath = await UnfurlService.createImagePdf(imageId, buffer);
+            if (withPdf) {
+                pdfPath = await this.createImagePdf(imageId, buffer);
+            }
 
             if (this.s3Client.isEnabled()) {
                 imageUrl = await this.s3Client.uploadImage(buffer, imageId);
@@ -507,7 +512,9 @@ export class UnfurlService extends BaseService {
                                 },
                                 (error) => {
                                     this.logger.error(
-                                        `Headless browser response buffer error: ${error.message}`,
+                                        `Headless browser response buffer error: ${getErrorMessage(
+                                            error,
+                                        )}`,
                                     );
                                     chartRequestErrors += 1;
                                 },
@@ -678,20 +685,23 @@ export class UnfurlService extends BaseService {
                     });
                     return imageBuffer;
                 } catch (e) {
+                    const errorMessage = getErrorMessage(e);
                     const isRetryableError =
                         e instanceof playwright.errors.TimeoutError ||
                         // Following error messages were taken from the Playwright source code
-                        e.message.includes('Protocol error') ||
-                        e.message.includes('Target crashed') ||
-                        e.message.includes(
+                        errorMessage.includes('Protocol error') ||
+                        errorMessage.includes('Target crashed') ||
+                        errorMessage.includes(
                             'Target page, context or browser has been closed',
                         );
 
                     if (isRetryableError && retries) {
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                                e,
+                            )}`,
                         );
-                        span.addEvent(e);
+                        span.addEvent(getErrorMessage(e));
                         span.setAttributes({
                             'page.type': lightdashPage,
                             url,
@@ -727,7 +737,7 @@ export class UnfurlService extends BaseService {
 
                     Sentry.captureException(e);
                     hasError = true;
-                    span.addEvent(e);
+                    span.addEvent(getErrorMessage(e));
                     span.setAttributes({
                         'page.type': lightdashPage,
                         url,
@@ -742,7 +752,9 @@ export class UnfurlService extends BaseService {
                     });
 
                     this.logger.error(
-                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                            e,
+                        )}`,
                     );
                     throw e;
                 } finally {

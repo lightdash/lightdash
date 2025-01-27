@@ -16,13 +16,14 @@ import {
     DbtQueryStatus,
     DbtSemanticLayerConnection,
     getDefaultedLimit,
+    getErrorMessage,
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
     SemanticLayerType,
     SemanticLayerView,
 } from '@lightdash/common';
-import { GraphQLClient } from 'graphql-request';
+import { ClientError, GraphQLClient } from 'graphql-request';
 import { mapKeys } from 'lodash';
 import { URL } from 'url';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -147,13 +148,17 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 environmentId: this.environmentId,
             });
         } catch (error) {
-            // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
-            const errors: string[] | undefined = error?.response?.errors?.map(
-                (e: { message: string }) =>
-                    this.transformers.errorToReadableError(e.message),
-            );
-
-            throw new DbtError(errors?.join('\n'));
+            if (error instanceof ClientError) {
+                // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
+                const errors = error?.response?.errors?.map(
+                    (e: { message: string }) =>
+                        this.transformers.errorToReadableError(
+                            getErrorMessage(e),
+                        ),
+                );
+                throw new DbtError(errors?.join('\n'));
+            }
+            throw new DbtError(getErrorMessage(error));
         }
     }
 

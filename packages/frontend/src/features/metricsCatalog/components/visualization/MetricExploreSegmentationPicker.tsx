@@ -25,12 +25,16 @@ import SelectItem from '../SelectItem';
 type Props = {
     query: MetricExplorerQuery;
     onSegmentDimensionChange: (value: string | null) => void;
-    segmentByData: Array<{ value: string; label: string }>;
+    segmentByData: Array<{
+        value: string;
+        label: string;
+        group: string;
+    }>;
     segmentDimensionsQuery: UseQueryResult;
     hasFilteredSeries: boolean;
 };
 
-export const MetricPeekSegmentationPicker: FC<Props> = ({
+export const MetricExploreSegmentationPicker: FC<Props> = ({
     query,
     onSegmentDimensionChange,
     segmentByData,

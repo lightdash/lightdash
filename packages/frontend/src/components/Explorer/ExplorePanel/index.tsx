@@ -145,7 +145,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     }
 
     return (
-        <>
+        <Stack h="100%" sx={{ flexGrow: 1 }}>
             <Group position="apart">
                 <PageBreadcrumbs
                     size="md"
@@ -230,7 +230,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     projectUuid={projectUuid}
                 />
             )}
-        </>
+        </Stack>
     );
 });
 

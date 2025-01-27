@@ -3,6 +3,8 @@
 import './sentry'; // Sentry has to be initialized before anything else
 
 import {
+    AnyType,
+    ApiError,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
@@ -108,6 +110,7 @@ const schedulerWorkerFactory = (context: {
         semanticLayerService:
             context.serviceRepository.getSemanticLayerService(),
         catalogService: context.serviceRepository.getCatalogService(),
+        encryptionUtil: context.utils.getEncryptionUtil(),
     });
 
 const slackBotFactory = (context: {
@@ -177,7 +180,7 @@ export default class App {
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
             dataPlaneUrl: this.lightdashConfig.rudder.dataPlaneUrl
-                ? `${this.lightdashConfig.rudder.dataPlaneUrl}/v1/batch`
+                ? this.lightdashConfig.rudder.dataPlaneUrl
                 : 'notrack',
             options: {
                 enable:
@@ -218,6 +221,7 @@ export default class App {
             }),
             clients: this.clients,
             models: this.models,
+            utils: this.utils,
         });
         this.slackBotFactory = args.slackBotFactory || slackBotFactory;
         this.schedulerWorkerFactory =
@@ -266,7 +270,7 @@ export default class App {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
-            knex: this.database as any,
+            knex: this.database as AnyType,
             createtable: false,
             tablename: 'sessions',
             sidfieldname: 'sid',
@@ -540,7 +544,8 @@ export default class App {
                         method: req.method,
                     },
                 });
-                res.status(errorResponse.statusCode).send({
+
+                const apiErrorResponse: ApiError = {
                     status: 'error',
                     error: {
                         statusCode: errorResponse.statusCode,
@@ -552,7 +557,8 @@ export default class App {
                                 ? Sentry.lastEventId()
                                 : undefined,
                     },
-                });
+                };
+                res.status(errorResponse.statusCode).send(apiErrorResponse);
             },
         );
 

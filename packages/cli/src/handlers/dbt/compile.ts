@@ -1,18 +1,20 @@
 import {
     DbtModelNode,
+    getCompiledModels,
+    getErrorMessage,
+    getModelsFromManifest,
     ParseError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import execa from 'execa';
 import { xor } from 'lodash';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
-import { getModelsFromManifest } from '../../dbt/models';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
 export type DbtCompileOptions = {
-    profilesDir: string;
-    projectDir: string;
+    profilesDir: string | undefined;
+    projectDir: string | undefined;
     target: string | undefined;
     profile: string | undefined;
     select: string[] | undefined;
@@ -72,23 +74,10 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         console.error(stdout);
         console.error(stderr);
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
 };
-
-export function getCompiledModels(
-    manifestModels: DbtModelNode[],
-    compiledModelIds?: string[],
-) {
-    return manifestModels.filter((model) => {
-        if (compiledModelIds) {
-            return compiledModelIds.includes(model.unique_id);
-        }
-
-        return model.compiled;
-    });
-}
 
 const getJoinedModelsRecursively = (
     modelNode: DbtModelNode,
@@ -145,7 +134,12 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             .split('\n')
             .map<string>((line) => {
                 try {
-                    return JSON.parse(line).unique_id;
+                    // remove prefixed time in dbt cloud cli output
+                    const lineWithoutPrefixedTime = line.replace(
+                        /^\d{2}:\d{2}:\d{2}\s*/,
+                        '',
+                    );
+                    return JSON.parse(lineWithoutPrefixedTime).unique_id;
                 } catch {
                     // ignore non-json lines
                     return '';
@@ -156,7 +150,7 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
         console.error(stderr);
         return models;
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(
             `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );
@@ -165,8 +159,18 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
 
 export async function maybeCompileModelsAndJoins(
     loadManifestOpts: LoadManifestArgs,
-    options: DbtCompileOptions,
+    initialOptions: DbtCompileOptions,
 ): Promise<string[] | undefined> {
+    const dbtVersion = await getDbtVersion();
+    let options = initialOptions;
+    if (dbtVersion.isDbtCloudCLI) {
+        options = {
+            ...initialOptions,
+            projectDir: undefined,
+            profilesDir: undefined,
+        };
+    }
+
     // Skipping assumes manifest.json already exists.
     if (options.skipDbtCompile) {
         GlobalState.debug('> Skipping dbt compile');

@@ -15,7 +15,7 @@ import {
     type SeriesMetadata,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-
+import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getMarkLineAxis,
@@ -421,18 +421,15 @@ const useCartesianChartConfig = ({
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
             setDirtyEchartsConfig(
-                (prevState) =>
-                    prevState && {
-                        ...prevState,
-                        series: prevState?.series?.map((series) =>
-                            series.encode.yRef.field === fieldKey
-                                ? {
-                                      ...series,
-                                      ...updateSeries,
-                                  }
-                                : series,
-                        ),
-                    },
+                produce((draft) => {
+                    if (!draft) return;
+
+                    draft.series = draft.series?.map((series) =>
+                        series.encode.yRef.field === fieldKey
+                            ? { ...series, ...updateSeries }
+                            : series,
+                    );
+                }),
             ),
         [],
     );
@@ -475,17 +472,27 @@ const useCartesianChartConfig = ({
             const yFields = dirtyLayout?.yField || [];
             const isPivoted = pivotKeys && pivotKeys.length > 0;
             setIsStacked(stack);
-            yFields.forEach((yField) => {
-                updateAllGroupedSeries(yField, {
-                    stack: stack
-                        ? isPivoted
-                            ? yField
-                            : 'stack-all-series'
-                        : undefined,
-                });
-            });
+            setDirtyEchartsConfig(
+                produce((draft) => {
+                    if (!draft) return;
+                    draft.series = draft.series?.map((series) => {
+                        const { field } = series.encode.yRef;
+                        if (yFields.includes(field)) {
+                            return {
+                                ...series,
+                                stack: stack
+                                    ? isPivoted
+                                        ? field
+                                        : 'stack-all-series'
+                                    : undefined,
+                            };
+                        }
+                        return series;
+                    });
+                }),
+            );
         },
-        [dirtyLayout?.yField, updateAllGroupedSeries, pivotKeys],
+        [dirtyLayout?.yField, pivotKeys],
     );
 
     useEffect(() => {

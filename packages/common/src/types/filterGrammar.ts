@@ -1,11 +1,12 @@
 import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
+import { type AnyType } from './any';
 import { UnexpectedServerError } from './errors';
 import { FilterOperator, type MetricFilterRule } from './filter';
 
 export type ParsedFilter = {
     type: string;
-    values: any[];
+    values: AnyType[];
     is?: boolean;
     date_interval?: string;
 };
@@ -216,7 +217,7 @@ export const parseOperator = (
 };
 
 export const parseFilters = (
-    rawFilters: Record<string, any>[] | undefined,
+    rawFilters: Record<string, AnyType>[] | undefined,
 ): MetricFilterRule[] => {
     if (!rawFilters || rawFilters.length === 0) {
         return [];

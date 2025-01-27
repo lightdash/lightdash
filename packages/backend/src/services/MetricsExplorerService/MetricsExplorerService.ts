@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    AnyType,
     assertUnreachable,
     Dimension,
+    FilterRule,
     ForbiddenError,
     getDateCalcUtils,
     getDateRangeFromString,
@@ -82,6 +84,7 @@ export class MetricsExplorerService<
         metricQuery: MetricQuery,
         timeDimensionConfig: TimeDimensionConfig,
         dateRange: MetricExplorerDateRange,
+        filter: FilterRule | undefined,
     ): Promise<{
         rows: ResultRow[];
         fields: ItemsMap;
@@ -101,10 +104,13 @@ export class MetricsExplorerService<
             filters: {
                 dimensions: {
                     id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        timeDimensionConfig,
-                        forwardBackDateRange,
-                    ),
+                    and: [
+                        ...getMetricExplorerDateRangeFilters(
+                            timeDimensionConfig,
+                            forwardBackDateRange,
+                        ),
+                        ...(filter ? [filter] : []),
+                    ],
                 },
             },
         };
@@ -133,9 +139,11 @@ export class MetricsExplorerService<
     private async runCompareDifferentMetricQuery(
         user: SessionUser,
         projectUuid: string,
+        sourceMetricExploreName: string,
         query: MetricExplorerQuery,
         dateRange: MetricExplorerDateRange,
         timeDimensionOverride: TimeDimensionConfig | undefined,
+        filter: FilterRule | undefined,
     ): Promise<{
         rows: ResultRow[];
         fields: ItemsMap;
@@ -179,20 +187,23 @@ export class MetricsExplorerService<
         });
 
         const metricQuery: MetricQuery = {
-            exploreName: query.metric.table,
+            exploreName: sourceMetricExploreName, // Query must be run on the source metric explore, this is because of filters and references to source metric explore fields
             metrics: [getItemId(metric)],
             dimensions: [dimensionFieldId],
             filters: {
                 dimensions: {
                     id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        {
-                            table: timeDimension.table,
-                            field: timeDimension.field,
-                            interval: metricDimensionGrain,
-                        },
-                        dateRange,
-                    ),
+                    and: [
+                        ...getMetricExplorerDateRangeFilters(
+                            {
+                                table: timeDimension.table,
+                                field: timeDimension.field,
+                                interval: metricDimensionGrain,
+                            },
+                            dateRange,
+                        ),
+                        ...(filter ? [filter] : []),
+                    ],
                 },
             },
             sorts: [{ fieldId: dimensionFieldId, descending: false }],
@@ -204,7 +215,7 @@ export class MetricsExplorerService<
             await this.projectService.runMetricExplorerQuery(
                 user,
                 projectUuid,
-                query.metric.table,
+                sourceMetricExploreName,
                 metricQuery,
             );
 
@@ -230,6 +241,7 @@ export class MetricsExplorerService<
         endDate: string,
         query: MetricExplorerQuery,
         timeDimensionOverride: TimeDimensionConfig | undefined,
+        filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         return measureTime(
             () =>
@@ -242,6 +254,7 @@ export class MetricsExplorerService<
                     endDate,
                     query,
                     timeDimensionOverride,
+                    filter,
                 ),
             'runMetricExplorerQuery',
             this.logger,
@@ -293,6 +306,7 @@ export class MetricsExplorerService<
         endDate: string,
         query: MetricExplorerQuery,
         timeDimensionOverride: TimeDimensionConfig | undefined,
+        filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -388,6 +402,7 @@ export class MetricsExplorerService<
                             segmentDimensionId,
                             segments,
                         ),
+                        ...(filter ? [filter] : []),
                     ],
                 },
             },
@@ -430,6 +445,7 @@ export class MetricsExplorerService<
                         interval: dimensionGrain,
                     },
                     dateRange,
+                    filter,
                 );
                 comparisonResults = prevRows;
                 allFields = { ...allFields, ...prevFields };
@@ -446,9 +462,11 @@ export class MetricsExplorerService<
                 } = await this.runCompareDifferentMetricQuery(
                     user,
                     projectUuid,
+                    exploreName,
                     query,
                     dateRange,
                     timeDimensionOverride,
+                    filter,
                 );
                 comparisonResults = diffRows;
                 allFields = { ...allFields, ...diffFields };
@@ -623,7 +641,7 @@ export class MetricsExplorerService<
                 metricQuery,
             );
 
-        let compareRows: Record<string, any>[] | undefined;
+        let compareRows: Record<string, AnyType>[] | undefined;
         let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {

@@ -1,5 +1,7 @@
+import { AnyType } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import EventEmitter from 'events';
+
 import { WorkerEvents } from 'graphile-worker';
 import { Job, Worker } from 'graphile-worker/dist/interfaces';
 import ExecutionContext from 'node-execution-context';
@@ -10,8 +12,8 @@ class EventEmitterWithExecutionContent
     extends EventEmitter
     implements WorkerEvents
 {
-    on(event: string | symbol, listener: (...args: any[]) => void): this {
-        return super.on(event, (...args: any[]) => {
+    on(event: string | symbol, listener: (...args: AnyType[]) => void): this {
+        return super.on(event, (...args: AnyType[]) => {
             const { worker, job } = args[0] as { worker?: Worker; job?: Job };
             const executionContext: ExecutionContextInfo = {};
             if (worker) {

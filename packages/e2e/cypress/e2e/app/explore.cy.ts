@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT } from '@lightdash/common';
 
 describe('Explore', () => {
     beforeEach(() => {
@@ -355,7 +355,7 @@ describe('Explore', () => {
         // wait to compile query
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
 
-        let sqlQueryFromExploreLines;
+        let sqlQueryFromExploreLines: string[];
 
         // Get compiled SQL query from Explore
         cy.get('.mantine-Prism-root')
@@ -374,7 +374,7 @@ describe('Explore', () => {
 
                 // Get the entire SQL query from the Monaco editor instance
                 // NOTE: This is probably the most reliable way to get the SQL query from the Monaco editor, without having to target specific classes/ids
-                cy.window().then((win: any) => {
+                cy.window().then((win: AnyType) => {
                     expect(win.monaco).to.be.an('object');
                     const editor = win.monaco.editor.getModels()[0];
                     const sqlRunnerText = editor.getValue();

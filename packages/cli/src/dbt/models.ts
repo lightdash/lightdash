@@ -1,11 +1,7 @@
 import {
     DbtDoc,
-    DbtManifest,
     DbtModelNode,
-    DbtRawModelNode,
     DimensionType,
-    isSupportedDbtAdapter,
-    normaliseModelDatabase,
     ParseError,
     patchPathParts,
 } from '@lightdash/common';
@@ -305,38 +301,13 @@ export const findAndUpdateModelYaml = async ({
     };
 };
 
-export const getModelsFromManifest = (
-    manifest: DbtManifest,
-): DbtModelNode[] => {
-    const models = Object.values(manifest.nodes).filter(
-        (node) =>
-            node.resource_type === 'model' &&
-            node.config?.materialized !== 'ephemeral',
-    ) as DbtRawModelNode[];
-
-    if (!isSupportedDbtAdapter(manifest.metadata)) {
-        throw new ParseError(
-            `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
-            {},
-        );
-    }
-    const adapterType = manifest.metadata.adapter_type;
-    return models
-        .filter(
-            (model) =>
-                model.config?.materialized &&
-                model.config.materialized !== 'ephemeral',
-        )
-        .map((model) => normaliseModelDatabase(model, adapterType));
-};
-
 export const getCompiledModels = async (
     models: DbtModelNode[],
     args: {
         select: string[] | undefined;
         exclude: string[] | undefined;
-        projectDir: string;
-        profilesDir: string;
+        projectDir: string | undefined;
+        profilesDir: string | undefined;
         target: string | undefined;
         profile: string | undefined;
         vars: string | undefined;
@@ -349,10 +320,10 @@ export const getCompiledModels = async (
         try {
             const { stdout } = await execa('dbt', [
                 'ls',
-                '--profiles-dir',
-                args.profilesDir,
-                '--project-dir',
-                args.projectDir,
+                ...(args.projectDir ? ['--project-dir', args.projectDir] : []),
+                ...(args.profilesDir
+                    ? ['--profiles-dir', args.profilesDir]
+                    : []),
                 ...(args.target ? ['--target', args.target] : []),
                 ...(args.profile ? ['--profile', args.profile] : []),
                 ...(args.select ? ['--select', args.select.join(' ')] : []),
@@ -361,15 +332,19 @@ export const getCompiledModels = async (
                 '--resource-type=model',
                 '--output=json',
             ]);
-
             const filteredModelIds = stdout
                 .split('\n')
                 .map((l) => l.trim())
                 .filter((l) => l.length > 0)
                 .map((l) => {
                     try {
-                        return JSON.parse(l);
-                    } catch (e) {
+                        // remove prefixed time in dbt cloud cli output
+                        const lineWithoutPrefixedTime = l.replace(
+                            /^\d{2}:\d{2}:\d{2}\s*/,
+                            '',
+                        );
+                        return JSON.parse(lineWithoutPrefixedTime);
+                    } catch {
                         return null;
                     }
                 })

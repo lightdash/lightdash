@@ -17,6 +17,7 @@ export async function up(knex: Knex): Promise<void> {
             .whereIn(
                 'saved_queries_version_uuid',
                 versionsWithTableCalculationFilters.map(
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (row: any) => row.saved_queries_version_uuid,
                 ),
             );

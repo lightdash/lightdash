@@ -188,6 +188,10 @@ import {
     SchedulerTableName,
 } from '../database/entities/scheduler';
 import {
+    SpotlightTableConfigTable,
+    SpotlightTableConfigTableName,
+} from '../database/entities/spotlightTableConfig';
+import {
     SshKeyPairTable,
     SshKeyPairTableName,
 } from '../database/entities/sshKeyPairs';
@@ -293,5 +297,6 @@ declare module 'knex/types/tables' {
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
+        [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
     }
 }

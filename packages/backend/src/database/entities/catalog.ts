@@ -11,6 +11,7 @@ export type DbCatalog = {
     cached_explore_uuid: string;
     project_uuid: string;
     name: string;
+    label: string | null;
     description: string | null;
     type: CatalogType;
     search_vector: string;
@@ -20,6 +21,7 @@ export type DbCatalog = {
     chart_usage: number | null;
     icon: CatalogItemIcon | null;
     table_name: string;
+    spotlight_show: boolean;
 };
 
 export type DbCatalogIn = Pick<
@@ -27,12 +29,14 @@ export type DbCatalogIn = Pick<
     | 'cached_explore_uuid'
     | 'project_uuid'
     | 'name'
+    | 'label'
     | 'description'
     | 'type'
     | 'field_type'
     | 'required_attributes'
     | 'chart_usage'
     | 'table_name'
+    | 'spotlight_show'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =
@@ -53,6 +57,8 @@ export function getDbCatalogColumnFromCatalogProperty(
     switch (property) {
         case 'name':
             return 'name';
+        case 'label':
+            return 'label';
         case 'description':
             return 'description';
         case 'type':
@@ -66,7 +72,6 @@ export function getDbCatalogColumnFromCatalogProperty(
         case 'icon':
             return 'icon';
         case 'categories':
-        case 'label':
         case 'tags':
             throw new Error(
                 'Property has no corresponding column in the catalog table',

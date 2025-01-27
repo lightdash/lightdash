@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CompileProjectPayload,
     CreateSchedulerAndTargets,
     CreateSchedulerTarget,
@@ -96,7 +97,7 @@ export class SchedulerClient {
             connectionString: lightdashConfig.database.connectionUri,
         })
             .then((utils) => utils)
-            .catch((e: any) => {
+            .catch((e: AnyType) => {
                 Logger.error('Error migrating graphile worker', e);
                 process.exit(1);
             });
@@ -106,7 +107,7 @@ export class SchedulerClient {
         task: string,
         jobId: string,
         runAt: Date,
-        payload: any,
+        payload: AnyType,
         funct: () => Promise<void>,
     ) {
         const { traceHeader, baggageHeader, sentryMessageId } = payload;
@@ -168,7 +169,7 @@ export class SchedulerClient {
     private static async addJob(
         graphileClient: WorkerUtils,
         identifier: string,
-        payload: any,
+        payload: AnyType,
         scheduledAt: Date,
         priority: JobPriority,
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
@@ -468,7 +469,7 @@ export class SchedulerClient {
                     status: SchedulerJobStatus.SCHEDULED,
                 });
             });
-        } catch (err: any) {
+        } catch (err: AnyType) {
             Logger.error(
                 `Unable to schedule job for scheduler ${scheduler.schedulerUuid}`,
                 err,
@@ -516,7 +517,7 @@ export class SchedulerClient {
                 `Creating ${promises.length} notification jobs for scheduler ${schedulerUuid}`,
             );
             return await Promise.all(promises);
-        } catch (err: any) {
+        } catch (err: AnyType) {
             Logger.error(
                 `Unable to schedule notification job for scheduler ${schedulerUuid}`,
                 err,

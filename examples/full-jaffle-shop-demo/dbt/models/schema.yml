@@ -63,6 +63,8 @@ models:
             date_of_first_created_customer:
               type: min
             date_of_most_recent_created_customer:
+              spotlight:
+                visibility: hide
               type: max
       - name: first_order
         description: Date of the customers first order

@@ -59,7 +59,7 @@ export const useContent = (
         ApiError,
         ResourceViewItem[]
     >({
-        queryKey: ['content', JSON.stringify(args)],
+        queryKey: ['content', args],
         queryFn: () => getContent(args),
         ...useQueryOptions,
     });

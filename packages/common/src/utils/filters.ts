@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Table } from '../types/explore';
 import {
@@ -175,7 +176,7 @@ export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
-    values?: any[] | null,
+    values?: AnyType[] | null,
 ): T => {
     const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -287,7 +288,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
 
 export const createFilterRuleFromField = (
     field: FilterableField,
-    value?: any,
+    value?: AnyType,
 ): FilterRule =>
     getFilterRuleWithDefaultValue(
         field,
@@ -338,8 +339,8 @@ export const applyDefaultTileTargets = (
     filterRule: DashboardFilterRule<
         FilterOperator,
         DashboardFieldTarget,
-        any,
-        any
+        AnyType,
+        AnyType
     >,
     field: FilterableDimension,
     availableTileFilters: Record<string, FilterableDimension[] | undefined>,
@@ -387,7 +388,7 @@ export const createDashboardFilterRuleFromField = ({
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
-    value?: any;
+    value?: AnyType;
 };
 
 export const addFilterRule = ({
@@ -395,7 +396,7 @@ export const addFilterRule = ({
     field,
     value,
 }: AddFilterRuleArgs): Filters => {
-    const groupKey = ((f: any) => {
+    const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
             return 'dimensions';
         }
@@ -459,7 +460,7 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  */
 export const isDimensionValueInvalidDate = (
     item: FilterableField,
-    value: any,
+    value: AnyType,
 ) => isDateItem(item) && value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
 
 /**

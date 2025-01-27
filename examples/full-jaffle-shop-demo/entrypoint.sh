@@ -6,7 +6,7 @@ dbt seed --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refr
 dbt run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles
 
 # Rollback all migrations and seed
-yarn workspace backend rollback-all-production
-yarn workspace backend migrate-production
-yarn workspace backend seed-production
+pnpm -F backend rollback-all-production
+pnpm -F backend migrate-production
+pnpm -F backend seed-production
 exec "$@"

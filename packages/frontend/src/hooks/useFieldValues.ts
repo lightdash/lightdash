@@ -43,7 +43,7 @@ const getFieldValues = async (
 export const useFieldValues = (
     search: string,
     initialData: string[],
-    projectId: string,
+    projectId: string | undefined,
     field: FilterableItem,
     filters: AndFilterGroup | undefined,
     debounce: boolean = true,
@@ -104,7 +104,7 @@ export const useFieldValues = (
         cachekey,
         () =>
             getFieldValues(
-                projectId,
+                projectId!,
                 tableName,
                 fieldId,
                 debouncedSearch,
@@ -115,7 +115,7 @@ export const useFieldValues = (
             // make sure we don't cache for too long
             cacheTime: 60 * 1000, // 1 minute
             ...useQueryOptions,
-            enabled: !!tableName,
+            enabled: !!tableName && !!projectId,
             staleTime: 0,
             onSuccess: (data) => {
                 const { results: newResults, search: newSearch } = data;
