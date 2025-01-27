@@ -353,4 +353,17 @@ describe.only('spotlight config', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES);
     });
+
+    it('should error when categories are assigned but not defined in the spotlight config', () => {
+        expect(() =>
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_METRIC_LEVEL_CATEGORIES,
+                [DBT_METRIC],
+                DEFAULT_SPOTLIGHT_CONFIG, // no categories defined
+            ),
+        ).toThrowError(
+            `Invalid spotlight categories found in metric 'user_count': category_1, category_2. Categories must be defined in project config.`,
+        );
+    });
 });
