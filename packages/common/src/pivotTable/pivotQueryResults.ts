@@ -159,10 +159,7 @@ const getAllIndicesByKey = (
         throw new UnexpectedIndexError('Cannot set key on undefined');
     }
     if (rest.length === 0) {
-        const value = obj[key];
-        if (value === undefined) {
-            throw new UnexpectedIndexError(`Cannot get key ${key} from object`);
-        }
+        const value = getObjectValue(obj, key);
         if (isNumber(value)) {
             return [value];
         }
