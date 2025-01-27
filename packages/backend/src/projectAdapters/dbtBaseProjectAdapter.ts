@@ -29,7 +29,7 @@ import {
     type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
@@ -96,7 +96,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             const config = await loadLightdashProjectConfig(fileContents);
             return config;
         } catch (e) {
-            Logger.debug(`No lightdash.config.yml found in ${configPath}`);
+            // Logger.debug(`No lightdash.config.yml found in ${configPath}`);
 
             if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
                 // Return default config if file doesn't exist
