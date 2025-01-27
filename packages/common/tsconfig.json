@@ -63,7 +63,6 @@
         /* Advanced Options */
         "skipLibCheck": true /* Skip type checking of declaration files. */,
         "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
-        "noUncheckedIndexedAccess": false,
     },
     "include": [
         "src/**/*.ts",

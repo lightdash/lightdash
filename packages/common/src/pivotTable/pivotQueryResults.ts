@@ -149,24 +149,6 @@ const getAllIndices = (obj: RecursiveRecord<number>): number[] =>
         }
         return [...acc, ...getAllIndices(value)];
     }, []);
-/*
-const getIndexValue = <T>(
-    obj: Record<string | number, T> | ArrayLike<T>,
-    key: string | number,
-    errorMessage?: string
-): T => {
-    // For arrays, ensure numeric index
-    if (Array.isArray(obj) && typeof key === 'string') {
-        key = parseInt(key, 10);
-    }
-
-    const value: T | undefined = Array.isArray(obj) ? obj[key as number] : obj[key as keyof typeof obj];
-    if (value === undefined) {
-        throw new UnexpectedIndexError(errorMessage || `Cannot get key ${key} from object`);
-    }
-    return value;
-};
-*/
 
 const getAllIndicesByKey = (
     obj: RecursiveRecord<number>,
@@ -552,7 +534,7 @@ export const pivotQueryResults = ({
         headerValuesT[0]?.map((_, colIndex) =>
             headerValuesT.map<PivotData['headerValues'][number][number]>(
                 (row, rowIndex) => {
-                    const cell = row[colIndex];
+                    const cell = getArrayValue(row, colIndex);
                     if (cell.type === 'label') {
                         return cell;
                     }
@@ -601,7 +583,7 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const { value } = row[metric.fieldId];
+            const { value } = row?.[metric.fieldId] ?? {};
 
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),
