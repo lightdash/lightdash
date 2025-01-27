@@ -34,7 +34,7 @@ const INVALID_CONFIG_CONTENTS = 'I am invalid';
 
 const readFileSpy = jest.spyOn(fs, 'readFile');
 
-describe('Existing config file', () => {
+describe('Existing lightdash.config.yml file', () => {
     describe('when valid', () => {
         it('should load the config file', async () => {
             readFileSpy.mockResolvedValueOnce(VALID_CONFIG_CONTENTS);
