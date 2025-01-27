@@ -1,3 +1,10 @@
+# [0.1468.0](https://github.com/lightdash/lightdash/compare/0.1467.1...0.1468.0) (2025-01-27)
+
+
+### Features
+
+* gsync save in tab name ([#13411](https://github.com/lightdash/lightdash/issues/13411)) ([ad1a8ef](https://github.com/lightdash/lightdash/commit/ad1a8efc885935f48915f5b7787bc9b778b2c487))
+
 ## [0.1467.1](https://github.com/lightdash/lightdash/compare/0.1467.0...0.1467.1) (2025-01-27)
 
 
