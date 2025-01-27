@@ -4,6 +4,7 @@ import {
     Stack,
     Text,
     type GroupProps,
+    type TextProps,
 } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
 
@@ -12,7 +13,7 @@ interface ConfigComponent extends FC<PropsWithChildren> {
     Heading: FC<PropsWithChildren>;
     Subheading: FC<PropsWithChildren>;
     Group: FC<PropsWithChildren & GroupProps>;
-    Label: FC<PropsWithChildren>;
+    Label: FC<PropsWithChildren & TextProps>;
 }
 
 export const Config: ConfigComponent = ({ children }) => <Box>{children}</Box>;
@@ -33,8 +34,8 @@ const Subheading: FC<PropsWithChildren> = ({ children }) => (
     </Text>
 );
 
-const Label: FC<PropsWithChildren> = ({ children }) => (
-    <Text fw={500} size="xs" color="gray.6">
+const Label: FC<PropsWithChildren & TextProps> = ({ children, ...props }) => (
+    <Text fw={500} size="xs" color="gray.6" {...props}>
         {children}
     </Text>
 );

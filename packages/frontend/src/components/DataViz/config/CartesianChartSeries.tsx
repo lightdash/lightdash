@@ -191,9 +191,21 @@ export const CartesianChartSeries = ({
             {isGrouped
                 ? Object.entries(groupedSeries).map(
                       ([referenceField, seriesArray]) => (
-                          <Accordion key={referenceField} variant="contained">
+                          <Accordion
+                              key={referenceField}
+                              variant="contained"
+                              sx={(theme) => ({
+                                  root: {
+                                      border: `1px solid ${theme.colors.gray[2]}`,
+                                  },
+                              })}
+                          >
                               <Accordion.Item value={referenceField} m={0}>
-                                  <Accordion.Control>
+                                  <Accordion.Control
+                                      sx={{
+                                          backgroundColor: 'white',
+                                      }}
+                                  >
                                       <Config.Subheading>
                                           {friendlyName(referenceField)}
                                       </Config.Subheading>
@@ -201,6 +213,9 @@ export const CartesianChartSeries = ({
                                   {seriesArray.map((s, index) => (
                                       <Accordion.Panel
                                           key={`${s.reference}-${index}`}
+                                          sx={{
+                                              backgroundColor: 'white',
+                                          }}
                                       >
                                           <SingleSeriesConfiguration
                                               key={`${s.reference}-${index}`}

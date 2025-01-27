@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Flex,
     Group,
     SegmentedControl,
     Stack,
@@ -19,6 +20,8 @@ import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
 import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig';
+
+const LABEL_WIDTH = 120;
 
 type SingleSeriesConfigurationProps = {
     reference: string;
@@ -63,37 +66,58 @@ export const SingleSeriesConfiguration = ({
                 pl="sm"
                 spacing="xs"
                 sx={(theme) => ({
-                    borderLeft: `1px solid ${theme.colors.gray[2]}`,
-                    backgroundColor: theme.colors.gray[1],
+                    backgroundColor: theme.colors.gray[0],
                     borderRadius: theme.radius.md,
                     padding: theme.spacing.xs,
                 })}
             >
                 <Config.Subheading>{reference}</Config.Subheading>
-                <Config.Group grow spacing={0}>
-                    <Config.Label>Label</Config.Label>
-                    <Group spacing="xs" noWrap grow position="left">
-                        <Box w="20px">
-                            <ColorSelector
-                                color={color}
-                                onColorChange={(c) =>
-                                    onColorChange(reference, c)
+                <Flex justify="flex-start" align="center" wrap="nowrap">
+                    <Config.Label w={LABEL_WIDTH}>Label</Config.Label>
+                    <Group
+                        spacing="xs"
+                        position="left"
+                        noWrap
+                        grow
+                        style={{ flex: 3 }}
+                    >
+                        <Box
+                            sx={{
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <Box w="20px">
+                                <ColorSelector
+                                    color={color}
+                                    onColorChange={(c) =>
+                                        onColorChange(reference, c)
+                                    }
+                                    swatches={colors}
+                                />
+                            </Box>
+                            <TextInput
+                                maw="100%"
+                                radius="md"
+                                value={label}
+                                onChange={(e) =>
+                                    onLabelChange(reference, e.target.value)
                                 }
-                                swatches={colors}
+                                sx={(theme) => ({
+                                    input: {
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                    },
+                                    flex: 1,
+                                    marginLeft: theme.spacing.xs,
+                                })}
                             />
                         </Box>
-                        <TextInput
-                            maw="100%"
-                            radius="md"
-                            value={label}
-                            onChange={(e) =>
-                                onLabelChange(reference, e.target.value)
-                            }
-                        />
                     </Group>
-                </Config.Group>
-                <Config.Group grow spacing={0} noWrap>
-                    <Config.Label>Chart Type</Config.Label>
+                </Flex>
+                <Flex justify="flex-start" align="center" wrap="nowrap">
+                    <Config.Label w={LABEL_WIDTH}>Chart Type</Config.Label>
                     <CartesianChartTypeConfig
                         canSelectDifferentTypeFromBaseChart={true}
                         type={
@@ -102,18 +126,21 @@ export const SingleSeriesConfiguration = ({
                         }
                         onChangeType={(value) => onTypeChange(reference, value)}
                     />
-                </Config.Group>
-                <Config.Group grow spacing={0} noWrap>
-                    <Config.Label>Y Axis</Config.Label>
+                </Flex>
+                <Flex justify="flex-start" align="center" wrap="nowrap">
+                    <Config.Label w={LABEL_WIDTH}>Y Axis</Config.Label>
                     <SegmentedControl
-                        sx={{ minWidth: '130px' }}
+                        sx={{ minWidth: '130px', flex: 1 }}
                         radius="md"
                         data={[
                             {
                                 value: 'left',
                                 label: (
                                     <Group spacing="xs" noWrap>
-                                        <MantineIcon icon={IconAlignLeft} />
+                                        <MantineIcon
+                                            icon={IconAlignLeft}
+                                            color="dark.0"
+                                        />
                                         <Text>Left</Text>
                                     </Group>
                                 ),
@@ -123,7 +150,10 @@ export const SingleSeriesConfiguration = ({
                                 label: (
                                     <Group spacing="xs" noWrap position="right">
                                         <Text>Right</Text>
-                                        <MantineIcon icon={IconAlignRight} />
+                                        <MantineIcon
+                                            icon={IconAlignRight}
+                                            color="dark.0"
+                                        />
                                     </Group>
                                 ),
                             },
@@ -138,9 +168,9 @@ export const SingleSeriesConfiguration = ({
                             )
                         }
                     />
-                </Config.Group>
-                <Config.Group grow spacing={0} noWrap>
-                    <Config.Label>Value labels</Config.Label>
+                </Flex>
+                <Flex justify="flex-start" align="center" wrap="nowrap">
+                    <Config.Label w={LABEL_WIDTH}>Value labels</Config.Label>
                     <CartesianChartValueLabelConfig
                         valueLabelPosition={
                             valueLabelPosition ??
@@ -150,7 +180,7 @@ export const SingleSeriesConfiguration = ({
                             onValueLabelPositionChange(reference, position)
                         }
                     />
-                </Config.Group>
+                </Flex>
             </Stack>
         </Stack>
     );
