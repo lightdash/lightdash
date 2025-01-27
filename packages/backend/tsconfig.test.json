@@ -3,7 +3,7 @@
     // This means we will not apply the noUncheckedIndexedAccess option to the test files
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "noUncheckedIndexedAccess": false // TODO fix errors ,then enable   
+        "noUncheckedIndexedAccess": true // TODO fix errors ,then enable   
     },
     "include": [
         "src/**/*.ts",

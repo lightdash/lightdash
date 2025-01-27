@@ -73,6 +73,9 @@ export function isValidFrequency(cronExpression: string): boolean {
         return false;
     }
     const [minutePart] = cronParts;
+    if (minutePart === undefined) {
+        return false;
+    }
     if (
         minutePart.includes('/') ||
         minutePart.includes(',') ||
