@@ -22,6 +22,7 @@ const usePylon = () => {
             n.q.push(u);
         };
         // @ts-ignore
+        // eslint-disable-next-line react-compiler/react-compiler
         e.Pylon = n;
         const r = function () {
             const s = t.createElement('script');
