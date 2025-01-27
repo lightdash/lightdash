@@ -45,12 +45,14 @@ const DashboardProvider: React.FC<
         schedulerFilters?: SchedulerFilterRule[] | undefined;
         dateZoom?: DateGranularity | undefined;
         projectUuid?: string;
+        embedToken?: string;
         dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     }>
 > = ({
     schedulerFilters,
     dateZoom,
     projectUuid,
+    embedToken,
     dashboardCommentsCheck,
     children,
 }) => {
@@ -65,6 +67,9 @@ const DashboardProvider: React.FC<
 
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
+    // Embedded dashboards will not be using this query hook to load the dashboard,
+    // so we need to set the dashboard manually
+    const [embedDashboard, setEmbedDashboard] = useState<Dashboard>();
     const {
         data: dashboard,
         isInitialLoading: isDashboardLoading,
@@ -314,10 +319,19 @@ const DashboardProvider: React.FC<
         isInitialLoading: isLoadingDashboardFilters,
         isFetching: isFetchingDashboardFilters,
         data: dashboardAvailableFiltersData,
-    } = useDashboardsAvailableFilters(savedChartUuidsAndTileUuids ?? []);
+    } = useDashboardsAvailableFilters(
+        savedChartUuidsAndTileUuids ?? [],
+        projectUuid,
+        embedToken,
+    );
 
     const filterableFieldsByTileUuid = useMemo(() => {
-        if (!dashboard || !dashboardTiles || !dashboardAvailableFiltersData)
+        // If this is an embed dashboard, we skip the dashboard check
+        if (
+            (!dashboard && !embedToken) ||
+            !dashboardTiles ||
+            !dashboardAvailableFiltersData
+        )
             return;
 
         const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
@@ -344,6 +358,7 @@ const DashboardProvider: React.FC<
         dashboardTiles,
         dashboardAvailableFiltersData,
         savedChartUuidsAndTileUuids,
+        embedToken,
     ]);
 
     const allFilterableFieldsMap = useMemo(() => {
@@ -360,7 +375,6 @@ const DashboardProvider: React.FC<
               )
             : {};
     }, [dashboardAvailableFiltersData]);
-
     const allFilters = useMemo(() => {
         return {
             dimensions: [
@@ -580,7 +594,8 @@ const DashboardProvider: React.FC<
     const value = {
         projectUuid,
         isDashboardLoading,
-        dashboard,
+        dashboard: dashboard || embedDashboard,
+        setEmbedDashboard,
         dashboardError,
         dashboardTiles,
         setDashboardTiles,

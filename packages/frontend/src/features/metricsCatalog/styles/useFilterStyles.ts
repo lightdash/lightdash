@@ -95,13 +95,11 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
             maxWidth: 100,
             marginLeft: -1,
             borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            '&[data-no-values="true"]': {
-                borderBottomRightRadius: theme.radius.md,
-            },
-            '&[data-no-values="false"]': {
-                borderBottomRightRadius: 0,
-            },
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+            borderTop: 0,
+            paddingRight: 8,
+            paddingLeft: 8,
             '&[data-full-width="true"]': {
                 width: '100%',
                 maxWidth: '100%',

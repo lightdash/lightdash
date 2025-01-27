@@ -69,6 +69,20 @@ const postDashboardsAvailableFilters = async (
         body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
 
+const postEmbedDashboardsAvailableFilters = async (
+    embedToken: string,
+    projectUuid: string,
+    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+) =>
+    lightdashApi<DashboardAvailableFilters>({
+        url: `/embed/${projectUuid}/dashboard/availableFilters`,
+        method: 'POST',
+        headers: {
+            'Lightdash-Embed-Token': embedToken!,
+        },
+        body: JSON.stringify(savedChartUuidsAndTileUuids),
+    });
+
 const exportDashboard = async (
     id: string,
     gridWidth: number | undefined,
@@ -82,11 +96,22 @@ const exportDashboard = async (
 
 export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    projectUuid?: string,
+    embedToken?: string,
 ) =>
     useQuery<DashboardAvailableFilters, ApiError>(
         ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
-        () => postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
-        { enabled: savedChartUuidsAndTileUuids.length > 0 },
+        () =>
+            embedToken && projectUuid
+                ? postEmbedDashboardsAvailableFilters(
+                      embedToken,
+                      projectUuid,
+                      savedChartUuidsAndTileUuids,
+                  )
+                : postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
+        {
+            enabled: savedChartUuidsAndTileUuids.length > 0,
+        },
     );
 
 export const useDashboardQuery = (

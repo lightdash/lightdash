@@ -235,7 +235,7 @@ const defaultRowValues = [
     '44',
 ];
 
-const percentileRowValues = ['2020-08-11', '1,298', '828', '1,298', '1,717'];
+const percentileRowValues = ['2020-08-11', '1,315', '836', '1,315', '1,808'];
 
 const testPercentile = (
     projectUuid: string,

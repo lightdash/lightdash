@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type Dashboard, type SpaceSummary } from '@lightdash/common';
+import {
+    type Dashboard,
+    type FeatureFlags,
+    type SpaceSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -37,6 +41,7 @@ import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
+import AIDashboardSummary from '../../../ee/features/aiDashboardSummary';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -44,6 +49,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -184,6 +190,9 @@ const DashboardHeader = ({
         }),
     );
 
+    const isDashboardSummariesEnabled = useFeatureFlagEnabled(
+        'ai-dashboard-summary' as FeatureFlags,
+    );
     const handleDashboardRefreshUpdateEvent = useCallback(
         (intervalMin?: number) => {
             track({
@@ -337,6 +346,18 @@ const DashboardHeader = ({
                 </PageActionsContainer>
             ) : (
                 <PageActionsContainer>
+                    {isDashboardSummariesEnabled &&
+                        projectUuid &&
+                        dashboardUuid && (
+                            <AIDashboardSummary
+                                projectUuid={projectUuid}
+                                dashboardUuid={dashboardUuid}
+                                dashboardVersionId={
+                                    dashboard.dashboardVersionId
+                                }
+                            />
+                        )}
+
                     {userCanExportData && (
                         <DashboardRefreshButton
                             onIntervalChange={handleDashboardRefreshUpdateEvent}

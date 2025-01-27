@@ -327,6 +327,15 @@ export class GoogleDriveClient {
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
+        let sanitizedTabName: string | undefined;
+        if (tabName) {
+            Logger.info(`Creating new tab ${tabName} on Google sheets`);
+            sanitizedTabName = await this.createNewTab(
+                refreshToken,
+                fileId,
+                tabName,
+            );
+        }
         // Clear first sheet before writting
         await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
 
@@ -336,7 +345,7 @@ export class GoogleDriveClient {
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
-            range: tabName ? `${tabName}!A1` : 'A1',
+            range: sanitizedTabName ? `${sanitizedTabName}!A1` : 'A1',
             valueInputOption: 'RAW',
             requestBody: {
                 values: results,

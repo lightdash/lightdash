@@ -56,6 +56,8 @@ export enum QueryExecutionContext {
     SCHEDULED_CHART = 'scheduledChart',
     SCHEDULED_DASHBOARD = 'scheduledDashboard',
     CALCULATE_TOTAL = 'calculateTotal',
+    EMBED = 'embed',
+    AI = 'ai',
     API = 'api',
     CLI = 'cli',
     SEMANTIC_VIEWER = 'semanticViewer',

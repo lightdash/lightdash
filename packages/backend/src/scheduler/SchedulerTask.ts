@@ -86,6 +86,7 @@ import {
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
+import { AiService } from '../ee/services/AiService/AiService';
 import Logger from '../logging/logger';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
@@ -102,7 +103,7 @@ import { ValidationService } from '../services/ValidationService/ValidationServi
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { SchedulerClient } from './SchedulerClient';
 
-type SchedulerTaskArguments = {
+export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     csvService: CsvService;
@@ -1640,6 +1641,10 @@ export default class SchedulerTask {
                 throw new Error('Missing gdriveId');
             }
 
+            const tabName = isSchedulerGsheetsOptions(scheduler.options)
+                ? scheduler.options.tabName
+                : undefined;
+
             await this.schedulerService.logSchedulerJob({
                 task: 'uploadGsheets',
                 schedulerUuid,
@@ -1734,11 +1739,11 @@ export default class SchedulerTask {
                         maxColumnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,
                     });
-
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
                         gdriveId,
                         pivotedResults,
+                        tabName,
                     );
                 } else {
                     await this.googleDriveClient.appendToSheet(
@@ -1747,7 +1752,7 @@ export default class SchedulerTask {
                         rows,
                         itemMap,
                         showTableNames,
-                        undefined,
+                        tabName,
                         chart.tableConfig.columnOrder,
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
@@ -1850,7 +1855,7 @@ export default class SchedulerTask {
                             chart.chartConfig.config,
                         );
 
-                        const tabName =
+                        const chartTabName =
                             await this.googleDriveClient.createNewTab(
                                 refreshToken,
                                 gdriveId,
@@ -1881,7 +1886,7 @@ export default class SchedulerTask {
                                 refreshToken,
                                 gdriveId,
                                 pivotedResults,
-                                tabName,
+                                chartTabName,
                             );
                         } else {
                             await this.googleDriveClient.appendToSheet(
@@ -1890,7 +1895,7 @@ export default class SchedulerTask {
                                 rows,
                                 itemMap,
                                 showTableNames,
-                                tabName,
+                                chartTabName,
                                 chart.tableConfig.columnOrder,
                                 customLabels,
                                 getHiddenTableFields(chart.chartConfig),
