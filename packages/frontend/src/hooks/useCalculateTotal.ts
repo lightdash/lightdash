@@ -130,6 +130,7 @@ export const useCalculateTotal = ({
                 : Promise.reject(),
         retry: false,
         enabled:
+            !window.location.pathname.startsWith('/embed/') &&
             metricsWithTotals.length > 0 &&
             (metricQuery || savedChartUuid) !== undefined,
         onError: (result) =>

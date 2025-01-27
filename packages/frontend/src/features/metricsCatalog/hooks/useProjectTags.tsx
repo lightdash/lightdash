@@ -72,6 +72,8 @@ export const useCreateTag = () => {
                 color: data.color,
                 createdAt: new Date(),
                 projectUuid,
+                // created tags on the UI are not associated with a yaml reference
+                yamlReference: null,
                 createdBy: {
                     userUuid: 'user',
                     firstName: 'user',

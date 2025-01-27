@@ -9,11 +9,16 @@ export type DbTag = {
     color: string;
     created_by_user_uuid: string | null;
     created_at: Date;
+    yaml_reference: string | null;
 };
 
 export type DbTagIn = Pick<
     DbTag,
-    'project_uuid' | 'name' | 'color' | 'created_by_user_uuid'
+    | 'project_uuid'
+    | 'name'
+    | 'color'
+    | 'created_by_user_uuid'
+    | 'yaml_reference'
 >;
 
 export type DbTagUpdate = Partial<Pick<DbTag, 'name' | 'color'>>;
@@ -28,6 +33,7 @@ export const convertTagRow = (tag: DbTag & DbUser): Tag => ({
     name: tag.name,
     color: tag.color,
     createdAt: tag.created_at,
+    yamlReference: tag.yaml_reference,
     createdBy: {
         userUuid: tag.user_uuid,
         firstName: tag.first_name,

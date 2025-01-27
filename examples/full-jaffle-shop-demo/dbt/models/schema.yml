@@ -2,6 +2,8 @@ version: 2
 models:
   - name: customers
     meta:
+      spotlight:
+        categories: ["experimental"]
       joins:
         - join: membership
           hidden: true
@@ -25,7 +27,8 @@ models:
               type: count_distinct
               label: Unique customer count
               description: Total number of customers
-
+              spotlight:
+                categories: ["core"]
       - name: first_name
         description: |
           # First name
@@ -105,6 +108,9 @@ models:
 
       {{ doc("orders_status") }}
     meta:
+      spotlight:
+        categories:
+          - sales
       joins:
         - join: customers
           sql_on: ${customers.customer_id} = ${orders.customer_id}

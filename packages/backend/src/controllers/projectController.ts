@@ -49,6 +49,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -798,6 +799,32 @@ export class ProjectController extends BaseController {
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('{projectUuid}/tags/yaml')
+    @OperationId('replaceYamlTags')
+    async replaceYamlTags(
+        @Path() projectUuid: string,
+        @Body()
+        body: (Pick<Tag, 'name' | 'color'> & {
+            yamlReference: string;
+        })[],
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getProjectService()
+            .replaceYamlTags(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/tags')
     @OperationId('getTags')

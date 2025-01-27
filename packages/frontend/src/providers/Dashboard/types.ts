@@ -18,6 +18,7 @@ export type DashboardContextType = {
     projectUuid?: string;
     isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
+    setEmbedDashboard: Dispatch<SetStateAction<Dashboard | undefined>>;
     dashboardError: ApiError | null;
     dashboardTiles: Dashboard['tiles'] | undefined;
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | undefined>>;

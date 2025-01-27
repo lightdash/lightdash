@@ -1,5 +1,4 @@
 import {
-    AnyType,
     CreateProjectMember,
     InviteLink,
     PasswordResetLink,
@@ -24,6 +23,15 @@ export type AttachmentUrl = {
 };
 type EmailClientArguments = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
+};
+
+type EmailTemplate = {
+    template: string;
+    context: Record<
+        string,
+        string | boolean | number | AttachmentUrl[] | undefined
+    >;
+    attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
 
 export default class EmailClient {
@@ -64,7 +72,7 @@ export default class EmailClient {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
                 },
             );
-            this.transporter.verify((error: AnyType) => {
+            this.transporter.verify((error) => {
                 if (error) {
                     throw new SmptError(
                         `Failed to verify email transporter. ${error}`,
@@ -92,7 +100,9 @@ export default class EmailClient {
         }
     }
 
-    private async sendEmail(options: AnyType): Promise<void> {
+    private async sendEmail(
+        options: Mail.Options & EmailTemplate,
+    ): Promise<void> {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);

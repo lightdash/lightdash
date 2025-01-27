@@ -79,6 +79,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         initialSuggestionData,
         projectUuid,
         field,
+        filterId,
         autocompleteFilterGroup,
         true,
         forceRefresh,

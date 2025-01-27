@@ -263,7 +263,7 @@ Affected charts:
         branchName: string;
         token: string;
         quoteChar?: `"` | `'`;
-    }): Promise<AnyType> {
+    }): Promise<void> {
         if (customMetrics === undefined || customMetrics?.length === 0)
             throw new Error('No custom metrics found');
         const tables = [

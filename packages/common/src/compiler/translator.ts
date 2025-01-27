@@ -42,6 +42,10 @@ import {
     type WeekDay,
 } from '../utils/timeFrames';
 import { ExploreCompiler } from './exploreCompiler';
+import {
+    getCategoriesFromResource,
+    getSpotlightConfigurationForResource,
+} from './lightdashProjectConfig';
 
 const convertTimezone = (
     timestampSql: string,
@@ -212,6 +216,7 @@ const convertDbtMetricToLightdashMetric = (
     tableName: string,
     tableLabel: string,
     spotlightConfig: LightdashProjectConfig['spotlight'],
+    modelCategories: string[] | undefined,
 ): Metric => {
     let sql: string;
     let type: MetricType;
@@ -266,7 +271,14 @@ const convertDbtMetricToLightdashMetric = (
         metric.meta?.groups,
         metric.meta?.group_label,
     );
-    const spotlightVisibility = spotlightConfig?.default_visibility;
+    const spotlightVisibility = spotlightConfig.default_visibility;
+
+    const spotlightCategories = getCategoriesFromResource(
+        'metric',
+        metric.name,
+        spotlightConfig,
+        Array.from(new Set([...(modelCategories || [])])),
+    );
 
     return {
         fieldType: FieldType.METRIC,
@@ -295,13 +307,10 @@ const convertDbtMetricToLightdashMetric = (
                       : [metric.meta.tags],
               }
             : {}),
-        ...(spotlightVisibility !== undefined
-            ? {
-                  spotlight: {
-                      visibility: spotlightVisibility,
-                  },
-              }
-            : {}),
+        ...getSpotlightConfigurationForResource(
+            spotlightVisibility,
+            spotlightCategories,
+        ),
     };
 };
 
@@ -452,6 +461,7 @@ export const convertTable = (
                                     model.meta.spotlight?.visibility ??
                                     spotlightConfig.default_visibility,
                             },
+                            modelCategories: model.meta.spotlight?.categories,
                         }),
                     ],
                 ),
@@ -481,8 +491,9 @@ export const convertTable = (
                     ...spotlightConfig,
                     default_visibility:
                         model.meta.spotlight?.visibility ??
-                        spotlightConfig?.default_visibility,
+                        spotlightConfig.default_visibility,
                 },
+                modelCategories: model.meta.spotlight?.categories,
             }),
         ]),
     );
@@ -494,7 +505,13 @@ export const convertTable = (
                 metric,
                 model.name,
                 tableLabel,
-                spotlightConfig,
+                {
+                    ...spotlightConfig,
+                    default_visibility:
+                        model.meta.spotlight?.visibility ??
+                        spotlightConfig.default_visibility,
+                },
+                model.meta.spotlight?.categories,
             ),
         ]),
     );
@@ -622,7 +639,6 @@ export const convertExplores = async (
     const [tables, exploreErrors] = models.reduce(
         ([accTables, accErrors], model) => {
             const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
-
             // If there are any errors compiling the table return an ExploreError
             try {
                 // base dimensions and metrics

@@ -6,6 +6,8 @@ import {
     isExploreError,
     Project,
     ProjectType,
+    type LightdashProjectConfig,
+    type Tag,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -15,6 +17,7 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
+import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
@@ -35,6 +38,27 @@ type DeployHandlerOptions = DbtCompileOptions & {
 
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
+};
+
+const replaceProjectYamlTags = async (
+    projectUuid: string,
+    lightdashProjectConfig: LightdashProjectConfig,
+) => {
+    const yamlTags: (Pick<Tag, 'name' | 'color'> & {
+        yamlReference: NonNullable<Tag['yamlReference']>;
+    })[] = Object.entries(
+        lightdashProjectConfig.spotlight?.categories ?? {},
+    ).map(([yamlReference, category]) => ({
+        yamlReference,
+        name: category.label,
+        color: category.color ?? 'gray',
+    }));
+
+    await lightdashApi<null>({
+        method: 'PUT',
+        url: `/api/v1/projects/${projectUuid}/tags/yaml`,
+        body: JSON.stringify(yamlTags),
+    });
 };
 
 export const deploy = async (
@@ -63,6 +87,12 @@ export const deploy = async (
             process.exit(1);
         }
     }
+
+    const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
+        path.resolve(options.projectDir),
+    );
+
+    await replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig);
 
     await lightdashApi<null>({
         method: 'PUT',

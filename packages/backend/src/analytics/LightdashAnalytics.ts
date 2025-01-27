@@ -640,7 +640,7 @@ type PermissionsUpdated = BaseTrack & {
         userId: string;
         userIdUpdated: string;
         organizationPermissions: OrganizationMemberRole;
-        projectPermissions: AnyType;
+        projectPermissions: Record<string, string>;
         newUser: boolean;
         generatedInvite: boolean;
     };

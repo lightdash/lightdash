@@ -29,7 +29,7 @@ import {
     type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
@@ -79,7 +79,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    private async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+    public async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
         if (!this.dbtProjectDir) {
             return {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,

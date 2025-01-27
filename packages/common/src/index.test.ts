@@ -3,6 +3,7 @@ import {
     getDateGroupLabel,
     getFilterRuleWithDefaultValue,
     getPasswordSchema,
+    isValidEmailAddress,
 } from '.';
 import {
     dateDayDimension,
@@ -174,5 +175,30 @@ describe('getDateGroupLabel', () => {
                 label: 'day date (day)',
             }),
         ).toEqual('Day date day'); // doesn't recognize (day) as a valid time frame
+    });
+});
+
+describe('email validation', () => {
+    test.each([
+        'demo@lightdash.com',
+        'de.mo@lightdash.com',
+        'Demo@lightdash.com',
+        'user+tag@domain.co.uk',
+        'user@sub.domain.com',
+        'user@domain.info',
+        'user123@domain.org',
+    ])('valid email: %s', (email) => {
+        expect(isValidEmailAddress(email)).toBe(true);
+    });
+
+    test.each([
+        ['demo@lightdash', 'Missing top-level domain'],
+        ['de mo@lightdash.com', 'Whitespace in email'],
+        ['demo@lightdash..com', 'Double dot in domain'],
+        ['@lightdash.com', 'Missing local part'],
+        ['demo@.com', 'Missing domain name'],
+        ['demo@lightdash.c', 'Top-level domain too short'],
+    ])('invalid email: %s - %s', (email) => {
+        expect(isValidEmailAddress(email)).toBe(false);
     });
 });

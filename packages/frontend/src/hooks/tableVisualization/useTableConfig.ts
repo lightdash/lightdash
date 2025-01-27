@@ -42,7 +42,8 @@ const useTableConfig = (
     invalidateCache?: boolean,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
-        !!tableChartConfig?.showColumnCalculation,
+        !window.location.pathname.startsWith('/embed/') &&
+            !!tableChartConfig?.showColumnCalculation,
     );
 
     const [showRowCalculation, setShowRowCalculation] = useState<boolean>(

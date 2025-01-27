@@ -293,6 +293,18 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    ai: {
+        copilot: {
+            enabled: boolean;
+            embeddingSearchEnabled?: boolean;
+        };
+    };
+    embedding: {
+        enabled: boolean;
+    };
+    scim: {
+        enabled: boolean;
+    };
     github: {
         appName: string;
         redirectDomain: string;
@@ -835,6 +847,19 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+        },
+        ai: {
+            copilot: {
+                enabled: process.env.AI_COPILOT_ENABLED === 'true',
+                embeddingSearchEnabled:
+                    process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
+            },
+        },
+        embedding: {
+            enabled: process.env.EMBEDDING_ENABLED === 'true',
+        },
+        scim: {
+            enabled: process.env.SCIM_ENABLED === 'true',
         },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
