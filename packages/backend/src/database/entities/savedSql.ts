@@ -53,6 +53,7 @@ type UpdateSql = Partial<
         | 'slug'
         | 'views_count'
         | 'first_viewed_at'
+        | 'last_viewed_at'
     >
 >;
 

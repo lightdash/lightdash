@@ -11,6 +11,7 @@ import {
     type TotalField,
 } from '../types/pivot';
 import { type ResultRow, type ResultValue } from '../types/results';
+import { getArrayValue, getObjectValue } from '../utils/accessors';
 import { formatItemValue } from '../utils/formatting';
 
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
@@ -166,44 +167,6 @@ const getIndexValue = <T>(
     return value;
 };
 */
-const getArrayValue = <T>(
-    obj: ArrayLike<T> | undefined,
-    key: number,
-    errorMessage?: string,
-): T => {
-    if (obj === undefined) {
-        throw new UnexpectedIndexError(
-            errorMessage || `Cannot get key "${key}" value from empty array`,
-        );
-    }
-    const value = obj[key];
-    if (value === undefined) {
-        console.trace();
-        throw new UnexpectedIndexError(
-            errorMessage || `Cannot get key "${key}" value from array`,
-        );
-    }
-    return value;
-};
-const getObjectValue = <T>(
-    obj: Record<string | number, T> | undefined,
-    key: string | number,
-    errorMessage?: string,
-): T => {
-    if (obj === undefined) {
-        throw new UnexpectedIndexError(
-            errorMessage || `Cannot get key "${key}" value from empty object`,
-        );
-    }
-    const value = obj[key];
-    if (value === undefined) {
-        console.trace();
-        throw new UnexpectedIndexError(
-            errorMessage || `Cannot get key "${key}" value from object`,
-        );
-    }
-    return value;
-};
 
 const getAllIndicesByKey = (
     obj: RecursiveRecord<number>,

@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noUncheckedIndexedAccess": false
+    },
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.json"
+    ],
+    "exclude": [
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "src/**/*.mock.ts",
+        "src/__mocks__/**/*.ts"
+    ]
+} 

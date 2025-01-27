@@ -1,5 +1,5 @@
 {    "compilerOptions": {
-    // "noUncheckedIndexedAccess": true,
+     "noUncheckedIndexedAccess": true,
     "useUnknownInCatchVariables": true,
     "noImplicitAny": true
  },
