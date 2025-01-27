@@ -1,17 +1,26 @@
 import type { CatalogItem } from '@lightdash/common';
-import { ActionIcon, Badge, Group } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import { ActionIcon, Badge, Group, Tooltip } from '@mantine/core';
+import { IconCode, IconX } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCategoryStyles } from '../styles/useCategoryStyles';
 
 type Props = {
-    category: Pick<CatalogItem['categories'][number], 'name' | 'color'>;
+    category: Pick<
+        CatalogItem['categories'][number],
+        'name' | 'color' | 'yamlReference'
+    >;
     onClick?: React.MouseEventHandler<HTMLDivElement> | undefined;
     onRemove?: () => void;
+    showYamlIcon?: boolean;
 };
 
-export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
+export const CatalogCategory: FC<Props> = ({
+    category,
+    onClick,
+    onRemove,
+    showYamlIcon = false,
+}) => {
     const { classes } = useCategoryStyles(category.color);
 
     return (
@@ -24,6 +33,24 @@ export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
             onClick={onClick}
             py={10}
             h={24}
+            rightSection={
+                showYamlIcon && (
+                    <Tooltip
+                        variant="xs"
+                        maw={200}
+                        position="top"
+                        withinPortal
+                        label="This category cannot be removed from this metric because it was defined in the .yml file."
+                    >
+                        <MantineIcon
+                            icon={IconCode}
+                            size={12}
+                            strokeWidth={2.5}
+                            opacity={0.5}
+                        />
+                    </Tooltip>
+                )
+            }
             className={classes.base}
             styles={() => ({
                 root: {
