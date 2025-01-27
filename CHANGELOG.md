@@ -1,3 +1,10 @@
+# [0.1465.0](https://github.com/lightdash/lightdash/compare/0.1464.3...0.1465.0) (2025-01-27)
+
+
+### Features
+
+* allow setting spotlight categories through yaml ([#13339](https://github.com/lightdash/lightdash/issues/13339)) ([179bc59](https://github.com/lightdash/lightdash/commit/179bc595ce9b2995bc4065068a405983d1a0f51c))
+
 ## [0.1464.3](https://github.com/lightdash/lightdash/compare/0.1464.2...0.1464.3) (2025-01-27)
 
 
