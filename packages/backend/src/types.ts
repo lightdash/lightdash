@@ -1,9 +1,9 @@
 import {
     DbtPackages,
-    DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     Explore,
     ExploreError,
+    LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
@@ -23,6 +23,8 @@ export interface DbtClient {
     getDbtManifest(): Promise<DbtRpcGetManifestResults>;
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
+
+    getSelector(): string | undefined;
 
     test(): Promise<void>;
 }

@@ -27,7 +27,6 @@
         // "isolatedModules": true,                     /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */
         /* Strict Type-Checking Options */
         "strict": true /* Enable all strict type-checking options. */,
-        "noImplicitAny": true /* Raise error on expressions and declarations with an implied 'any' type. */,
         "strictNullChecks": true /* Enable strict null checks. */,
         // "strictFunctionTypes": true,                 /* Enable strict checking of function types. */
         // "strictBindCallApply": true,                 /* Enable strict 'bind', 'call', and 'apply' methods on functions. */
@@ -64,7 +63,6 @@
         /* Advanced Options */
         "skipLibCheck": true /* Skip type checking of declaration files. */,
         "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
-        "useUnknownInCatchVariables": true
     },
     "include": [
         "src/**/*.ts",

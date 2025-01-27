@@ -643,7 +643,7 @@ export const ContentPanel: FC = () => {
                         sx={(theme) => ({
                             transition: 'background-color 0.2s ease-in-out',
                             cursor: 'row-resize',
-                            display: 'flex',
+                            display: hideResultsPanel ? 'none' : 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             '&:hover': {
@@ -652,6 +652,7 @@ export const ContentPanel: FC = () => {
                             '&[data-resize-handle-state="drag"]': {
                                 backgroundColor: theme.colors.gray[3],
                             },
+                            borderLeft: `1px solid ${theme.colors.gray[3]}`,
                             gap: 5,
                         })}
                     >
@@ -690,12 +691,9 @@ export const ContentPanel: FC = () => {
                         <Box
                             h="100%"
                             pos="relative"
-                            sx={(theme) => ({
+                            sx={{
                                 overflow: 'auto',
-                                borderWidth: '0 0 1px 1px',
-                                borderStyle: 'solid',
-                                borderColor: theme.colors.gray[3],
-                            })}
+                            }}
                         >
                             <LoadingOverlay
                                 pos="absolute"

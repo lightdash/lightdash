@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    getErrorMessage,
     NotFoundError,
     SupportedDbtVersions,
     UnexpectedGitError,
@@ -32,6 +33,7 @@ export type DbtGitProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -39,7 +41,12 @@ const stripTokensFromUrls = (raw: string) => {
     return raw.replace(pattern, '//*****@');
 };
 
-const gitErrorHandler = (e: Error, repository: string) => {
+const gitErrorHandler = (e: unknown, repository: string) => {
+    if (!(e instanceof Error)) {
+        throw new UnexpectedServerError(
+            `Unexpected git error: ${getErrorMessage(e)}`,
+        );
+    }
     if (e.message.includes('Authentication failed')) {
         throw new AuthorizationError(
             'Git credentials not recognized for this repository',
@@ -88,6 +95,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
@@ -103,6 +111,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

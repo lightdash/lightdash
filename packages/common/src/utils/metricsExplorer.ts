@@ -3,6 +3,7 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import { groupBy, mapKeys, type Dictionary } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { type AnyType } from '../types/any';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
 import { type CompiledTable } from '../types/explore';
@@ -231,7 +232,7 @@ export const MAX_SEGMENT_DIMENSION_UNIQUE_VALUES = 10;
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
-    metricRows: Record<string, any>[],
+    metricRows: Record<string, AnyType>[],
     segmentDimensionId: string | null,
 ): {
     dataPoints: Array<MetricExploreDataPoint>;
@@ -316,8 +317,8 @@ export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
     compareDimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
-    metricRows: Record<string, any>[],
-    compareMetricRows: Record<string, any>[],
+    metricRows: Record<string, AnyType>[],
+    compareMetricRows: Record<string, AnyType>[],
     query: MetricExplorerQuery,
     timeFrame: TimeFrames,
 ): {
@@ -398,8 +399,8 @@ export const getMetricExplorerDataPointsWithCompare = (
 
 /**
  * Get the date range for a given time interval, based on the current date and the time interval
- * Time grain Year: -> this year (i.e. start of this year until now)
- * Time grain Month -> past 3 months (i.e. 3 completed months + this uncompleted month)
+ * Time grain Year: -> past 3 years (i.e. 3 completed years + this uncompleted year)
+ * Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
  * Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
  * Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
  * @param timeInterval - The time interval
@@ -423,11 +424,14 @@ export const getDefaultDateRangeFromInterval = (
             ];
         case TimeFrames.MONTH:
             return [
-                now.subtract(3, 'month').startOf('month').toDate(),
+                now.subtract(12, 'month').startOf('month').toDate(),
                 now.toDate(),
             ];
         case TimeFrames.YEAR:
-            return [now.startOf('year').toDate(), now.toDate()];
+            return [
+                now.subtract(3, 'year').startOf('year').toDate(),
+                now.toDate(),
+            ];
         default:
             return assertUnimplementedTimeframe(timeInterval);
     }

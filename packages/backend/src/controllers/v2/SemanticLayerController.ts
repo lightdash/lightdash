@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
@@ -144,7 +145,7 @@ export class SemanticLayerController extends BaseController {
         @Path() fileId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<any> {
+    ): Promise<AnyType> {
         this.setStatus(200);
         this.setHeader('Content-Type', 'application/json');
 

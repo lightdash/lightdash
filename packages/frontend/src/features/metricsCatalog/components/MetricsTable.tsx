@@ -1,11 +1,13 @@
 import {
     assertUnreachable,
     MAX_METRICS_TREE_NODE_COUNT,
+    SpotlightTableColumns,
     type CatalogItem,
 } from '@lightdash/common';
 import {
     Anchor,
     Box,
+    Button,
     Center,
     Divider,
     Group,
@@ -34,8 +36,10 @@ import {
     useMemo,
     useRef,
     useState,
+    type FC,
     type UIEvent,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -46,21 +50,34 @@ import {
     useMetricsCatalog,
 } from '../hooks/useMetricsCatalog';
 import { useMetricsTree } from '../hooks/useMetricsTree';
+import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 import {
     setCategoryFilters,
-    toggleMetricPeekModal,
+    setColumnConfig,
+    setSearch,
+    setTableSorting,
+    toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
-import { MetricPeekModal } from './MetricPeekModal';
+import Canvas from './Canvas';
+import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
-import MetricTree from './MetricTree';
 
-export const MetricsTable = () => {
+type MetricsTableProps = {
+    metricCatalogView: MetricCatalogView;
+};
+
+export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+    const location = useLocation();
+    const navigate = useNavigate();
 
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -73,32 +90,25 @@ export const MetricsTable = () => {
     const { canManageTags, canManageMetricsTree } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
     );
-    const isMetricPeekModalOpen = useAppSelector(
-        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
+    const isMetricExploreModalOpen = useAppSelector(
+        (state) => state.metricsCatalog.modals.metricExploreModal.isOpen,
     );
-    const metricCatalogView = useAppSelector(
-        (state) => state.metricsCatalog.view,
+    const search = useAppSelector((state) => state.metricsCatalog.search);
+    const stateTableSorting = useAppSelector(
+        (state) => state.metricsCatalog.tableSorting,
     );
+    const deferredSearch = useDeferredValue(search);
     const prevView = useRef(metricCatalogView);
-
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-    const [search, setSearch] = useState<string | undefined>(undefined);
-    const deferredSearch = useDeferredValue(search);
 
-    // Enable sorting by highest popularity(how many charts use the metric) by default
-    const initialSorting = [
-        {
-            id: 'chartUsage',
-            desc: true,
-        },
-    ];
+    // We need internal state to handle non serializable state for the updater function
+    const [internalSorting, setInternalSorting] =
+        useState<MRT_SortingState>(stateTableSorting);
 
-    const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
-
-    const onCloseMetricPeekModal = () => {
-        dispatch(toggleMetricPeekModal(undefined));
+    const onCloseMetricExploreModal = () => {
+        dispatch(toggleMetricExploreModal(undefined));
     };
 
     const {
@@ -114,11 +124,15 @@ export const MetricsTable = () => {
         search: deferredSearch,
         categories: categoryFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
-        ...(sorting.length > 0 && {
-            sortBy: sorting[0].id as keyof CatalogItem,
-            sortDirection: sorting[0].desc ? 'desc' : 'asc',
+        ...(stateTableSorting.length > 0 && {
+            sortBy: stateTableSorting[0].id as keyof CatalogItem,
+            sortDirection: stateTableSorting[0].desc ? 'desc' : 'asc',
         }),
     });
+
+    useEffect(() => {
+        dispatch(setTableSorting(internalSorting));
+    }, [dispatch, internalSorting]);
 
     useEffect(() => {
         if (
@@ -129,12 +143,13 @@ export const MetricsTable = () => {
             track({
                 name: EventName.METRICS_CATALOG_SEARCH_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
             });
         }
-    }, [deferredSearch, track, organizationUuid, projectUuid, data]);
+    }, [deferredSearch, track, organizationUuid, projectUuid, data, userUuid]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
@@ -188,6 +203,7 @@ export const MetricsTable = () => {
             track({
                 name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
@@ -255,25 +271,11 @@ export const MetricsTable = () => {
         [isValidMetricsNodeCount, isValidMetricsEdgeCount],
     );
 
-    const segmentedControlTooltipLabel = useMemo(() => {
-        if (totalResults === 0) {
-            return 'There are no metrics to display in the metrics tree';
-        }
-
-        if (!isValidMetricsNodeCount) {
-            return 'You can only select up to 30 metrics for the metrics tree';
-        }
-
-        if (!isValidMetricsEdgeCount) {
-            return 'There are no connections between the selected metrics';
-        }
-    }, [isValidMetricsEdgeCount, isValidMetricsNodeCount, totalResults]);
-
     const dataHasCategories = useMemo(() => {
         return flatData.some((item) => item.categories?.length);
     }, [flatData]);
 
-    const noMeticsAvailable = useMemo(() => {
+    const noMetricsAvailable = useMemo(() => {
         return (
             flatData.length === 0 &&
             !isLoading &&
@@ -283,6 +285,28 @@ export const MetricsTable = () => {
             categoryFilters.length === 0
         );
     }, [flatData, isLoading, isFetching, search, categoryFilters, hasNextPage]);
+
+    // Get column config from Redux
+    const columnConfig = useAppSelector(
+        (state) => state.metricsCatalog.columnConfig,
+    );
+
+    // Only fetch saved config on initial load
+    const { data: spotlightConfig } = useSpotlightTableConfig({
+        projectUuid,
+    });
+
+    const columnVisibilityWithPermissions = useMemo(
+        () => ({
+            ...columnConfig.columnVisibility,
+            [SpotlightTableColumns.CATEGORIES]:
+                columnConfig.columnVisibility[
+                    SpotlightTableColumns.CATEGORIES
+                ] &&
+                (canManageTags || dataHasCategories),
+        }),
+        [columnConfig.columnVisibility, canManageTags, dataHasCategories],
+    );
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -300,13 +324,13 @@ export const MetricsTable = () => {
         enableHiding: false,
         enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
-            setSearch(s);
+            dispatch(setSearch(s));
         },
         manualFiltering: true,
         enableFilterMatchHighlighting: true,
         enableSorting: true,
         manualSorting: true,
-        onSortingChange: setSorting,
+        onSortingChange: setInternalSorting,
         enableTopToolbar: true,
         positionGlobalFilter: 'left',
         mantinePaperProps,
@@ -314,7 +338,7 @@ export const MetricsTable = () => {
             ref: tableContainerRef,
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
+                minHeight: 600,
                 display: 'flex',
                 flexDirection: 'column',
             },
@@ -356,9 +380,11 @@ export const MetricsTable = () => {
                 .getAllColumns()
                 .some((c) => c.getIsResizing());
 
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
+            const isLastVisibleColumn =
+                props.table
+                    .getVisibleLeafColumns()
+                    .findIndex((col) => col.id === props.column.id) ===
+                props.table.getVisibleLeafColumns().length - 1;
 
             return {
                 bg: 'gray.0',
@@ -371,7 +397,7 @@ export const MetricsTable = () => {
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
-                              isLastColumn
+                              isLastVisibleColumn
                                   ? 'transparent'
                                   : theme.colors.gray[2]
                           }`,
@@ -426,9 +452,11 @@ export const MetricsTable = () => {
             },
         },
         mantineTableBodyCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
+            const isLastVisibleColumn =
+                props.table
+                    .getVisibleLeafColumns()
+                    .findIndex((col) => col.id === props.column.id) ===
+                props.table.getVisibleLeafColumns().length - 1;
 
             const isLastRow = flatData.length === props.row.index + 1;
             const hasScroll = tableContainerRef.current
@@ -441,7 +469,7 @@ export const MetricsTable = () => {
                 // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: isLastColumn
+                    borderRight: isLastVisibleColumn
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
                     // This is needed to remove the bottom border of the last row when there are rows
@@ -463,7 +491,7 @@ export const MetricsTable = () => {
             <Box>
                 <MetricsTableTopToolbar
                     search={search}
-                    setSearch={setSearch}
+                    setSearch={(s) => dispatch(setSearch(s))}
                     totalResults={totalResults}
                     selectedCategories={categoryFilters}
                     setSelectedCategories={handleSetCategoryFilters}
@@ -471,7 +499,10 @@ export const MetricsTable = () => {
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     isValidMetricsTree={isValidMetricsTree}
-                    segmentedControlTooltipLabel={segmentedControlTooltipLabel}
+                    isValidMetricsNodeCount={isValidMetricsNodeCount}
+                    isValidMetricsEdgeCount={isValidMetricsEdgeCount}
+                    metricCatalogView={metricCatalogView}
+                    table={table}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -505,7 +536,7 @@ export const MetricsTable = () => {
             </Box>
         ),
         renderEmptyRowsFallback: () => {
-            return noMeticsAvailable ? (
+            return noMetricsAvailable ? (
                 <SuboptimalState
                     title="No metrics defined in this project"
                     action={
@@ -540,12 +571,14 @@ export const MetricsTable = () => {
             ),
         },
         state: {
-            sorting,
+            sorting: stateTableSorting,
             showProgressBars: false,
             showLoadingOverlay, // show loading overlay when fetching (like search, category filtering), but hide when editing rows.
             showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
+            columnOrder: columnConfig.columnOrder,
+            columnVisibility: columnVisibilityWithPermissions,
         },
         mantineLoadingOverlayProps: {
             loaderProps: {
@@ -554,9 +587,6 @@ export const MetricsTable = () => {
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
-            columnVisibility: {
-                categories: false,
-            },
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
@@ -569,18 +599,19 @@ export const MetricsTable = () => {
         editDisplayMode: 'cell',
     });
 
+    // Initialize Redux state from API config whenever we load it via the API
     useEffect(() => {
-        table.setColumnVisibility({
-            categories: canManageTags || dataHasCategories,
-        });
-    }, [canManageTags, dataHasCategories, table]);
+        if (spotlightConfig) {
+            dispatch(setColumnConfig(spotlightConfig));
+        }
+    }, [dispatch, spotlightConfig]);
 
     useEffect(
         function handleRefetchOnViewChange() {
             if (
                 data &&
                 metricCatalogView === MetricCatalogView.LIST &&
-                prevView.current === MetricCatalogView.TREE
+                prevView.current === MetricCatalogView.CANVAS
             ) {
                 table.setRowSelection({}); // Force a re-render of the table
             }
@@ -595,22 +626,22 @@ export const MetricsTable = () => {
             return (
                 <>
                     <MantineReactTable table={table} />
-                    {isMetricPeekModalOpen && (
-                        <MetricPeekModal
-                            opened={isMetricPeekModalOpen}
-                            onClose={onCloseMetricPeekModal}
+                    {isMetricExploreModalOpen && (
+                        <MetricExploreModal
+                            opened={isMetricExploreModalOpen}
+                            onClose={onCloseMetricExploreModal}
                             metrics={flatData}
                         />
                     )}
                 </>
             );
-        case MetricCatalogView.TREE:
+        case MetricCatalogView.CANVAS:
             return (
                 <Paper {...mantinePaperProps}>
                     <Box>
                         <MetricsTableTopToolbar
                             search={search}
-                            setSearch={setSearch}
+                            setSearch={(s) => dispatch(setSearch(s))}
                             totalResults={totalResults}
                             selectedCategories={categoryFilters}
                             setSelectedCategories={handleSetCategoryFilters}
@@ -620,28 +651,44 @@ export const MetricsTable = () => {
                                 canManageTags || dataHasCategories
                             }
                             isValidMetricsTree={isValidMetricsTree}
-                            segmentedControlTooltipLabel={
-                                segmentedControlTooltipLabel
-                            }
+                            isValidMetricsNodeCount={isValidMetricsNodeCount}
+                            isValidMetricsEdgeCount={isValidMetricsEdgeCount}
+                            metricCatalogView={metricCatalogView}
+                            table={table}
                         />
                         <Divider color="gray.2" />
                     </Box>
-                    <Box w="100%" h="calc(100dvh - 350px)">
+                    <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
                         <ReactFlowProvider>
                             {isValidMetricsTree ? (
-                                <MetricTree
+                                <Canvas
                                     metrics={flatData}
                                     edges={metricsTree?.edges ?? []}
                                     viewOnly={!canManageMetricsTree}
                                 />
                             ) : (
                                 <SuboptimalState
-                                    title="Metrics tree not available"
+                                    title="Canvas mode not available"
                                     description={
                                         !isValidMetricsEdgeCount &&
                                         isValidMetricsNodeCount
                                             ? 'There are no connections between the selected metrics'
                                             : 'Please narrow your search to display up to 30 metrics'
+                                    }
+                                    action={
+                                        <Button
+                                            onClick={() => {
+                                                void navigate({
+                                                    pathname:
+                                                        location.pathname.replace(
+                                                            /\/canvas/,
+                                                            '',
+                                                        ),
+                                                });
+                                            }}
+                                        >
+                                            Back to list view
+                                        </Button>
                                     }
                                 />
                             )}

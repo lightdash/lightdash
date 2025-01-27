@@ -32,6 +32,7 @@ export const currencies = [
     'EUR',
     'GBP',
     'JPY',
+    'DKK',
     'CHF',
     'CAD',
     'AUD',
@@ -41,7 +42,6 @@ export const currencies = [
     'CLP',
     'COP',
     'CZK',
-    'DKK',
     'HKD',
     'HUF',
     'INR',
@@ -158,7 +158,7 @@ export const parseTimestamp = (
 function getFormatNumberOptions(value: number, format?: CustomFormat) {
     const hasCurrency =
         format?.type === CustomFormatType.CURRENCY && format?.currency;
-    const currencyOptions = hasCurrency
+    const currencyOptions: Intl.NumberFormatOptions = hasCurrency
         ? { style: 'currency', currency: format.currency }
         : {};
 
@@ -248,6 +248,8 @@ export function getCustomFormatFromLegacy({
         case Format.EUR:
         case Format.GBP:
         case Format.USD:
+        case Format.JPY:
+        case Format.DKK:
             return {
                 type: CustomFormatType.CURRENCY,
                 currency: format.toUpperCase(),

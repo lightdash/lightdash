@@ -1,9 +1,11 @@
 import {
+    DimensionType,
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
     MetricExplorerComparison,
     type CatalogField,
+    type FilterRule,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
@@ -39,21 +41,24 @@ import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsW
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
-import { MetricPeekComparison } from './visualization/MetricPeekComparison';
-import { MetricPeekSegmentationPicker } from './visualization/MetricPeekSegmentationPicker';
+import { MetricExploreComparison } from './visualization/MetricExploreComparison';
+import { MetricExploreFilter } from './visualization/MetricExploreFilter';
+import { MetricExploreSegmentationPicker } from './visualization/MetricExploreSegmentationPicker';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     metrics: CatalogField[];
 };
 
-export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
+export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const { track } = useTracking();
 
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
-
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -73,10 +78,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
         null,
     );
-
     const [timeDimensionOverride, setTimeDimensionOverride] = useState<
         TimeDimensionConfig | undefined
     >();
+    const [filter, setFilter] = useState<FilterRule | undefined>(undefined);
 
     const resetQueryState = useCallback(() => {
         setQuery({
@@ -85,6 +90,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         });
         setTimeDimensionOverride(undefined);
         setDateRange(null);
+        setFilter(undefined);
     }, [setQuery, setTimeDimensionOverride, setDateRange]);
 
     const currentMetricIndex = useMemo(() => {
@@ -104,12 +110,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const navigateToMetric = useCallback(
         (metric: CatalogField) => {
+            resetQueryState();
+
             void navigate({
                 pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
                 search: location.search,
             });
-
-            resetQueryState();
         },
         [navigate, projectUuid, resetQueryState, location.search],
     );
@@ -182,6 +188,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                   }
                 : query,
             timeDimensionOverride,
+            filter,
         },
         {
             enabled: isQueryEnabled,
@@ -251,6 +258,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             track({
                 name: EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     metricName,
@@ -273,6 +281,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             tableName,
             timeDimensionBaseField,
             track,
+            userUuid,
         ],
     );
 
@@ -286,6 +295,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             track({
                 name: EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     metricName,
@@ -294,7 +304,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                 },
             });
         },
-        [metricName, organizationUuid, projectUuid, tableName, track],
+        [metricName, organizationUuid, projectUuid, tableName, track, userUuid],
     );
 
     const handleClose = useCallback(() => {
@@ -313,6 +323,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             track({
                 name: EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     metricName,
@@ -327,6 +338,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         metricName,
         tableName,
         track,
+        userUuid,
     ]);
 
     useEffect(() => {
@@ -334,6 +346,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             track({
                 name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     metricName,
@@ -349,6 +362,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             track({
                 name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC,
                 properties: {
+                    userId: userUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     metricName,
@@ -366,6 +380,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         tableName,
         track,
         queryHasEmptyMetric,
+        userUuid,
     ]);
 
     const segmentByData = useMemo(() => {
@@ -373,6 +388,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
             segmentDimensionsQuery.data?.map((dimension) => ({
                 value: getItemId(dimension),
                 label: dimension.label,
+                group: dimension.tableLabel,
             })) ?? []
         );
     }, [segmentDimensionsQuery.data]);
@@ -381,6 +397,24 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
         ['ArrowUp', () => handleGoToPreviousMetric()],
         ['ArrowDown', () => handleGoToNextMetric()],
     ]);
+
+    const handleFilterApply = useCallback(
+        (filterRule: FilterRule | undefined) => {
+            setFilter(filterRule);
+        },
+        [],
+    );
+
+    const availableFilters = useMemo(
+        () =>
+            // TODO: Get filters from the query instead of segmentByData, this should include numeric dimensions as well
+            segmentDimensionsQuery.data?.filter(
+                (dimension) =>
+                    dimension.type === DimensionType.STRING ||
+                    dimension.type === DimensionType.BOOLEAN,
+            ) ?? [],
+        [segmentDimensionsQuery.data],
+    );
 
     return (
         <Modal.Root
@@ -497,7 +531,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                             px="lg"
                             py="md"
                         >
-                            <MetricPeekSegmentationPicker
+                            <MetricExploreFilter
+                                dimensions={availableFilters}
+                                onFilterApply={handleFilterApply}
+                                key={`${tableName}-${metricName}`}
+                            />
+                            <MetricExploreSegmentationPicker
                                 query={query}
                                 onSegmentDimensionChange={
                                     handleSegmentDimensionChange
@@ -557,7 +596,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     </Button>
                                 </Group>
 
-                                <MetricPeekComparison
+                                <MetricExploreComparison
                                     baseMetricLabel={metricQuery.data?.label}
                                     query={query}
                                     onQueryChange={setQuery}

@@ -52,6 +52,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         <FilterMultiStringInput
                             disabled={disabled}
                             placeholder={placeholder}
+                            autoFocus={true}
                             withinPortal={popoverProps?.withinPortal}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
@@ -68,6 +69,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}
+                            autoFocus={true}
                             placeholder={placeholder}
                             suggestions={suggestions || []}
                             withinPortal={popoverProps?.withinPortal}
@@ -90,6 +92,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         <TagInput
                             w="100%"
                             clearable
+                            autoFocus={true}
                             size="xs"
                             disabled={disabled}
                             placeholder={placeholder}
@@ -123,6 +126,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             return (
                 <FilterNumberInput
                     disabled={disabled}
+                    autoFocus={true}
                     placeholder={placeholder}
                     value={rule.values?.[0]}
                     onChange={(newValue) => {

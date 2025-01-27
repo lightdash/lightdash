@@ -7,11 +7,11 @@ import {
     FieldType,
     NotFoundError,
     TableSelectionType,
+    UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
     type ApiCatalogSearch,
     type ApiSort,
     type CatalogFieldMap,
-    type CatalogFieldWhere,
     type CatalogItem,
     type CatalogItemSummary,
     type CatalogItemWithTagUuids,
@@ -50,6 +50,12 @@ import {
 } from '../SearchModel/utils/search';
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
+
+export enum CatalogSearchContext {
+    SPOTLIGHT = 'spotlight',
+    CATALOG = 'catalog',
+    METRICS_EXPLORER = 'metricsExplorer',
+}
 
 export type CatalogModelArguments = {
     database: Knex;
@@ -137,6 +143,41 @@ export class CatalogModel {
         }
     }
 
+    private async getTagsPerItem(catalogSearchUuids: string[]) {
+        const itemTags = await this.database(CatalogTagsTableName)
+            .select<
+                {
+                    catalog_search_uuid: string;
+                    tag_uuid: string;
+                    name: string;
+                    color: string;
+                }[]
+            >()
+            .leftJoin(
+                TagsTableName,
+                `${CatalogTagsTableName}.tag_uuid`,
+                `${TagsTableName}.tag_uuid`,
+            )
+            .whereIn(
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+                catalogSearchUuids,
+            );
+
+        return itemTags.reduce<
+            Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>
+        >((acc, tag) => {
+            acc[tag.catalog_search_uuid] = [
+                ...(acc[tag.catalog_search_uuid] || []),
+                {
+                    tagUuid: tag.tag_uuid,
+                    name: tag.name,
+                    color: tag.color,
+                },
+            ];
+            return acc;
+        }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
+    }
+
     async search({
         projectUuid,
         exploreName,
@@ -148,6 +189,7 @@ export class CatalogModel {
         userAttributes,
         paginateArgs,
         sortArgs,
+        context,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -157,11 +199,12 @@ export class CatalogModel {
         searchRankFunction?: (args: {
             database: Knex;
             variables: Record<string, string>;
-        }) => Knex.Raw<any>;
+        }) => Knex.Raw;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
+        context: CatalogSearchContext;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         const searchRankRawSql = searchRankFunction({
             database: this.database,
@@ -175,6 +218,7 @@ export class CatalogModel {
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
                 'description',
                 'type',
                 `${CachedExploreTableName}.explore`,
@@ -184,34 +228,12 @@ export class CatalogModel {
                 // Add tags as an aggregated JSON array
                 {
                     search_rank: searchRankRawSql,
-                    catalog_tags: this.database.raw(`
-                        COALESCE(
-                            JSON_AGG(
-                                DISTINCT JSONB_BUILD_OBJECT(
-                                    'tagUuid', ${TagsTableName}.tag_uuid,
-                                    'name', ${TagsTableName}.name,
-                                    'color', ${TagsTableName}.color
-                                )
-                            ) FILTER (WHERE ${TagsTableName}.tag_uuid IS NOT NULL),
-                            '[]'
-                        )
-                    `),
                 },
             )
             .leftJoin(
                 CachedExploreTableName,
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
-            )
-            .leftJoin(
-                CatalogTagsTableName,
-                `${CatalogTableName}.catalog_search_uuid`,
-                `${CatalogTagsTableName}.catalog_search_uuid`,
-            )
-            .leftJoin(
-                TagsTableName,
-                `${CatalogTagsTableName}.tag_uuid`,
-                `${TagsTableName}.tag_uuid`,
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
@@ -291,6 +313,13 @@ export class CatalogModel {
                 );
             });
 
+        if (context === CatalogSearchContext.SPOTLIGHT) {
+            catalogItemsQuery = catalogItemsQuery.where(
+                `${CatalogTableName}.spotlight_show`,
+                true,
+            );
+        }
+
         if (exploreName) {
             catalogItemsQuery = catalogItemsQuery.andWhere(
                 `${CachedExploreTableName}.name`,
@@ -321,17 +350,61 @@ export class CatalogModel {
         }
 
         if (catalogTags) {
-            catalogItemsQuery = catalogItemsQuery.whereExists(
-                function getAllCatalogCategoriesThatMatchTags() {
-                    void this.select('*')
-                        .from(CatalogTagsTableName)
-                        .whereRaw(
-                            `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                        )
-                        .whereIn(
-                            `${CatalogTagsTableName}.tag_uuid`,
-                            catalogTags,
-                        );
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                function getCatalogItemsWithTags() {
+                    const regularTags = catalogTags.filter(
+                        (tag) => tag !== UNCATEGORIZED_TAG_UUID,
+                    );
+                    const includeUncategorized = catalogTags.includes(
+                        UNCATEGORIZED_TAG_UUID,
+                    );
+
+                    if (regularTags.length > 0 && includeUncategorized) {
+                        // Show items that either:
+                        // 1. Have no tags OR
+                        // 2. Have any of the specified tags
+                        void this.where(function getUncategorizedItems() {
+                            void this.whereNotExists(function noTags() {
+                                void this.select('*')
+                                    .from(CatalogTagsTableName)
+                                    .whereRaw(
+                                        `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                    );
+                            }).orWhereExists(function hasSpecificTags() {
+                                void this.select('*')
+                                    .from(CatalogTagsTableName)
+                                    .whereRaw(
+                                        `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                    )
+                                    .whereIn(
+                                        `${CatalogTagsTableName}.tag_uuid`,
+                                        regularTags,
+                                    );
+                            });
+                        });
+                    } else if (includeUncategorized) {
+                        // Show only items with no tags
+                        void this.whereNotExists(function noTags() {
+                            void this.select('*')
+                                .from(CatalogTagsTableName)
+                                .whereRaw(
+                                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                );
+                        });
+                    } else {
+                        // Show only items with specified tags
+                        void this.whereExists(function hasSpecificTags() {
+                            void this.select('*')
+                                .from(CatalogTagsTableName)
+                                .whereRaw(
+                                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                                )
+                                .whereIn(
+                                    `${CatalogTagsTableName}.tag_uuid`,
+                                    regularTags,
+                                );
+                        });
+                    }
                 },
             );
         }
@@ -342,18 +415,6 @@ export class CatalogModel {
                 getFullTextSearchQuery(searchQuery),
             );
         }
-
-        catalogItemsQuery = catalogItemsQuery.groupBy(
-            `${CatalogTableName}.catalog_search_uuid`,
-            `${CatalogTableName}.name`,
-            `${CatalogTableName}.description`,
-            `${CatalogTableName}.type`,
-            `${CachedExploreTableName}.explore`,
-            `${CatalogTableName}.required_attributes`,
-            `${CatalogTableName}.chart_usage`,
-            `${CatalogTableName}.search_vector`,
-            'search_rank',
-        );
 
         catalogItemsQuery = catalogItemsQuery
             .orderBy('search_rank', 'desc')
@@ -373,10 +434,13 @@ export class CatalogModel {
             catalogItemsQuery.select<
                 (DbCatalog & {
                     explore: Explore;
-                    catalog_tags: Pick<Tag, 'tagUuid' | 'name' | 'color'>[];
                 })[]
             >(),
             paginateArgs,
+        );
+
+        const tagsPerItem = await this.getTagsPerItem(
+            paginatedCatalogItems.data.map((item) => item.catalog_search_uuid),
         );
 
         const catalog = await wrapSentryTransaction(
@@ -384,7 +448,14 @@ export class CatalogModel {
             {
                 catalogSize: paginatedCatalogItems.data.length,
             },
-            async () => paginatedCatalogItems.data.map(parseCatalog),
+            async () =>
+                paginatedCatalogItems.data.map((item) =>
+                    parseCatalog({
+                        ...item,
+                        catalog_tags:
+                            tagsPerItem[item.catalog_search_uuid] ?? [],
+                    }),
+                ),
         );
 
         return {
@@ -846,16 +917,24 @@ export class CatalogModel {
             })
             .innerJoin(
                 { source_metric: CatalogTableName },
-                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                `source_metric.catalog_search_uuid`,
+                function joinSource() {
+                    void this.on(
+                        `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                        '=',
+                        `source_metric.catalog_search_uuid`,
+                    ).andOnVal('source_metric.project_uuid', '=', projectUuid);
+                },
             )
             .innerJoin(
                 { target_metric: CatalogTableName },
-                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                `target_metric.catalog_search_uuid`,
-            )
-            .where('source_metric.project_uuid', projectUuid)
-            .andWhere('target_metric.project_uuid', projectUuid);
+                function joinTarget() {
+                    void this.on(
+                        `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                        '=',
+                        `target_metric.catalog_search_uuid`,
+                    ).andOnVal('target_metric.project_uuid', '=', projectUuid);
+                },
+            );
 
         return edges.map((e) => ({
             source: {
@@ -891,5 +970,17 @@ export class CatalogModel {
             MetricsTreeEdgesTableName,
             metricTreeEdgesMigrateIn,
         );
+    }
+
+    async hasMetricsInCatalog(projectUuid: string): Promise<boolean> {
+        const result = await this.database(CatalogTableName)
+            .where({
+                project_uuid: projectUuid,
+                type: CatalogType.Field,
+                field_type: FieldType.METRIC,
+            })
+            .first();
+
+        return result !== undefined;
     }
 }

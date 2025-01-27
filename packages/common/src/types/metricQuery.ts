@@ -1,3 +1,4 @@
+import { type AnyType } from './any';
 import {
     BinType,
     friendlyName,
@@ -39,14 +40,14 @@ export interface AdditionalMetric {
     formatOptions?: CustomFormat;
 }
 
-export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
+export const isAdditionalMetric = (value: AnyType): value is AdditionalMetric =>
     value?.table &&
     value?.name &&
     !value?.fieldType &&
     !isCustomDimension(value);
 
 export const hasFormatOptions = (
-    value: any,
+    value: AnyType,
 ): value is { formatOptions: CustomFormat } => !!value.formatOptions;
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
@@ -88,11 +89,11 @@ export const getAdditionalMetricLabel = (item: AdditionalMetric) =>
 type FilterGroupResponse =
     | {
           id: string;
-          or: any[];
+          or: AnyType[];
       }
     | {
           id: string;
-          and: any[];
+          and: AnyType[];
       };
 export type FiltersResponse = {
     dimensions?: FilterGroupResponse;
@@ -150,9 +151,9 @@ export type MetricQueryRequest = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
     filters: {
-        dimensions?: any;
-        metrics?: any;
-        tableCalculations?: any;
+        dimensions?: AnyType;
+        metrics?: AnyType;
+        tableCalculations?: AnyType;
     };
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query

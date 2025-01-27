@@ -223,20 +223,30 @@ export const HeaderEdit: FC = () => {
                             </HoverCard.Dropdown>
                         </HoverCard>
 
-                        <Tooltip
-                            variant="xs"
-                            label="Back to view page"
-                            position="bottom"
-                        >
-                            <ActionIcon
-                                data-testid="back-to-view-page-button"
+                        {hasChanges ? (
+                            <Button
+                                size="xs"
                                 variant="default"
-                                size="md"
                                 onClick={handleGoBackToViewPage}
                             >
-                                <MantineIcon icon={IconArrowBack} />
-                            </ActionIcon>
-                        </Tooltip>
+                                Cancel
+                            </Button>
+                        ) : (
+                            <Tooltip
+                                variant="xs"
+                                label="Back to view page"
+                                position="bottom"
+                            >
+                                <ActionIcon
+                                    data-testid="back-to-view-page-button"
+                                    variant="default"
+                                    size="md"
+                                    onClick={handleGoBackToViewPage}
+                                >
+                                    <MantineIcon icon={IconArrowBack} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         <Menu
                             position="bottom"
                             withArrow

@@ -31,8 +31,12 @@ import {
     setCategoryFilters,
     setOrganizationUuid,
     setProjectUuid,
-    toggleMetricPeekModal,
+    setSearch,
+    setTableSorting,
+    setUser,
+    toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
+import { type MetricCatalogView } from '../types';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
 
@@ -156,7 +160,13 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['sx'] }> = ({
     );
 };
 
-export const MetricsCatalogPanel = () => {
+type MetricsCatalogPanelProps = {
+    metricCatalogView: MetricCatalogView;
+};
+
+export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
+    metricCatalogView,
+}) => {
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
     const { show: showIntercom } = useIntercom();
@@ -165,8 +175,16 @@ export const MetricsCatalogPanel = () => {
     );
     const navigate = useNavigate();
     const categoriesParam = useSearchParams('categories');
+    const searchParam = useSearchParams('search');
+    const sortingParam = useSearchParams('sortBy');
+    const sortDirectionParam = useSearchParams('sortDirection');
+
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
+    );
+    const search = useAppSelector((state) => state.metricsCatalog.search);
+    const tableSorting = useAppSelector(
+        (state) => state.metricsCatalog.tableSorting,
     );
 
     const organizationUuid = useAppSelector(
@@ -215,11 +233,40 @@ export const MetricsCatalogPanel = () => {
     useEffect(() => {
         const urlCategories =
             categoriesParam?.split(',').map(decodeURIComponent) || [];
+        const urlSearch = searchParam
+            ? decodeURIComponent(searchParam)
+            : undefined;
+        const urlSortByParam = sortingParam
+            ? decodeURIComponent(sortingParam)
+            : undefined;
+        const urlSortDirectionParam = sortDirectionParam
+            ? decodeURIComponent(sortDirectionParam)
+            : undefined;
+
         dispatch(setCategoryFilters(urlCategories));
-    }, [categoriesParam, dispatch]);
+        dispatch(setSearch(urlSearch));
+
+        if (urlSortByParam) {
+            dispatch(
+                setTableSorting([
+                    {
+                        id: urlSortByParam,
+                        desc: urlSortDirectionParam === 'desc',
+                    },
+                ]),
+            );
+        }
+    }, [
+        categoriesParam,
+        dispatch,
+        searchParam,
+        sortingParam,
+        sortDirectionParam,
+    ]);
 
     useEffect(() => {
         const queryParams = new URLSearchParams(window.location.search);
+
         if (categories.length > 0) {
             queryParams.set(
                 'categories',
@@ -228,8 +275,24 @@ export const MetricsCatalogPanel = () => {
         } else {
             queryParams.delete('categories');
         }
+
+        if (search) {
+            queryParams.set('search', encodeURIComponent(search));
+        } else {
+            queryParams.delete('search');
+        }
+
+        if (tableSorting.length > 0) {
+            // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
+            queryParams.set('sortBy', encodeURIComponent(tableSorting[0].id));
+            queryParams.set(
+                'sortDirection',
+                encodeURIComponent(tableSorting[0].desc ? 'desc' : 'asc'),
+            );
+        }
+
         void navigate({ search: queryParams.toString() }, { replace: true });
-    }, [categories, navigate]);
+    }, [categories, search, tableSorting, navigate]);
 
     useEffect(
         function handleAbilities() {
@@ -248,13 +311,29 @@ export const MetricsCatalogPanel = () => {
 
                 const canManageExplore = user.data.ability.can(
                     'manage',
-                    'Explore',
+                    subject('Explore', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
                 );
 
                 const canManageMetricsTree = user.data.ability.can(
                     'manage',
-                    'MetricsTree',
+                    subject('MetricsTree', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
                 );
+
+                const canManageSpotlight = user.data.ability.can(
+                    'manage',
+                    subject('SpotlightTableConfig', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
+                );
+
+                dispatch(setUser({ userUuid: user.data.userUuid }));
 
                 dispatch(
                     setAbility({
@@ -262,6 +341,7 @@ export const MetricsCatalogPanel = () => {
                         canRefreshCatalog,
                         canManageExplore,
                         canManageMetricsTree,
+                        canManageSpotlight,
                     }),
                 );
             }
@@ -270,10 +350,10 @@ export const MetricsCatalogPanel = () => {
     );
 
     useEffect(
-        function openMetricPeekModal() {
+        function openMetricExploreModal() {
             if (tableName && metricName) {
                 dispatch(
-                    toggleMetricPeekModal({
+                    toggleMetricExploreModal({
                         name: metricName,
                         tableName,
                     }),
@@ -364,7 +444,7 @@ export const MetricsCatalogPanel = () => {
                     <LearnMorePopover buttonStyles={headerButtonStyles} />
                 </Group>
             </Group>
-            <MetricsTable />
+            <MetricsTable metricCatalogView={metricCatalogView} />
             <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}

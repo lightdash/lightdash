@@ -1,5 +1,11 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
-import * as Sentry from '@sentry/react';
+import {
+    browserTracingIntegration,
+    init,
+    replayIntegration,
+    setTag,
+    setUser,
+} from '@sentry/react';
 import { useEffect, useState } from 'react';
 
 const useSentry = (
@@ -10,13 +16,13 @@ const useSentry = (
 
     useEffect(() => {
         if (sentryConfig && !isSentryLoaded && sentryConfig.frontend.dsn) {
-            Sentry.init({
+            init({
                 dsn: sentryConfig.frontend.dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [
-                    Sentry.browserTracingIntegration(),
-                    Sentry.replayIntegration(),
+                    browserTracingIntegration(),
+                    replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {
                     if (samplingContext.parentSampled !== undefined) {
@@ -30,12 +36,12 @@ const useSentry = (
             setIsSentryLoaded(true);
         }
         if (user) {
-            Sentry.setUser({
+            setUser({
                 id: user.userUuid,
                 email: user.email,
                 username: user.email,
             });
-            Sentry.setTag('organization', user.organizationUuid);
+            setTag('organization', user.organizationUuid);
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
 };

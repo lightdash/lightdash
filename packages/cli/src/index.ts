@@ -1,6 +1,11 @@
 #!/usr/bin/env node
-import { LightdashError, ValidationTarget } from '@lightdash/common';
+import {
+    getErrorMessage,
+    LightdashError,
+    ValidationTarget,
+} from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
+import { validate } from 'uuid';
 import { findDbtDefaultProfile } from './dbt/profile';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
@@ -54,6 +59,20 @@ function parseUseDbtListOption(value: string | undefined): boolean {
         return true;
     }
     return value.toLowerCase() !== 'false';
+}
+
+function parseProjectArgument(value: string | undefined): string | undefined {
+    if (value === undefined) {
+        throw new InvalidArgumentError('No project argument provided.');
+    }
+
+    const isValidUuid = validate(value);
+
+    if (!isValidUuid) {
+        throw new InvalidArgumentError('Not a valid project UUID.');
+    }
+
+    return value;
 }
 
 program
@@ -444,7 +463,19 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option(
+        '-p, --path <path>',
+        'specify a custom path to download charts and dashboards',
+        undefined,
+    )
+    .option(
+        '--project <project uuid>',
+        'specify a project UUID to download',
+        parseProjectArgument,
+        undefined,
+    )
     .action(downloadHandler);
+
 program
     .command('upload')
     .description('Uploads charts and dashboards as code')
@@ -463,6 +494,17 @@ program
         '--force',
         'Force upload even if local files have not changed, use this when you want to upload files to a new project',
         false,
+    )
+    .option(
+        '-p, --path <path>',
+        'specify a custom path to upload charts and dashboards from',
+        undefined,
+    )
+    .option(
+        '--project <project uuid>',
+        'specify a project UUID to upload',
+        parseProjectArgument,
+        undefined,
     )
     .action(uploadHandler);
 
@@ -711,7 +753,7 @@ ${styles.bold('Examples:')}
     .action(generateExposuresHandler);
 
 const errorHandler = (err: Error) => {
-    console.error(styles.error(err.message || 'Error had no message'));
+    console.error(styles.error(getErrorMessage(err)));
     if (err.name === 'AuthorizationError') {
         console.error(
             `Looks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,

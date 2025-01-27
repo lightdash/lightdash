@@ -1,3 +1,4 @@
+import { type AnyType } from '../types/any';
 import { type RawResultRow } from '../types/results';
 import { type ChartKind } from '../types/savedCharts';
 import {
@@ -75,7 +76,6 @@ export class TableDataModel {
                     reference: key,
                     label: this.columnsConfig?.[key]?.label ?? key,
                     frozen: this.columnsConfig?.[key]?.frozen ?? false,
-                    order: this.columnsConfig?.[key]?.order,
                 },
             }),
             {},
@@ -135,7 +135,7 @@ export class TableDataModel {
 
     // eslint-disable-next-line class-methods-use-this
     getSpec(_display?: VizTableDisplay): {
-        spec: Record<string, any>;
+        spec: Record<string, AnyType>;
         tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
     } {
         return {

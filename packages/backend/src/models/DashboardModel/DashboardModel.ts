@@ -590,12 +590,17 @@ export class DashboardModel {
         );
     }
 
-    async getSlugsForUuids(uuids: string[]): Promise<string[]> {
+    async getSlugsForUuids(uuids: string[]): Promise<Record<string, string>> {
         // Uuids are globally unique, so no need to filter by project
         const dashboards = await this.database(DashboardsTableName)
-            .select('slug')
+            .select('slug', 'dashboard_uuid')
             .whereIn('dashboard_uuid', uuids);
-        return dashboards.map((dashboard) => dashboard.slug);
+        return Object.fromEntries(
+            dashboards.map((dashboard) => [
+                dashboard.dashboard_uuid,
+                dashboard.slug,
+            ]),
+        );
     }
 
     async find({
@@ -607,13 +612,17 @@ export class DashboardModel {
         slug?: string;
         slugs?: string[];
     }): Promise<
-        Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>[]
+        Pick<
+            DashboardDAO,
+            'uuid' | 'name' | 'spaceUuid' | 'description' | 'slug'
+        >[]
     > {
         const query = this.database(DashboardsTableName).select(
             `${DashboardsTableName}.name`,
             `${DashboardsTableName}.dashboard_uuid`,
             `${SpaceTableName}.space_uuid`,
             `${DashboardsTableName}.description`,
+            `${DashboardsTableName}.slug`,
         );
 
         if (projectUuid) {
@@ -644,11 +653,18 @@ export class DashboardModel {
         const dashboards = await query;
 
         return dashboards.map(
-            ({ name, dashboard_uuid, space_uuid, description }) => ({
+            ({
+                name,
+                dashboard_uuid,
+                space_uuid,
+                description,
+                slug: dashboardSlug,
+            }) => ({
                 name,
                 description,
                 uuid: dashboard_uuid,
                 spaceUuid: space_uuid,
+                slug: dashboardSlug,
             }),
         );
     }

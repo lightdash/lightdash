@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
     WarehouseTypes,
@@ -24,7 +25,7 @@ const columnBase = {
     table_name: config[0].table.toUpperCase(),
 };
 
-export const columns: Record<string, any>[] = [
+export const columns: Record<string, AnyType>[] = [
     {
         ...columnBase,
         column_name: 'MYSTRINGCOLUMN',
@@ -168,7 +169,7 @@ export const expectedWarehouseSchema = {
     },
 };
 
-export const expectedFields: Record<string, any> = {
+export const expectedFields: Record<string, AnyType> = {
     MYSTRINGCOLUMN: { type: DimensionType.STRING },
     MYNUMBERCOLUMN: { type: DimensionType.NUMBER },
     MYDATECOLUMN: { type: DimensionType.DATE },
@@ -178,7 +179,7 @@ export const expectedFields: Record<string, any> = {
     MYOBJECTCOLUMN: { type: DimensionType.STRING },
 };
 
-export const expectedRow: Record<string, any> = {
+export const expectedRow: Record<string, AnyType> = {
     MYSTRINGCOLUMN: 'string value',
     MYNUMBERCOLUMN: 100,
     MYDATECOLUMN: new Date('2021-03-10T00:00:00.000Z'),

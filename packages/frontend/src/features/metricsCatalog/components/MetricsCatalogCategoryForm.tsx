@@ -1,4 +1,8 @@
-import { type CatalogField, type Tag } from '@lightdash/common';
+import {
+    getErrorMessage,
+    type CatalogField,
+    type Tag,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -43,6 +47,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
     ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
         const { track } = useTracking();
         const { colors } = useMantineTheme();
+        const userUuid = useAppSelector(
+            (state) => state.metricsCatalog.user?.userUuid,
+        );
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
         );
@@ -107,6 +114,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     track({
                         name: EventName.METRICS_CATALOG_CATEGORY_CLICKED,
                         properties: {
+                            userId: userUuid,
                             organizationId: organizationUuid,
                             projectId: projectUuid,
                             tagName,
@@ -115,13 +123,16 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     });
                 } catch (error) {
                     // TODO: Add toast on error
-                    console.error('Error adding tag:', error);
+                    console.error(
+                        `Error adding tag: ${getErrorMessage(error)}`,
+                    );
                 }
             },
             [
                 projectUuid,
                 tags,
                 track,
+                userUuid,
                 organizationUuid,
                 tagCatalogItemMutation,
                 catalogSearchUuid,
@@ -141,7 +152,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         tagUuid,
                     });
                 } catch (error) {
-                    console.error('Error removing tag', error);
+                    console.error(
+                        `Error removing tag: ${getErrorMessage(error)}`,
+                    );
                 }
             },
             [projectUuid, untagCatalogItemMutation, catalogSearchUuid],

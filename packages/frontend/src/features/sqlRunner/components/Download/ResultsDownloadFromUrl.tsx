@@ -50,14 +50,17 @@ export const ResultsDownloadFromUrl: FC<Props> = ({
                     <NumberInput
                         size="xs"
                         type="number"
-                        label="Limit"
+                        label="Row limit:"
+                        step={100}
+                        min={1}
+                        autoFocus
+                        required
                         defaultValue={DEFAULT_SQL_LIMIT}
                         onChange={(value: number) => setCustomLimit(value)}
                     />
                     <Button
                         size="xs"
                         ml="auto"
-                        leftIcon={<MantineIcon icon={IconDownload} />}
                         onClick={handleDownload}
                         loading={isLoading}
                     >

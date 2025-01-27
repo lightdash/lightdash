@@ -1,5 +1,5 @@
-import { type CreateProject } from '../index';
 import assertUnreachable from '../utils/assertUnreachable';
+import { type AnyType } from './any';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
 import { type MetricQuery } from './metricQuery';
@@ -69,7 +69,7 @@ export type SchedulerLog = {
     status: SchedulerJobStatus;
     target?: string;
     targetType?: 'email' | 'slack' | 'gsheets';
-    details?: Record<string, any>;
+    details?: Record<string, AnyType>;
 };
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
@@ -420,7 +420,7 @@ export type SchedulerCreateProjectWithCompilePayload = {
     organizationUuid: string;
     requestMethod: string;
     isPreview: boolean;
-    data: CreateProject;
+    data: string; // base64 string (CreateProject)
     jobUuid: string;
 };
 
@@ -453,7 +453,7 @@ export type ApiJobStatusResponse = {
     status: 'ok';
     results: {
         status: SchedulerJobStatus;
-        details: Record<string, any> | null;
+        details: Record<string, AnyType> | null;
     };
 };
 

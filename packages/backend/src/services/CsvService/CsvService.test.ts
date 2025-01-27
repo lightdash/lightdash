@@ -25,6 +25,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
@@ -62,6 +63,7 @@ describe('Csv service', () => {
             tagsModel: {} as TagsModel,
             catalogModel: {} as CatalogModel,
             contentModel: {} as ContentModel,
+            encryptionUtil: {} as EncryptionUtil,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

@@ -1,5 +1,6 @@
 import {
     friendlyName,
+    getErrorMessage,
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
@@ -142,7 +143,9 @@ export class SlackClient {
                     ? [...allChannels, ...conversations.channels]
                     : allChannels;
             } catch (e) {
-                Logger.error(`Unable to fetch slack channels ${e}`);
+                Logger.error(
+                    `Unable to fetch slack channels: ${getErrorMessage(e)}`,
+                );
                 Sentry.captureException(e);
                 break;
             }
@@ -166,7 +169,9 @@ export class SlackClient {
                     ? [...allUsers, ...users.members]
                     : allUsers;
             } catch (e) {
-                Logger.error(`Unable to fetch slack users ${e}`);
+                Logger.error(
+                    `Unable to fetch slack users: ${getErrorMessage(e)}`,
+                );
                 Sentry.captureException(e);
 
                 break;
@@ -211,7 +216,9 @@ export class SlackClient {
             await Promise.all(joinPromises);
         } catch (e) {
             Logger.error(
-                `Unable to join channels ${channels} on organization ${organizationUuid}: ${e}`,
+                `Unable to join channels ${channels} on organization ${organizationUuid}: ${getErrorMessage(
+                    e,
+                )}`,
             );
         }
     }
@@ -240,9 +247,9 @@ export class SlackClient {
                 ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 ...slackMessageArgs,
             })
-            .catch((e: any) => {
+            .catch((e) => {
                 Logger.error(
-                    `Unable to post message on Slack: ${JSON.stringify(e)}`,
+                    `Unable to post message on Slack: ${getErrorMessage(e)}`,
                 );
                 throw e;
             });
@@ -276,9 +283,9 @@ export class SlackClient {
                         ? { icon_url: appProfilePhotoUrl }
                         : {}),
                 })
-                .catch((e: any) => {
+                .catch((e) => {
                     Logger.error(
-                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${JSON.stringify(
+                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${getErrorMessage(
                             e,
                         )}`,
                     );
@@ -442,5 +449,34 @@ export class SlackClient {
         const fileUrl = await waitForFileReady(uploadedFile?.id);
 
         return fileUrl;
+    }
+
+    /**
+     * Helper method to try to upload an image to slack, so it can be used in blocks without expiration
+     * If it fails, we will keep using the same URL (s3)
+     */
+    async tryUploadingImageToSlack(
+        organizationUuid: string,
+        imageUrl: string | undefined,
+        name: string,
+    ) {
+        try {
+            if (!imageUrl) {
+                return { url: imageUrl, expiring: true };
+            }
+            const response = await fetch(imageUrl);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const slackFileUrl = await this.uploadFile({
+                organizationUuid,
+                file: buffer,
+                title: name,
+            });
+            return { url: slackFileUrl, expiring: false };
+        } catch (e) {
+            Logger.error(
+                `Failed to upload image to slack: ${getErrorMessage(e)}`,
+            );
+            return { url: imageUrl, expiring: true };
+        }
     }
 }

@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AnyType,
     BinType,
     ChartConfig,
     ChartKind,
@@ -76,7 +77,7 @@ type DbSavedChartDetails = {
     description: string | undefined;
     saved_queries_version_id: number;
     explore_name: string;
-    filters: any;
+    filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null;
     chart_type: ChartConfig['type'];
@@ -1209,6 +1210,7 @@ export class SavedChartModel {
         slugs?: string[];
         exploreName?: string;
         excludeChartsSavedInDashboard?: boolean;
+        includeOrphanChartsWithinDashboard?: boolean;
     }): Promise<(ChartSummary & { updatedAt: Date })[]> {
         return Sentry.startSpan(
             {
@@ -1226,6 +1228,9 @@ export class SavedChartModel {
 
                 if (filters.excludeChartsSavedInDashboard) {
                     void query.whereNotNull(`${SavedChartsTableName}.space_id`); // Note: charts saved in dashboards have saved_queries.space_id = null
+                }
+                if (filters.includeOrphanChartsWithinDashboard) {
+                    // Ignore chart_uuid to be in dashboard_tiles
                 } else {
                     // Get charts not saved in a dashboard OR the charts saved a dashboard AND used in the latest dashboard version
                     void query

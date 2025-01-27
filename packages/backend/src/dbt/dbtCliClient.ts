@@ -1,9 +1,11 @@
 import {
+    AnyType,
     assertUnreachable,
     DbtError,
     DbtLog,
     DbtPackages,
     DbtRpcGetManifestResults,
+    getErrorMessage,
     isDbtLog,
     isDbtPackages,
     isDbtRpcManifestResults,
@@ -11,7 +13,7 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import execa from 'execa';
+import execa, { ExecaError, ExecaReturnValue } from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
@@ -27,7 +29,7 @@ type RawDbtProjectConfig = {
     'target-dir'?: string;
 };
 
-const isRawDbtConfig = (raw: any): raw is RawDbtProjectConfig =>
+const isRawDbtConfig = (raw: AnyType): raw is RawDbtProjectConfig =>
     typeof raw === 'object' &&
     raw !== null &&
     (raw['target-dir'] === undefined || typeof raw['target-dir'] === 'string');
@@ -41,7 +43,9 @@ export const getDbtConfig = async (
         config = loadYaml(await fs.readFile(configPath, 'utf-8'));
     } catch (e) {
         throw new ParseError(
-            `dbt_project.yml was not found or isn't a valid yaml document: ${e.message}`,
+            `dbt_project.yml was not found or isn't a valid yaml document: ${getErrorMessage(
+                e,
+            )}`,
             {},
         );
     }
@@ -66,6 +70,7 @@ type DbtCliArgs = {
     target?: string;
     dbtVersion: SupportedDbtVersions;
     useDbtLs?: boolean;
+    selector?: string;
 };
 
 enum DbtCommands {
@@ -94,6 +99,8 @@ export class DbtCliClient implements DbtClient {
 
     useDbtLs: boolean;
 
+    selector?: string;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -102,6 +109,7 @@ export class DbtCliClient implements DbtClient {
         target,
         dbtVersion,
         useDbtLs,
+        selector,
     }: DbtCliArgs) {
         this.dbtProjectDirectory = dbtProjectDirectory;
         this.dbtProfilesDirectory = dbtProfilesDirectory;
@@ -111,6 +119,11 @@ export class DbtCliClient implements DbtClient {
         this.targetDirectory = undefined;
         this.dbtVersion = dbtVersion;
         this.useDbtLs = useDbtLs ?? false;
+        this.selector = selector;
+    }
+
+    getSelector(): string | undefined {
+        return this.selector;
     }
 
     private async _getTargetDirectory(): Promise<string> {
@@ -171,12 +184,14 @@ export class DbtCliClient implements DbtClient {
             '--project-dir',
             this.dbtProjectDirectory,
         ];
+
         if (this.target) {
             dbtArgs.push('--target', this.target);
         }
         if (this.profileName) {
             dbtArgs.push('--profile', this.profileName);
         }
+
         try {
             Logger.debug(
                 `Running dbt command with version "${
@@ -195,15 +210,25 @@ export class DbtCliClient implements DbtClient {
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
             Logger.error(
-                `Error running dbt command with version ${this.dbtVersion}: ${e}`,
+                `Error running dbt command with version ${
+                    this.dbtVersion
+                }: ${getErrorMessage(e)}`,
             );
-
-            throw new DbtError(
-                `Failed to run "${dbtExec} ${command.join(
-                    ' ',
-                )}" with dbt version "${this.dbtVersion}"`,
-                DbtCliClient.parseDbtJsonLogs(e.all),
-            );
+            // TODO parse ExecaError
+            const execaError = e as Partial<ExecaError>;
+            if (
+                execaError &&
+                'all' in execaError &&
+                typeof execaError.all === 'string'
+            ) {
+                throw new DbtError(
+                    `Failed to run "${dbtExec} ${command.join(
+                        ' ',
+                    )}" with dbt version "${this.dbtVersion}"`,
+                    DbtCliClient.parseDbtJsonLogs(execaError.all),
+                );
+            }
+            throw e;
         }
     }
 
@@ -219,6 +244,12 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
+    static validateSelector(selector: string): boolean {
+        // eslint-disable-next-line no-useless-escape
+        const validSelectorPattern = /^@?[a-zA-Z0-9\s\*\-\.\+:_]+$/;
+        return validSelectorPattern.test(selector);
+    }
+
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         return Sentry.startSpan(
             {
@@ -229,9 +260,18 @@ export class DbtCliClient implements DbtClient {
                 },
             },
             async () => {
-                const logs = await this._runDbtCommand(
-                    this.useDbtLs ? 'ls' : 'compile',
-                );
+                const dbtCommand = [];
+                const selector = this.selector?.trim();
+
+                if (selector) {
+                    if (!DbtCliClient.validateSelector(selector)) {
+                        throw new ParseError('Invalid dbt selector format');
+                    }
+                    dbtCommand.push('compile', '--select', `${selector}`);
+                } else {
+                    dbtCommand.push(this.useDbtLs ? 'ls' : 'compile');
+                }
+                const logs = await this._runDbtCommand(...dbtCommand);
                 const rawManifest = {
                     manifest: await this.loadDbtTargetArtifact('manifest.json'),
                 };
@@ -264,7 +304,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    private async loadDbtTargetArtifact(filename: string): Promise<any> {
+    private async loadDbtTargetArtifact(filename: string): Promise<AnyType> {
         const targetDir = await this._getTargetDirectory();
 
         const fullPath = path.join(
@@ -278,7 +318,7 @@ export class DbtCliClient implements DbtClient {
     static async loadDbtFile(
         fullPath: string,
         fileType: 'JSON' | 'YML' = 'JSON',
-    ): Promise<any> {
+    ): Promise<AnyType> {
         try {
             Logger.debug(`Load dbt artifact: ${fullPath}`);
             const file = await fs.readFile(fullPath, 'utf-8');

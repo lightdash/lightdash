@@ -33,7 +33,7 @@ type Props = {
     >;
 };
 
-export const MetricPeekComparison: FC<Props> = ({
+export const MetricExploreComparison: FC<Props> = ({
     baseMetricLabel,
     query,
     onQueryChange,
@@ -124,8 +124,7 @@ export const MetricPeekComparison: FC<Props> = ({
                         withinPortal
                     >
                         <Paper
-                            px="md"
-                            py="sm"
+                            p="sm"
                             sx={(theme) => ({
                                 cursor: 'pointer',
                                 transition: `all ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
@@ -190,6 +189,7 @@ export const MetricPeekComparison: FC<Props> = ({
                                                             metric,
                                                         ),
                                                         label: metric.label,
+                                                        group: metric.tableLabel,
                                                     }),
                                                 ) ?? []
                                             }

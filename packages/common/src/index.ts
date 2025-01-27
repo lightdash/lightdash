@@ -111,6 +111,8 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
+import { type AnyType } from './types/any';
+import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -163,14 +165,17 @@ export * from './compiler/translator';
 export * from './dbt/validation';
 export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
+export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
 export * from './types/analytics';
+export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/share';
 export * from './types/api/sort';
+export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
@@ -196,6 +201,7 @@ export * from './types/gitIntegration';
 export * from './types/groups';
 export * from './types/job';
 export * from './types/knex-paginate';
+export * from './types/lightdashProjectConfig';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
@@ -220,6 +226,7 @@ export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
+export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
@@ -244,6 +251,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
@@ -398,7 +406,7 @@ export const SEED_GROUP = {
 
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
-) => any
+) => AnyType
     ? A
     : never;
 
@@ -494,7 +502,7 @@ export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];
 
-export type ApiExploreResults = Explore;
+export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
@@ -714,7 +722,8 @@ type ApiResults =
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
-    | ApiMetricsExplorerTotalResults['results'];
+    | ApiMetricsExplorerTotalResults['results']
+    | ApiGetSpotlightTableConfig['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -889,6 +898,7 @@ export type CreateProject = Omit<
     | 'createdByUserUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
+    copyWarehouseConnectionFromUpstreamProject?: boolean;
 };
 
 export type UpdateProject = Omit<
@@ -1113,7 +1123,7 @@ export function itemsInMetricQuery(
 
 function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
-    value: any,
+    value: AnyType,
 ) {
     const isTimestamp =
         isField(field) &&
@@ -1129,7 +1139,7 @@ function formatRawValue(
 }
 
 export function formatRows(
-    rows: { [col: string]: any }[],
+    rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
     return rows.map((row) => {
@@ -1152,9 +1162,10 @@ export function formatRows(
     });
 }
 
-const isObject = (object: any) => object != null && typeof object === 'object';
-export const removeEmptyProperties = (object: Record<string, any>) => {
-    const newObj: Record<string, any> = {};
+const isObject = (object: AnyType) =>
+    object != null && typeof object === 'object';
+export const removeEmptyProperties = (object: Record<string, AnyType>) => {
+    const newObj: Record<string, AnyType> = {};
     Object.keys(object).forEach((key) => {
         if (object[key] === Object(object[key]))
             newObj[key] = removeEmptyProperties(object[key]);
@@ -1164,8 +1175,8 @@ export const removeEmptyProperties = (object: Record<string, any>) => {
     return newObj;
 };
 export const deepEqual = (
-    object1: Record<string, any>,
-    object2: Record<string, any>,
+    object1: Record<string, AnyType>,
+    object2: Record<string, AnyType>,
 ): boolean => {
     const keys1 = Object.keys(object1);
     const keys2 = Object.keys(object2);
@@ -1173,8 +1184,8 @@ export const deepEqual = (
         return false;
     }
     return keys1.every((key) => {
-        const val1: any = object1[key];
-        const val2: any = object2[key];
+        const val1: AnyType = object1[key];
+        const val2: AnyType = object2[key];
         const areObjects = isObject(val1) && isObject(val2);
         return !(
             (areObjects && !deepEqual(val1, val2)) ||

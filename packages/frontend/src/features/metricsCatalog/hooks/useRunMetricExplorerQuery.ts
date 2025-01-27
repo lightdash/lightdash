@@ -2,6 +2,7 @@ import {
     METRICS_EXPLORER_DATE_FORMAT,
     type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
+    type FilterRule,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type MetricTotalComparisonType,
@@ -20,6 +21,7 @@ type RunMetricExplorerQueryArgs = {
     dateRange: MetricExplorerDateRange;
     query: MetricExplorerQuery;
     timeDimensionOverride?: TimeDimensionConfig;
+    filter?: FilterRule;
 };
 
 const getUrlParams = ({
@@ -58,6 +60,7 @@ const postRunMetricExplorerQuery = async ({
     query,
     dateRange,
     timeDimensionOverride,
+    filter,
 }: RunMetricExplorerQueryArgs) => {
     const queryString = getUrlParams({ dateRange });
 
@@ -71,6 +74,7 @@ const postRunMetricExplorerQuery = async ({
         body: JSON.stringify({
             timeDimensionOverride,
             query,
+            filter,
         }),
     });
 
@@ -91,6 +95,7 @@ export const useRunMetricExplorerQuery = (
         query,
         dateRange,
         timeDimensionOverride,
+        filter,
     }: Partial<RunMetricExplorerQueryArgs>,
     options?: UseQueryOptions<ApiMetricsExplorerQueryResults['results']>,
 ) => {
@@ -104,6 +109,7 @@ export const useRunMetricExplorerQuery = (
             dateRange?.[1],
             query,
             timeDimensionOverride,
+            filter,
         ],
         queryFn: () =>
             postRunMetricExplorerQuery({
@@ -113,6 +119,7 @@ export const useRunMetricExplorerQuery = (
                 query: query!,
                 dateRange: dateRange!,
                 timeDimensionOverride,
+                filter,
             }),
         ...options,
     });

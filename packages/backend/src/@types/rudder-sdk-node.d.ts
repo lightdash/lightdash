@@ -1,4 +1,6 @@
 declare module '@rudderstack/rudder-sdk-node' {
+    import { AnyType } from '@lightdash/common';
+
     interface Options {
         flushAt?: number;
         flushInterval?: number;
@@ -8,30 +10,26 @@ declare module '@rudderstack/rudder-sdk-node' {
     interface Identify {
         anonymousId?: string;
         userId?: string;
-        traits?: Record<string, any>;
-        context?: Record<string, any>;
+        traits?: Record<string, AnyType>;
+        context?: Record<string, AnyType>;
     }
     interface Group {
         anonymousId?: string;
         userId?: string;
         groupId: string;
-        traits?: Record<string, any>;
-        context?: Record<string, any>;
+        traits?: Record<string, AnyType>;
+        context?: Record<string, AnyType>;
     }
     export interface Track {
         userId?: string;
         anonymousId?: string;
         event: string;
-        properties?: Record<string, any>;
-        context?: Record<string, any>;
+        properties?: Record<string, AnyType>;
+        context?: Record<string, AnyType>;
     }
 
     declare class Analytics {
-        constructor(
-            writeKey: string,
-            dataPlaneUrl: string,
-            options?: AnalyticsOptions,
-        );
+        constructor(writeKey: string, options?: AnalyticsOptions);
         identify(payload: Identify): void;
         track(payload: Track): void;
         group(payload: Group): void;

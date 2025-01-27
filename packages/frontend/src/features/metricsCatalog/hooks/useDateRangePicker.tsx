@@ -13,7 +13,7 @@ import {
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { formatDate, getDateRangePresets } from '../utils/metricPeekDate';
+import { formatDate, getDateRangePresets } from '../utils/metricExploreDate';
 
 dayjs.extend(isoWeek);
 

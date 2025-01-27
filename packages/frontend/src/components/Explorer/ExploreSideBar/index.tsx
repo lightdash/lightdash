@@ -235,13 +235,7 @@ const ExploreSideBar = memo(() => {
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Stack h="100%" sx={{ flexGrow: 1 }}>
-                {!tableName ? (
-                    <BasePanel />
-                ) : (
-                    <ExplorePanel onBack={handleBack} />
-                )}
-            </Stack>
+            {!tableName ? <BasePanel /> : <ExplorePanel onBack={handleBack} />}
         </TrackSection>
     );
 });

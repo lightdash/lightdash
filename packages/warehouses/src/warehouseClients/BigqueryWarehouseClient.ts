@@ -8,8 +8,10 @@ import {
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
+    AnyType,
     CreateBigqueryCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
     PartitionColumn,
@@ -44,7 +46,7 @@ export enum BigqueryFieldType {
     ARRAY = 'ARRAY',
 }
 
-const parseCell = (cell: any) => {
+const parseCell = (cell: AnyType) => {
     if (
         cell === undefined ||
         cell === null ||
@@ -104,7 +106,7 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-const parseRow = (row: Record<string, any>[]) =>
+const parseRow = (row: Record<string, AnyType>[]) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
@@ -121,9 +123,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
             });
-        } catch (e) {
+        } catch (e: unknown) {
             throw new WarehouseConnectionError(
-                `Failed connection to ${credentials.project} in ${credentials.location}. ${e.message}`,
+                `Failed connection to ${credentials.project} in ${
+                    credentials.location
+                }. ${getErrorMessage(e)}`,
             );
         }
     }
@@ -132,12 +136,29 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
     ): Promise<void> {
         try {
+            // Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed.
+            // But also, keys can't be longer than 60 characters, or empty.
+            const labels = options?.tags
+                ? Object.fromEntries(
+                      Object.entries(options.tags).map(([key, value]) => [
+                          key
+                              .toLowerCase()
+                              .replace(/[^a-z0-9_-]/g, '_')
+                              .substring(0, 60) || 'empty_key',
+                          value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9_-]/g, '_')
+                              .substring(0, 60) || 'empty_value',
+                      ]),
+                  )
+                : undefined;
+
             const [job] = await this.client.createQueryJob({
                 query,
                 params: options?.values,
@@ -150,7 +171,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 jobTimeoutMs:
                     this.credentials.timeoutSeconds &&
                     this.credentials.timeoutSeconds * 1000,
-                labels: options?.tags,
+                labels,
             });
 
             // Get the full api response but we can request zero rows
@@ -198,10 +219,20 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             });
 
             await streamPromise;
-        } catch (e) {
-            const response = e?.response as bigquery.IJob;
-            const responseError = response?.status?.errorResult || e;
-            throw this.parseError(responseError, query);
+        } catch (e: unknown) {
+            const isIJob = (error: unknown): error is bigquery.IJob =>
+                error !== null &&
+                typeof error === 'object' &&
+                'status' in error;
+
+            if (isIJob(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.status?.errorResult;
+                if (responseError) {
+                    throw this.parseError(responseError, query);
+                }
+            }
+            throw e;
         }
     }
 
@@ -241,7 +272,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     return undefined;
                 }
                 throw new WarehouseConnectionError(
-                    `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${e.message}`,
+                    `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${getErrorMessage(
+                        e,
+                    )}`,
                 );
             });
         });
@@ -312,8 +345,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     };
                 } catch (error) {
                     console.error(
-                        `Error fetching partition info for dataset ${dataset.id}:`,
-                        error,
+                        `Error fetching partition info for dataset ${
+                            dataset.id
+                        }: ${getErrorMessage(error)}`,
                     );
                     return {
                         datasetId: dataset.id,
@@ -381,7 +415,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     parseError(error: bigquery.IErrorProto, query: string = '') {
         // if the error has no reason, return a generic error
         if (!error?.reason) {
-            return new WarehouseQueryError(error?.message || 'Unknown error');
+            return new WarehouseQueryError(getErrorMessage(error));
         }
         switch (error?.reason) {
             // if query is mistyped
@@ -424,6 +458,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 break;
         }
         // otherwise return a generic error
-        return new WarehouseQueryError(error?.message || 'Unknown error');
+        return new WarehouseQueryError(getErrorMessage(error));
     }
 }

@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    AnyType,
     assertUnreachable,
     CreateProject,
     createVirtualView,
@@ -124,11 +125,13 @@ export class ProjectModel {
             ...incompleteConfig,
             ...sensitiveDbtCredentialsFieldNames.reduce(
                 (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
+                    !(incompleteConfig as AnyType)[secretKey] &&
+                    (completeConfig as AnyType)[secretKey]
                         ? {
                               ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
+                              [secretKey]: (completeConfig as AnyType)[
+                                  secretKey
+                              ],
                           }
                         : sum,
                 {},
@@ -147,11 +150,13 @@ export class ProjectModel {
             ...incompleteConfig,
             ...sensitiveCredentialsFieldNames.reduce(
                 (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
+                    !(incompleteConfig as AnyType)[secretKey] &&
+                    (completeConfig as AnyType)[secretKey]
                         ? {
                               ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
+                              [secretKey]: (completeConfig as AnyType)[
+                                  secretKey
+                              ],
                           }
                         : sum,
                 {},
@@ -729,7 +734,7 @@ export class ProjectModel {
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
                 ([key]) =>
-                    !sensitiveDbtCredentialsFieldNames.includes(key as any),
+                    !sensitiveDbtCredentialsFieldNames.includes(key as AnyType),
             ),
         ) as DbtProjectConfig;
 
@@ -737,7 +742,9 @@ export class ProjectModel {
             ? (Object.fromEntries(
                   Object.entries(sensitiveCredentials).filter(
                       ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(key as any),
+                          !sensitiveCredentialsFieldNames.includes(
+                              key as AnyType,
+                          ),
                   ),
               ) as WarehouseCredentials)
             : undefined;
@@ -796,17 +803,6 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
-    async getExploresFromCache(
-        projectUuid: string,
-    ): Promise<(Explore | ExploreError)[] | undefined> {
-        const explores = await this.database(CachedExploresTableName)
-            .select(['explores'])
-            .where('project_uuid', projectUuid)
-            .limit(1);
-        if (explores.length > 0) return explores[0].explores;
-        return undefined;
-    }
-
     static convertMetricFiltersFieldIdsToFieldRef = (
         explore: Explore | ExploreError,
     ) => {
@@ -835,16 +831,6 @@ export class ProjectModel {
 
         return convertedExplore;
     };
-
-    private getExploreQueryBuilder(projectUuid: string) {
-        return this.database(CachedExploresTableName)
-            .select<{ explore: Explore | ExploreError }[]>(['explore'])
-            .crossJoin(
-                this.database.raw('jsonb_array_elements(explores) as explore'),
-            )
-            .where('project_uuid', projectUuid)
-            .first();
-    }
 
     async findExploresFromCache(
         projectUuid: string,
@@ -883,63 +869,26 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        return wrapSentryTransaction(
-            'ProjectModel.getExploreFromCache',
-            {},
-            async (span) => {
-                // check individually cached explore
-                let exploreCache = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('name', exploreName)
-                    .andWhere('project_uuid', projectUuid)
-                    .first();
-
-                span.setAttribute(
-                    'foundIndividualExploreCache',
-                    !!exploreCache,
-                );
-                if (!exploreCache) {
-                    // fallback: check all cached explores
-                    exploreCache = await this.getExploreQueryBuilder(
-                        projectUuid,
-                    ).andWhereRaw("explore->>'name' = ?", [exploreName]);
-                    if (exploreCache === undefined) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" does not exist.`,
-                        );
-                    }
-                }
-                return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                    exploreCache.explore,
-                );
-            },
-        );
+        const cachedExplores = await this.findExploresFromCache(projectUuid, [
+            exploreName,
+        ]);
+        const cachedExplore = cachedExplores[exploreName];
+        if (cachedExplore === undefined) {
+            throw new NotExistsError(
+                `Explore "${exploreName}" does not exist.`,
+            );
+        }
+        return cachedExplore;
     }
 
     async findExploreByTableName(
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
-        return wrapSentryTransaction(
-            'ProjectModel.findExploreByTableName',
-            {},
-            async (span) => {
-                const exploreCache = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('name', tableName)
-                    .andWhere('project_uuid', projectUuid)
-                    .first();
-                span.setAttribute(
-                    'foundIndividualExploreCache',
-                    !!exploreCache,
-                );
-                return exploreCache
-                    ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                          exploreCache.explore,
-                      )
-                    : undefined;
-            },
-        );
+        const cachedExplores = await this.findExploresFromCache(projectUuid, [
+            tableName,
+        ]);
+        return cachedExplores[tableName];
     }
 
     // Returns explore based on the join original name rather than the explore with the join.
@@ -1052,6 +1001,10 @@ export class ProjectModel {
                     [...explores, ...virtualViews.map((e) => e.explore)],
                     (a, b) => a.name === b.name,
                 );
+
+                if (uniqueExplores.length <= 0) {
+                    throw new ParameterError('No explores to save');
+                }
 
                 // cache explores individually
                 await this.database(CachedExploreTableName)
@@ -1241,7 +1194,7 @@ export class ProjectModel {
                 role,
                 user_id: user.user_id,
             });
-        } catch (error: any) {
+        } catch (error: AnyType) {
             if (
                 error instanceof DatabaseError &&
                 error.constraint ===
@@ -1787,7 +1740,9 @@ export class ProjectModel {
             const copyChartVersionContent = async (
                 table: string,
                 excludedFields: string[],
-                fieldPreprocess: { [field: string]: (value: any) => any } = {},
+                fieldPreprocess: {
+                    [field: string]: (value: AnyType) => AnyType;
+                } = {},
             ) => {
                 const content = await trx(table)
                     .whereIn('saved_queries_version_id', chartVersionIds)
@@ -1829,7 +1784,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
-                { custom_range: (value: any) => JSON.stringify(value) },
+                { custom_range: (value: AnyType) => JSON.stringify(value) },
             );
             await copyChartVersionContent(
                 SavedChartCustomSqlDimensionsTableName,
@@ -1844,7 +1799,7 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
                 ['saved_queries_version_additional_metric_id', 'uuid'],
-                { filters: (value: any) => JSON.stringify(value) },
+                { filters: (value: AnyType) => JSON.stringify(value) },
             );
 
             // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8

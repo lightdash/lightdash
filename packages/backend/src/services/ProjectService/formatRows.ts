@@ -1,13 +1,8 @@
-import {
-    Field,
-    formatRows,
-    ItemsMap,
-    TableCalculation,
-} from '@lightdash/common';
+import { AnyType, formatRows, ItemsMap } from '@lightdash/common';
 import { parentPort, workerData } from 'worker_threads';
 
 type Args = {
-    rows: Record<string, any>[];
+    rows: Record<string, AnyType>[];
     itemMap: ItemsMap;
 };
 

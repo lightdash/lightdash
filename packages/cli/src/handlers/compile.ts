@@ -2,34 +2,29 @@ import {
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
+    DEFAULT_SPOTLIGHT_CONFIG,
+    getCompiledModels,
     getDbtManifestVersion,
+    getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
-    isWeekDay,
+    loadLightdashProjectConfig,
     ParseError,
     WarehouseCatalog,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
-import { getModelsFromManifest } from '../dbt/models';
-import {
-    loadDbtTarget,
-    warehouseCredentialsFromDbtTarget,
-} from '../dbt/profile';
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import {
-    DbtCompileOptions,
-    getCompiledModels,
-    maybeCompileModelsAndJoins,
-} from './dbt/compile';
+import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
+import getWarehouseClient from './dbt/getWarehouseClient';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -39,6 +34,25 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
+};
+
+const readAndLoadLightdashProjectConfig = async (projectDir: string) => {
+    const configPath = path.join(projectDir, 'lightdash.config.yml');
+    try {
+        const fileContents = await fs.readFile(configPath, 'utf8');
+        const config = await loadLightdashProjectConfig(fileContents);
+        return config;
+    } catch (e) {
+        GlobalState.debug(`No lightdash.config.yml found in ${configPath}`);
+
+        if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+            // Return default config if file doesn't exist
+            return {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            };
+        }
+        throw e;
+    }
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
@@ -57,37 +71,23 @@ export const compile = async (options: CompileHandlerOptions) => {
     });
 
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const absoluteProfilesPath = path.resolve(options.profilesDir);
 
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
-    GlobalState.debug(`> Compiling with profiles dir ${absoluteProfilesPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const { warehouseClient } = await getWarehouseClient({
+        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
+    });
 
     const compiledModelIds: string[] | undefined =
         await maybeCompileModelsAndJoins(
             { targetDir: context.targetDir },
             options,
         );
-
-    const profileName = options.profile || context.profileName;
-    const { target } = await loadDbtTarget({
-        profilesDir: absoluteProfilesPath,
-        profileName,
-        targetName: options.target,
-    });
-
-    GlobalState.debug(`> Compiling with profile ${profileName}`);
-    GlobalState.debug(`> Compiling with target ${target}`);
-
-    const credentials = await warehouseCredentialsFromDbtTarget(target);
-    const warehouseClient = warehouseClientFromCredentials({
-        ...credentials,
-        startOfWeek: isWeekDay(options.startOfWeek)
-            ? options.startOfWeek
-            : undefined,
-    });
-
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const manifestVersion = getDbtManifestVersion(manifest);
     const manifestModels = getModelsFromManifest(manifest);
@@ -145,6 +145,17 @@ ${errors.join('')}`),
     GlobalState.debug(
         `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
     );
+
+    GlobalState.debug(
+        `> Loading lightdash project config from ${absoluteProjectPath}`,
+    );
+
+    const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
+        absoluteProjectPath,
+    );
+
+    GlobalState.debug(`> Loaded lightdash project config`);
+
     const validExplores = await convertExplores(
         validModelsWithTypes,
         false,
@@ -157,6 +168,7 @@ ${errors.join('')}`),
             ? []
             : Object.values(manifest.metrics),
         warehouseClient,
+        lightdashProjectConfig,
     );
     console.error('');
 
