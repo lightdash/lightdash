@@ -20,6 +20,7 @@ export type SchedulerGsheetsOptions = {
     gdriveName: string;
     gdriveOrganizationName: string;
     url: string;
+    tabName?: string;
 };
 export type SchedulerOptions =
     | SchedulerCsvOptions

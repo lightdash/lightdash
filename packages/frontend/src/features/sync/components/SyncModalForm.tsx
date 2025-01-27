@@ -1,6 +1,7 @@
 import {
     formatMinutesOffset,
     getTzMinutesOffset,
+    isSchedulerGsheetsOptions,
     SchedulerFormat,
     type CreateSchedulerAndTargetsWithoutIds,
     type UpdateSchedulerAndTargetsWithoutId,
@@ -12,10 +13,12 @@ import {
     Input,
     Space,
     Stack,
+    Switch,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
-import { IconCirclesRelation } from '@tabler/icons-react';
-import { useEffect, useMemo, type FC } from 'react';
+import { IconCirclesRelation, IconInfoCircle } from '@tabler/icons-react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -59,6 +62,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
+    const [saveInNewTab, setSaveInNewTab] = useState(false);
     const isLoading = isCreateChartSyncLoading || isUpdateChartSyncLoading;
     const isSuccess = isCreateChartSyncSuccess || isUpdateChartSyncSuccess;
 
@@ -72,6 +76,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                 gdriveName: '',
                 gdriveOrganizationName: '',
                 url: '',
+                tabName: '',
             },
             timezone: undefined,
         },
@@ -81,6 +86,13 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         if (schedulerData && isEditing) {
             methods.reset(schedulerData);
             methods.setValue('timezone', schedulerData.timezone);
+
+            if (
+                isSchedulerGsheetsOptions(schedulerData.options) &&
+                schedulerData.options.tabName
+            ) {
+                setSaveInNewTab(true);
+            }
         }
     }, [isEditing, methods, schedulerData]);
 
@@ -99,6 +111,13 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
             ...data,
             ...defaultNewSchedulerValues,
             timezone: data.timezone || undefined,
+            options: {
+                ...data.options,
+                tabName:
+                    saveInNewTab && isSchedulerGsheetsOptions(data.options)
+                        ? data.options.tabName
+                        : undefined,
+            },
         };
 
         if (isEditing) {
@@ -191,6 +210,30 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                     <SelectGoogleSheetButton />
 
+                    <Group>
+                        <Switch
+                            label="Save in a new tab"
+                            checked={saveInNewTab}
+                            onChange={() => setSaveInNewTab(!saveInNewTab)}
+                        ></Switch>
+                        <Tooltip
+                            label={`Type a tab name to save the sync in, insead of overriding the first existing tab in the Google sheet.
+                                    This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
+                            multiline
+                            withinPortal
+                            position="right"
+                            maw={400}
+                        >
+                            <MantineIcon icon={IconInfoCircle} color="gray.6" />
+                        </Tooltip>
+                    </Group>
+                    {saveInNewTab && (
+                        <TextInput
+                            label="Tab name"
+                            placeholder="Sheet1"
+                            {...methods.register('options.tabName')}
+                        />
+                    )}
                     <Space />
 
                     <Group position="apart">
