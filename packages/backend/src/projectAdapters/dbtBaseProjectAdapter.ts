@@ -96,7 +96,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             const config = await loadLightdashProjectConfig(fileContents);
             return config;
         } catch (e) {
-            // Logger.debug(`No lightdash.config.yml found in ${configPath}`);
+            Logger.debug(`No lightdash.config.yml found in ${configPath}`);
 
             if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
                 // Return default config if file doesn't exist
