@@ -62,7 +62,7 @@ class MockedFSError extends Error {
     }
 }
 
-describe('Missing config file', () => {
+describe('Missing lightdash.config.yml file', () => {
     it('should load the default config', async () => {
         // ! Throwing a mock error, not something we should rely on but when running the test in jest `e instanceof Error` is false, but when running the code in node it is true
         // ! Check: https://github.com/jestjs/jest/issues/11808
