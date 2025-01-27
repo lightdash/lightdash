@@ -229,6 +229,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                     </Group>
                     {saveInNewTab && (
                         <TextInput
+                            required
                             label="Tab name"
                             placeholder="Sheet1"
                             {...methods.register('options.tabName')}
