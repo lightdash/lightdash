@@ -20,7 +20,9 @@ import {
     LIGHTDASH_TABLE_WITH_GROUP_BLOCK,
     LIGHTDASH_TABLE_WITH_GROUP_LABEL,
     LIGHTDASH_TABLE_WITH_METRICS,
-    LIGHTDASH_TABLE_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE,
+    LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES,
+    LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES,
+    LIGHTDASH_TABLE_WITH_NO_CATEGORIES,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_ADDITIONAL_DIMENSIONS,
@@ -29,7 +31,9 @@ import {
     MODEL_WITH_GROUPS_BLOCK,
     MODEL_WITH_GROUP_LABEL,
     MODEL_WITH_METRIC,
-    MODEL_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE,
+    MODEL_WITH_METRIC_LEVEL_CATEGORIES,
+    MODEL_WITH_MODEL_LEVEL_CATEGORIES,
+    MODEL_WITH_NO_CATEGORIES,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
@@ -38,6 +42,7 @@ import {
     MODEL_WITH_SQL_WHERE,
     MODEL_WITH_WRONG_METRIC,
     MODEL_WITH_WRONG_METRICS,
+    SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE,
     warehouseSchema,
     warehouseSchemaWithMissingColumn,
     warehouseSchemaWithMissingTable,
@@ -313,15 +318,39 @@ describe('convert tables from dbt models', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
     });
+});
 
-    it('should convert dbt model with metrics in meta and keep model spotlight override', () => {
+describe.only('spotlight config', () => {
+    it('should convert dbt model with metrics when no categories are defined', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE,
+                MODEL_WITH_NO_CATEGORIES,
                 [DBT_METRIC],
-                DEFAULT_SPOTLIGHT_CONFIG,
+                SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE.spotlight,
             ),
-        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS_AND_SPOTLIGHT_OVERRIDE);
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_NO_CATEGORIES);
+    });
+
+    it('should convert dbt model with metrics when categories are defined', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_MODEL_LEVEL_CATEGORIES,
+                [DBT_METRIC],
+                SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE.spotlight,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES);
+    });
+
+    it('should convert dbt model with metrics when categories are defined and there is metric level assignment', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_METRIC_LEVEL_CATEGORIES,
+                [DBT_METRIC],
+                SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE.spotlight,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES);
     });
 });
