@@ -1,3 +1,10 @@
+## [0.1464.3](https://github.com/lightdash/lightdash/compare/0.1464.2...0.1464.3) (2025-01-27)
+
+
+### Bug Fixes
+
+* fix some ANyTypes across our codebase ([#13406](https://github.com/lightdash/lightdash/issues/13406)) ([0706a0e](https://github.com/lightdash/lightdash/commit/0706a0e08049dc1ce45759f27fc8ef6943c76f44))
+
 ## [0.1464.2](https://github.com/lightdash/lightdash/compare/0.1464.1...0.1464.2) (2025-01-24)
 
 
