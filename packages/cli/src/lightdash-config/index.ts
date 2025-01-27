@@ -1,37 +1,20 @@
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
-    LightdashProjectConfig,
-    lightdashProjectConfigSchema,
-    ParseError,
+    loadLightdashProjectConfig,
 } from '@lightdash/common';
-import betterAjvErrors from 'better-ajv-errors';
-import { promises as fs } from 'fs';
-import * as yaml from 'js-yaml';
-import { ajv } from '../ajv';
+import fs from 'fs/promises';
+import path from 'path';
+import GlobalState from '../globalState';
 
-export const loadLightdashProjectConfig = async (
-    configPath: string,
-): Promise<LightdashProjectConfig> => {
+export const readAndLoadLightdashProjectConfig = async (projectDir: string) => {
+    const configPath = path.join(projectDir, 'lightdash.config.yml');
     try {
-        const configFile = yaml.load(await fs.readFile(configPath, 'utf8'));
-        const validate = ajv.compile<LightdashProjectConfig>(
-            lightdashProjectConfigSchema,
-        );
+        const fileContents = await fs.readFile(configPath, 'utf8');
+        const config = await loadLightdashProjectConfig(fileContents);
+        return config;
+    } catch (e) {
+        GlobalState.debug(`No lightdash.config.yml found in ${configPath}`);
 
-        if (!validate(configFile)) {
-            const errors = betterAjvErrors(
-                lightdashProjectConfigSchema,
-                configFile,
-                validate.errors || [],
-                { indent: 2 },
-            );
-            throw new ParseError(
-                `Invalid lightdash.config.yml at ${configPath}\n${errors}`,
-            );
-        }
-
-        return configFile;
-    } catch (e: unknown) {
         if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
             // Return default config if file doesn't exist
             return {

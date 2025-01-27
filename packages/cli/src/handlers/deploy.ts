@@ -17,7 +17,7 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
-import { loadLightdashProjectConfig } from '../lightdash-config';
+import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
@@ -88,8 +88,8 @@ export const deploy = async (
         }
     }
 
-    const lightdashProjectConfig = await loadLightdashProjectConfig(
-        path.join(options.projectDir, 'lightdash.config.yml'),
+    const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
+        path.resolve(options.projectDir),
     );
 
     await replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig);
