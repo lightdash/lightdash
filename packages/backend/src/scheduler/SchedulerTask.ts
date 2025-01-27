@@ -1641,6 +1641,10 @@ export default class SchedulerTask {
                 throw new Error('Missing gdriveId');
             }
 
+            const tabName = isSchedulerGsheetsOptions(scheduler.options)
+                ? scheduler.options.tabName
+                : undefined;
+
             await this.schedulerService.logSchedulerJob({
                 task: 'uploadGsheets',
                 schedulerUuid,
@@ -1735,11 +1739,11 @@ export default class SchedulerTask {
                         maxColumnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,
                     });
-
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
                         gdriveId,
                         pivotedResults,
+                        tabName,
                     );
                 } else {
                     await this.googleDriveClient.appendToSheet(
@@ -1748,7 +1752,7 @@ export default class SchedulerTask {
                         rows,
                         itemMap,
                         showTableNames,
-                        undefined,
+                        tabName,
                         chart.tableConfig.columnOrder,
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
@@ -1851,7 +1855,7 @@ export default class SchedulerTask {
                             chart.chartConfig.config,
                         );
 
-                        const tabName =
+                        const chartTabName =
                             await this.googleDriveClient.createNewTab(
                                 refreshToken,
                                 gdriveId,
@@ -1882,7 +1886,7 @@ export default class SchedulerTask {
                                 refreshToken,
                                 gdriveId,
                                 pivotedResults,
-                                tabName,
+                                chartTabName,
                             );
                         } else {
                             await this.googleDriveClient.appendToSheet(
@@ -1891,7 +1895,7 @@ export default class SchedulerTask {
                                 rows,
                                 itemMap,
                                 showTableNames,
-                                tabName,
+                                chartTabName,
                                 chart.tableConfig.columnOrder,
                                 customLabels,
                                 getHiddenTableFields(chart.chartConfig),
