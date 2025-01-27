@@ -1,3 +1,10 @@
+## [0.1466.1](https://github.com/lightdash/lightdash/compare/0.1466.0...0.1466.1) (2025-01-27)
+
+
+### Bug Fixes
+
+* update expected values for test percentile ([#13412](https://github.com/lightdash/lightdash/issues/13412)) ([ffff002](https://github.com/lightdash/lightdash/commit/ffff0020385c68ba8b91b3785bb68792e4e239c4))
+
 # [0.1466.0](https://github.com/lightdash/lightdash/compare/0.1465.0...0.1466.0) (2025-01-27)
 
 
