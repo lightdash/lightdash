@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import { FieldType, isField, isSummable, type ItemsMap } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
 import {
@@ -66,6 +67,12 @@ const setIndexByKey = (
         return false;
     }
     const [key, ...rest] = keys;
+
+    if (key === undefined) {
+        throw new UnexpectedIndexError(
+            `setIndexByKey: Cannot get key from keys ${keys.length}`,
+        );
+    }
     if (rest.length === 0) {
         if (obj[key] === undefined) {
             // eslint-disable-next-line no-param-reassign
@@ -96,7 +103,11 @@ const getIndexByKey = (
     }
 
     const [key, ...rest] = keys;
-
+    if (key === undefined) {
+        throw new UnexpectedServerError(
+            `getIndexByKey: Cannot get key from keys ${keys.length}`,
+        );
+    }
     if (rest.length === 0) {
         const value = obj[key];
 
@@ -137,14 +148,76 @@ const getAllIndices = (obj: RecursiveRecord<number>): number[] =>
         }
         return [...acc, ...getAllIndices(value)];
     }, []);
+/*
+const getIndexValue = <T>(
+    obj: Record<string | number, T> | ArrayLike<T>,
+    key: string | number,
+    errorMessage?: string
+): T => {
+    // For arrays, ensure numeric index
+    if (Array.isArray(obj) && typeof key === 'string') {
+        key = parseInt(key, 10);
+    }
+
+    const value: T | undefined = Array.isArray(obj) ? obj[key as number] : obj[key as keyof typeof obj];
+    if (value === undefined) {
+        throw new UnexpectedIndexError(errorMessage || `Cannot get key ${key} from object`);
+    }
+    return value;
+};
+*/
+const getArrayValue = <T>(
+    obj: ArrayLike<T> | undefined,
+    key: number,
+    errorMessage?: string,
+): T => {
+    if (obj === undefined) {
+        throw new UnexpectedIndexError(
+            errorMessage || `Cannot get key "${key}" value from empty array`,
+        );
+    }
+    const value = obj[key];
+    if (value === undefined) {
+        console.trace();
+        throw new UnexpectedIndexError(
+            errorMessage || `Cannot get key "${key}" value from array`,
+        );
+    }
+    return value;
+};
+const getObjectValue = <T>(
+    obj: Record<string | number, T> | undefined,
+    key: string | number,
+    errorMessage?: string,
+): T => {
+    if (obj === undefined) {
+        throw new UnexpectedIndexError(
+            errorMessage || `Cannot get key "${key}" value from empty object`,
+        );
+    }
+    const value = obj[key];
+    if (value === undefined) {
+        console.trace();
+        throw new UnexpectedIndexError(
+            errorMessage || `Cannot get key "${key}" value from object`,
+        );
+    }
+    return value;
+};
 
 const getAllIndicesByKey = (
     obj: RecursiveRecord<number>,
     keys: string[],
 ): number[] => {
     const [key, ...rest] = keys;
+    if (key === undefined) {
+        throw new UnexpectedIndexError('Cannot set key on undefined');
+    }
     if (rest.length === 0) {
         const value = obj[key];
+        if (value === undefined) {
+            throw new UnexpectedIndexError(`Cannot get key ${key} from object`);
+        }
         if (isNumber(value)) {
             return [value];
         }
@@ -205,8 +278,13 @@ const combinedRetrofit = (
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
+    if (data.headerValues[0] === undefined) {
+        throw new UnexpectedIndexError(
+            'combinedRetrofit: Cannot get header values',
+        );
+    }
     const uniqueIdsForDataValueColumns: string[] = Array(
-        data.headerValues[0].length,
+        getArrayValue(data.headerValues, 0).length,
     );
 
     data.headerValues.forEach((headerRow) => {
@@ -273,13 +351,15 @@ const combinedRetrofit = (
             };
         });
 
-        const remappedDataValues = data.dataValues[rowIndex].map(
+        const remappedDataValues = getArrayValue(data.dataValues, rowIndex).map(
             (dataValue, colIndex) => {
                 const baseIdInfoForCol = baseIdInfo
                     ? baseIdInfo[colIndex]
                     : undefined;
                 const baseId = baseIdInfoForCol?.fieldId;
-                const id = uniqueIdsForDataValueColumns[colIndex] + colIndex;
+                const id =
+                    getArrayValue(uniqueIdsForDataValueColumns, colIndex) +
+                    colIndex;
                 return {
                     baseId,
                     fieldId: id,
@@ -431,13 +511,11 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
 
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
-            const metric = metrics[nMetric];
-
             const indexRowValues = indexDimensions
                 .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
-                    value: row[fieldId].value,
+                    value: getObjectValue(row, fieldId).value,
                     colSpan: 1,
                 }))
                 .concat(
@@ -445,7 +523,8 @@ export const pivotQueryResults = ({
                         ? [
                               {
                                   type: 'label',
-                                  fieldId: metric.fieldId,
+                                  fieldId: getArrayValue(metrics, nMetric)
+                                      .fieldId,
                               },
                           ]
                         : [],
@@ -455,7 +534,7 @@ export const pivotQueryResults = ({
                 .map<PivotData['headerValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
-                    value: row[fieldId].value,
+                    value: getObjectValue(row, fieldId).value,
                     colSpan: 1,
                 }))
                 .concat(
@@ -464,7 +543,8 @@ export const pivotQueryResults = ({
                         : [
                               {
                                   type: 'label',
-                                  fieldId: metric.fieldId,
+                                  fieldId: getArrayValue(metrics, nMetric)
+                                      .fieldId,
                               },
                           ],
                 );
