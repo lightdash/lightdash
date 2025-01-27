@@ -190,17 +190,29 @@
                                             },
                                             "spotlight": {
                                                 "type": "object",
-                                                "description": "Set the visibility of a metric in Spotlight",
+                                                "description": "Set the visibility and/or categories of a metric in Spotlight",
                                                 "properties": {
                                                     "visibility": {
                                                         "type": "string",
                                                         "enum": ["show", "hide"]
+                                                    },
+                                                    "categories": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": "An array of categories for the metric in Spotlight"
                                                     }
                                                 },
                                                 "anyOf": [
                                                     {
                                                         "required": [
                                                             "visibility"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "required": [
+                                                            "categories"
                                                         ]
                                                     }
                                                 ]
@@ -233,14 +245,24 @@
                             },
                             "spotlight": {
                                 "type": "object",
-                                "description": "Set the visibility of all metrics in this model in Spotlight",
+                                "description": "Set the visibility and/or categories of a metric in Spotlight",
                                 "properties": {
                                     "visibility": {
                                         "type": "string",
                                         "enum": ["show", "hide"]
+                                    },
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An optional array of categories for all metrics in this model in Spotlight"
                                     }
                                 },
-                                "anyOf": [{ "required": ["visibility"] }]
+                                "anyOf": [
+                                    { "required": ["visibility"] },
+                                    { "required": ["categories"] }
+                                ]
                             }
                         }
                     },
@@ -387,7 +409,7 @@
                                                         },
                                                         "spotlight": {
                                                             "type": "object",
-                                                            "description": "Set the visibility of a metric in Spotlight",
+                                                            "description": "Set the visibility and/or categories of a metric in Spotlight",
                                                             "properties": {
                                                                 "visibility": {
                                                                     "type": "string",
@@ -395,12 +417,24 @@
                                                                         "show",
                                                                         "hide"
                                                                     ]
+                                                                },
+                                                                "categories": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": "An array of categories for the metric in Spotlight"
                                                                 }
                                                             },
                                                             "anyOf": [
                                                                 {
                                                                     "required": [
                                                                         "visibility"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "required": [
+                                                                        "categories"
                                                                     ]
                                                                 }
                                                             ]
@@ -681,14 +715,24 @@
                             },
                             "spotlight": {
                                 "type": "object",
-                                "description": "Set the visibility of a metric in Spotlight",
+                                "description": "Set the visibility and/or categories of a metric in Spotlight",
                                 "properties": {
                                     "visibility": {
                                         "type": "string",
                                         "enum": ["show", "hide"]
+                                    },
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An array of categories for the metric in Spotlight"
                                     }
                                 },
-                                "anyOf": [{ "required": ["visibility"] }]
+                                "anyOf": [
+                                    { "required": ["visibility"] },
+                                    { "required": ["categories"] }
+                                ]
                             }
                         }
                     }

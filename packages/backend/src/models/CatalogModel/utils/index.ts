@@ -33,6 +33,7 @@ type CatalogInsertWithYamlTags = DbCatalogIn & { assigned_yaml_tags?: DbTag[] };
 export const convertExploresToCatalog = (
     projectUuid: string,
     cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    projectYamlTags: DbTag[],
 ): {
     catalogInserts: CatalogInsertWithYamlTags[];
     catalogFieldMap: CatalogFieldMap;
@@ -72,6 +73,16 @@ export const convertExploresToCatalog = (
                         fieldType: field.fieldType,
                     };
 
+                    const assignedYamlTags = isMetric(field)
+                        ? projectYamlTags.filter(
+                              (tag) =>
+                                  tag.yaml_reference &&
+                                  field.spotlight?.categories?.includes(
+                                      tag.yaml_reference,
+                                  ),
+                          )
+                        : [];
+
                     return {
                         project_uuid: projectUuid,
                         cached_explore_uuid: explore.cachedExploreUuid,
@@ -91,6 +102,7 @@ export const convertExploresToCatalog = (
                                 ? field.spotlight
                                 : explore.spotlight,
                         ),
+                        assigned_yaml_tags: assignedYamlTags,
                     };
                 },
             );

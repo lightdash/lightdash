@@ -4003,6 +4003,10 @@ const models: TsoaRoute.Models = {
             spotlight: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    categories: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                    },
                     visibility: {
                         dataType: 'union',
                         subSchemas: [
@@ -7779,6 +7783,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                yamlReference: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 createdAt: { dataType: 'datetime', required: true },
                 color: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -9367,6 +9379,10 @@ const models: TsoaRoute.Models = {
             spotlight: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    categories: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                    },
                     visibility: {
                         dataType: 'union',
                         subSchemas: [
@@ -10474,6 +10490,16 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                categories: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'array',
+                                            array: { dataType: 'string' },
+                                        },
+                                        { dataType: 'undefined' },
+                                    ],
+                                },
                                 visibility: {
                                     dataType: 'union',
                                     subSchemas: [
@@ -10739,7 +10765,7 @@ const models: TsoaRoute.Models = {
         enums: ['field'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Tag.name-or-color-or-tagUuid_': {
+    'Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -10747,6 +10773,14 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 color: { dataType: 'string', required: true },
                 tagUuid: { dataType: 'string', required: true },
+                yamlReference: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -10813,7 +10847,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'Pick_Tag.name-or-color-or-tagUuid_',
+                                ref: 'Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_',
                             },
                             required: true,
                         },
@@ -10913,7 +10947,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'Pick_Tag.name-or-color-or-tagUuid_',
+                                ref: 'Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_',
                             },
                             required: true,
                         },
@@ -18719,6 +18753,87 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateTag',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_replaceYamlTags: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'array',
+            array: {
+                dataType: 'intersection',
+                subSchemas: [
+                    { ref: 'Pick_Tag.name-or-color_' },
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            yamlReference: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.put(
+        '/api/v1/projects/:projectUuid/tags/yaml',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.replaceYamlTags,
+        ),
+
+        async function ProjectController_replaceYamlTags(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectController_replaceYamlTags,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'replaceYamlTags',
                     controller,
                     response,
                     next,

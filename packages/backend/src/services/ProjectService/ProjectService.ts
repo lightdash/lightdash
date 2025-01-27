@@ -136,7 +136,7 @@ import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbTagUpdate } from '../../database/entities/tags';
+import type { DbTag, DbTagIn, DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -524,6 +524,7 @@ export class ProjectService extends BaseService {
         const prevCatalogItemsWithTags =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
+                includeYamlTags: false, // we don't need the yaml tags as they are being recreated by the indexCatalog job
             });
 
         const prevCatalogItemsWithIcons =
@@ -742,6 +743,21 @@ export class ProjectService extends BaseService {
                         );
                     }
 
+                    const lightdashProjectConfig =
+                        await adapter.getLightdashProjectConfig();
+
+                    await this.replaceYamlTags(
+                        user,
+                        newProjectUuid,
+                        // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                        Object.entries(
+                            lightdashProjectConfig.spotlight?.categories || {},
+                        ).map(([key, category]) => ({
+                            yamlReference: key,
+                            name: category.label,
+                            color: category.color ?? 'gray',
+                        })),
+                    );
                     await this.saveExploresToCacheAndIndexCatalog(
                         user.userUuid,
                         newProjectUuid,
@@ -956,6 +972,22 @@ export class ProjectService extends BaseService {
                     async () => {
                         try {
                             const explores = await adapter.compileAllExplores();
+                            const lightdashProjectConfig =
+                                await adapter.getLightdashProjectConfig();
+
+                            await this.replaceYamlTags(
+                                user,
+                                projectUuid,
+                                // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                                Object.entries(
+                                    lightdashProjectConfig.spotlight
+                                        ?.categories || {},
+                                ).map(([key, category]) => ({
+                                    yamlReference: key,
+                                    name: category.label,
+                                    color: category.color ?? 'gray',
+                                })),
+                            );
                             await this.saveExploresToCacheAndIndexCatalog(
                                 user.userUuid,
                                 projectUuid,
@@ -2826,7 +2858,10 @@ export class ProjectService extends BaseService {
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         requestMethod: RequestMethod,
-    ): Promise<(Explore | ExploreError)[]> {
+    ): Promise<{
+        explores: (Explore | ExploreError)[];
+        adapter: ProjectAdapter;
+    }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
@@ -2971,7 +3006,8 @@ export class ProjectService extends BaseService {
                     ),
                 },
             });
-            return explores;
+
+            return { explores, adapter };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -3130,10 +3166,28 @@ export class ProjectService extends BaseService {
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const explores = await this.refreshAllTables(
+                        const { explores, adapter } =
+                            await this.refreshAllTables(
+                                user,
+                                projectUuid,
+                                requestMethod,
+                            );
+
+                        const lightdashProjectConfig =
+                            await adapter.getLightdashProjectConfig();
+
+                        await this.replaceYamlTags(
                             user,
                             projectUuid,
-                            requestMethod,
+                            // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                            Object.entries(
+                                lightdashProjectConfig.spotlight?.categories ||
+                                    {},
+                            ).map(([key, category]) => ({
+                                yamlReference: key,
+                                name: category.label,
+                                color: category.color ?? 'gray',
+                            })),
                         );
                         await this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
@@ -5112,7 +5166,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'create',
+                'manage',
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
@@ -5127,6 +5181,7 @@ export class ProjectService extends BaseService {
             name,
             color,
             created_by_user_uuid: user.userUuid,
+            yaml_reference: null,
         });
 
         this.analytics.track({
@@ -5155,7 +5210,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'delete',
+                'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
@@ -5185,7 +5240,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'update',
+                'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
@@ -5213,5 +5268,39 @@ export class ProjectService extends BaseService {
         }
 
         return this.tagsModel.list(projectUuid);
+    }
+
+    async replaceYamlTags(
+        user: SessionUser,
+        projectUuid: string,
+        yamlTags: (Pick<Tag, 'name' | 'color'> & {
+            yamlReference: NonNullable<Tag['yamlReference']>;
+        })[],
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Tags', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const yamlTagsIn = yamlTags.map((tag) => ({
+            project_uuid: projectUuid,
+            name: tag.name,
+            color: tag.color,
+            created_by_user_uuid: user.userUuid, // we always pass the userUuid although when updating a tag it's going to be ignored
+            yaml_reference: tag.yamlReference,
+        }));
+
+        return this.tagsModel.replaceYamlTags(projectUuid, yamlTagsIn);
     }
 }

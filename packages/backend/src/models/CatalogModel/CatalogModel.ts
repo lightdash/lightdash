@@ -30,17 +30,17 @@ import type { LightdashConfig } from '../../config/parseConfig';
 import {
     CatalogTableName,
     CatalogTagsTableName,
+    DbCatalogTagIn,
     getDbCatalogColumnFromCatalogProperty,
     MetricsTreeEdgesTableName,
     type DbCatalog,
-    type DbCatalogIn,
     type DbCatalogTagsMigrateIn,
     type DbMetricsTreeEdge,
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
-import { TagsTableName } from '../../database/entities/tags';
+import { DbTag, TagsTableName } from '../../database/entities/tags';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -75,8 +75,10 @@ export class CatalogModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
+        projectYamlTags: DbTag[],
+        userUuid: string | undefined,
     ): Promise<{
-        catalogInserts: DbCatalogIn[];
+        catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
     }> {
         if (cachedExplores.length === 0) {
@@ -102,6 +104,7 @@ export class CatalogModel {
                                 convertExploresToCatalog(
                                     projectUuid,
                                     cachedExplores,
+                                    projectYamlTags,
                                 ),
                         );
 
@@ -114,15 +117,46 @@ export class CatalogModel {
                                     .where('project_uuid', projectUuid)
                                     .delete();
 
-                                const inserts = await this.database
-                                    .batchInsert(
-                                        CatalogTableName,
-                                        catalogInserts,
+                                const results = await trx(CatalogTableName)
+                                    .insert(
+                                        catalogInserts.map(
+                                            ({
+                                                assigned_yaml_tags,
+                                                ...catalogInsert
+                                            }) => catalogInsert,
+                                        ),
                                     )
                                     .returning('*')
                                     .transacting(trx);
 
-                                return inserts;
+                                // Create project yaml tag insert objects depending on the ID of the catalog insert
+                                const yamlTagInserts: DbCatalogTagIn[] =
+                                    results.flatMap((result, index) => {
+                                        const yamlTags =
+                                            catalogInserts[index]
+                                                .assigned_yaml_tags;
+
+                                        if (yamlTags && yamlTags.length > 0) {
+                                            return yamlTags.map((tag) => ({
+                                                catalog_search_uuid:
+                                                    result.catalog_search_uuid,
+                                                tag_uuid: tag.tag_uuid,
+                                                is_from_yaml: true,
+                                                created_by_user_uuid:
+                                                    userUuid ?? null,
+                                            }));
+                                        }
+                                        return [];
+                                    });
+
+                                if (yamlTagInserts.length > 0) {
+                                    await trx(CatalogTagsTableName)
+                                        .insert(yamlTagInserts)
+                                        .returning('*')
+                                        .transacting(trx);
+                                }
+
+                                return results;
                             }),
                     );
 
@@ -145,14 +179,7 @@ export class CatalogModel {
 
     private async getTagsPerItem(catalogSearchUuids: string[]) {
         const itemTags = await this.database(CatalogTagsTableName)
-            .select<
-                {
-                    catalog_search_uuid: string;
-                    tag_uuid: string;
-                    name: string;
-                    color: string;
-                }[]
-            >()
+            .select()
             .leftJoin(
                 TagsTableName,
                 `${CatalogTagsTableName}.tag_uuid`,
@@ -164,7 +191,10 @@ export class CatalogModel {
             );
 
         return itemTags.reduce<
-            Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>
+            Record<
+                string,
+                Pick<Tag, 'tagUuid' | 'name' | 'color' | 'yamlReference'>[]
+            >
         >((acc, tag) => {
             acc[tag.catalog_search_uuid] = [
                 ...(acc[tag.catalog_search_uuid] || []),
@@ -172,10 +202,11 @@ export class CatalogModel {
                     tagUuid: tag.tag_uuid,
                     name: tag.name,
                     color: tag.color,
+                    yamlReference: tag.yaml_reference,
                 },
             ];
             return acc;
-        }, {} as Record<string, Pick<Tag, 'tagUuid' | 'name' | 'color'>[]>);
+        }, {});
     }
 
     async search({
@@ -638,11 +669,13 @@ export class CatalogModel {
         user: SessionUser,
         catalogSearchUuid: string,
         tagUuid: string,
+        isFromYaml: boolean,
     ) {
         await this.database(CatalogTagsTableName).insert({
             catalog_search_uuid: catalogSearchUuid,
             tag_uuid: tagUuid,
             created_by_user_uuid: user.userUuid,
+            is_from_yaml: isFromYaml,
         });
     }
 
@@ -675,9 +708,12 @@ export class CatalogModel {
 
     async getCatalogItemsWithTags(
         projectUuid: string,
-        opts?: { onlyTagged?: boolean },
+        opts?: {
+            onlyTagged?: boolean;
+            includeYamlTags?: boolean;
+        },
     ) {
-        const { onlyTagged = false } = opts ?? {};
+        const { onlyTagged = false, includeYamlTags = false } = opts ?? {};
 
         let query = this.database(CatalogTableName)
             .column(
@@ -689,13 +725,14 @@ export class CatalogModel {
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.table_name`,
                 {
-                    catalog_tag_uuids: this.database.raw(`
+                    catalog_tags: this.database.raw(`
                     COALESCE(
                         JSON_AGG(
                             DISTINCT JSONB_BUILD_OBJECT(
                                 'tagUuid', ${CatalogTagsTableName}.tag_uuid,
                                 'createdByUserUuid', ${CatalogTagsTableName}.created_by_user_uuid,
-                                'createdAt', ${CatalogTagsTableName}.created_at
+                                'createdAt', ${CatalogTagsTableName}.created_at,
+                                'taggedViaYaml', ${CatalogTagsTableName}.is_from_yaml
                             )
                         ) FILTER (WHERE ${CatalogTagsTableName}.tag_uuid IS NOT NULL),
                         '[]'
@@ -723,6 +760,10 @@ export class CatalogModel {
             );
         }
 
+        if (!includeYamlTags) {
+            query = query.where(`${CatalogTagsTableName}.is_from_yaml`, false);
+        }
+
         query = query
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             .groupBy(
@@ -736,10 +777,11 @@ export class CatalogModel {
             );
 
         const itemsWithTags: (DbCatalog & {
-            catalog_tag_uuids: {
+            catalog_tags: {
                 tagUuid: string;
                 createdByUserUuid: string | null;
                 createdAt: Date;
+                taggedViaYaml: boolean;
             }[];
         })[] = await query;
 
@@ -751,7 +793,7 @@ export class CatalogModel {
             type: i.type,
             fieldType: i.field_type,
             tableName: i.table_name,
-            catalogTags: i.catalog_tag_uuids,
+            catalogTags: i.catalog_tags,
         }));
     }
 

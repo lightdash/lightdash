@@ -2,6 +2,7 @@ import type { Tag } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     convertTagRow,
+    DbTag,
     TagsTableName,
     type DbTagIn,
     type DbTagUpdate,
@@ -56,5 +57,84 @@ export class TagsModel {
             .select('*');
 
         return tags.map(convertTagRow);
+    }
+
+    async getYamlTags(projectUuid: string): Promise<DbTag[]> {
+        const tags = await this.database(TagsTableName)
+            .whereNotNull('yaml_reference')
+            .andWhere('project_uuid', projectUuid)
+            .select('*');
+
+        return tags;
+    }
+
+    async replaceYamlTags(projectUuid: string, yamlTags: DbTagIn[]) {
+        await this.database.transaction(async (trx) => {
+            // get all yaml tags in the project
+            const projectYamlTags = await trx(TagsTableName)
+                .whereNotNull('yaml_reference')
+                .andWhere('project_uuid', projectUuid);
+
+            // get all yaml tags that are not in the project but are in the yamlTags array
+            const yamlTagsToCreate = yamlTags.filter(
+                (yamlTag) =>
+                    !projectYamlTags.some(
+                        (projectYamlTag) =>
+                            projectYamlTag.yaml_reference ===
+                            yamlTag.yaml_reference,
+                    ),
+            );
+
+            // get all updates for the existing project yaml tags
+            const yamlTagUpdates = yamlTags.reduce<Record<string, DbTagUpdate>>(
+                (acc, yamlTag) => {
+                    const projectYamlTag = projectYamlTags.find(
+                        (projectTag) =>
+                            projectTag.yaml_reference ===
+                            yamlTag.yaml_reference,
+                    );
+
+                    if (
+                        projectYamlTag &&
+                        (projectYamlTag.name !== yamlTag.name ||
+                            projectYamlTag.color !== yamlTag.color)
+                    ) {
+                        acc[projectYamlTag.tag_uuid] = {
+                            color: yamlTag.color,
+                            name: yamlTag.name,
+                        };
+                    }
+
+                    return acc;
+                },
+                {},
+            );
+
+            // delete all yaml tags that are in the project but are not in the yamlTags array
+            await trx(TagsTableName)
+                .where('project_uuid', projectUuid)
+                .whereNotIn(
+                    'yaml_reference',
+                    yamlTags.map((t) => t.yaml_reference),
+                )
+                .delete();
+
+            if (yamlTagsToCreate.length > 0) {
+                // create all yaml tags that are not in the project but are in the yamlTags array
+                await trx(TagsTableName).insert(yamlTagsToCreate);
+            }
+
+            if (Object.keys(yamlTagUpdates).length > 0) {
+                // apply all updates to the existing project yaml tags
+                const updatePromises = Object.entries(yamlTagUpdates).map(
+                    ([tagUuid, tagUpdate]) =>
+                        trx(TagsTableName)
+                            .where('tag_uuid', tagUuid)
+                            .update(tagUpdate),
+                );
+
+                await Promise.all(updatePromises);
+            }
+        });
     }
 }

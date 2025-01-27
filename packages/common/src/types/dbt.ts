@@ -1,4 +1,8 @@
 import { DepGraph } from 'dependency-graph';
+import {
+    getCategoriesFromResource,
+    getSpotlightConfigurationForResource,
+} from '../compiler/lightdashProjectConfig';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
 import { type AnyType } from './any';
@@ -85,6 +89,7 @@ type DbtModelLightdashConfig = {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
         >['default_visibility'];
+        categories?: string[]; // yaml_reference
     };
 };
 
@@ -157,6 +162,7 @@ export type DbtColumnLightdashMetric = {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
         >['default_visibility'];
+        categories?: string[]; // yaml_reference
     };
 } & DbtLightdashFieldTags;
 
@@ -435,6 +441,7 @@ type ConvertModelMetricArgs = {
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
+    modelCategories?: string[];
 };
 export const convertModelMetric = ({
     modelName,
@@ -445,10 +452,21 @@ export const convertModelMetric = ({
     dimensionReference,
     requiredAttributes,
     spotlightConfig,
+    modelCategories = [],
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
         metric.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+    const metricCategories = Array.from(
+        new Set([...modelCategories, ...(metric.spotlight?.categories || [])]),
+    );
+
+    const spotlightCategories = getCategoriesFromResource(
+        'metric',
+        name,
+        spotlightConfig,
+        metricCategories,
+    );
 
     return {
         fieldType: FieldType.METRIC,
@@ -487,13 +505,10 @@ export const convertModelMetric = ({
                   },
               }
             : null),
-        ...(spotlightVisibility !== undefined
-            ? {
-                  spotlight: {
-                      visibility: spotlightVisibility,
-                  },
-              }
-            : {}),
+        ...getSpotlightConfigurationForResource(
+            spotlightVisibility,
+            spotlightCategories,
+        ),
     };
 };
 
@@ -515,6 +530,7 @@ export const convertColumnMetric = ({
     tableLabel,
     requiredAttributes,
     spotlightConfig,
+    modelCategories = [],
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -545,6 +561,7 @@ export const convertColumnMetric = ({
               }
             : null),
         spotlightConfig,
+        modelCategories,
     });
 
 export enum DbtManifestVersion {

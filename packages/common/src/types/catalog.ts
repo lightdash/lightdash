@@ -73,7 +73,7 @@ export type CatalogField = Pick<
         tableName: string;
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering
-        categories: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
+        categories: Pick<Tag, 'name' | 'color' | 'tagUuid' | 'yamlReference'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
     };
@@ -87,7 +87,7 @@ export type CatalogTable = Pick<
     type: CatalogType.Table;
     groupLabel?: string;
     tags?: string[];
-    categories: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
+    categories: Pick<Tag, 'name' | 'color' | 'tagUuid' | 'yamlReference'>[]; // Tags manually added by the user in the catalog
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
     icon: CatalogItemIcon | null;
@@ -229,6 +229,7 @@ export type CatalogItemWithTagUuids = CatalogItemSummary & {
         tagUuid: string;
         createdByUserUuid: string | null;
         createdAt: Date;
+        taggedViaYaml: boolean;
     }[];
 };
 

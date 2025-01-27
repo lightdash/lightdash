@@ -4354,6 +4354,12 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "visibility": {
                                 "type": "string",
                                 "enum": ["show", "hide"]
@@ -8318,6 +8324,10 @@
                         ],
                         "nullable": true
                     },
+                    "yamlReference": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -8337,6 +8347,7 @@
                 },
                 "required": [
                     "createdBy",
+                    "yamlReference",
                     "createdAt",
                     "color",
                     "name",
@@ -10028,6 +10039,12 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "visibility": {
                                 "type": "string",
                                 "enum": ["show", "hide"]
@@ -11189,6 +11206,12 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "visibility": {
                                 "type": "string",
                                 "enum": ["show", "hide"]
@@ -11458,7 +11481,7 @@
                 "enum": ["field"],
                 "type": "string"
             },
-            "Pick_Tag.name-or-color-or-tagUuid_": {
+            "Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -11468,9 +11491,13 @@
                     },
                     "tagUuid": {
                         "type": "string"
+                    },
+                    "yamlReference": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["name", "color", "tagUuid"],
+                "required": ["name", "color", "tagUuid", "yamlReference"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -11526,7 +11553,7 @@
                             },
                             "categories": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_"
                                 },
                                 "type": "array"
                             },
@@ -11616,7 +11643,7 @@
                             },
                             "categories": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_"
                                 },
                                 "type": "array"
                             },
@@ -17097,6 +17124,71 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/DbTagUpdate"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/tags/yaml": {
+            "put": {
+                "operationId": "replaceYamlTags",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "items": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Pick_Tag.name-or-color_"
+                                        },
+                                        {
+                                            "properties": {
+                                                "yamlReference": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["yamlReference"],
+                                            "type": "object"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
                             }
                         }
                     }
