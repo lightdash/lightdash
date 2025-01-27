@@ -81,6 +81,11 @@ const InfiniteResourceTable = ({
     filters,
     contentTypeFilter,
 }: ResourceView2Props) => {
+    // NOTE: This is a workaround to avoid the memoization issue with react-mantine-table.
+    // To replicate, remove this directive and refresh the page where this component is used.
+    // The issue is that the table is not re-rendering when the data changes.
+    // eslint-disable-next-line react-compiler/react-compiler
+    'use no memo';
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { data: spaces = [] } = useSpaceSummaries(

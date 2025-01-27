@@ -92,7 +92,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
             spec: vizDataModel.getSpec(display, organization?.chartColors),
             tableData: vizDataModel.getPivotedTableData(),
         }),
-        [vizDataModel, display, organization?.chartColors],
+        // eslint-disable-next-line react-compiler/react-compiler
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [vizDataModel, display, chartLoading],
     );
 
     const handleOpenPanel = (panel: TabPanel) => {
