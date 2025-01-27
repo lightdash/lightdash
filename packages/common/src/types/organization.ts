@@ -1,3 +1,4 @@
+import { type AnyType } from './any';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
 import { type ProjectType, type WarehouseTypes } from './projects';
@@ -96,7 +97,7 @@ export const AllowedEmailDomainsRoles: Array<AllowedEmailDomainsRole> = [
 export function isAllowedEmailDomainsRole(
     role: OrganizationMemberRole,
 ): role is AllowedEmailDomainsRole {
-    return AllowedEmailDomainsRoles.includes(role as any);
+    return AllowedEmailDomainsRoles.includes(role as AnyType);
 }
 
 export type AllowedEmailDomainProjectsRole =

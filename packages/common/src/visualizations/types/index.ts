@@ -38,6 +38,11 @@ export enum VizIndexType {
     CATEGORY = 'category',
 }
 
+export enum AxisSide {
+    LEFT,
+    RIGHT,
+}
+
 export function getColumnAxisType(column: VizColumn): VizIndexType {
     switch (column.type) {
         case DimensionType.DATE:
@@ -91,11 +96,21 @@ export type PivotIndexColum =
     | { reference: string; type: VizIndexType }
     | undefined;
 
+export type PivotValuesColumn = {
+    referenceField: string;
+    pivotColumnName: string;
+    aggregation: VizAggregationOptions;
+    pivotValues: {
+        referenceField: string;
+        value: string;
+    }[];
+};
+
 export type PivotChartData = {
     fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
-    valuesColumns: string[];
+    valuesColumns: PivotValuesColumn[];
     columns: VizColumn[];
 };
 

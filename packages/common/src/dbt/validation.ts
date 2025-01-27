@@ -3,6 +3,7 @@ import addFormats from 'ajv-formats';
 import Ajv2020 from 'ajv/dist/2020';
 import draft7MetaSchema from 'ajv/dist/refs/json-schema-draft-07.json';
 import { type AnyValidateFunction } from 'ajv/dist/types';
+import { type AnyType } from '../types/any';
 import {
     type DbtManifestVersion,
     type DbtMetric,
@@ -54,8 +55,8 @@ export class ManifestValidator {
     }
 
     static isValid = (
-        validator: ValidateFunction<any>,
-        data: any,
+        validator: ValidateFunction<AnyType>,
+        data: AnyType,
     ): [true, undefined] | [false, string] => {
         const isValid = validator(data);
         if (!isValid) {

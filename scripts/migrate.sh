@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-yarn workspace backend migrate
+pnpm -F backend migrate

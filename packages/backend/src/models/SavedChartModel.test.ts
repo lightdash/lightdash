@@ -7,7 +7,7 @@ import {
     Tracker,
 } from 'knex-mock-client';
 
-import { deepEqual } from '@lightdash/common';
+import { AnyType, deepEqual } from '@lightdash/common';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartModel } from './SavedChartModel';
@@ -15,7 +15,7 @@ import { chartSummary } from './SavedChartModel.mock';
 
 function queryMatcher(
     tableName: string,
-    params: any[] = [],
+    params: AnyType[] = [],
 ): FunctionQueryMatcher {
     return ({ sql, bindings }: RawQuery) =>
         sql.includes(tableName) &&

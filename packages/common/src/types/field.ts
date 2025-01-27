@@ -1,4 +1,10 @@
-import type { AdditionalMetric, currencies, DefaultTimeDimension } from '..';
+import type {
+    AdditionalMetric,
+    currencies,
+    DefaultTimeDimension,
+    LightdashProjectConfig,
+} from '..';
+import { type AnyType } from './any';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
 import { type TimeFrames } from './timeFrames';
@@ -74,7 +80,8 @@ export function findCompactConfig(
 ): CompactConfig | undefined {
     return Object.values(CompactConfigMap).find(
         ({ compact, alias }) =>
-            compact === compactOrAlias || alias.includes(compactOrAlias as any),
+            compact === compactOrAlias ||
+            alias.includes(compactOrAlias as AnyType),
     );
 }
 
@@ -118,16 +125,20 @@ export interface CustomSqlDimension extends BaseCustomDimension {
 
 export type CustomDimension = CustomBinDimension | CustomSqlDimension;
 
-export const isCustomDimension = (value: any): value is CustomDimension =>
+export const isCustomDimension = (value: AnyType): value is CustomDimension =>
     value !== undefined &&
     Object.values(CustomDimensionType).includes(value.type);
 
-export const isCustomBinDimension = (value: any): value is CustomBinDimension =>
+export const isCustomBinDimension = (
+    value: AnyType,
+): value is CustomBinDimension =>
     value !== undefined &&
     isCustomDimension(value) &&
     value.type === CustomDimensionType.BIN;
 
-export const isCustomSqlDimension = (value: any): value is CustomSqlDimension =>
+export const isCustomSqlDimension = (
+    value: AnyType,
+): value is CustomSqlDimension =>
     value !== undefined &&
     isCustomDimension(value) &&
     value.type === CustomDimensionType.SQL;
@@ -142,7 +153,7 @@ export type CompiledCustomDimension =
     | CompiledCustomSqlDimension;
 
 export const isCompiledCustomSqlDimension = (
-    value: any,
+    value: AnyType,
 ): value is CompiledCustomSqlDimension =>
     isCustomSqlDimension(value) && 'compiledSql' in value;
 
@@ -247,7 +258,7 @@ export interface Field {
     tags?: string[];
 }
 
-export const isField = (field: any): field is Field =>
+export const isField = (field: AnyType): field is Field =>
     field ? !!field.fieldType : false;
 
 // Field ids are unique across the project
@@ -375,6 +386,8 @@ export enum Format {
     USD = 'usd',
     GBP = 'gbp',
     EUR = 'eur',
+    JPY = 'jpy',
+    DKK = 'dkk',
     ID = 'id',
     PERCENT = 'percent',
 }
@@ -446,6 +459,11 @@ export interface Metric extends Field {
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
     defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
+    spotlight?: {
+        visibility: Required<
+            NonNullable<LightdashProjectConfig['spotlight']>
+        >['default_visibility'];
+    };
 }
 
 export const isFilterableDimension = (

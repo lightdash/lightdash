@@ -10,6 +10,7 @@ import {
     type Source,
 } from '../types/field';
 import { FilterOperator } from '../types/filter';
+import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { type CreateWarehouseCredentials } from '../types/projects';
 import { TimeFrames } from '../types/timeFrames';
 import {
@@ -94,6 +95,9 @@ export const exploreBase: Explore = {
     name: '',
     label: '',
     tags: [],
+    spotlight: {
+        visibility: 'show',
+    },
     baseTable: 'a',
     joinedTables: [],
     tables: {},
@@ -105,6 +109,8 @@ export const exploreBase: Explore = {
 
 export const exploreOneEmptyTable: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -124,7 +130,6 @@ export const exploreOneEmptyTable: UncompiledExplore = {
 
 export const exploreOneEmptyTableCompiled: Explore = {
     ...exploreBase,
-
     tables: {
         a: {
             name: 'a',
@@ -145,10 +150,14 @@ export const exploreOneEmptyTableCompiled: Explore = {
 
 export const exploreMissingBaseTable: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
 };
 
 export const exploreMissingJoinTable: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     joinedTables: [
         {
             table: 'b',
@@ -174,6 +183,8 @@ export const exploreMissingJoinTable: UncompiledExplore = {
 
 export const exploreCircularDimensionReference: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -221,6 +232,8 @@ export const exploreCircularDimensionShortReference: UncompiledExplore = {
 
 export const exploreCircularMetricReference: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -280,6 +293,8 @@ export const exploreCircularMetricShortReference: UncompiledExplore = {
 
 export const exploreTableSelfReference: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -310,6 +325,8 @@ export const exploreTableSelfReference: UncompiledExplore = {
 };
 export const exploreTableSelfReferenceSqlWhere: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -409,6 +426,8 @@ export const exploreTableSelfReferenceCompiledSqlWhere: Explore = {
 
 export const exploreReferenceDimension: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -498,6 +517,8 @@ export const exploreReferenceDimensionCompiled: Explore = {
 };
 export const exploreComplexReference: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -640,6 +661,8 @@ export const exploreComplexReferenceCompiled: Explore = {
 
 export const simpleJoinedExplore: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     joinedTables: [
         {
             table: 'b',
@@ -1398,6 +1421,8 @@ export const compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeS
 
 export const exploreWithMetricNumber: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     tables: {
         a: {
             name: 'a',
@@ -1453,7 +1478,18 @@ export const exploreWithMetricNumber: UncompiledExplore = {
 };
 
 export const exploreWithMetricNumberCompiled: Explore = {
-    ...exploreWithMetricNumber,
+    name: exploreWithMetricNumber.name,
+    label: exploreWithMetricNumber.label,
+    baseTable: exploreWithMetricNumber.baseTable,
+    tags: exploreWithMetricNumber.tags,
+    targetDatabase: exploreWithMetricNumber.targetDatabase,
+    warehouse: exploreWithMetricNumber.warehouse,
+    ymlPath: exploreWithMetricNumber.ymlPath,
+    sqlPath: exploreWithMetricNumber.sqlPath,
+    groupLabel: exploreWithMetricNumber.groupLabel,
+    spotlight: {
+        visibility: 'show',
+    },
     joinedTables: [],
     tables: {
         a: {
@@ -1638,6 +1674,8 @@ export const tablesWithMetricsWithFilters: Record<string, Table> = {
 
 export const exploreWithRequiredAttributes: UncompiledExplore = {
     ...exploreBase,
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
     joinedTables: [
         {
             table: 'b',

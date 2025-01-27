@@ -10,5 +10,6 @@ module.exports = {
         // Allows the use of 'void' operator for promises we deliberately don't wait for,
         // providing a way to bypass the 'no-floating-promises' rule when necessary.
         'no-void': ['error', { allowAsStatement: true }],
+        "@typescript-eslint/no-explicit-any": "error"
     },
 };

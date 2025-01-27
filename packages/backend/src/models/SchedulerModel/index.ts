@@ -19,6 +19,7 @@ import {
     type SchedulerCronUpdate,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -620,6 +621,7 @@ export class SchedulerModel {
 
             if (
                 !(
+                    error instanceof DatabaseError &&
                     error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
                     error.constraint === 'scheduler_log_scheduler_uuid_foreign'
                 )

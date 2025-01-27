@@ -4,6 +4,7 @@ import {
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
+    AnyType,
     ApiChartAndResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -50,6 +51,7 @@ import {
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
+    getErrorMessage,
     getFieldQuoteChar,
     getFields,
     getIntrinsicUserAttributes,
@@ -78,6 +80,7 @@ import {
     NotFoundError,
     ParameterError,
     PivotChartData,
+    PivotValuesColumn,
     Project,
     ProjectCatalog,
     ProjectGroupAccess,
@@ -107,6 +110,7 @@ import {
     UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    VizAggregationOptions,
     VizColumn,
     WarehouseClient,
     WarehouseCredentials,
@@ -181,6 +185,7 @@ type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    explore_name?: string;
 };
 
 type ProjectServiceArguments = {
@@ -722,27 +727,28 @@ export class ProjectService extends BaseService {
             const projectUuid = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.CREATING_PROJECT,
-                async () =>
-                    this.projectModel.create(
+                async () => {
+                    const newProjectUuid = await this.projectModel.create(
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
-                    ),
-            );
+                    );
+                    // Give admin user permissions to user who created this project even if he is an admin
+                    if (user.email) {
+                        await this.projectModel.createProjectAccess(
+                            newProjectUuid,
+                            user.email,
+                            ProjectMemberRole.ADMIN,
+                        );
+                    }
 
-            // Give admin user permissions to user who created this project even if he is an admin
-            if (user.email) {
-                await this.projectModel.createProjectAccess(
-                    projectUuid,
-                    user.email,
-                    ProjectMemberRole.ADMIN,
-                );
-            }
-
-            await this.saveExploresToCacheAndIndexCatalog(
-                user.userUuid,
-                projectUuid,
-                explores,
+                    await this.saveExploresToCacheAndIndexCatalog(
+                        user.userUuid,
+                        newProjectUuid,
+                        explores,
+                    );
+                    return newProjectUuid;
+                },
             );
 
             await this.jobModel.update(jobUuid, {
@@ -944,23 +950,22 @@ export class ProjectService extends BaseService {
                     ),
             );
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                const explores = await this.jobModel.tryJobStep(
+                await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            return await adapter.compileAllExplores();
+                            const explores = await adapter.compileAllExplores();
+                            await this.saveExploresToCacheAndIndexCatalog(
+                                user.userUuid,
+                                projectUuid,
+                                explores,
+                            );
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
                         }
                     },
-                );
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
                 );
             }
 
@@ -1311,6 +1316,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         return this.runQueryAndFormatRows({
@@ -1391,6 +1397,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
+            explore_name: savedChart.tableName,
         };
 
         const { cacheMetadata, rows, fields } =
@@ -1517,6 +1524,7 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
+            explore_name: explore.name,
         };
 
         const exploreDimensions = getDimensions(explore);
@@ -1607,6 +1615,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         const explore = await this.getExplore(
@@ -1766,7 +1775,10 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         chartUuid: string,
         context: QueryExecutionContext,
-    ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
+    ): Promise<{
+        rows: Record<string, AnyType>[];
+        cacheMetadata: CacheMetadata;
+    }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
             {
@@ -1781,6 +1793,7 @@ export class ProjectService extends BaseService {
                     project_uuid: chart.projectUuid,
                     user_uuid: user.userUuid,
                     chart_uuid: chartUuid,
+                    explore_name: exploreId,
                 };
 
                 return this.runMetricQuery({
@@ -1809,12 +1822,12 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
-        query: any;
+        query: AnyType;
         metricQuery: MetricQuery;
         queryTags: RunQueryTags;
         invalidateCache?: boolean;
     }): Promise<{
-        rows: Record<string, any>[];
+        rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
     }> {
         return wrapSentryTransaction(
@@ -1893,17 +1906,30 @@ export class ProjectService extends BaseService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () =>
-                        measureTime(
-                            () =>
-                                warehouseClient.runQuery(
-                                    query,
-                                    queryTags,
-                                    // metricQuery.timezone,
-                                ),
-                            'runWarehouseQuery',
-                            this.logger,
-                        ),
+                    async () => {
+                        try {
+                            return await measureTime(
+                                () =>
+                                    warehouseClient.runQuery(
+                                        query,
+                                        queryTags,
+                                        // metricQuery.timezone,
+                                    ),
+                                'runWarehouseQuery',
+                                this.logger,
+                            );
+                        } catch (e) {
+                            this.logger.warn(
+                                `Error running "${
+                                    warehouseClient.credentials.type
+                                }" warehouse query:
+                                "${query}"
+                                with query tags: 
+                                ${JSON.stringify(queryTags)}`,
+                            );
+                            throw e;
+                        }
+                    },
                 );
 
                 if (this.lightdashConfig.resultsCache?.resultsEnabled) {
@@ -1952,7 +1978,7 @@ export class ProjectService extends BaseService {
         granularity?: DateGranularity;
         chartUuid: string | undefined; // for analytics
     }): Promise<{
-        rows: Record<string, any>[];
+        rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
     }> {
@@ -2185,7 +2211,7 @@ export class ProjectService extends BaseService {
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
-                        message: e.message,
+                        message: getErrorMessage(e),
                     });
                     throw e;
                 } finally {
@@ -2462,7 +2488,7 @@ export class ProjectService extends BaseService {
         const columns: VizColumn[] = [];
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
-        const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
+        const valuesColumnData = new Map<string, PivotValuesColumn>();
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -2476,6 +2502,8 @@ export class ProjectService extends BaseService {
                             rows.forEach(writer);
                             return;
                         }
+
+                        // columns appears unused
                         if (!columns.length) {
                             // Get column types from first row of results
                             columns.push(
@@ -2498,15 +2526,23 @@ export class ProjectService extends BaseService {
                                 };
                                 currentRowIndex = row.row_index;
                             }
-                            // Suffix the value column with the group by columns to avoid collisions. E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'], then the value column will be 'value_1_a_b'
+                            // Suffix the value column with the group by columns to avoid collisions.
+                            // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                            // then the value column will be 'value_1_a_b'
                             const valueSuffix = groupByColumns
                                 ?.map((col) => row[col.reference])
                                 .join('_');
                             valuesColumns.forEach((col) => {
-                                const valueColumnReference = `${col.reference}_${valueSuffix}`;
-                                valuesColumnReferences.add(
-                                    valueColumnReference,
-                                );
+                                const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+                                valuesColumnData.set(valueColumnReference, {
+                                    referenceField: col.reference, // The original y field name
+                                    pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                    aggregation: col.aggregation,
+                                    pivotValues: groupByColumns?.map((c) => ({
+                                        referenceField: c.reference,
+                                        value: row[c.reference],
+                                    })),
+                                });
                                 currentTransformedRow =
                                     currentTransformedRow ?? {};
                                 currentTransformedRow[valueColumnReference] =
@@ -2528,14 +2564,19 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
+        const processedColumns =
+            groupByColumns && groupByColumns.length > 0
+                ? Array.from(valuesColumnData.values())
+                : valuesColumns.map((col) => ({
+                      referenceField: col.reference,
+                      pivotColumnName: `${col.reference}_${col.aggregation}`,
+                      aggregation: col.aggregation,
+                      pivotValues: [],
+                  }));
+
         return {
             fileUrl,
-            valuesColumns:
-                groupByColumns && groupByColumns.length > 0
-                    ? Array.from(valuesColumnReferences)
-                    : valuesColumns.map(
-                          (col) => `${col.reference}_${col.aggregation}`,
-                      ),
+            valuesColumns: processedColumns,
             indexColumn,
         };
     }
@@ -2740,6 +2781,7 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
+            explore_name: explore.name,
         };
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
@@ -2939,7 +2981,12 @@ export class ProjectService extends BaseService {
                     e instanceof Error ? e.stack : e
                 }`,
             );
-            const errorResponse = errorHandler(e);
+            const errorResponse =
+                e instanceof Error
+                    ? errorHandler(e)
+                    : new UnexpectedServerError(
+                          `Unknown error during refreshAllTables: ${typeof e}`,
+                      );
             this.analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,
@@ -3079,17 +3126,21 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                const explores = await this.jobModel.tryJobStep(
+                await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () =>
-                        this.refreshAllTables(user, projectUuid, requestMethod),
-                );
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
+                    async () => {
+                        const explores = await this.refreshAllTables(
+                            user,
+                            projectUuid,
+                            requestMethod,
+                        );
+                        await this.saveExploresToCacheAndIndexCatalog(
+                            user.userUuid,
+                            projectUuid,
+                            explores,
+                        );
+                    },
                 );
 
                 await this.jobModel.update(job.jobUuid, {
@@ -3131,9 +3182,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const explores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
+        const explores = Object.values(cachedExplores);
+
         if (!explores) {
             return [];
         }
@@ -3224,6 +3277,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         organizationUuid?: string,
+        includeUnfilteredTables: boolean = true,
     ): Promise<Explore> {
         return Sentry.startSpan(
             {
@@ -3249,7 +3303,10 @@ export class ProjectService extends BaseService {
                         `Explore "${exploreName}" has an error.`,
                     );
                 }
-                return explore;
+                if (includeUnfilteredTables) {
+                    return explore;
+                }
+                return { ...explore, unfilteredTables: undefined };
             },
         );
     }
@@ -3342,9 +3399,10 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const explores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
+        const explores = Object.values(cachedExplores);
 
         return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
             if (!isExploreError(explore)) {
@@ -3810,7 +3868,7 @@ export class ProjectService extends BaseService {
                 },
             );
             return charts.data.length > 0;
-        } catch (e: any) {
+        } catch (e: AnyType) {
             return false;
         }
     }
@@ -4455,6 +4513,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: exploreName,
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
@@ -4488,6 +4547,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            explore_name: explore.name,
         };
 
         const { rows, cacheMetadata } =
@@ -4642,9 +4702,11 @@ export class ProjectService extends BaseService {
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
             throw new ForbiddenError();
         }
-        const allExplores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
+        const allExplores = Object.values(cachedExplores);
+
         const validExplores = allExplores?.filter(
             (explore) => explore.type !== ExploreType.VIRTUAL,
         );
@@ -4812,8 +4874,7 @@ export class ProjectService extends BaseService {
         );
 
         const charts = await Promise.all(chartPromises);
-
-        return charts.reduce<any[]>((acc, chart) => {
+        return charts.reduce<AnyType[]>((acc, chart) => {
             const customMetrics = chart.metricQuery.additionalMetrics;
 
             if (customMetrics === undefined || customMetrics.length === 0)

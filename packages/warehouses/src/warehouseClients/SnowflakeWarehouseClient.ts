@@ -1,6 +1,8 @@
 import {
+    AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
+    getErrorMessage,
     isWeekDay,
     Metric,
     MetricType,
@@ -111,7 +113,7 @@ export const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-const parseCell = (cell: any) => {
+const parseCell = (cell: AnyType) => {
     if (cell instanceof Date) {
         return new Date(cell);
     }
@@ -119,11 +121,11 @@ const parseCell = (cell: any) => {
     return cell;
 };
 
-const parseRow = (row: Record<string, any>) =>
+const parseRow = (row: Record<string, AnyType>) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
-const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
+const parseRows = (rows: Record<string, AnyType>[]) => rows.map(parseRow);
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
@@ -193,7 +195,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -202,8 +204,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         try {
             connection = createConnection(this.connectionOptions);
             await Util.promisify(connection.connect.bind(connection))();
-        } catch (e) {
-            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
+        } catch (e: unknown) {
+            throw new WarehouseConnectionError(
+                `Snowflake error: ${getErrorMessage(e)}`,
+            );
         }
         try {
             if (this.connectionOptions.warehouse) {
@@ -278,7 +282,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         sqlText: string,
         streamCallback: (data: WarehouseResults) => void,
         options?: {
-            values?: any[];
+            values?: AnyType[];
         },
     ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
@@ -338,7 +342,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async executeStatement(connection: Connection, sqlText: string) {
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;
-            rows: any[];
+            rows: AnyType[];
         }>((resolve, reject) => {
             connection.execute({
                 sqlText,
@@ -385,8 +389,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 database,
             });
             await Util.promisify(connection.connect.bind(connection))();
-        } catch (e) {
-            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
+        } catch (e: unknown) {
+            throw new WarehouseConnectionError(
+                `Snowflake error: ${getErrorMessage(e)}`,
+            );
         }
         try {
             return await this.executeStatement(connection, sqlText);
@@ -497,7 +503,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             undefined,
             databaseName ? [databaseName] : undefined,
         );
-        return rows.map((row: Record<string, any>) => ({
+        return rows.map((row: Record<string, AnyType>) => ({
             database: row.table_catalog,
             schema: row.table_schema,
             table: row.table_name,

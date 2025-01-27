@@ -1,4 +1,6 @@
 import {
+    AnyType,
+    getErrorMessage,
     indexCatalogJob,
     SchedulerJobStatus,
     semanticLayerQueryJob,
@@ -187,7 +189,7 @@ export class SchedulerWorker extends SchedulerTask {
             },
 
             handleScheduledDelivery: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -214,13 +216,13 @@ export class SchedulerWorker extends SchedulerTask {
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
             },
             sendSlackNotification: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -247,13 +249,13 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'slack',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
             },
             sendEmailNotification: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -280,12 +282,12 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'email',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
             },
-            uploadGsheets: async (payload: any, helpers: JobHelpers) => {
+            uploadGsheets: async (payload: AnyType, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         'uploadGsheets',
@@ -307,12 +309,12 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'gsheets',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: { error: getErrorMessage(e) },
                         });
                     },
                 );
             },
-            downloadCsv: async (payload: any, helpers: JobHelpers) => {
+            downloadCsv: async (payload: AnyType, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         'downloadCsv',
@@ -338,14 +340,14 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
                 );
             },
             uploadGsheetFromQuery: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -373,14 +375,14 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
                 );
             },
             createProjectWithCompile: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await SchedulerClient.processJob(
@@ -397,7 +399,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            compileProject: async (payload: any, helpers: JobHelpers) => {
+            compileProject: async (payload: AnyType, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'compileProject',
                     helpers.job.id,
@@ -413,7 +415,7 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             testAndCompileProject: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await SchedulerClient.processJob(
@@ -430,7 +432,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            validateProject: async (payload: any, helpers: JobHelpers) => {
+            validateProject: async (payload: AnyType, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'validateProject',
                     helpers.job.id,
@@ -445,7 +447,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [sqlRunnerJob]: async (payload: any, helpers: JobHelpers) => {
+            [sqlRunnerJob]: async (payload: AnyType, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         sqlRunnerJob,
@@ -470,14 +472,14 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
                 );
             },
             [sqlRunnerPivotQueryJob]: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -504,14 +506,14 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
                 );
             },
             [semanticLayerQueryJob]: async (
-                payload: any,
+                payload: AnyType,
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
@@ -538,13 +540,16 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },
                 );
             },
-            [indexCatalogJob]: async (payload: any, helpers: JobHelpers) => {
+            [indexCatalogJob]: async (
+                payload: AnyType,
+                helpers: JobHelpers,
+            ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         indexCatalogJob,
@@ -569,7 +574,7 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
                             },
                         });
                     },

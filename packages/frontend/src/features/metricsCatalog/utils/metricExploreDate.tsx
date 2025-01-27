@@ -164,8 +164,10 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 3 months',
                     controlLabel: '3M',
-                    getValue: () =>
-                        getDefaultDateRangeFromInterval(timeInterval),
+                    getValue: () => [
+                        today.subtract(3, 'month').startOf('month').toDate(),
+                        now.toDate(),
+                    ],
                 },
                 {
                     label: 'Past 6 months',
@@ -178,10 +180,8 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 12 months',
                     controlLabel: '12M',
-                    getValue: () => [
-                        today.subtract(12, 'month').startOf('month').toDate(),
-                        now.toDate(),
-                    ],
+                    getValue: () =>
+                        getDefaultDateRangeFromInterval(timeInterval),
                 },
                 {
                     label: 'Past 5 years',
@@ -204,8 +204,10 @@ export const getDateRangePresets = (
                 {
                     label: 'This year',
                     controlLabel: 'This year',
-                    getValue: () =>
-                        getDefaultDateRangeFromInterval(timeInterval),
+                    getValue: () => [
+                        today.startOf('year').toDate(),
+                        now.toDate(),
+                    ],
                 },
                 {
                     label: 'Past 1 year',
@@ -214,6 +216,12 @@ export const getDateRangePresets = (
                         today.subtract(1, 'year').startOf('year').toDate(),
                         now.toDate(),
                     ],
+                },
+                {
+                    label: 'Past 3 years',
+                    controlLabel: '3Y',
+                    getValue: () =>
+                        getDefaultDateRangeFromInterval(timeInterval),
                 },
                 {
                     label: 'Past 5 years',

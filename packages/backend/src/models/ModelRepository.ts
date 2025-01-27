@@ -34,6 +34,7 @@ import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
+import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
@@ -41,7 +42,6 @@ import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-
 /**
  * Interface outlining all models. Add new models to
  * this list (in alphabetical order, please!).
@@ -88,6 +88,7 @@ export type ModelManifest = {
     contentModel: ContentModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
+    spotlightTableConfigModel: SpotlightTableConfigModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     embedModel: unknown;
@@ -527,6 +528,17 @@ export class ModelRepository
         return this.getModel(
             'tagsModel',
             () => new TagsModel({ database: this.database }),
+        );
+    }
+
+    public getSpotlightTableConfigModel(): SpotlightTableConfigModel {
+        return this.getModel(
+            'spotlightTableConfigModel',
+            () =>
+                new SpotlightTableConfigModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
         );
     }
 

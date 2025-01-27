@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { getErrorMessage, ParseError } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
@@ -35,7 +35,7 @@ export const getDbtContext = async ({
             });
         }
 
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(
             `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${msg}`,
         );

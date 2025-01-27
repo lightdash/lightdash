@@ -1,4 +1,5 @@
 import {
+    AnyType,
     NotFoundError,
     SlackAppCustomSettings,
     SlackSettings,
@@ -131,7 +132,7 @@ export class SlackAuthenticationModel {
         };
     }
 
-    async deleteInstallation(installQuery: any) {
+    async deleteInstallation(installQuery: AnyType) {
         const teamId = getTeamId(installQuery);
 
         await this.database(SlackAuthTokensTableName)

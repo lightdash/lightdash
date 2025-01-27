@@ -7,11 +7,15 @@
         "requestBodies": {},
         "responses": {},
         "schemas": {
+            "AnyType": {
+                "description": "This AnyType is an alias for any\nThe goal is to make it easier to identify any type in the codebase\nwithout having to eslint-disable all the time\nThese are only used on legacy `any` types, don't use it for new types.\nThis is added on a separate file to avoid circular dependencies."
+            },
             "ApiErrorPayload": {
                 "properties": {
                     "error": {
                         "properties": {
                             "data": {
+                                "$ref": "#/components/schemas/AnyType",
                                 "description": "Optional data containing details of the error"
                             },
                             "message": {
@@ -1400,7 +1404,17 @@
                 "type": "object"
             },
             "Format": {
-                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "enum": [
+                    "km",
+                    "mi",
+                    "usd",
+                    "gbp",
+                    "eur",
+                    "jpy",
+                    "dkk",
+                    "id",
+                    "percent"
+                ],
                 "type": "string"
             },
             "CartesianSeriesType.LINE": {
@@ -1414,6 +1428,10 @@
             "ValueLabelPositionOptions": {
                 "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
                 "type": "string"
+            },
+            "AxisSide": {
+                "enum": [0, 1],
+                "type": "number"
             },
             "CartesianChartDisplay": {
                 "properties": {
@@ -1439,8 +1457,7 @@
                         "additionalProperties": {
                             "properties": {
                                 "whichYAxis": {
-                                    "type": "number",
-                                    "format": "double"
+                                    "$ref": "#/components/schemas/AxisSide"
                                 },
                                 "valueLabelPosition": {
                                     "$ref": "#/components/schemas/ValueLabelPositionOptions"
@@ -2193,6 +2210,55 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/PullRequestCreated"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SpotlightTableColumns": {
+                "enum": [
+                    "label",
+                    "tableLabel",
+                    "description",
+                    "categories",
+                    "chartUsage"
+                ],
+                "type": "string"
+            },
+            "ColumnConfig": {
+                "items": {
+                    "properties": {
+                        "isVisible": {
+                            "type": "boolean"
+                        },
+                        "column": {
+                            "$ref": "#/components/schemas/SpotlightTableColumns"
+                        }
+                    },
+                    "required": ["isVisible", "column"],
+                    "type": "object"
+                },
+                "type": "array"
+            },
+            "Pick_SpotlightTableConfig.columnConfig_": {
+                "properties": {
+                    "columnConfig": {
+                        "$ref": "#/components/schemas/ColumnConfig"
+                    }
+                },
+                "required": ["columnConfig"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiGetSpotlightTableConfig": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_SpotlightTableConfig.columnConfig_"
                     },
                     "status": {
                         "type": "string",
@@ -3018,10 +3084,12 @@
                 ],
                 "type": "string"
             },
-            "FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+            "FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_": {
                 "properties": {
                     "values": {
-                        "items": {},
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
                         "type": "array"
                     },
                     "operator": {
@@ -3033,7 +3101,9 @@
                     "target": {
                         "$ref": "#/components/schemas/DashboardFieldTarget"
                     },
-                    "settings": {},
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
                     "disabled": {
                         "type": "boolean"
                     },
@@ -3067,7 +3137,7 @@
             "DashboardFilterRule": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_"
                     },
                     {
                         "properties": {
@@ -3230,7 +3300,7 @@
                 "enum": ["scheduled", "started", "completed", "error"],
                 "type": "string"
             },
-            "Record_string.any_": {
+            "Record_string.AnyType_": {
                 "properties": {},
                 "additionalProperties": {},
                 "type": "object",
@@ -3239,7 +3309,7 @@
             "SchedulerLog": {
                 "properties": {
                     "details": {
-                        "$ref": "#/components/schemas/Record_string.any_"
+                        "$ref": "#/components/schemas/Record_string.AnyType_"
                     },
                     "targetType": {
                         "type": "string",
@@ -3434,7 +3504,7 @@
                             "details": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Record_string.any_"
+                                        "$ref": "#/components/schemas/Record_string.AnyType_"
                                     }
                                 ],
                                 "nullable": true
@@ -3483,7 +3553,9 @@
                     {
                         "properties": {
                             "or": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             },
                             "id": {
@@ -3496,7 +3568,9 @@
                     {
                         "properties": {
                             "and": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             },
                             "id": {
@@ -3689,7 +3763,9 @@
             "MetricFilterRule": {
                 "properties": {
                     "values": {
-                        "items": {},
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
                         "type": "array"
                     },
                     "operator": {
@@ -3707,7 +3783,9 @@
                         "required": ["fieldRef"],
                         "type": "object"
                     },
-                    "settings": {},
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
                     "disabled": {
                         "type": "boolean"
                     },
@@ -4273,6 +4351,16 @@
                     },
                     "defaultTimeDimension": {
                         "$ref": "#/components/schemas/DefaultTimeDimension"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -4321,7 +4409,9 @@
                                 "$ref": "#/components/schemas/Record_string.Item-or-AdditionalMetric_"
                             },
                             "rows": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             },
                             "cacheMetadata": {
@@ -4417,9 +4507,15 @@
                     },
                     "filters": {
                         "properties": {
-                            "tableCalculations": {},
-                            "metrics": {},
-                            "dimensions": {}
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
                         },
                         "type": "object"
                     },
@@ -4531,7 +4627,9 @@
             "FilterRule": {
                 "properties": {
                     "values": {
-                        "items": {},
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
                         "type": "array"
                     },
                     "operator": {
@@ -4543,7 +4641,9 @@
                     "target": {
                         "$ref": "#/components/schemas/FieldTarget"
                     },
-                    "settings": {},
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
                     "disabled": {
                         "type": "boolean"
                     },
@@ -6548,6 +6648,9 @@
                         },
                         "type": "array"
                     },
+                    "selector": {
+                        "type": "string"
+                    },
                     "profiles_dir": {
                         "type": "string"
                     },
@@ -6600,6 +6703,9 @@
                         },
                         "type": "array"
                     },
+                    "selector": {
+                        "type": "string"
+                    },
                     "personal_access_token": {
                         "type": "string"
                     },
@@ -6643,6 +6749,9 @@
                             "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
                         },
                         "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
                     },
                     "username": {
                         "type": "string"
@@ -6692,6 +6801,9 @@
                         },
                         "type": "array"
                     },
+                    "selector": {
+                        "type": "string"
+                    },
                     "personal_access_token": {
                         "type": "string"
                     },
@@ -6735,6 +6847,9 @@
                             "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
                         },
                         "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
                     },
                     "personal_access_token": {
                         "type": "string"
@@ -6784,6 +6899,9 @@
                             "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
                         },
                         "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
                     },
                     "hideRefreshButton": {
                         "type": "boolean"
@@ -9908,6 +10026,16 @@
                     "defaultTimeDimension": {
                         "$ref": "#/components/schemas/DefaultTimeDimension"
                     },
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
+                    },
                     "compiledSql": {
                         "type": "string"
                     },
@@ -11048,40 +11176,28 @@
                 ],
                 "type": "string"
             },
-            "Explore": {
+            "Pick_Explore.Exclude_keyofExplore.unfilteredTables__": {
                 "properties": {
+                    "name": {
+                        "type": "string"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
                     },
-                    "sqlPath": {
+                    "label": {
                         "type": "string"
                     },
-                    "ymlPath": {
-                        "type": "string"
-                    },
-                    "warehouse": {
-                        "type": "string"
-                    },
-                    "targetDatabase": {
-                        "$ref": "#/components/schemas/SupportedDbtAdapter"
-                    },
-                    "tables": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/CompiledTable"
+                    "spotlight": {
+                        "properties": {
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
                         },
+                        "required": ["visibility"],
                         "type": "object"
                     },
-                    "joinedTables": {
-                        "items": {
-                            "$ref": "#/components/schemas/CompiledExploreJoin"
-                        },
-                        "type": "array"
-                    },
-                    "baseTable": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
+                    "warehouse": {
                         "type": "string"
                     },
                     "tags": {
@@ -11090,26 +11206,53 @@
                         },
                         "type": "array"
                     },
-                    "label": {
+                    "groupLabel": {
                         "type": "string"
                     },
-                    "name": {
+                    "baseTable": {
+                        "type": "string"
+                    },
+                    "joinedTables": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledExploreJoin"
+                        },
+                        "type": "array"
+                    },
+                    "tables": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CompiledTable"
+                        },
+                        "type": "object"
+                    },
+                    "targetDatabase": {
+                        "$ref": "#/components/schemas/SupportedDbtAdapter"
+                    },
+                    "ymlPath": {
+                        "type": "string"
+                    },
+                    "sqlPath": {
                         "type": "string"
                     }
                 },
                 "required": [
-                    "targetDatabase",
-                    "tables",
-                    "joinedTables",
-                    "baseTable",
-                    "tags",
+                    "name",
                     "label",
-                    "name"
+                    "tags",
+                    "baseTable",
+                    "joinedTables",
+                    "tables",
+                    "targetDatabase"
                 ],
-                "type": "object"
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Explore.unfilteredTables_": {
+                "$ref": "#/components/schemas/Pick_Explore.Exclude_keyofExplore.unfilteredTables__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "ApiExploreResults": {
-                "$ref": "#/components/schemas/Explore"
+                "$ref": "#/components/schemas/Omit_Explore.unfilteredTables_"
             },
             "ApiCompiledQueryResults": {
                 "type": "string"
@@ -12935,7 +13078,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1447.2",
+        "version": "0.1463.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13000,7 +13143,9 @@
                                         "type": "array"
                                     },
                                     "explores": {
-                                        "items": {},
+                                        "items": {
+                                            "$ref": "#/components/schemas/AnyType"
+                                        },
                                         "type": "array"
                                     }
                                 },
@@ -13860,6 +14005,129 @@
                 "parameters": []
             }
         },
+        "/api/v1/projects/{projectUuid}/spotlight/table/config": {
+            "post": {
+                "operationId": "postSpotlightTableConfig",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Spotlight"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Pick_SpotlightTableConfig.columnConfig_"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "getSpotlightTableConfig",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetSpotlightTableConfig"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Spotlight"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "resetSpotlightTableConfig",
+                "responses": {
+                    "200": {
+                        "description": "Deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Spotlight"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}": {
             "get": {
                 "operationId": "GetSpace",
@@ -14632,6 +14900,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
+                                "$ref": "#/components/schemas/AnyType",
                                 "description": "the new scheduler data"
                             }
                         }
@@ -14863,6 +15132,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
+                                "$ref": "#/components/schemas/AnyType",
                                 "description": "the create scheduler data"
                             }
                         }
@@ -15111,7 +15381,9 @@
                                     "invalidateCache": {
                                         "type": "boolean"
                                     },
-                                    "dashboardFilters": {}
+                                    "dashboardFilters": {
+                                        "$ref": "#/components/schemas/AnyType"
+                                    }
                                 },
                                 "required": [
                                     "dashboardUuid",
@@ -15364,7 +15636,9 @@
                                     "invalidateCache": {
                                         "type": "boolean"
                                     },
-                                    "dashboardFilters": {}
+                                    "dashboardFilters": {
+                                        "$ref": "#/components/schemas/AnyType"
+                                    }
                                 },
                                 "type": "object"
                             }
@@ -15527,7 +15801,9 @@
                                     "tileUuid": {
                                         "type": "string"
                                     },
-                                    "dashboardFilters": {}
+                                    "dashboardFilters": {
+                                        "$ref": "#/components/schemas/AnyType"
+                                    }
                                 },
                                 "required": ["onlyRaw", "dashboardFilters"],
                                 "type": "object"
@@ -17006,8 +17282,12 @@
                                                 "type": "string",
                                                 "nullable": true
                                             },
-                                            "metricQuery": {},
-                                            "chartConfig": {}
+                                            "metricQuery": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "chartConfig": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            }
                                         },
                                         "required": [
                                             "metricQuery",
@@ -17082,8 +17362,12 @@
                                                 "type": "string",
                                                 "nullable": true
                                             },
-                                            "tiles": {},
-                                            "filters": {}
+                                            "tiles": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "filters": {
+                                                "$ref": "#/components/schemas/AnyType"
+                                            }
                                         },
                                         "required": ["tiles", "filters"],
                                         "type": "object"
@@ -18923,7 +19207,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "items": {},
+                                "items": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                },
                                 "type": "array"
                             }
                         }
@@ -20380,6 +20666,57 @@
                     {
                         "in": "path",
                         "name": "targetCatalogSearchUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/has": {
+            "get": {
+                "operationId": "hasMetricsInCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "type": "boolean"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Check if there are any metrics in catalog",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

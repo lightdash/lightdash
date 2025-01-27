@@ -25,6 +25,15 @@ type EmailClientArguments = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 };
 
+type EmailTemplate = {
+    template: string;
+    context: Record<
+        string,
+        string | boolean | number | AttachmentUrl[] | undefined
+    >;
+    attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
+};
+
 export default class EmailClient {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 
@@ -63,8 +72,7 @@ export default class EmailClient {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
                 },
             );
-
-            this.transporter.verify((error: any) => {
+            this.transporter.verify((error) => {
                 if (error) {
                     throw new SmptError(
                         `Failed to verify email transporter. ${error}`,
@@ -82,7 +90,7 @@ export default class EmailClient {
                 hbs({
                     viewEngine: {
                         partialsDir: path.join(__dirname, './templates/'),
-                        defaultLayout: false,
+                        defaultLayout: undefined,
                         extname: '.html',
                     },
                     viewPath: path.join(__dirname, './templates/'),
@@ -93,11 +101,8 @@ export default class EmailClient {
     }
 
     private async sendEmail(
-        options: Mail.Options & {
-            template: string;
-            context: Record<string, any>;
-        },
-    ) {
+        options: Mail.Options & EmailTemplate,
+    ): Promise<void> {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);

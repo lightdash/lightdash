@@ -1,4 +1,9 @@
-import { ParameterError, SshKeyPair, validateEmail } from '@lightdash/common';
+import {
+    AnyType,
+    ParameterError,
+    SshKeyPair,
+    validateEmail,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { CustomSamplingContext } from '@sentry/types';
 import { generateKeyPair } from 'crypto';
@@ -11,25 +16,6 @@ import {
     DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
-
-export const sanitizeStringParam = (value: any) => {
-    if (!value || typeof value !== 'string') {
-        throw new ParameterError();
-    }
-    const trimmedValue = value.trim();
-    if (trimmedValue.length <= 0) {
-        throw new ParameterError();
-    }
-    return trimmedValue;
-};
-
-export const sanitizeEmailParam = (value: any) => {
-    const email = sanitizeStringParam(value);
-    if (!validateEmail(email)) {
-        throw new ParameterError();
-    }
-    return email;
-};
 
 export const isDbPinnedChart = (data: DbPinnedItem): data is DbPinnedChart =>
     'saved_chart_uuid' in data && !!data.saved_chart_uuid;

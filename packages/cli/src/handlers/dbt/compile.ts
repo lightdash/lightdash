@@ -1,12 +1,14 @@
 import {
     DbtModelNode,
+    getCompiledModels,
+    getErrorMessage,
+    getModelsFromManifest,
     ParseError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import execa from 'execa';
 import { xor } from 'lodash';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
-import { getModelsFromManifest } from '../../dbt/models';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
@@ -72,23 +74,10 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         console.error(stdout);
         console.error(stderr);
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
 };
-
-export function getCompiledModels(
-    manifestModels: DbtModelNode[],
-    compiledModelIds?: string[],
-) {
-    return manifestModels.filter((model) => {
-        if (compiledModelIds) {
-            return compiledModelIds.includes(model.unique_id);
-        }
-
-        return model.compiled;
-    });
-}
 
 const getJoinedModelsRecursively = (
     modelNode: DbtModelNode,
@@ -161,7 +150,7 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
         console.error(stderr);
         return models;
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
+        const msg = getErrorMessage(e);
         throw new ParseError(
             `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );

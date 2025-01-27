@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
@@ -45,7 +46,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -57,7 +58,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
-        values?: any[],
+        values?: AnyType[],
     ) {
         let fields: WarehouseResults['fields'] = {};
         const rows: WarehouseResults['rows'] = [];
@@ -115,7 +116,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     }
 
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         return rows.reduce(

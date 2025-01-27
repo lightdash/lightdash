@@ -1,3 +1,4 @@
+import { AnyType } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -21,7 +22,7 @@ interface OldFilterGroup {
 
 export type FilterRule<
     O = string,
-    V = any,
+    V = AnyType,
     S extends object | undefined = undefined,
 > = {
     id: string;
@@ -90,6 +91,7 @@ export async function up(knex: Knex): Promise<void> {
             }[]
         >(['saved_queries_version_id', 'filters']);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const promises: Promise<any>[] = [];
         savedCharts.forEach(({ saved_queries_version_id, filters }) => {
             promises.push(

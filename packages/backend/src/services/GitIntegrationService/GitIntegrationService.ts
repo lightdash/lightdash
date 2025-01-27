@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
+    AnyType,
     ApiGithubDbtWritePreview,
     DbtModelNode,
     DbtProjectType,
@@ -77,7 +78,7 @@ export type YamlModel = {
     name: string;
     description?: string;
     columns?: YamlColumn[];
-    meta?: any;
+    meta?: AnyType;
 };
 
 export type YamlSchema = {
@@ -138,7 +139,7 @@ export class GitIntegrationService extends BaseService {
         };
     }
 
-    private static async loadYamlSchema(content: any): Promise<YamlSchema> {
+    private static async loadYamlSchema(content: AnyType): Promise<YamlSchema> {
         const schemaFile = yaml.load(content);
 
         const ajvCompiler = new Ajv({ coerceTypes: true });
@@ -262,7 +263,7 @@ Affected charts:
         branchName: string;
         token: string;
         quoteChar?: `"` | `'`;
-    }): Promise<any> {
+    }): Promise<void> {
         if (customMetrics === undefined || customMetrics?.length === 0)
             throw new Error('No custom metrics found');
         const tables = [

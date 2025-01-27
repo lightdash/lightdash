@@ -1,4 +1,10 @@
-import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
+import {
+    AnyType,
+    ForbiddenError,
+    isUserWithOrg,
+    SessionUser,
+    UserActivity,
+} from '@lightdash/common';
 
 import { subject } from '@casl/ability';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -28,7 +34,7 @@ export class AnalyticsService extends BaseService {
     async getUserActivity(
         projectUuid: string,
         user: SessionUser,
-    ): Promise<any> {
+    ): Promise<UserActivity> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

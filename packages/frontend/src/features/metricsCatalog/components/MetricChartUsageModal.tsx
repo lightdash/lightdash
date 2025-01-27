@@ -18,6 +18,9 @@ type Props = ModalProps;
 
 export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     const { track } = useTracking();
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
     const activeMetric = useAppSelector(
         (state) => state.metricsCatalog.activeMetric,
     );
@@ -90,6 +93,7 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
                                                 track({
                                                     name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
                                                     properties: {
+                                                        userId: userUuid,
                                                         organizationId:
                                                             organizationUuid,
                                                         projectId: projectUuid,

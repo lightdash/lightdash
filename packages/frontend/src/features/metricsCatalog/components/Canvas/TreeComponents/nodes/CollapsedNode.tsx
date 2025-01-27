@@ -3,16 +3,17 @@ import { Group, Paper, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineIcon from '../../../../../../components/common/MantineIcon';
 
-export type MetricTreeCollapsedNodeData = Node<{
+export type CollapsedNodeData = Node<{
     label: string;
     tableName?: string;
 }>;
 
-const MetricTreeCollapsedNode: React.FC<
-    NodeProps<MetricTreeCollapsedNodeData>
-> = ({ data, selected }) => {
+const CollapsedNode: React.FC<NodeProps<CollapsedNodeData>> = ({
+    data,
+    selected,
+}) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
@@ -31,7 +32,7 @@ const MetricTreeCollapsedNode: React.FC<
                 },
             })}
         >
-            <Group>
+            <Group position="apart">
                 <Text size="xs" c="gray.7" fw={500} truncate ta="center">
                     {title}
                 </Text>
@@ -58,4 +59,4 @@ const MetricTreeCollapsedNode: React.FC<
     );
 };
 
-export default MetricTreeCollapsedNode;
+export default CollapsedNode;

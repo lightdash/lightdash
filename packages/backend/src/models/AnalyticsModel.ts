@@ -190,9 +190,15 @@ export class AnalyticsModel {
             dashboardViewsSql(projectUuid),
         );
 
-        const userMostViewedDashboards = await this.database.raw(
-            userMostViewedDashboardSql(projectUuid),
-        );
+        const userMostViewedDashboards = await this.database.raw<{
+            rows: {
+                user_uuid: string;
+                first_name: string;
+                last_name: string;
+                dashboard_name: string;
+                count: number;
+            }[];
+        }>(userMostViewedDashboardSql(projectUuid));
         const chartViews = await this.database.raw(chartViewsSql(projectUuid));
         const parseUsersWithCount = (
             userData: DbUserWithCount,
@@ -229,7 +235,7 @@ export class AnalyticsModel {
             chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
             dashboardViews: dashboardViews.rows,
             userMostViewedDashboards: userMostViewedDashboards.rows.map(
-                (row: any) => ({
+                (row) => ({
                     userUuid: row.user_uuid,
                     firstName: row.first_name,
                     lastName: row.last_name,

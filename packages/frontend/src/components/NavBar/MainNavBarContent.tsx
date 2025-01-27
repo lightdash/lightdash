@@ -1,6 +1,7 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
 import Logo from '../../svgs/logo-icon.svg?react';
 import BrowseMenu from './BrowseMenu';
@@ -26,6 +27,9 @@ export const MainNavBarContent: FC<Props> = ({
     const homeUrl = activeProjectUuid
         ? `/projects/${activeProjectUuid}/home`
         : '/';
+    const { data: hasMetrics } = useHasMetricsInCatalog({
+        projectUuid: activeProjectUuid,
+    });
 
     return (
         <>
@@ -44,7 +48,9 @@ export const MainNavBarContent: FC<Props> = ({
                         <Button.Group>
                             <ExploreMenu projectUuid={activeProjectUuid} />
                             <BrowseMenu projectUuid={activeProjectUuid} />
-                            <MetricsLink projectUuid={activeProjectUuid} />
+                            {hasMetrics && (
+                                <MetricsLink projectUuid={activeProjectUuid} />
+                            )}
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
                     </>
