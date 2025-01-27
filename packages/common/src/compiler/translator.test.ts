@@ -314,7 +314,7 @@ describe('convert tables from dbt models', () => {
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
     });
 
-    it.only('should convert dbt model with metrics in meta and keep model spotlight override', () => {
+    it('should convert dbt model with metrics in meta and keep model spotlight override', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
