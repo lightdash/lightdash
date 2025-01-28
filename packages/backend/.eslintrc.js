@@ -32,12 +32,10 @@ module.exports = {
                 "@typescript-eslint/no-unsafe-call": "error"
             }
         },
+
         {
             // Only throw warning for existing files, new files should be error
             files: [
-                'src/database/migrations/*.ts',
-                'src/routers/*.ts',
-
                 'src/App.ts',
                 'src/SchedulerApp.ts',
                 'src/analytics/LightdashAnalytics.ts',
@@ -107,6 +105,19 @@ module.exports = {
                 "@typescript-eslint/no-unsafe-member-access": "warn",
                 "@typescript-eslint/no-unsafe-assignment": "warn",
                 "@typescript-eslint/no-unsafe-call": "warn"
+            }
+        },
+        {
+            files: ['src/database/migrations/*.ts',
+                'src/routers/*.ts',
+                '*.mock.ts',
+                '*.test.ts',
+                '*.spec.ts',
+            ],
+            rules: {
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off"
             }
         },
        

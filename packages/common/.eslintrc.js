@@ -42,6 +42,7 @@ module.exports = {
                 "@typescript-eslint/no-unsafe-call": "error"
             }
         },
+
         {
             // Only throw warning for existing files, new files should be error
             files: [
@@ -67,6 +68,17 @@ module.exports = {
                 "@typescript-eslint/no-unsafe-call": "warn"
             }
         },
-       
+        {
+            files: [
+                '*.mock.ts',
+                '*.test.ts',
+                '*.spec.ts',
+            ],
+            rules: {
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off"
+            }
+        },
     ]
 };
