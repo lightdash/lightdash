@@ -117,14 +117,17 @@ export class CatalogModel {
                                     .where('project_uuid', projectUuid)
                                     .delete();
 
-                                const results = await trx(CatalogTableName)
-                                    .insert(
+                                const BATCH_SIZE = 3000;
+                                const results = await trx
+                                    .batchInsert<DbCatalog>(
+                                        CatalogTableName,
                                         catalogInserts.map(
                                             ({
                                                 assigned_yaml_tags,
                                                 ...catalogInsert
                                             }) => catalogInsert,
                                         ),
+                                        BATCH_SIZE,
                                     )
                                     .returning('*')
                                     .transacting(trx);

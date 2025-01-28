@@ -1,3 +1,10 @@
+## [0.1469.3](https://github.com/lightdash/lightdash/compare/0.1469.2...0.1469.3) (2025-01-28)
+
+
+### Bug Fixes
+
+* batch insert catalog search entries ([#13430](https://github.com/lightdash/lightdash/issues/13430)) ([c1f9e3d](https://github.com/lightdash/lightdash/commit/c1f9e3d5678253c2d4816777c6a4789aa1c69d2e))
+
 ## [0.1469.2](https://github.com/lightdash/lightdash/compare/0.1469.1...0.1469.2) (2025-01-28)
 
 
