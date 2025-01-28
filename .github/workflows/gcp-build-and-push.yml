@@ -1,13 +1,17 @@
-name: GCP build and push
+name: Build and push image to GCP
 on:
-  workflow_dispatch
+  push:
+    branches:
+      - main
 
 jobs:
   release:
+    if: >
+      startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: lightdash-large-runner
     concurrency: ${{ github.ref }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
