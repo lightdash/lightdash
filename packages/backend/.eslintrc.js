@@ -46,6 +46,7 @@ module.exports = {
                 'src/models/**/*.ts',
                 'src/services/**/*.ts',
                 'src/utils/**/*.ts',
+                'src/logging/**/*.ts',
                 'src/scheduler/**/*.ts',
                 'src/config/**/*.ts',
                 'src/projectAdapters/**/*.ts',
