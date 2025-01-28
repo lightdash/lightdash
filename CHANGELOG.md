@@ -1,3 +1,10 @@
+# [0.1469.0](https://github.com/lightdash/lightdash/compare/0.1468.0...0.1469.0) (2025-01-28)
+
+
+### Features
+
+* EE license check ([#13424](https://github.com/lightdash/lightdash/issues/13424)) ([d8cd33f](https://github.com/lightdash/lightdash/commit/d8cd33fa7dc2b82a9a796f1703e7d7e524d95624))
+
 # [0.1468.0](https://github.com/lightdash/lightdash/compare/0.1467.1...0.1468.0) (2025-01-27)
 
 
