@@ -1,4 +1,8 @@
-import app from './backendApp';
+import { getErrorMessage } from '@lightdash/common';
+import App from './App';
+import { lightdashConfig } from './config/lightdashConfig';
+import { getEnterpriseAppArguments } from './ee';
+import knexConfig from './knexfile';
 import Logger from './logging/logger';
 
 process.on('unhandledRejection', (reason, p) => {
@@ -9,23 +13,39 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 
-function onExit() {
-    app.stop()
-        .catch((e) => {
-            Logger.error('Error stopping server', e);
-        })
-        .finally(() => {
-            process.exit();
+(async () => {
+    try {
+        const app = new App({
+            lightdashConfig,
+            port: process.env.PORT || 8080,
+            environment:
+                process.env.NODE_ENV === 'development'
+                    ? 'development'
+                    : 'production',
+            knexConfig,
+            ...(await getEnterpriseAppArguments()),
         });
-}
 
-process.on('SIGUSR2', onExit);
-process.on('SIGINT', onExit);
-process.on('SIGTERM', onExit);
-process.on('SIGHUP', onExit);
-process.on('SIGABRT', onExit);
+        const onExit = () => {
+            app.stop()
+                .catch((e) => {
+                    Logger.error('Error stopping server', e);
+                })
+                .finally(() => {
+                    process.exit();
+                });
+        };
 
-// Start the Lightdash server
-app.start().catch((e) => {
-    Logger.error(`Error starting Lightdash: ${e}`, e);
-});
+        process.on('SIGUSR2', onExit);
+        process.on('SIGINT', onExit);
+        process.on('SIGTERM', onExit);
+        process.on('SIGHUP', onExit);
+        process.on('SIGABRT', onExit);
+
+        Logger.info('Starting Lightdash server...');
+        await app.start();
+    } catch (error) {
+        Logger.error(`Failed to start Lightdash: ${getErrorMessage(error)}`);
+        process.exit(1);
+    }
+})();

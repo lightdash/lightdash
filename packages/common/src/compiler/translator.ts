@@ -505,7 +505,12 @@ export const convertTable = (
                 metric,
                 model.name,
                 tableLabel,
-                spotlightConfig,
+                {
+                    ...spotlightConfig,
+                    default_visibility:
+                        model.meta.spotlight?.visibility ??
+                        spotlightConfig.default_visibility,
+                },
                 model.meta.spotlight?.categories,
             ),
         ]),
