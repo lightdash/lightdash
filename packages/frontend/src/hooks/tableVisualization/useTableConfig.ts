@@ -460,8 +460,6 @@ const useTableConfig = (
         resultsData,
     ]);
 
-    console.log({ cralalalala: minMaxMap });
-
     const validConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,

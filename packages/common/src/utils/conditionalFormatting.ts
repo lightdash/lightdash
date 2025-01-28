@@ -226,8 +226,16 @@ export const getConditionalFormattingDescription = (
         isConditionalFormattingConfigWithColorRange(conditionalFormattingConfig)
     ) {
         return [
-            `is greater than or equal to ${conditionalFormattingConfig.rule.min}`,
-            `is less than or equal to ${conditionalFormattingConfig.rule.max}`,
+            `is greater than or equal to ${
+                conditionalFormattingConfig.rule.min === 'auto'
+                    ? 'min value in table'
+                    : conditionalFormattingConfig.rule.min
+            }`,
+            `is less than or equal to ${
+                conditionalFormattingConfig.rule.max === 'auto'
+                    ? 'max value in table'
+                    : conditionalFormattingConfig.rule.max
+            }`,
         ].join(' and ');
     }
 

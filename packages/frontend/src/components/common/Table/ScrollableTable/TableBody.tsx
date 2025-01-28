@@ -63,8 +63,6 @@ const TableRow: FC<TableRowProps> = ({
                 const field = meta?.item;
                 const cellValue = cell.getValue() as ResultRow[0] | undefined;
 
-                console.log({ minMaxMap });
-
                 const conditionalFormattingConfig =
                     getConditionalFormattingConfig({
                         field,
@@ -72,8 +70,6 @@ const TableRow: FC<TableRowProps> = ({
                         minMaxMap,
                         conditionalFormattings,
                     });
-
-                console.log(conditionalFormattingConfig);
 
                 const conditionalFormattingColor =
                     getConditionalFormattingColor({
