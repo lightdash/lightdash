@@ -1,3 +1,10 @@
+# [0.1470.0](https://github.com/lightdash/lightdash/compare/0.1469.3...0.1470.0) (2025-01-28)
+
+
+### Features
+
+* sql runner consistent style for series config form ([#13390](https://github.com/lightdash/lightdash/issues/13390)) ([ba665f4](https://github.com/lightdash/lightdash/commit/ba665f43927b68f822e8b2c208e80e320bf954fd))
+
 ## [0.1469.3](https://github.com/lightdash/lightdash/compare/0.1469.2...0.1469.3) (2025-01-28)
 
 
