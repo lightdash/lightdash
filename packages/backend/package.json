@@ -138,7 +138,7 @@
         "scheduler": "node dist/scheduler.js",
         "scheduler-dev": "tsx watch --clear-screen=false src/scheduler.ts",
         "test": "TZ=UTC jest",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
+        "linter": "eslint -c .eslintrc.json --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
