@@ -1,3 +1,10 @@
+# [0.1471.0](https://github.com/lightdash/lightdash/compare/0.1470.0...0.1471.0) (2025-01-28)
+
+
+### Features
+
+* allow slack channel cache reset and better messaging ([#13437](https://github.com/lightdash/lightdash/issues/13437)) ([47628b7](https://github.com/lightdash/lightdash/commit/47628b7647a18bfe9cc785eb22eefea1e868bb53))
+
 # [0.1470.0](https://github.com/lightdash/lightdash/compare/0.1469.3...0.1470.0) (2025-01-28)
 
 
