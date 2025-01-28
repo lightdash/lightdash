@@ -221,6 +221,9 @@ export type LightdashConfig = {
     rudder: RudderConfig;
     posthog: PosthogConfig | undefined;
     mode: LightdashMode;
+    license: {
+        licenseKey: string | null;
+    };
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
@@ -499,6 +502,9 @@ export const parseConfig = (): LightdashConfig => {
 
     return {
         mode,
+        license: {
+            licenseKey: process.env.LIGHTDASH_LICENSE_KEY || null,
+        },
         security: {
             contentSecurityPolicy: {
                 reportOnly: process.env.LIGHTDASH_CSP_REPORT_ONLY !== 'false', // defaults to true
