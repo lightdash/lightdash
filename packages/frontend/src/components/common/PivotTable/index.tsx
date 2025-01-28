@@ -11,6 +11,7 @@ import {
     isSummable,
     MetricType,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMaxMap,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -81,6 +82,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
+        minMaxMap: ConditionalFormattingMinMaxMap | undefined;
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
@@ -90,6 +92,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
 const PivotTable: FC<PivotTableProps> = ({
     data,
     conditionalFormattings,
+    minMaxMap = {},
     hideRowNumbers = false,
     getFieldLabel,
     getField,
@@ -534,22 +537,19 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const value = fullValue?.value;
 
                                 const conditionalFormattingConfig =
-                                    getConditionalFormattingConfig(
-                                        item,
-                                        {},
-                                        value?.raw,
+                                    getConditionalFormattingConfig({
+                                        field: item,
+                                        value: value?.raw,
+                                        minMaxMap,
                                         conditionalFormattings,
-                                    );
+                                    });
 
                                 const conditionalFormattingColor =
                                     getConditionalFormattingColor({
                                         field: item,
                                         value: value?.raw,
                                         config: conditionalFormattingConfig,
-                                        getMinMaxRange: () => ({
-                                            min: -3,
-                                            max: 333,
-                                        }),
+                                        minMaxMap,
                                         getColorFromRange,
                                     });
 

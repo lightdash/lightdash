@@ -88,6 +88,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             className={className}
                             data={pivotTableData.data}
                             conditionalFormattings={conditionalFormattings}
+                            minMaxMap={minMaxMap}
                             getFieldLabel={getFieldLabel}
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
