@@ -40,7 +40,7 @@ const ValueLabelIcon: FC<{
             icon = IconClearAll;
     }
 
-    return <MantineIcon color={position ? 'indigo.4' : 'gray.4'} icon={icon} />;
+    return <MantineIcon color={position ? 'dark.0' : 'gray.4'} icon={icon} />;
 };
 
 type Props = {
@@ -82,9 +82,12 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
                 onChangeValueLabelPosition(value as ValueLabelPositionOptions)
             }
             styles={(theme) => ({
+                root: {
+                    flex: 1,
+                },
                 input: {
-                    width: '110px',
                     fontWeight: 500,
+                    borderColor: theme.colors.gray[2],
                 },
                 item: {
                     '&[data-selected="true"]': {
