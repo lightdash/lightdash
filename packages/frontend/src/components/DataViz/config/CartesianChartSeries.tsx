@@ -210,13 +210,13 @@ export const CartesianChartSeries = ({
                                           {friendlyName(referenceField)}
                                       </Config.Subheading>
                                   </Accordion.Control>
-                                  {seriesArray.map((s, index) => (
-                                      <Accordion.Panel
-                                          key={`${s.reference}-${index}`}
-                                          sx={{
-                                              backgroundColor: 'white',
-                                          }}
-                                      >
+                                  <Accordion.Panel
+                                      sx={(theme) => ({
+                                          backgroundColor: 'white',
+                                          borderRadius: theme.radius.sm,
+                                      })}
+                                  >
+                                      {seriesArray.map((s, index) => (
                                           <SingleSeriesConfiguration
                                               key={`${s.reference}-${index}`}
                                               reference={s.reference}
@@ -239,8 +239,8 @@ export const CartesianChartSeries = ({
                                                   handleValueLabelPositionChange
                                               }
                                           />
-                                      </Accordion.Panel>
-                                  ))}
+                                      ))}
+                                  </Accordion.Panel>
                               </Accordion.Item>
                           </Accordion>
                       ),
