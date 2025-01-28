@@ -1,10 +1,12 @@
+import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
+import Logger from '../logging/logger';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
-import knexConfig from './database/knexfile';
 import { AiModel } from './models/AiModel';
 import { CommercialCatalogModel } from './models/CommercialCatalogModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -28,12 +30,27 @@ type EnterpriseAppArguments = Pick<
     | 'modelProviders'
     | 'customExpressMiddlewares'
     | 'slackBotFactory'
-    | 'knexConfig'
 >;
 
-export function getEnterpriseAppArguments(): EnterpriseAppArguments {
+export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
+    if (!lightdashConfig.license.licenseKey) {
+        return {};
+    }
+
+    const licenseClient = new LicenseClient({});
+
+    const license = await licenseClient.get(lightdashConfig.license.licenseKey);
+    if (license.isValid) {
+        Logger.info(
+            `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
+        );
+    } else {
+        throw new ForbiddenError(
+            `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
+        );
+    }
+
     return {
-        knexConfig,
         serviceProviders: {
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

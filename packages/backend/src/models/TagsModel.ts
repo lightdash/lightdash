@@ -112,11 +112,12 @@ export class TagsModel {
 
             // delete all yaml tags that are in the project but are not in the yamlTags array
             await trx(TagsTableName)
-                .where('project_uuid', projectUuid)
+                .whereNotNull('yaml_reference')
                 .whereNotIn(
                     'yaml_reference',
                     yamlTags.map((t) => t.yaml_reference),
                 )
+                .where('project_uuid', projectUuid)
                 .delete();
 
             if (yamlTagsToCreate.length > 0) {

@@ -1,0 +1,33 @@
+name: Build and push image to GCP
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    if: >
+      startsWith(github.event.head_commit.message, 'chore(release):')
+    runs-on: lightdash-large-runner
+    concurrency: ${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 381.0.0'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'
+
+      - name: Build and push
+        run: bash ./scripts/gcp-build-and-push.sh

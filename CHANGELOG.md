@@ -1,3 +1,38 @@
+# [0.1470.0](https://github.com/lightdash/lightdash/compare/0.1469.3...0.1470.0) (2025-01-28)
+
+
+### Features
+
+* sql runner consistent style for series config form ([#13390](https://github.com/lightdash/lightdash/issues/13390)) ([ba665f4](https://github.com/lightdash/lightdash/commit/ba665f43927b68f822e8b2c208e80e320bf954fd))
+
+## [0.1469.3](https://github.com/lightdash/lightdash/compare/0.1469.2...0.1469.3) (2025-01-28)
+
+
+### Bug Fixes
+
+* batch insert catalog search entries ([#13430](https://github.com/lightdash/lightdash/issues/13430)) ([c1f9e3d](https://github.com/lightdash/lightdash/commit/c1f9e3d5678253c2d4816777c6a4789aa1c69d2e))
+
+## [0.1469.2](https://github.com/lightdash/lightdash/compare/0.1469.1...0.1469.2) (2025-01-28)
+
+
+### Bug Fixes
+
+* deleting non project tags ([#13429](https://github.com/lightdash/lightdash/issues/13429)) ([c5a0895](https://github.com/lightdash/lightdash/commit/c5a089502f0b761281e91b955d796fb0e70cc712))
+
+## [0.1469.1](https://github.com/lightdash/lightdash/compare/0.1469.0...0.1469.1) (2025-01-28)
+
+
+### Bug Fixes
+
+* metadata tab name on gsync ([#13425](https://github.com/lightdash/lightdash/issues/13425)) ([ba0a1b8](https://github.com/lightdash/lightdash/commit/ba0a1b858355a72dde485012cc4188f6fa6f3617))
+
+# [0.1469.0](https://github.com/lightdash/lightdash/compare/0.1468.0...0.1469.0) (2025-01-28)
+
+
+### Features
+
+* EE license check ([#13424](https://github.com/lightdash/lightdash/issues/13424)) ([d8cd33f](https://github.com/lightdash/lightdash/commit/d8cd33fa7dc2b82a9a796f1703e7d7e524d95624))
+
 # [0.1468.0](https://github.com/lightdash/lightdash/compare/0.1467.1...0.1468.0) (2025-01-27)
 
 
