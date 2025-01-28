@@ -699,8 +699,7 @@ export class ProjectService extends BaseService {
             const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.TESTING_ADAPTOR,
-                async () =>
-                    ProjectService.testProjectAdapter(createProject, user),
+                async () => this.testProjectAdapter(createProject, user),
             );
 
             const explores = await this.jobModel.tryJobStep(
@@ -951,7 +950,7 @@ export class ProjectService extends BaseService {
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
                 async () =>
-                    ProjectService.testProjectAdapter(
+                    this.testProjectAdapter(
                         updatedProject as UpdateProject,
                         user,
                     ),
@@ -1022,7 +1021,7 @@ export class ProjectService extends BaseService {
         }
     }
 
-    private static async testProjectAdapter(
+    private async testProjectAdapter(
         data: UpdateProject,
         _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<{
@@ -1032,6 +1031,7 @@ export class ProjectService extends BaseService {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
         const adapter = await projectAdapterFromConfig(
+            this.analytics,
             data.dbtConnection,
             sshTunnel.overrideCredentials,
             {
@@ -1103,6 +1103,7 @@ export class ProjectService extends BaseService {
         await sshTunnel.connect();
 
         const adapter = await projectAdapterFromConfig(
+            this.analytics,
             project.dbtConnection,
             sshTunnel.overrideCredentials,
             {
@@ -5211,6 +5212,7 @@ export class ProjectService extends BaseService {
                 name,
                 projectId: projectUuid,
                 organizationId: organizationUuid,
+                context: 'ui',
             },
         });
 
@@ -5321,6 +5323,20 @@ export class ProjectService extends BaseService {
             yaml_reference: tag.yamlReference,
         }));
 
-        return this.tagsModel.replaceYamlTags(projectUuid, yamlTagsIn);
+        const { yamlTagsToCreateOrUpdate } =
+            await this.tagsModel.replaceYamlTags(projectUuid, yamlTagsIn);
+
+        yamlTagsToCreateOrUpdate.forEach((name) => {
+            this.analytics.track({
+                event: 'category.created',
+                userId: user.userUuid,
+                properties: {
+                    name,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    context: 'yaml',
+                },
+            });
+        });
     }
 }

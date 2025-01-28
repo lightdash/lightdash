@@ -38,7 +38,10 @@ describe('Existing lightdash.config.yml file', () => {
     describe('when valid', () => {
         it('should load the config file', async () => {
             readFileSpy.mockResolvedValueOnce(VALID_CONFIG_CONTENTS);
-            const config = await readAndLoadLightdashProjectConfig('');
+            const config = await readAndLoadLightdashProjectConfig(
+                '',
+                'projectUuid',
+            );
             expect(config).toEqual(VALID_CONFIG);
         });
     });
@@ -46,9 +49,9 @@ describe('Existing lightdash.config.yml file', () => {
     describe('when invalid', () => {
         it('should throw an error', async () => {
             readFileSpy.mockResolvedValueOnce(INVALID_CONFIG_CONTENTS);
-            await expect(readAndLoadLightdashProjectConfig('')).rejects.toThrow(
-                /Invalid lightdash.config.yml with errors/,
-            );
+            await expect(
+                readAndLoadLightdashProjectConfig('', 'projectUuid'),
+            ).rejects.toThrow(/Invalid lightdash.config.yml with errors/);
         });
     });
 });
@@ -71,6 +74,7 @@ describe('Missing lightdash.config.yml file', () => {
         );
         const config = await readAndLoadLightdashProjectConfig(
             './some/path/to/nonexisting/file',
+            'projectUuid',
         );
 
         expect(config).toEqual({

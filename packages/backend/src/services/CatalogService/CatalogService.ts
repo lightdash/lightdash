@@ -326,14 +326,37 @@ export class CatalogService<
                 explores,
             );
 
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
         const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
 
-        return this.catalogModel.indexCatalog(
+        const result = await this.catalogModel.indexCatalog(
             projectUuid,
             exploresWithCachedExploreUuid,
             projectYamlTags,
             userUuid,
         );
+
+        if (
+            userUuid &&
+            result.numberOfCategoriesApplied &&
+            result.numberOfCategoriesApplied > 0
+        ) {
+            this.analytics.track({
+                event: 'categories.applied',
+                userId: userUuid,
+                properties: {
+                    count: result.numberOfCategoriesApplied,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    context: 'yaml',
+                },
+            });
+        }
+
+        return result;
     }
 
     /**
@@ -860,6 +883,17 @@ export class CatalogService<
             tagUuid,
             false,
         );
+
+        this.analytics.track({
+            event: 'categories.applied',
+            userId: user.userUuid,
+            properties: {
+                count: 1,
+                projectId: tag.projectUuid,
+                organizationId: tagOrganizationUuid,
+                context: 'ui',
+            },
+        });
     }
 
     async untagCatalogItem(

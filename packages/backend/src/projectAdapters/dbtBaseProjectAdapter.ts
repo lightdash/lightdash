@@ -31,6 +31,7 @@ import {
 import { WarehouseClient } from '@lightdash/warehouses';
 import fs from 'fs/promises';
 import path from 'path';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -43,6 +44,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtVersion: SupportedDbtVersions;
 
+    private readonly analytics: LightdashAnalytics | undefined;
+
     dbtProjectDir?: string;
 
     constructor(
@@ -51,12 +54,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         cachedWarehouse: CachedWarehouse,
         dbtVersion: SupportedDbtVersions,
         dbtProjectDir?: string,
+        analytics?: LightdashAnalytics,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
         this.dbtVersion = dbtVersion;
         this.dbtProjectDir = dbtProjectDir;
+        this.analytics = analytics;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -93,7 +98,26 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         try {
             const fileContents = await fs.readFile(configPath, 'utf8');
-            const config = await loadLightdashProjectConfig(fileContents);
+            const config = await loadLightdashProjectConfig(
+                fileContents,
+                async (lightdashConfig) => {
+                    void this.analytics?.track({
+                        event: 'lightdashconfig.loaded',
+                        properties: {
+                            // projectId: projectUuid,
+                            // userId: userUuid,
+                            // organizationId: organizationUuid,
+                            categories_count: Number(
+                                Object.keys(
+                                    lightdashConfig.spotlight.categories ?? {},
+                                ).length,
+                            ),
+                            default_visibility:
+                                lightdashConfig.spotlight.default_visibility,
+                        },
+                    });
+                },
+            );
             return config;
         } catch (e) {
             Logger.debug(`No lightdash.config.yml found in ${configPath}`);

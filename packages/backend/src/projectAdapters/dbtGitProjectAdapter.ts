@@ -17,6 +17,7 @@ import simpleGit, {
     SimpleGit,
     SimpleGitProgressEvent,
 } from 'simple-git';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
@@ -34,6 +35,7 @@ export type DbtGitProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
     selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -96,6 +98,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         dbtVersion,
         useDbtLs,
         selector,
+        analytics,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
@@ -112,6 +115,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             dbtVersion,
             useDbtLs,
             selector,
+            analytics,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
