@@ -110,7 +110,6 @@ import {
     UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
-    VizAggregationOptions,
     VizColumn,
     WarehouseClient,
     WarehouseCredentials,
@@ -136,7 +135,7 @@ import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbTag, DbTagIn, DbTagUpdate } from '../../database/entities/tags';
+import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -2527,65 +2526,81 @@ export class ProjectService extends BaseService {
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
-                await warehouseClient.streamQuery(
-                    pivotedSql,
-                    async ({ rows, fields }) => {
-                        if (!groupByColumns || groupByColumns.length === 0) {
-                            rows.forEach(writer);
-                            return;
-                        }
-
-                        // columns appears unused
-                        if (!columns.length) {
-                            // Get column types from first row of results
-                            columns.push(
-                                ...Object.keys(fields).map((fieldName) => ({
-                                    reference: fieldName,
-                                    type: fields[fieldName].type,
-                                })),
-                            );
-                        }
-
-                        rows.forEach((row) => {
-                            // Write rows to file in order of row_index. This is so that we can pivot the data later
-                            if (currentRowIndex !== row.row_index) {
-                                if (currentTransformedRow) {
-                                    writer(currentTransformedRow);
-                                }
-                                currentTransformedRow = {
-                                    [indexColumn.reference]:
-                                        row[indexColumn.reference],
-                                };
-                                currentRowIndex = row.row_index;
+                try {
+                    await warehouseClient.streamQuery(
+                        pivotedSql,
+                        async ({ rows, fields }) => {
+                            if (
+                                !groupByColumns ||
+                                groupByColumns.length === 0
+                            ) {
+                                rows.forEach(writer);
+                                return;
                             }
-                            // Suffix the value column with the group by columns to avoid collisions.
-                            // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
-                            // then the value column will be 'value_1_a_b'
-                            const valueSuffix = groupByColumns
-                                ?.map((col) => row[col.reference])
-                                .join('_');
-                            valuesColumns.forEach((col) => {
-                                const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
-                                valuesColumnData.set(valueColumnReference, {
-                                    referenceField: col.reference, // The original y field name
-                                    pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
-                                    aggregation: col.aggregation,
-                                    pivotValues: groupByColumns?.map((c) => ({
-                                        referenceField: c.reference,
-                                        value: row[c.reference],
+
+                            // columns appears unused
+                            if (!columns.length) {
+                                // Get column types from first row of results
+                                columns.push(
+                                    ...Object.keys(fields).map((fieldName) => ({
+                                        reference: fieldName,
+                                        type: fields[fieldName].type,
                                     })),
+                                );
+                            }
+
+                            rows.forEach((row) => {
+                                // Write rows to file in order of row_index. This is so that we can pivot the data later
+                                if (currentRowIndex !== row.row_index) {
+                                    if (currentTransformedRow) {
+                                        writer(currentTransformedRow);
+                                    }
+                                    currentTransformedRow = {
+                                        [indexColumn.reference]:
+                                            row[indexColumn.reference],
+                                    };
+                                    currentRowIndex = row.row_index;
+                                }
+                                // Suffix the value column with the group by columns to avoid collisions.
+                                // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                                // then the value column will be 'value_1_a_b'
+                                const valueSuffix = groupByColumns
+                                    ?.map((col) => row[col.reference])
+                                    .join('_');
+                                valuesColumns.forEach((col) => {
+                                    const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+                                    valuesColumnData.set(valueColumnReference, {
+                                        referenceField: col.reference, // The original y field name
+                                        pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                                        aggregation: col.aggregation,
+                                        pivotValues: groupByColumns?.map(
+                                            (c) => ({
+                                                referenceField: c.reference,
+                                                value: row[c.reference],
+                                            }),
+                                        ),
+                                    });
+                                    currentTransformedRow =
+                                        currentTransformedRow ?? {};
+                                    currentTransformedRow[
+                                        valueColumnReference
+                                    ] =
+                                        row[
+                                            `${col.reference}_${col.aggregation}`
+                                        ];
                                 });
-                                currentTransformedRow =
-                                    currentTransformedRow ?? {};
-                                currentTransformedRow[valueColumnReference] =
-                                    row[`${col.reference}_${col.aggregation}`];
                             });
-                        });
-                    },
-                    {
-                        tags: queryTags,
-                    },
-                );
+                        },
+                        {
+                            tags: queryTags,
+                        },
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Error running pivot query: ${error}\nSQL: ${pivotedSql}`,
+                    );
+                    throw error;
+                }
                 // Write the last row
                 if (currentTransformedRow) {
                     writer(currentTransformedRow);
