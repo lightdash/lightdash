@@ -194,7 +194,7 @@ const ChannelProjectMappings: FC<Props> = ({
                 >
                     <ActionIcon
                         loading={isRefreshing}
-                        onClick={() => refreshChannels()}
+                        onClick={refreshChannels}
                     >
                         <MantineIcon icon={IconRefresh} />
                     </ActionIcon>

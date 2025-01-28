@@ -80,8 +80,15 @@ export const useSlackChannels = (
     });
 
     const refresh = useCallback(async () => {
-        await getSlackChannels(search, excludeArchived, true);
-        await queryClient.invalidateQueries(['slack_channels']);
+        const slackChannelsAfterRefresh = await getSlackChannels(
+            search,
+            excludeArchived,
+            true,
+        );
+        queryClient.setQueryData(
+            ['slack_channels', search, excludeArchived],
+            slackChannelsAfterRefresh,
+        );
     }, [search, excludeArchived, queryClient]);
 
     return { ...query, refresh };
