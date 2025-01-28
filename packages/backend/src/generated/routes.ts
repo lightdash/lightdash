@@ -6764,6 +6764,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                tabName: { dataType: 'string' },
                 url: { dataType: 'string', required: true },
                 gdriveOrganizationName: { dataType: 'string', required: true },
                 gdriveName: { dataType: 'string', required: true },
@@ -18689,6 +18690,16 @@ export function RegisterRoutes(app: Router) {
     const argsSlackController_get: Record<string, TsoaRoute.ParameterSchema> = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         search: { in: 'query', name: 'search', dataType: 'string' },
+        excludeArchived: {
+            in: 'query',
+            name: 'excludeArchived',
+            dataType: 'boolean',
+        },
+        forceRefresh: {
+            in: 'query',
+            name: 'forceRefresh',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/slack/channels',

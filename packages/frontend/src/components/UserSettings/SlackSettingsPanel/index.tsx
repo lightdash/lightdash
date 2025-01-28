@@ -78,7 +78,7 @@ const SlackSettingsPanel: FC = () => {
     const debounceSetSearch = debounce((val) => setSearch(val), 1500);
 
     const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
-        useSlackChannels(search, {
+        useSlackChannels(search, true, {
             enabled: organizationHasSlack,
         });
 

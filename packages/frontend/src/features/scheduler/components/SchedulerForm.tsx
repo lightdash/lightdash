@@ -410,7 +410,7 @@ const SchedulerForm: FC<Props> = ({
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
-    const slackChannelsQuery = useSlackChannels(search, {
+    const slackChannelsQuery = useSlackChannels(search, true, {
         enabled: organizationHasSlack,
     });
 
