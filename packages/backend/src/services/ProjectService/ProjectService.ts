@@ -707,7 +707,10 @@ export class ProjectService extends BaseService {
                 JobStepType.COMPILING,
                 async () => {
                     try {
-                        return await adapter.compileAllExplores();
+                        return await adapter.compileAllExplores({
+                            userUuid: user.userUuid,
+                            organizationUuid: user.organizationUuid,
+                        });
                     } finally {
                         await adapter.destroy();
                         await sshTunnel.disconnect();
@@ -734,7 +737,11 @@ export class ProjectService extends BaseService {
                     }
 
                     const lightdashProjectConfig =
-                        await adapter.getLightdashProjectConfig();
+                        await adapter.getLightdashProjectConfig({
+                            projectUuid: newProjectUuid,
+                            organizationUuid: user.organizationUuid,
+                            userUuid: user.userUuid,
+                        });
 
                     await this.replaceYamlTags(
                         user,

@@ -84,7 +84,15 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+    public async getLightdashProjectConfig({
+        projectUuid,
+        organizationUuid,
+        userUuid,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<LightdashProjectConfig> {
         if (!this.dbtProjectDir) {
             return {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -104,9 +112,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     void this.analytics?.track({
                         event: 'lightdashconfig.loaded',
                         properties: {
-                            // projectId: projectUuid,
-                            // userId: userUuid,
-                            // organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            userId: userUuid,
+                            organizationId: organizationUuid,
                             categories_count: Number(
                                 Object.keys(
                                     lightdashConfig.spotlight.categories ?? {},
@@ -133,6 +141,15 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async compileAllExplores(
+        {
+            userUuid,
+            organizationUuid,
+            projectUuid,
+        }: {
+            userUuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+        },
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
@@ -205,7 +222,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 : Object.values(manifest.metrics),
         );
 
-        const lightdashProjectConfig = await this.getLightdashProjectConfig();
+        const lightdashProjectConfig = await this.getLightdashProjectConfig({
+            userUuid,
+            organizationUuid,
+            projectUuid,
+        });
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {

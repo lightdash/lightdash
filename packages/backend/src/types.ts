@@ -8,7 +8,15 @@ import {
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
-    compileAllExplores(): Promise<(Explore | ExploreError)[]>;
+    compileAllExplores({
+        userUuid,
+        organizationUuid,
+        projectUuid,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<(Explore | ExploreError)[]>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
 
@@ -16,7 +24,15 @@ export interface ProjectAdapter {
 
     destroy(): Promise<void>;
 
-    getLightdashProjectConfig(): Promise<LightdashProjectConfig>;
+    getLightdashProjectConfig({
+        projectUuid,
+        organizationUuid,
+        userUuid,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<LightdashProjectConfig>;
 }
 
 export interface DbtClient {

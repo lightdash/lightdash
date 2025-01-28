@@ -213,9 +213,21 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         }
     }
 
-    public async compileAllExplores() {
+    public async compileAllExplores({
+        userUuid,
+        organizationUuid,
+        projectUuid,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }) {
         await this._refreshRepo();
-        return super.compileAllExplores();
+        return super.compileAllExplores({
+            userUuid,
+            organizationUuid,
+            projectUuid,
+        });
     }
 
     public async test() {
