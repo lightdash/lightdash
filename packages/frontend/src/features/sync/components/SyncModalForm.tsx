@@ -67,7 +67,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const isSuccess = isCreateChartSyncSuccess || isUpdateChartSyncSuccess;
 
     const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
-        mode: 'onSubmit',
+        mode: 'onChange',
         defaultValues: {
             cron: '0 9 * * *',
             name: '',
@@ -96,11 +96,19 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         }
     }, [isEditing, methods, schedulerData]);
 
-    const handleSubmit = (
+    const handleSubmit = async (
         data:
             | CreateSchedulerAndTargetsWithoutIds
             | UpdateSchedulerAndTargetsWithoutId,
     ) => {
+        if (!methods.formState.isValid) {
+            console.error(
+                'Unable to send form with errors',
+                methods.formState.errors,
+            );
+            return;
+        }
+
         const defaultNewSchedulerValues = {
             format: SchedulerFormat.GSHEETS,
             enabled: true,
@@ -156,7 +164,6 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     if (isEditing && isSchedulerError) {
         return <ErrorState error={schedulerError.error} />;
     }
-
     return (
         <FormProvider {...methods}>
             <form onSubmit={methods.handleSubmit(handleSubmit)}>
@@ -217,7 +224,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             onChange={() => setSaveInNewTab(!saveInNewTab)}
                         ></Switch>
                         <Tooltip
-                            label={`Type a tab name to save the sync in, insead of overriding the first existing tab in the Google sheet.
+                            label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
                                     This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
                             multiline
                             withinPortal
@@ -232,7 +239,20 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             required
                             label="Tab name"
                             placeholder="Sheet1"
-                            {...methods.register('options.tabName')}
+                            error={
+                                methods.formState.errors.options &&
+                                `tabName` in methods.formState.errors.options &&
+                                methods.formState.errors.options?.tabName
+                                    ?.message
+                            }
+                            {...methods.register('options.tabName', {
+                                validate: (value) => {
+                                    if (value?.toLowerCase() === 'metadata') {
+                                        return 'Tab name cannot be "metadata"';
+                                    }
+                                    return true;
+                                },
+                            })}
                         />
                     )}
                     <Space />
@@ -248,7 +268,9 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                         <Button
                             type="submit"
-                            disabled={!hasSetGoogleSheet}
+                            disabled={
+                                !hasSetGoogleSheet || !methods.formState.isValid
+                            }
                             loading={isLoading}
                             leftIcon={
                                 !isEditing && (
