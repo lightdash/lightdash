@@ -1,6 +1,6 @@
 import {
-    type ConditionalFormattingColorMinMaxRange,
     type ConditionalFormattingColorRange,
+    type ConditionalFormattingMinMax,
 } from '@lightdash/common';
 import Color from 'colorjs.io';
 
@@ -42,7 +42,7 @@ const getColorRange = (
 export const getColorFromRange = (
     value: number,
     colorRange: ConditionalFormattingColorRange,
-    minMaxRange: ConditionalFormattingColorMinMaxRange,
+    minMaxRange: ConditionalFormattingMinMax,
 ): string | undefined => {
     const colors = getColorRange(colorRange);
     if (!colors) return undefined;

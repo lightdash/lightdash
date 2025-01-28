@@ -1,8 +1,8 @@
 import {
-    type ConditionalFormattingColorRange,
     hasPercentageFormat,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfigWithColorRange,
-    type ConditionalFormattingColorMinMaxRange,
+    type ConditionalFormattingMinMax,
     type FilterableItem,
 } from '@lightdash/common';
 import { Group, Select, Stack } from '@mantine/core';
@@ -22,9 +22,7 @@ type Props = {
         newColorRange: Partial<ConditionalFormattingColorRange>,
     ) => void;
     onChangeMinMax: (
-        newMinMax: Partial<
-            ConditionalFormattingColorMinMaxRange<number | 'auto'>
-        >,
+        newMinMax: Partial<ConditionalFormattingMinMax<number | 'auto'>>,
     ) => void;
 };
 
@@ -45,8 +43,6 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
     onChangeMinMax,
     onChangeColorRange,
 }) => {
-    console.log(config);
-
     return (
         <Stack spacing="xs">
             {groups.map(([rangeName, minMaxName]) => (

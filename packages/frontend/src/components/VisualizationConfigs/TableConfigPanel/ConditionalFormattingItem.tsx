@@ -1,8 +1,6 @@
 import {
     assertUnreachable,
     ConditionalFormattingConfigType,
-    type ConditionalFormattingColorRange,
-    type ConditionalFormattingMinMaxMap,
     createConditionalFormatingRule,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
@@ -11,8 +9,10 @@ import {
     getItemLabelWithoutTableName,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
+    type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
     type FilterableItem,
@@ -230,11 +230,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
             if (isConditionalFormattingConfigWithColorRange(config)) {
                 handleChange(
                     produce(config, (draft) => {
-                        console.log({
-                            ...draft.rule,
-                            ...newRule,
-                        });
-
                         draft.rule = {
                             ...draft.rule,
                             ...newRule,

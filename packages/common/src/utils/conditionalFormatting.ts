@@ -1,15 +1,16 @@
+import { maxBy, minBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { ItemsMap } from '..';
 import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
-    type ConditionalFormattingColorMinMaxRange,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
     type ConditionalFormattingConfigWithSingleColor,
-    type ConditionalFormattingWithConditionalOperator,
+    type ConditionalFormattingMinMax,
     type ConditionalFormattingMinMaxMap,
+    type ConditionalFormattingWithConditionalOperator,
 } from '../types/conditionalFormatting';
 import {
     ConditionalOperator,
@@ -82,10 +83,17 @@ const convertFormattedValue = (
     return value;
 };
 
+export const getMinMaxFromMinMaxMap = (
+    minMaxMap: ConditionalFormattingMinMaxMap,
+) => ({
+    min: minBy(Object.values(minMaxMap), 'min')?.min ?? 0,
+    max: maxBy(Object.values(minMaxMap), 'max')?.max ?? 0,
+});
+
 export const hasMatchingConditionalRules = (
-    field: ItemsMap[string],
-    minMaxByFieldId: ConditionalFormattingMinMaxMap,
+    field: ItemsMap[string] | undefined,
     value: unknown,
+    minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
 ) => {
     if (!config) return false;
@@ -137,41 +145,50 @@ export const hasMatchingConditionalRules = (
     if (isConditionalFormattingConfigWithColorRange(config)) {
         if (typeof convertedValue !== 'number') return false;
 
-        const fieldId = getItemId(field);
+        let min: number;
+        let max: number;
 
-        if (config.rule.min === 'auto' && config.rule.max === 'auto') {
-            if (fieldId in minMaxByFieldId) {
-                return (
-                    convertedValue >=
-                        (config.rule.min === 'auto'
-                            ? minMaxByFieldId[fieldId].min
-                            : config.rule.min) &&
-                    convertedValue <=
-                        (config.rule.max === 'auto'
-                            ? minMaxByFieldId[fieldId].max
-                            : config.rule.max)
-                );
+        if (config.rule.min === 'auto') {
+            if (field && getItemId(field) in minMaxMap) {
+                min = minMaxMap[getItemId(field)].min;
+            } else if (!field) {
+                min = getMinMaxFromMinMaxMap(minMaxMap).min;
+            } else {
+                throw new Error('Field not found in minMaxMap');
             }
-
-            // TODO:  throw error!
-            return true;
+        } else {
+            min = config.rule.min;
         }
 
-        return (
-            convertedValue >= config.rule.min &&
-            convertedValue <= config.rule.max
-        );
+        if (config.rule.max === 'auto') {
+            if (field && getItemId(field) in minMaxMap) {
+                max = minMaxMap[getItemId(field)].max;
+            } else if (!field) {
+                max = getMinMaxFromMinMaxMap(minMaxMap).max;
+            } else {
+                throw new Error('Field not found in minMaxMap');
+            }
+        } else {
+            max = config.rule.max;
+        }
+
+        return convertedValue >= min && convertedValue <= max;
     }
 
     return assertUnreachable(config, 'Unknown conditional formatting config');
 };
 
-export const getConditionalFormattingConfig = (
-    field: ItemsMap[string] | undefined,
-    minMaxByFieldId: ConditionalFormattingMinMaxMap,
-    value: unknown | undefined,
-    conditionalFormattings: ConditionalFormattingConfig[] | undefined,
-) => {
+export const getConditionalFormattingConfig = ({
+    field,
+    value,
+    minMaxMap = {},
+    conditionalFormattings,
+}: {
+    field: ItemsMap[string] | undefined;
+    value: unknown | undefined;
+    minMaxMap: ConditionalFormattingMinMaxMap | undefined;
+    conditionalFormattings: ConditionalFormattingConfig[] | undefined;
+}) => {
     // For backwards compatibility with old table calculations without type
     const isCalculationTypeUndefined =
         field && isTableCalculation(field) && field.type === undefined;
@@ -189,7 +206,7 @@ export const getConditionalFormattingConfig = (
     return fieldConfigs
         .reverse()
         .find((config) =>
-            hasMatchingConditionalRules(field, minMaxByFieldId, value, config),
+            hasMatchingConditionalRules(field, value, minMaxMap, config),
         );
 };
 
@@ -234,22 +251,20 @@ export const getConditionalFormattingDescription = (
 type GetColorFromRangeFunction = (
     value: number,
     colorRange: ConditionalFormattingColorRange,
-    minMaxRange: ConditionalFormattingColorMinMaxRange,
+    minMaxRange: ConditionalFormattingMinMax,
 ) => string | undefined;
-
-type GetMinMaxRangeFunction = () => ConditionalFormattingColorMinMaxRange;
 
 export const getConditionalFormattingColorWithColorRange = ({
     field,
     value,
     config,
-    getMinMaxRange,
+    minMaxMap = {},
     getColorFromRange,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown;
     config: ConditionalFormattingConfigWithColorRange;
-    getMinMaxRange: GetMinMaxRangeFunction;
+    minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     getColorFromRange: GetColorFromRangeFunction;
 }) => {
     const numericValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -257,24 +272,34 @@ export const getConditionalFormattingColorWithColorRange = ({
 
     if (typeof convertedValue !== 'number') return undefined;
 
-    let minMaxRange: ConditionalFormattingColorMinMaxRange;
+    let min: number;
+    let max: number;
 
-    console.log('alalal', config.rule);
-
-    if (config.rule.min === 'auto' || config.rule.max === 'auto') {
-        const autoMinMax = getMinMaxRange();
-
-        minMaxRange = {
-            min: config.rule.min === 'auto' ? autoMinMax.min : config.rule.min,
-            max: config.rule.max === 'auto' ? autoMinMax.max : config.rule.max,
-        };
+    if (config.rule.min === 'auto') {
+        if (field && getItemId(field) in minMaxMap) {
+            min = minMaxMap[getItemId(field)].min;
+        } else if (!field) {
+            min = getMinMaxFromMinMaxMap(minMaxMap).min;
+        } else {
+            throw new Error('Field not found in minMaxMap');
+        }
     } else {
-        minMaxRange = { min: config.rule.min, max: config.rule.max };
+        min = config.rule.min;
     }
 
-    console.log({ minMaxRange });
+    if (config.rule.max === 'auto') {
+        if (field && getItemId(field) in minMaxMap) {
+            max = minMaxMap[getItemId(field)].max;
+        } else if (!field) {
+            max = getMinMaxFromMinMaxMap(minMaxMap).max;
+        } else {
+            throw new Error('Field not found in minMaxMap');
+        }
+    } else {
+        max = config.rule.max;
+    }
 
-    return getColorFromRange(convertedValue, config.color, minMaxRange);
+    return getColorFromRange(convertedValue, config.color, { min, max });
 };
 
 export const getConditionalFormattingColorWithSingleColor = ({
@@ -287,13 +312,13 @@ export const getConditionalFormattingColor = ({
     field,
     value,
     config,
-    getMinMaxRange,
+    minMaxMap,
     getColorFromRange,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown;
     config: ConditionalFormattingConfig | undefined;
-    getMinMaxRange: GetMinMaxRangeFunction;
+    minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     getColorFromRange: GetColorFromRangeFunction;
 }) => {
     if (!config) return undefined;
@@ -302,13 +327,11 @@ export const getConditionalFormattingColor = ({
         return getConditionalFormattingColorWithSingleColor({ config });
     }
 
-    console.log('are we getting here?');
-
     return getConditionalFormattingColorWithColorRange({
         field,
         value,
         config,
-        getMinMaxRange,
+        minMaxMap,
         getColorFromRange,
     });
 };

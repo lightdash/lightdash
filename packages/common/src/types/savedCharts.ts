@@ -1,6 +1,9 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
-import { type ConditionalFormattingConfig } from './conditionalFormatting';
+import {
+    type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMaxMap,
+} from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type CompactOrAlias } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
@@ -148,8 +151,9 @@ export type TableChart = {
     showResultsTotal?: boolean;
     showSubtotals?: boolean;
     columns?: Record<string, ColumnProperties>;
-    conditionalFormattings?: ConditionalFormattingConfig[];
     metricsAsRows?: boolean;
+    conditionalFormattings?: ConditionalFormattingConfig[];
+    minMaxMap?: ConditionalFormattingMinMaxMap;
 };
 
 export enum CartesianSeriesType {

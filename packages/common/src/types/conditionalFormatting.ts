@@ -4,7 +4,7 @@ import {
 } from './conditionalRule';
 import { type FieldTarget } from './filter';
 
-export type ConditionalFormattingColorMinMaxRange<T = number> = {
+export type ConditionalFormattingMinMax<T = number> = {
     min: T;
     max: T;
 };
@@ -34,7 +34,7 @@ export const isConditionalFormattingConfigWithSingleColor = (
 export type ConditionalFormattingConfigWithColorRange = {
     target: FieldTarget | null;
     color: ConditionalFormattingColorRange;
-    rule: ConditionalFormattingColorMinMaxRange<number | 'auto'>;
+    rule: ConditionalFormattingMinMax<number | 'auto'>;
 };
 
 export const isConditionalFormattingConfigWithColorRange = (
@@ -69,5 +69,5 @@ export const getConditionalFormattingConfigType = (
 
 export type ConditionalFormattingMinMaxMap = Record<
     string,
-    ConditionalFormattingColorMinMaxRange
+    ConditionalFormattingMinMax
 >;

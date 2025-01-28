@@ -3,13 +3,16 @@ import {
     getItemLabel,
     isDimension,
     isField,
+    isFilterableItem,
     isMetric,
+    isNumericItem,
     isSummable,
     isTableCalculation,
     itemsInMetricQuery,
     type ApiQueryResults,
     type ColumnProperties,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMaxMap,
     type DashboardFilters,
     type ItemsMap,
     type PivotData,
@@ -17,6 +20,7 @@ import {
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
+import { maxBy, minBy } from 'lodash';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -368,17 +372,18 @@ const useTableConfig = (
     // Remove columnProperties from map if the column has been removed from results
     useEffect(() => {
         if (Object.keys(columnProperties).length > 0 && selectedItemIds) {
-            const newColumnProperties: Record<string, ColumnProperties> =
-                Object.keys(columnProperties).reduce(
-                    (acc, field) =>
-                        selectedItemIds.includes(field)
-                            ? {
-                                  ...acc,
-                                  [field]: columnProperties[field],
-                              }
-                            : acc,
-                    {},
-                );
+            const newColumnProperties = Object.keys(columnProperties).reduce<
+                Record<string, ColumnProperties>
+            >(
+                (acc, field) =>
+                    selectedItemIds.includes(field)
+                        ? {
+                              ...acc,
+                              [field]: columnProperties[field],
+                          }
+                        : acc,
+                {},
+            );
             // only update if something changed, otherwise we get into an infinite loop
             if (
                 Object.keys(columnProperties).length !==
@@ -411,6 +416,51 @@ const useTableConfig = (
         },
         [],
     );
+
+    const minMaxMap = useMemo(() => {
+        if (
+            !itemsMap ||
+            !resultsData ||
+            resultsData.rows.length === 0 ||
+            !conditionalFormattings ||
+            conditionalFormattings.length === 0
+        ) {
+            return undefined;
+        }
+
+        return Object.keys(itemsMap)
+            .filter((fieldId): fieldId is string => {
+                const field = getField(fieldId);
+                return Boolean(
+                    field && isNumericItem(field) && isFilterableItem(field),
+                );
+            })
+            .filter(isColumnVisible)
+            .reduce<ConditionalFormattingMinMaxMap>((acc, fieldId) => {
+                const min = Number(
+                    minBy(
+                        resultsData.rows,
+                        (row) => Number(row[fieldId].value.raw) || 0,
+                    )?.[fieldId]?.value?.raw || 0,
+                );
+                const max = Number(
+                    maxBy(
+                        resultsData.rows,
+                        (row) => Number(row[fieldId].value.raw) || 0,
+                    )?.[fieldId]?.value?.raw || 0,
+                );
+
+                return { ...acc, [fieldId]: { min, max } };
+            }, {});
+    }, [
+        conditionalFormattings,
+        getField,
+        isColumnVisible,
+        itemsMap,
+        resultsData,
+    ]);
+
+    console.log({ cralalalala: minMaxMap });
 
     const validConfig: TableChart = useMemo(
         () => ({
@@ -465,6 +515,7 @@ const useTableConfig = (
         getField,
         isColumnVisible,
         isColumnFrozen,
+        minMaxMap,
         conditionalFormattings,
         onSetConditionalFormattings: handleSetConditionalFormattings,
         pivotTableData,

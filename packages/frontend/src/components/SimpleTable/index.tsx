@@ -45,6 +45,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         columns,
         showColumnCalculation,
         conditionalFormattings,
+        minMaxMap,
         hideRowNumbers,
         pivotTableData,
         getFieldLabel,
@@ -121,6 +122,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showColumnCalculation={showColumnCalculation}
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
+                minMaxMap={minMaxMap}
                 footer={{
                     show: showColumnCalculation,
                 }}
