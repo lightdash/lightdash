@@ -35,6 +35,9 @@ module.exports = {
         {
             // Only throw warning for existing files, new files should be error
             files: [
+                'src/database/migrations/*.ts',
+                'src/routers/*.ts',
+
                 'src/App.ts',
                 'src/SchedulerApp.ts',
                 'src/analytics/LightdashAnalytics.ts',
@@ -49,9 +52,6 @@ module.exports = {
                 'src/controllers/csvController.ts',
                 'src/controllers/savedChartController.ts',
                 'src/controllers/userController.ts',
-                'src/database/migrations/20210825125410_order_saved_fields.ts',
-                'src/database/migrations/20230628153935_allow-email-domains-projects-table.ts',
-                'src/database/migrations/20240515102618_remove_table_calculation_filter_prefix.ts',
                 'src/database/pagination/index.ts',
                 'src/dbt/DbtMetadataApiClient.ts',
                 'src/dbt/dbtCliClient.ts',
@@ -85,6 +85,7 @@ module.exports = {
                 'src/routers/projectRouter.ts',
                 'src/routers/slackRouter.ts',
                 'src/scheduler/SchedulerClient.ts',
+                'src/scheduler/SchedulerTask.ts',
                 'src/scheduler/SchedulerWorker.ts',
                 'src/scheduler/SchedulerWorkerEventEmitter.ts',
                 'src/sentry.ts',
