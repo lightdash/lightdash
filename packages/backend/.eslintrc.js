@@ -36,9 +36,7 @@ module.exports = {
         {
             // Only throw warning for existing files, new files should be error
             files: [
-                'src/App.ts',
-                'src/SchedulerApp.ts',
-                'src/version.ts',
+                'src/*.ts',
                 'src/analytics/**/*.ts', // TODO fix these folders
                 'src/clients/**/*.ts',
                 'src/controllers/**/*.ts',
@@ -51,7 +49,6 @@ module.exports = {
                 'src/scheduler/**/*.ts',
                 'src/config/**/*.ts',
                 'src/projectAdapters/**/*.ts',
-
             ], 
             rules: {
                 "@typescript-eslint/no-unsafe-member-access": "warn",
@@ -65,6 +62,8 @@ module.exports = {
                 '*.mock.ts',
                 '*.test.ts',
                 '*.spec.ts',
+
+
             ],
             rules: {
                 "@typescript-eslint/no-unsafe-member-access": "off",
