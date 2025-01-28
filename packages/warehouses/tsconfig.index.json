@@ -1,9 +1,11 @@
 {
     // This file will extend the tsconfig.json file for the test environment
     // This means we will not apply the noUncheckedIndexedAccess option to the test files
+    // Change build method in package.json to use this file
+     // It is temporary disabled in package.json until we fix all the errors
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "noUncheckedIndexedAccess": false // TODO fix errors ,then enable   
+        "noUncheckedIndexedAccess": true
     },
     "include": [
         "src/**/*.ts",
