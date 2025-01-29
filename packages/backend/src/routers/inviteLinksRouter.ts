@@ -1,4 +1,4 @@
-import { CreateInviteLink } from '@lightdash/common';
+import { CreateInviteLink, getObjectValue } from '@lightdash/common';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
@@ -13,7 +13,7 @@ inviteLinksRouter.get(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const { inviteLinkCode } = req.params;
+            const inviteLinkCode = getObjectValue(req.params, 'inviteLinkCode');
             const inviteLink = await req.services
                 .getUserService()
                 .getInviteLink(inviteLinkCode);

@@ -1,4 +1,9 @@
-import { AnyType, ForbiddenError, getErrorMessage } from '@lightdash/common';
+import {
+    AnyType,
+    ForbiddenError,
+    getErrorMessage,
+    getObjectValue,
+} from '@lightdash/common';
 import { createHmac } from 'crypto';
 import express from 'express';
 import playwright from 'playwright';
@@ -13,12 +18,13 @@ export const getAuthenticationToken = (value: string) =>
 
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
-        const { userUuid } = req.params;
+        const userUuid = getObjectValue(req.params, 'userUuid');
         const hash = getAuthenticationToken(userUuid);
 
         if (hash !== req.body.token) {
             throw new ForbiddenError();
         }
+
         const sessionUser = await req.services
             .getUserService()
             .getSessionByUserUuid(userUuid);

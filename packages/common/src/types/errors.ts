@@ -146,7 +146,19 @@ export class UnexpectedServerError extends LightdashError {
         });
     }
 }
-
+export class UnexpectedIndexError extends LightdashError {
+    constructor(
+        message = 'Invalid index in array.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'UnexpectedIndexError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
 export class UnexpectedGitError extends LightdashError {
     constructor(
         message = 'Unexpected error in Git adapter',
