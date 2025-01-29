@@ -51,7 +51,9 @@ describe('fixDuplicateSlugs', () => {
                 .select(queryMatcher(SavedChartsTableName, [projectUuid]))
                 .response([]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid);
+            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+                dryRun: false,
+            });
 
             expect(tracker.history.select).toHaveLength(1);
             expect(generateUniqueSlug).not.toHaveBeenCalled();
@@ -104,7 +106,9 @@ describe('fixDuplicateSlugs', () => {
                 )
                 .response([1]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid);
+            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+                dryRun: false,
+            });
 
             expect(generateUniqueSlug).toHaveBeenCalledTimes(1);
             expect(generateUniqueSlug).toHaveBeenCalledWith(
@@ -116,6 +120,59 @@ describe('fixDuplicateSlugs', () => {
             expect(tracker.history.update).toHaveLength(1);
             expect(tracker.history.update[0].bindings).toContain('unique-slug');
             expect(tracker.history.update[0].bindings).toContain('chart2');
+        });
+
+        test('should not update anything when dry run is true', async () => {
+            const duplicateSlug = 'duplicate-slug';
+
+            // Mock finding duplicate slugs
+            tracker.on
+                .select(queryMatcher(SavedChartsTableName, [projectUuid]))
+                .responseOnce([{ slug: duplicateSlug }]);
+
+            // Mock finding charts with the duplicate slug
+            tracker.on
+                .select(
+                    queryMatcher(SavedChartsTableName, [
+                        projectUuid,
+                        duplicateSlug,
+                    ]),
+                )
+                .responseOnce([
+                    {
+                        saved_query_uuid: 'chart1',
+                        slug: duplicateSlug,
+                        name: 'Chart 1',
+                        created_at: new Date('2024-01-01'),
+                    },
+                    {
+                        saved_query_uuid: 'chart2',
+                        slug: duplicateSlug,
+                        name: 'Chart 2',
+                        created_at: new Date('2024-01-02'),
+                    },
+                ]);
+
+            // Mock generateUniqueSlug
+            (generateUniqueSlug as jest.Mock).mockResolvedValueOnce(
+                'unique-slug',
+            );
+
+            // Mock the update query
+            tracker.on
+                .update(
+                    queryMatcher(SavedChartsTableName, [
+                        'unique-slug',
+                        'chart2',
+                    ]),
+                )
+                .response([1]);
+
+            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+                dryRun: true,
+            });
+
+            expect(tracker.history.update).toHaveLength(0);
         });
 
         test('should handle multiple charts with the same slug', async () => {
@@ -179,7 +236,9 @@ describe('fixDuplicateSlugs', () => {
                 )
                 .response([1]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid);
+            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+                dryRun: false,
+            });
 
             expect(generateUniqueSlug).toHaveBeenCalledTimes(2);
             expect(generateUniqueSlug).toHaveBeenCalledWith(

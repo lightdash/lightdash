@@ -6,7 +6,12 @@ import { SpaceTableName } from '../../../database/entities/spaces';
 import { generateUniqueSlug } from '../../../utils/SlugUtils';
 
 export function getFixDuplicateSlugsScripts(database: Knex) {
-    async function fixDuplicateChartSlugsForProject(projectUuid: string) {
+    async function fixDuplicateChartSlugsForProject(
+        projectUuid: string,
+        { dryRun }: { dryRun: boolean },
+    ) {
+        const dryRunMessage = dryRun ? ' (dry run)' : '';
+
         return database.transaction(async (trx) => {
             const queryBase = trx(SavedChartsTableName)
                 .leftJoin(
@@ -38,8 +43,8 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                 .groupBy(`${SavedChartsTableName}.slug`)
                 .havingRaw('COUNT(*) > 1');
 
-            console.log(
-                `Fixing ${duplicateSlugs.length} duplicate slugs for project ${projectUuid}`,
+            console.info(
+                `Fixing ${duplicateSlugs.length} duplicate slugs for project ${projectUuid}${dryRunMessage}`,
             );
 
             for await (const { slug } of duplicateSlugs) {
@@ -73,18 +78,25 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                             chart.slug ?? chart.name ?? '',
                         );
 
-                        console.log(
-                            `Updating chart ${chart.name} having slug ${chart.slug} to ${uniqueSlug} in project ${projectUuid}`,
+                        console.info(
+                            `Updating chart ${chart.name} having slug ${chart.slug} to ${uniqueSlug} in project ${projectUuid}${dryRunMessage}`,
                         );
 
-                        await trx(SavedChartsTableName)
-                            .where('saved_query_uuid', chart.saved_query_uuid)
-                            .update({ slug: uniqueSlug });
+                        if (!dryRun) {
+                            await trx(SavedChartsTableName)
+                                .where(
+                                    'saved_query_uuid',
+                                    chart.saved_query_uuid,
+                                )
+                                .update({ slug: uniqueSlug });
+                        }
                     }
                 }
             }
 
-            console.log('Done fixing duplicate slugs for project', projectUuid);
+            console.info(
+                `Done fixing duplicate slugs for project ${projectUuid}${dryRunMessage}`,
+            );
         });
     }
 
