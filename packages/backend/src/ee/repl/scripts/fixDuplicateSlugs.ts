@@ -3,7 +3,7 @@ import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { generateUniqueSlug } from '../../../utils/SlugUtils';
 
 export function getFixDuplicateSlugsScripts(database: Knex) {
-    async function fixDuplicateSlugsForProject(projectUuid: string) {
+    async function fixDuplicateChartSlugsForProject(projectUuid: string) {
         return database.transaction(async (trx) => {
             const duplicateSlugs = await trx(SavedChartsTableName)
                 .select('slug')
@@ -53,6 +53,6 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
     }
 
     return {
-        fixDuplicateSlugsForProject,
+        fixDuplicateChartSlugsForProject,
     };
 }
