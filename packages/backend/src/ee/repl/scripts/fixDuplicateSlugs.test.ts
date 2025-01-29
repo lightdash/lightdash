@@ -256,5 +256,12 @@ describe('fixDuplicateSlugs', () => {
             );
             expect(tracker.history.update[1].bindings).toContain('chart3');
         });
+
+        test('should throw an error when dryRun is not provided', async () => {
+            await expect(
+                // @ts-expect-error - we are testing the error case because the repl runs in JS not TS
+                scripts.fixDuplicateChartSlugsForProject(projectUuid),
+            ).rejects.toThrow('Missing dryRun option!!');
+        });
     });
 });

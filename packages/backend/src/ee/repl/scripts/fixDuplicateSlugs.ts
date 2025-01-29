@@ -8,8 +8,13 @@ import { generateUniqueSlug } from '../../../utils/SlugUtils';
 export function getFixDuplicateSlugsScripts(database: Knex) {
     async function fixDuplicateChartSlugsForProject(
         projectUuid: string,
-        { dryRun }: { dryRun: boolean },
+        opts: { dryRun: boolean },
     ) {
+        if (!opts || !('dryRun' in opts)) {
+            throw new Error('Missing dryRun option!!');
+        }
+
+        const { dryRun } = opts;
         const dryRunMessage = dryRun ? ' (dry run)' : '';
 
         return database.transaction(async (trx) => {
