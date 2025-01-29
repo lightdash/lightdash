@@ -80,7 +80,7 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                         const uniqueSlug = await generateUniqueSlug(
                             trx,
                             SavedChartsTableName,
-                            chart.slug ?? chart.name ?? '',
+                            chart.slug,
                         );
 
                         console.info(
