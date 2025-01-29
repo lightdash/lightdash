@@ -255,7 +255,6 @@ export class ValidationService extends BaseService {
                     customMetrics,
                     customMetricsBaseDimensions,
                     tableCalculations,
-                    dashboardUuid,
                 }) => {
                     const availableDimensionIds =
                         exploreFields[tableName]?.dimensionIds || [];

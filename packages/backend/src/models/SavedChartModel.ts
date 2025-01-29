@@ -1093,7 +1093,7 @@ export class SavedChartModel {
                             saved_queries_version_id: this.database.raw(
                                 'MAX(saved_queries_versions.saved_queries_version_id)',
                             ),
-                            dashboard_uuid: 'saved_queries.dashboard_uuid', // Directly select the dashboard_uuid
+                            dashboard_uuid: 'saved_queries.dashboard_uuid',
                         })
                         .from(SavedChartsTableName)
                         .leftJoin(
@@ -1126,7 +1126,7 @@ export class SavedChartModel {
                         .groupBy(
                             'saved_queries.saved_query_uuid',
                             'saved_queries.name',
-                            'saved_queries.dashboard_uuid', // Include in GROUP BY
+                            'saved_queries.dashboard_uuid',
                         );
                 })
                 .select({
