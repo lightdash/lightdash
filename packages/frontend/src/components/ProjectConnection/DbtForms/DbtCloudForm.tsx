@@ -109,7 +109,10 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         label="Tags"
                         disabled={disabled}
                         description={
-                            <p>Only models with these tags will be synced.</p>
+                            <p>
+                                Only models with <b>all</b> these tags will be
+                                synced.
+                            </p>
                         }
                         placeholder="e.g lightdash, prod"
                         searchable
