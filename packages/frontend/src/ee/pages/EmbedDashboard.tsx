@@ -265,7 +265,7 @@ const ExportPagePdf: FC<{
                         : {
                               position: 'absolute',
                               top: 20,
-                              right: 40,
+                              right: 72, // Make sure the button does not overlap the chart options
                           }),
                     zIndex: 1000,
                 }}
