@@ -1,3 +1,10 @@
+# [0.1472.0](https://github.com/lightdash/lightdash/compare/0.1471.0...0.1472.0) (2025-01-29)
+
+
+### Features
+
+* allow to filter dbt cloud models by tags ([#13445](https://github.com/lightdash/lightdash/issues/13445)) ([19159c9](https://github.com/lightdash/lightdash/commit/19159c9358acb0c583c242e1260264a66b7249e9))
+
 # [0.1471.0](https://github.com/lightdash/lightdash/compare/0.1470.0...0.1471.0) (2025-01-28)
 
 
