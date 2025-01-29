@@ -436,6 +436,7 @@ const useTableConfig = (
                 );
             })
             .filter(isColumnVisible)
+            .filter((fieldId) => fieldId in resultsData.rows[0])
             .reduce<ConditionalFormattingMinMaxMap>((acc, fieldId) => {
                 const min = Number(
                     minBy(
