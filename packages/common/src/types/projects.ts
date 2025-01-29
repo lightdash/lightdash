@@ -239,6 +239,7 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
     api_key: string;
     environment_id: string;
     discovery_api_endpoint?: string;
+    tags?: string[];
 }
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {

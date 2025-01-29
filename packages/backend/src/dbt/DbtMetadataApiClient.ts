@@ -153,6 +153,8 @@ export class DbtMetadataApiClient implements DbtClient {
 
     private readonly environmentId: string | number;
 
+    private readonly tags: string[] | undefined;
+
     private readonly endpoint: URL;
 
     private readonly client: GraphQLClient;
@@ -161,10 +163,12 @@ export class DbtMetadataApiClient implements DbtClient {
         environmentId,
         discoveryApiEndpoint,
         bearerToken,
+        tags,
     }: {
         environmentId: string | number;
         bearerToken: string;
         discoveryApiEndpoint: string | undefined;
+        tags: string[] | undefined;
     }) {
         this.environmentId = environmentId;
         this.bearerToken = bearerToken;
@@ -178,6 +182,7 @@ export class DbtMetadataApiClient implements DbtClient {
                 'X-dbt-partner-source': 'lightdash',
             },
         });
+        this.tags = tags;
     }
 
     static parseError(e: AnyType): DbtError {
@@ -217,6 +222,7 @@ export class DbtMetadataApiClient implements DbtClient {
                     .endCursor,
                 filter: {
                     lastRunStatus: 'success',
+                    tags: this.tags,
                 },
             },
         );
