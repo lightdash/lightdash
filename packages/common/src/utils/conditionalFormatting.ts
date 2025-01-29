@@ -70,10 +70,10 @@ export const hasPercentageFormat = (field: ItemsMap[string] | undefined) => {
     );
 };
 
-const convertFormattedValue = (
-    value: unknown,
+export const convertFormattedValue = <T extends unknown>(
+    value: T,
     field: ItemsMap[string] | undefined,
-) => {
+): T | number => {
     if (!field) return value;
 
     if (hasPercentageFormat(field)) {

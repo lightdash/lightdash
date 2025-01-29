@@ -1,4 +1,5 @@
 import {
+    convertFormattedValue,
     FieldType,
     getItemLabel,
     isDimension,
@@ -438,6 +439,8 @@ const useTableConfig = (
             .filter(isColumnVisible)
             .filter((fieldId) => fieldId in resultsData.rows[0])
             .reduce<ConditionalFormattingMinMaxMap>((acc, fieldId) => {
+                const field = getField(fieldId);
+
                 const min = Number(
                     minBy(
                         resultsData.rows,
@@ -451,7 +454,13 @@ const useTableConfig = (
                     )?.[fieldId]?.value?.raw || 0,
                 );
 
-                return { ...acc, [fieldId]: { min, max } };
+                return {
+                    ...acc,
+                    [fieldId]: {
+                        min: convertFormattedValue(min, field),
+                        max: convertFormattedValue(max, field),
+                    },
+                };
             }, {});
     }, [
         conditionalFormattings,
