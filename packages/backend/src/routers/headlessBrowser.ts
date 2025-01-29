@@ -25,7 +25,7 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
             throw new ForbiddenError();
         }
 
-        const sessionUser = await (req as AnyType).services
+        const sessionUser = await req.services
             .getUserService()
             .getSessionByUserUuid(userUuid);
 
