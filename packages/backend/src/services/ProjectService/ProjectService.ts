@@ -707,10 +707,9 @@ export class ProjectService extends BaseService {
                 JobStepType.COMPILING,
                 async () => {
                     try {
-                        return await adapter.compileAllExplores({
-                            userUuid: user.userUuid,
-                            organizationUuid: user.organizationUuid,
-                        });
+                        // There's no project yet, so we don't track
+                        const trackingParams = undefined;
+                        return await adapter.compileAllExplores(trackingParams);
                     } finally {
                         await adapter.destroy();
                         await sshTunnel.disconnect();
@@ -736,12 +735,14 @@ export class ProjectService extends BaseService {
                         );
                     }
 
+                    const trackingParams = {
+                        projectUuid: newProjectUuid,
+                        organizationUuid: user.organizationUuid,
+                        userUuid: user.userUuid,
+                    };
+
                     const lightdashProjectConfig =
-                        await adapter.getLightdashProjectConfig({
-                            projectUuid: newProjectUuid,
-                            organizationUuid: user.organizationUuid,
-                            userUuid: user.userUuid,
-                        });
+                        await adapter.getLightdashProjectConfig(trackingParams);
 
                     await this.replaceYamlTags(
                         user,
@@ -968,9 +969,18 @@ export class ProjectService extends BaseService {
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            const explores = await adapter.compileAllExplores();
+                            const trackingParams = {
+                                projectUuid,
+                                organizationUuid: user.organizationUuid,
+                                userUuid: user.userUuid,
+                            };
+                            const explores = await adapter.compileAllExplores(
+                                trackingParams,
+                            );
                             const lightdashProjectConfig =
-                                await adapter.getLightdashProjectConfig();
+                                await adapter.getLightdashProjectConfig(
+                                    trackingParams,
+                                );
 
                             await this.replaceYamlTags(
                                 user,
@@ -1038,7 +1048,6 @@ export class ProjectService extends BaseService {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
         const adapter = await projectAdapterFromConfig(
-            this.analytics,
             data.dbtConnection,
             sshTunnel.overrideCredentials,
             {
@@ -1046,6 +1055,8 @@ export class ProjectService extends BaseService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
+            undefined,
+            this.analytics,
         );
         try {
             await adapter.test();
@@ -1110,7 +1121,6 @@ export class ProjectService extends BaseService {
         await sshTunnel.connect();
 
         const adapter = await projectAdapterFromConfig(
-            this.analytics,
             project.dbtConnection,
             sshTunnel.overrideCredentials,
             {
@@ -1123,6 +1133,8 @@ export class ProjectService extends BaseService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
+            undefined,
+            this.analytics,
         );
         return { adapter, sshTunnel };
     }
@@ -2897,7 +2909,12 @@ export class ProjectService extends BaseService {
         );
         const packages = await adapter.getDbtPackages();
         try {
-            const explores = await adapter.compileAllExplores();
+            const trackingParams = {
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                userUuid: user.userUuid,
+            };
+            const explores = await adapter.compileAllExplores(trackingParams);
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -3196,9 +3213,15 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 requestMethod,
                             );
-
+                        const trackingParams = {
+                            projectUuid,
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        };
                         const lightdashProjectConfig =
-                            await adapter.getLightdashProjectConfig();
+                            await adapter.getLightdashProjectConfig(
+                                trackingParams,
+                            );
 
                         await this.replaceYamlTags(
                             user,

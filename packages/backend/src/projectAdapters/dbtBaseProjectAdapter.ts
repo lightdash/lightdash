@@ -84,14 +84,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getLightdashProjectConfig({
-        projectUuid,
-        organizationUuid,
-        userUuid,
-    }: {
-        userUuid: string;
-        organizationUuid: string;
+    public async getLightdashProjectConfig(trackingParams?: {
         projectUuid: string;
+        organizationUuid: string;
+        userUuid: string;
     }): Promise<LightdashProjectConfig> {
         if (!this.dbtProjectDir) {
             return {
@@ -109,21 +105,29 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             const config = await loadLightdashProjectConfig(
                 fileContents,
                 async (lightdashConfig) => {
-                    void this.analytics?.track({
-                        event: 'lightdashconfig.loaded',
-                        properties: {
-                            projectId: projectUuid,
-                            userId: userUuid,
-                            organizationId: organizationUuid,
-                            categories_count: Number(
-                                Object.keys(
-                                    lightdashConfig.spotlight.categories ?? {},
-                                ).length,
-                            ),
-                            default_visibility:
-                                lightdashConfig.spotlight.default_visibility,
-                        },
-                    });
+                    Logger.debug('Track lightdash config loaded');
+                    Logger.debug(trackingParams);
+                    Logger.debug(this.analytics);
+                    if (trackingParams) {
+                        void this.analytics?.track({
+                            event: 'lightdashconfig.loaded',
+                            userId: trackingParams.userUuid,
+                            properties: {
+                                projectId: trackingParams.projectUuid,
+                                userId: trackingParams.userUuid,
+                                organizationId: trackingParams.organizationUuid,
+                                categories_count: Number(
+                                    Object.keys(
+                                        lightdashConfig.spotlight.categories ??
+                                            {},
+                                    ).length,
+                                ),
+                                default_visibility:
+                                    lightdashConfig.spotlight
+                                        .default_visibility,
+                            },
+                        });
+                    }
                 },
             );
             return config;
@@ -141,11 +145,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async compileAllExplores(
-        {
-            userUuid,
-            organizationUuid,
-            projectUuid,
-        }: {
+        trackingParams?: {
             userUuid: string;
             organizationUuid: string;
             projectUuid: string;
@@ -222,11 +222,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 : Object.values(manifest.metrics),
         );
 
-        const lightdashProjectConfig = await this.getLightdashProjectConfig({
-            userUuid,
-            organizationUuid,
-            projectUuid,
-        });
+        const lightdashProjectConfig = await this.getLightdashProjectConfig(
+            trackingParams,
+        );
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {

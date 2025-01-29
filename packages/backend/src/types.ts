@@ -8,15 +8,20 @@ import {
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
-    compileAllExplores({
-        userUuid,
-        organizationUuid,
-        projectUuid,
-    }: {
-        userUuid: string;
-        organizationUuid: string;
-        projectUuid: string;
-    }): Promise<(Explore | ExploreError)[]>;
+    /**
+     * Compile all explores
+     * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
+     * @returns A promise that resolves to an array of explores or explore errors
+     */
+    compileAllExplores(
+        trackingParams:
+            | {
+                  userUuid: string;
+                  organizationUuid: string;
+                  projectUuid: string;
+              }
+            | undefined,
+    ): Promise<(Explore | ExploreError)[]>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
 
@@ -24,14 +29,10 @@ export interface ProjectAdapter {
 
     destroy(): Promise<void>;
 
-    getLightdashProjectConfig({
-        projectUuid,
-        organizationUuid,
-        userUuid,
-    }: {
-        userUuid: string;
-        organizationUuid: string;
+    getLightdashProjectConfig(trackingParams: {
         projectUuid: string;
+        organizationUuid: string;
+        userUuid: string;
     }): Promise<LightdashProjectConfig>;
 }
 
