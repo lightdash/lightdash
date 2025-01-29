@@ -1,3 +1,10 @@
+## [0.1473.1](https://github.com/lightdash/lightdash/compare/0.1473.0...0.1473.1) (2025-01-29)
+
+
+### Bug Fixes
+
+* langchain version vulnerability ([#13440](https://github.com/lightdash/lightdash/issues/13440)) ([4c902f5](https://github.com/lightdash/lightdash/commit/4c902f50b123b304dfd94cf9406fc3f6b4305145))
+
 # [0.1473.0](https://github.com/lightdash/lightdash/compare/0.1472.0...0.1473.0) (2025-01-29)
 
 
