@@ -1,10 +1,10 @@
 import {
     ColorPicker as MantineColorPicker,
     ColorSwatch,
-    type ColorSwatchProps,
     Popover,
     Stack,
     TextInput,
+    type ColorSwatchProps,
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { type FC } from 'react';
