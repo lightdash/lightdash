@@ -9,6 +9,7 @@ import {
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilters,
+    DateGranularity,
     DecodedEmbed,
     EmbedJwt,
     EmbedJwtSchema,
@@ -334,7 +335,7 @@ export class EmbedService extends BaseService {
                 ).length,
                 canExportCsv: decodedToken.content.canExportCsv,
                 canExportImages: decodedToken.content.canExportImages,
-                canExportPagePdf: decodedToken.content.canExportPagePdf,
+                canExportPagePdf: decodedToken.content.canExportPagePdf ?? true,
                 canDateZoom: decodedToken.content.canDateZoom,
                 ...(decodedToken.content.dashboardFiltersInteractivity
                     ? {
@@ -527,6 +528,7 @@ export class EmbedService extends BaseService {
         explore,
         queryTags,
         embedJwt,
+        dateZoomGranularity,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -534,6 +536,7 @@ export class EmbedService extends BaseService {
         explore: Explore;
         queryTags: Record<string, string>;
         embedJwt: EmbedJwt;
+        dateZoomGranularity?: DateGranularity;
     }) {
         const credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
@@ -587,7 +590,6 @@ export class EmbedService extends BaseService {
 
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
-
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             filteredExplore,
@@ -595,6 +597,7 @@ export class EmbedService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            dateZoomGranularity,
         );
 
         const results =
@@ -616,6 +619,7 @@ export class EmbedService extends BaseService {
         embedToken: string,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
+        dateZoomGranularity?: DateGranularity,
         checkPermissions: boolean = true,
     ) {
         const { encodedSecret, dashboardUuids, user } =
@@ -720,6 +724,7 @@ export class EmbedService extends BaseService {
             explore,
             queryTags,
             embedJwt: decodedToken,
+            dateZoomGranularity,
         });
 
         return {

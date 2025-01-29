@@ -81,13 +81,13 @@ const useEmbedChartAndResults = (
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    console.debug('dateZoomGranularity', dateZoomGranularity);
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey: [
             'embed-chart-and-results',
             projectUuid,
             tileUuid,
             dashboardFilters,
+            dateZoomGranularity,
         ],
         queryFn: async () =>
             lightdashApi<ApiChartAndResults>({
@@ -99,6 +99,7 @@ const useEmbedChartAndResults = (
                 body: JSON.stringify({
                     tileUuid,
                     dashboardFilters,
+                    dateZoomGranularity,
                 }),
             }),
         enabled: !!embedToken,

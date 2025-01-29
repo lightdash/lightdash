@@ -10,6 +10,7 @@ import {
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilters,
+    DateGranularity,
     DecodedEmbed,
     EmbedUrl,
     Explore,
@@ -208,7 +209,11 @@ export class EmbedController extends BaseController {
         @Path() projectUuid: string,
         @Header('Lightdash-Embed-Token') embedToken: string,
         @Body()
-        body: { tileUuid: string; dashboardFilters?: DashboardFilters },
+        body: {
+            tileUuid: string;
+            dashboardFilters?: DashboardFilters;
+            dateZoomGranularity?: DateGranularity;
+        },
     ): Promise<ApiChartAndResultsResponse> {
         this.setStatus(200);
         return {
@@ -218,6 +223,7 @@ export class EmbedController extends BaseController {
                 embedToken,
                 body.tileUuid,
                 body.dashboardFilters,
+                body.dateZoomGranularity,
             ),
         };
     }

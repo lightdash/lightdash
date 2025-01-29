@@ -4390,6 +4390,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DateGranularity": {
+                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
+                "type": "string"
+            },
             "FieldValueSearchResult": {
                 "properties": {
                     "refreshedAt": {
@@ -8052,10 +8056,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "DateGranularity": {
-                "enum": ["Day", "Week", "Month", "Quarter", "Year"],
-                "type": "string"
             },
             "MetricQueryRequest": {
                 "properties": {
