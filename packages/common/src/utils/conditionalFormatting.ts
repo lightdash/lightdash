@@ -272,10 +272,10 @@ export const getConditionalFormattingColorWithColorRange = ({
 }) => {
     const numericValue = typeof value === 'string' ? parseFloat(value) : value;
     const convertedValue = convertFormattedValue(numericValue, field);
-    const fieldId = getItemId(field);
+    const fieldId = field ? getItemId(field) : undefined;
 
     if (typeof convertedValue !== 'number') return undefined;
-    if (!field || !(fieldId in minMaxMap)) return undefined;
+    if (!fieldId || !(fieldId in minMaxMap)) return undefined;
 
     let min: number;
     let max: number;
