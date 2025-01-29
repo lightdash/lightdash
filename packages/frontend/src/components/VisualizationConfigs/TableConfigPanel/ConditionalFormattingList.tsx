@@ -1,10 +1,10 @@
 import {
-    type ConditionalFormattingMinMaxMap,
     createConditionalFormattingConfigWithSingleColor,
     getItemId,
     isFilterableItem,
     isNumericItem,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMaxMap,
     type FilterableItem,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';

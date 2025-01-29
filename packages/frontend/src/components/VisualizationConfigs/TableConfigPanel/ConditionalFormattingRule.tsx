@@ -1,6 +1,6 @@
 import {
-    type ConditionalFormattingMinMaxMap,
     FilterType,
+    type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
     type FilterableItem,
