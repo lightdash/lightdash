@@ -55,6 +55,7 @@ describe('fixDuplicateSlugs', () => {
 
             expect(tracker.history.select).toHaveLength(1);
             expect(generateUniqueSlug).not.toHaveBeenCalled();
+            expect(tracker.history.update).toHaveLength(0);
         });
 
         test('should update charts with duplicate slugs', async () => {
@@ -187,6 +188,14 @@ describe('fixDuplicateSlugs', () => {
                 duplicateSlug,
             );
             expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.update[0].bindings).toContain(
+                'unique-slug-1',
+            );
+            expect(tracker.history.update[0].bindings).toContain('chart2');
+            expect(tracker.history.update[1].bindings).toContain(
+                'unique-slug-2',
+            );
+            expect(tracker.history.update[1].bindings).toContain('chart3');
         });
     });
 });
