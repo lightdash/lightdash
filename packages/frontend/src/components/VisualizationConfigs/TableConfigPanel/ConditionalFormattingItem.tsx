@@ -12,7 +12,6 @@ import {
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
-    type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
     type FilterableItem,
@@ -43,7 +42,6 @@ type Props = {
     colorPalette: string[];
     index: number;
     fields: FilterableItem[];
-    minMaxByFieldId: ConditionalFormattingMinMaxMap;
     value: ConditionalFormattingConfig;
     onChange: (newConfig: ConditionalFormattingConfig) => void;
     onRemove: () => void;
@@ -60,7 +58,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
     colorPalette,
     index: configIndex,
     fields,
-    minMaxByFieldId,
     isOpen,
     value,
     onChange,
@@ -75,11 +72,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
         [fields, config],
     );
-
-    const columnMinMax = useMemo(() => {
-        if (!field) return null;
-        return minMaxByFieldId[getItemId(field)];
-    }, [field, minMaxByFieldId]);
 
     const handleRemove = useCallback(() => {
         onRemove();
@@ -344,7 +336,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             hasRemove={config.rules.length > 1}
                                             ruleIndex={ruleIndex}
                                             rule={rule}
-                                            minMax={columnMinMax}
                                             field={field || fields[0]}
                                             onChangeRule={(newRule) =>
                                                 handleChangeRule(

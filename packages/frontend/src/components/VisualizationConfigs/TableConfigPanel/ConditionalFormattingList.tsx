@@ -4,7 +4,6 @@ import {
     isFilterableItem,
     isNumericItem,
     type ConditionalFormattingConfig,
-    type ConditionalFormattingMinMaxMap,
     type FilterableItem,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
@@ -47,28 +46,6 @@ const ConditionalFormattingList = ({}) => {
                 (field) => isNumericItem(field) && isFilterableItem(field),
             ) as FilterableItem[];
     }, [itemsMap, activeFields]);
-
-    const minMaxByFieldId = useMemo(() => {
-        if (!resultsData) return {};
-
-        return resultsData.rows.reduce<ConditionalFormattingMinMaxMap>(
-            (acc, row) => {
-                Object.entries(row).forEach(([fieldId, value]) => {
-                    if (typeof value === 'number') {
-                        acc[fieldId] = {
-                            min: Math.min(acc[fieldId]?.min ?? Infinity, value),
-                            max: Math.max(
-                                acc[fieldId]?.max ?? -Infinity,
-                                value,
-                            ),
-                        };
-                    }
-                });
-                return acc;
-            },
-            {},
-        );
-    }, [resultsData]);
 
     const activeConfigs = useMemo(() => {
         if (!chartConfig) return [];
@@ -164,7 +141,6 @@ const ConditionalFormattingList = ({}) => {
                             colorPalette={colorPalette}
                             index={index + 1}
                             fields={visibleActiveNumericFields}
-                            minMaxByFieldId={minMaxByFieldId}
                             value={conditionalFormatting}
                             onChange={(newConfig) =>
                                 handleChange(index, newConfig)
