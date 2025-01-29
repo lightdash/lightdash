@@ -3,7 +3,7 @@ import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { SpaceTableName } from '../../../database/entities/spaces';
-import { generateUniqueSlug } from '../../../utils/SlugUtils';
+import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 
 export function getFixDuplicateSlugsScripts(database: Knex) {
     async function fixDuplicateChartSlugsForProject(
@@ -77,26 +77,28 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                     const [firstChart, ...restCharts] = chartsWithSlug;
 
                     for await (const chart of restCharts) {
-                        const uniqueSlug = await generateUniqueSlug(
-                            trx,
-                            SavedChartsTableName,
-                            chart.slug,
-                        );
+                        const uniqueSlug =
+                            await generateUniqueSlugScopedToProject(
+                                trx,
+                                projectUuid,
+                                SavedChartsTableName,
+                                chart.slug,
+                            );
 
                         console.info(
                             `Updating chart ${chart.name} having slug ${chart.slug} to ${uniqueSlug} in project ${projectUuid}${dryRunMessage}`,
                         );
 
-                        if (!dryRun) {
-                            await trx(SavedChartsTableName)
-                                .where(
-                                    'saved_query_uuid',
-                                    chart.saved_query_uuid,
-                                )
-                                .update({ slug: uniqueSlug });
-                        }
+                        await trx(SavedChartsTableName)
+                            .where('saved_query_uuid', chart.saved_query_uuid)
+                            .update({ slug: uniqueSlug });
                     }
                 }
+            }
+
+            if (dryRun) {
+                // Rollback the transaction if it's a dry run, this is because slugs depend on updated charts
+                await trx.rollback();
             }
 
             console.info(

@@ -8,11 +8,11 @@ import {
     type RawQuery,
 } from 'knex-mock-client';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
-import { generateUniqueSlug } from '../../../utils/SlugUtils';
+import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 import { getFixDuplicateSlugsScripts } from './fixDuplicateSlugs';
 
 jest.mock('../../../utils/SlugUtils', () => ({
-    generateUniqueSlug: jest.fn(),
+    generateUniqueSlugScopedToProject: jest.fn(),
 }));
 
 function queryMatcher(
@@ -56,7 +56,7 @@ describe('fixDuplicateSlugs', () => {
             });
 
             expect(tracker.history.select).toHaveLength(1);
-            expect(generateUniqueSlug).not.toHaveBeenCalled();
+            expect(generateUniqueSlugScopedToProject).not.toHaveBeenCalled();
             expect(tracker.history.update).toHaveLength(0);
         });
 
@@ -91,10 +91,10 @@ describe('fixDuplicateSlugs', () => {
                     },
                 ]);
 
-            // Mock generateUniqueSlug
-            (generateUniqueSlug as jest.Mock).mockResolvedValueOnce(
-                'unique-slug',
-            );
+            // Mock generateUniqueSlugScopedToProject
+            (
+                generateUniqueSlugScopedToProject as jest.Mock
+            ).mockResolvedValueOnce('unique-slug');
 
             // Mock the update query
             tracker.on
@@ -110,14 +110,16 @@ describe('fixDuplicateSlugs', () => {
                 dryRun: false,
             });
 
-            expect(generateUniqueSlug).toHaveBeenCalledTimes(1);
-            expect(generateUniqueSlug).toHaveBeenCalledWith(
+            expect(generateUniqueSlugScopedToProject).toHaveBeenCalledTimes(1);
+            expect(generateUniqueSlugScopedToProject).toHaveBeenCalledWith(
                 expect.anything(),
+                projectUuid,
                 SavedChartsTableName,
                 duplicateSlug,
             );
 
             expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.transactions[0].state).toEqual('committed');
             expect(tracker.history.update[0].bindings).toContain('unique-slug');
             expect(tracker.history.update[0].bindings).toContain('chart2');
         });
@@ -153,10 +155,10 @@ describe('fixDuplicateSlugs', () => {
                     },
                 ]);
 
-            // Mock generateUniqueSlug
-            (generateUniqueSlug as jest.Mock).mockResolvedValueOnce(
-                'unique-slug',
-            );
+            // Mock generateUniqueSlugScopedToProject
+            (
+                generateUniqueSlugScopedToProject as jest.Mock
+            ).mockResolvedValueOnce('unique-slug');
 
             // Mock the update query
             tracker.on
@@ -172,7 +174,9 @@ describe('fixDuplicateSlugs', () => {
                 dryRun: true,
             });
 
-            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.transactions[0].state).toEqual(
+                'rolled back',
+            );
         });
 
         test('should handle multiple charts with the same slug', async () => {
@@ -212,8 +216,8 @@ describe('fixDuplicateSlugs', () => {
                     },
                 ]);
 
-            // Mock generateUniqueSlug for each duplicate
-            (generateUniqueSlug as jest.Mock)
+            // Mock generateUniqueSlugScopedToProject for each duplicate
+            (generateUniqueSlugScopedToProject as jest.Mock)
                 .mockResolvedValueOnce('unique-slug-1')
                 .mockResolvedValueOnce('unique-slug-2');
 
@@ -240,13 +244,15 @@ describe('fixDuplicateSlugs', () => {
                 dryRun: false,
             });
 
-            expect(generateUniqueSlug).toHaveBeenCalledTimes(2);
-            expect(generateUniqueSlug).toHaveBeenCalledWith(
+            expect(generateUniqueSlugScopedToProject).toHaveBeenCalledTimes(2);
+            expect(generateUniqueSlugScopedToProject).toHaveBeenCalledWith(
                 expect.anything(),
+                projectUuid,
                 SavedChartsTableName,
                 duplicateSlug,
             );
             expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.transactions[0].state).toEqual('committed');
             expect(tracker.history.update[0].bindings).toContain(
                 'unique-slug-1',
             );
