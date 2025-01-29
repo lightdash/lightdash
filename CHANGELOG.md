@@ -1,3 +1,10 @@
+# [0.1473.0](https://github.com/lightdash/lightdash/compare/0.1472.0...0.1473.0) (2025-01-29)
+
+
+### Features
+
+* add script to fix duplicate slugs for charts ([#13446](https://github.com/lightdash/lightdash/issues/13446)) ([6434b2e](https://github.com/lightdash/lightdash/commit/6434b2ef85a77524b48a62fb80981a2c18417ac3))
+
 # [0.1472.0](https://github.com/lightdash/lightdash/compare/0.1471.0...0.1472.0) (2025-01-29)
 
 
