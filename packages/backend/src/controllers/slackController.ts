@@ -41,6 +41,8 @@ export class SlackController extends BaseController {
     async get(
         @Request() req: express.Request,
         @Query() search?: string,
+        @Query() excludeArchived?: boolean,
+        @Query() forceRefresh?: boolean,
     ): Promise<ApiSlackChannelsResponse> {
         this.setStatus(200);
         const organizationUuid = req.user?.organizationUuid;
@@ -49,7 +51,10 @@ export class SlackController extends BaseController {
             status: 'ok',
             results: await req.clients
                 .getSlackClient()
-                .getChannels(organizationUuid, search),
+                .getChannels(organizationUuid, search, {
+                    excludeArchived,
+                    forceRefresh,
+                }),
         };
     }
 

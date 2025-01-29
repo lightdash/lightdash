@@ -8,6 +8,7 @@ import {
     Radio,
     Select,
     Stack,
+    Text,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -18,11 +19,13 @@ import {
     IconHash,
     IconHelpCircle,
     IconPlus,
+    IconRefresh,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { TagInput } from '../../../../components/common/TagInput/TagInput';
+import { useSlackChannels } from '../../../../hooks/slack/useSlack';
 
 type Props = {
     channelOptions: { value: string; label: string }[];
@@ -153,20 +156,48 @@ const ChannelProjectMappings: FC<Props> = ({
         [form],
     );
 
+    const { refresh: refreshChannels, isLoading: isRefreshing } =
+        useSlackChannels('');
+
     return (
         <Stack spacing="sm" w="100%">
-            <Group spacing="two" mb="two">
-                <Title order={6} fw={500}>
-                    AI Bot channel mappings
-                </Title>
+            <Group position="apart" spacing="two" mb="two">
+                <Group spacing="two">
+                    <Title order={6} fw={500}>
+                        AI Bot channel mappings
+                    </Title>
+
+                    <Tooltip
+                        variant="xs"
+                        multiline
+                        maw={250}
+                        label="Map which project is associated with which Slack channel. When a user asks a question in a channel, Lightdash will look for the answer in the associated project."
+                    >
+                        <MantineIcon icon={IconHelpCircle} />
+                    </Tooltip>
+                </Group>
 
                 <Tooltip
                     variant="xs"
                     multiline
                     maw={250}
-                    label="Map which project is associated with which Slack channel. When a user asks a question in a channel, Lightdash will look for the answer in the associated project."
+                    label={
+                        <Text fw={500}>
+                            Refresh Slack channel list.
+                            <Text c="gray.4" fw={400}>
+                                To see private channels, ensure the bot has been
+                                invited to them. Archived channels are not
+                                included.
+                            </Text>
+                        </Text>
+                    }
                 >
-                    <MantineIcon icon={IconHelpCircle} />
+                    <ActionIcon
+                        loading={isRefreshing}
+                        onClick={refreshChannels}
+                    >
+                        <MantineIcon icon={IconRefresh} />
+                    </ActionIcon>
                 </Tooltip>
             </Group>
 

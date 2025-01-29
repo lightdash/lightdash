@@ -10,6 +10,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -54,22 +55,44 @@ export const useDeleteSlack = () => {
     });
 };
 
-const getSlackChannels = async (search: string) =>
+const getSlackChannels = async (
+    search: string,
+    excludeArchived: boolean = true,
+    forceRefresh: boolean = false,
+) =>
     lightdashApi<SlackChannel[] | undefined>({
-        url: `/slack/channels?search=${search}`,
+        url: `/slack/channels?search=${search}&excludeArchived=${excludeArchived}&forceRefresh=${forceRefresh}`,
         method: 'GET',
         body: undefined,
     });
 
 export const useSlackChannels = (
     search: string,
+    excludeArchived: boolean = true,
     useQueryOptions?: UseQueryOptions<SlackChannel[] | undefined, ApiError>,
-) =>
-    useQuery<SlackChannel[] | undefined, ApiError>({
-        queryKey: ['slack_channels', search],
-        queryFn: () => getSlackChannels(search),
+) => {
+    const queryClient = useQueryClient();
+
+    const query = useQuery<SlackChannel[] | undefined, ApiError>({
+        queryKey: ['slack_channels', search, excludeArchived],
+        queryFn: () => getSlackChannels(search, excludeArchived),
         ...useQueryOptions,
     });
+
+    const refresh = useCallback(async () => {
+        const slackChannelsAfterRefresh = await getSlackChannels(
+            search,
+            excludeArchived,
+            true,
+        );
+        queryClient.setQueryData(
+            ['slack_channels', search, excludeArchived],
+            slackChannelsAfterRefresh,
+        );
+    }, [search, excludeArchived, queryClient]);
+
+    return { ...query, refresh };
+};
 
 const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
     lightdashApi<null>({
