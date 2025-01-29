@@ -1,32 +1,13 @@
-import { deepEqual, type AnyType } from '@lightdash/common';
 import { knex } from 'knex';
-import {
-    getTracker,
-    MockClient,
-    Tracker,
-    type FunctionQueryMatcher,
-    type RawQuery,
-} from 'knex-mock-client';
+import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 import { getFixDuplicateSlugsScripts } from './fixDuplicateSlugs';
+import { queryMatcher } from './testUtils';
 
 jest.mock('../../../utils/SlugUtils', () => ({
     generateUniqueSlugScopedToProject: jest.fn(),
 }));
-
-function queryMatcher(
-    tableName: string,
-    params: AnyType[] = [],
-): FunctionQueryMatcher {
-    return ({ sql, bindings }: RawQuery) =>
-        sql.includes(tableName) &&
-        params.length === bindings.length &&
-        params.reduce(
-            (valid, arg, index) => valid && deepEqual(bindings[index], arg),
-            true,
-        );
-}
 
 describe('fixDuplicateSlugs', () => {
     let tracker: Tracker;
