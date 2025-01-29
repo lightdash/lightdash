@@ -1,0 +1,16 @@
+{
+    "extends": "./../../../tsconfig.json",
+    "compilerOptions": {
+        "composite": true,
+        "target": "ESNext",
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "jsx": "react-jsx",
+        "paths": {
+            "@lightdash/common": ["./../../common/src"]
+        }
+    },
+    "include": ["src"],
+    "references": [{ "path": "../../common" }]
+}
