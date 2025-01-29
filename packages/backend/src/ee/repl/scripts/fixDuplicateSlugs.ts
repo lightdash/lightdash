@@ -59,13 +59,7 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                         `${SavedChartsTableName}.created_at`,
                     )
                     .where(`${SavedChartsTableName}.slug`, slug)
-                    .orderBy(`${SavedChartsTableName}.created_at`, 'asc')
-                    .groupBy(
-                        `${SavedChartsTableName}.saved_query_uuid`,
-                        `${SavedChartsTableName}.name`,
-                        `${SavedChartsTableName}.created_at`,
-                        `${SavedChartsTableName}.slug`,
-                    );
+                    .orderBy(`${SavedChartsTableName}.created_at`, 'asc');
 
                 const chartsWithSlug = await chartsWithSlugQuery;
 
