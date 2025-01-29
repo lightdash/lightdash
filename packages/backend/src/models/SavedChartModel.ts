@@ -1078,6 +1078,7 @@ export class SavedChartModel {
             customBinDimensions: string[];
             customSqlDimensions: string[];
             sorts: string[];
+            dashboardUuid: string | undefined;
         }>
     > {
         const cteName = 'chart_last_version_cte';
@@ -1092,6 +1093,7 @@ export class SavedChartModel {
                             saved_queries_version_id: this.database.raw(
                                 'MAX(saved_queries_versions.saved_queries_version_id)',
                             ),
+                            dashboard_uuid: 'saved_queries.dashboard_uuid', // Directly select the dashboard_uuid
                         })
                         .from(SavedChartsTableName)
                         .leftJoin(
@@ -1124,6 +1126,7 @@ export class SavedChartModel {
                         .groupBy(
                             'saved_queries.saved_query_uuid',
                             'saved_queries.name',
+                            'saved_queries.dashboard_uuid', // Include in GROUP BY
                         );
                 })
                 .select({
@@ -1131,6 +1134,7 @@ export class SavedChartModel {
                     name: `${cteName}.name`,
                     tableName: 'saved_queries_versions.explore_name',
                     filters: 'saved_queries_versions.filters',
+                    dashboardUuid: `${cteName}.dashboard_uuid`,
                     dimensions: this.database.raw(
                         "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'dimension'), '{}')",
                     ),
@@ -1192,7 +1196,7 @@ export class SavedChartModel {
                     'saved_queries_versions.saved_queries_version_id',
                     'sqvs.saved_queries_version_id',
                 )
-                .groupBy(1, 2, 3, 4)
+                .groupBy(1, 2, 3, 4, 5)
         );
     }
 

@@ -1283,9 +1283,9 @@ export class PromoteService extends BaseService {
             // Delete orphaned charts in dashboard if it already existed
             if (upstreamDashboard.dashboard) {
                 const orphanedCharts =
-                    await this.dashboardModel.getOrphanedCharts(
+                    await this.dashboardModel.getOrphanedCharts([
                         upstreamDashboard.dashboard.uuid,
-                    );
+                    ]);
                 await Promise.all(
                     orphanedCharts.map((chart) =>
                         this.savedChartModel.delete(chart.uuid),

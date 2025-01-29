@@ -215,6 +215,18 @@ export class ValidationService extends BaseService {
         const charts = await this.savedChartModel.findChartsForValidation(
             projectUuid,
         );
+
+        const dashboardUuids = new Set(
+            charts
+                .filter((c) => c.dashboardUuid !== undefined)
+                .map((c) => c.dashboardUuid) as string[],
+        );
+        const orphanedChartsWithinDashboards =
+            await this.dashboardModel.getOrphanedCharts([...dashboardUuids]);
+        const orphanedChartUuids = orphanedChartsWithinDashboards.map(
+            (c) => c.uuid,
+        );
+
         // Only validate charts that are using selected explores
         const results = charts
             .filter((c) => {
@@ -224,6 +236,11 @@ export class ValidationService extends BaseService {
                     return explore.baseTable === c.tableName;
                 });
             })
+            .filter((c) =>
+                c.dashboardUuid !== undefined
+                    ? !orphanedChartUuids.includes(c.uuid)
+                    : true,
+            ) // Filter orphaned charts within dashboards
             .flatMap(
                 ({
                     uuid,
@@ -238,6 +255,7 @@ export class ValidationService extends BaseService {
                     customMetrics,
                     customMetricsBaseDimensions,
                     tableCalculations,
+                    dashboardUuid,
                 }) => {
                     const availableDimensionIds =
                         exploreFields[tableName]?.dimensionIds || [];

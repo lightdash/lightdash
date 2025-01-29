@@ -1189,7 +1189,7 @@ export class DashboardModel {
     }
 
     async getOrphanedCharts(
-        dashboardUuid: string,
+        dashboardUuids: string[],
     ): Promise<Pick<SavedChart, 'uuid'>[]> {
         const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
             .distinct('saved_chart_id')
@@ -1203,11 +1203,18 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
-            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid);
-
+            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
+            .where(
+                // filter by last version
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                this.database.raw(`(select dashboard_version_id
+                               from ${DashboardVersionsTableName}
+                               order by ${DashboardVersionsTableName}.created_at desc
+                               limit 1)`),
+            );
         const orphanedCharts = await this.database(SavedChartsTableName)
             .select(`saved_query_uuid`)
-            .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereIn(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuids)
             .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
 
         return orphanedCharts.map((chart) => ({

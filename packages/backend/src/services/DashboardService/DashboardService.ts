@@ -152,9 +152,9 @@ export class DashboardService extends BaseService {
         user: SessionUser,
         dashboardUuid: string,
     ) {
-        const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
+        const orphanedCharts = await this.dashboardModel.getOrphanedCharts([
             dashboardUuid,
-        );
+        ]);
 
         await Promise.all(
             orphanedCharts.map(async (chart) => {
