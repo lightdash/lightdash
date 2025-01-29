@@ -62,6 +62,7 @@ export const projectAdapterFromConfig = async (
                 environmentId: `${config.environment_id}`,
                 discoveryApiEndpoint: config.discovery_api_endpoint,
                 apiKey: config.api_key,
+                tags: config.tags,
                 cachedWarehouse,
                 dbtVersion,
                 // TODO add selector to dbt cloud

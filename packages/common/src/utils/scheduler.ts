@@ -1,4 +1,5 @@
 import cronstrue from 'cronstrue';
+import { getArrayValue } from './accessors';
 
 export function getTzMinutesOffset(oldTz: string, newTz: string) {
     const date = new Date();
@@ -55,7 +56,10 @@ export function getHumanReadableCronExpression(
         .replaceAll(' PM', ` PM (UTC ${offsetString})`)
         .replaceAll(' AM', ` AM (UTC ${offsetString})`);
 
-    return valueWithTimezone[0].toLowerCase() + valueWithTimezone.slice(1);
+    return (
+        getArrayValue(valueWithTimezone, 0).toLowerCase() +
+        valueWithTimezone.slice(1)
+    );
 }
 
 export function isValidFrequency(cronExpression: string): boolean {
@@ -69,6 +73,9 @@ export function isValidFrequency(cronExpression: string): boolean {
         return false;
     }
     const [minutePart] = cronParts;
+    if (minutePart === undefined) {
+        return false;
+    }
     if (
         minutePart.includes('/') ||
         minutePart.includes(',') ||

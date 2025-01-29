@@ -1,3 +1,4 @@
+import { getObjectValue } from '@lightdash/common';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
@@ -14,7 +15,7 @@ savedChartRouter.get(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .get(req.params.savedQueryUuid, req.user!)
+            .get(getObjectValue(req.params, 'savedQueryUuid'), req.user!)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -32,7 +33,10 @@ savedChartRouter.get(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .getViewStats(req.user!, req.params.savedQueryUuid)
+            .getViewStats(
+                req.user!,
+                getObjectValue(req.params, 'savedQueryUuid'),
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -52,7 +56,7 @@ savedChartRouter.get(
             .getProjectService()
             .getAvailableFiltersForSavedQuery(
                 req.user!,
-                req.params.savedQueryUuid,
+                getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {
                 res.json({
@@ -71,7 +75,7 @@ savedChartRouter.delete(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .delete(req.user!, req.params.savedQueryUuid)
+            .delete(req.user!, getObjectValue(req.params, 'savedQueryUuid'))
             .then(() => {
                 res.json({
                     status: 'ok',
@@ -90,7 +94,11 @@ savedChartRouter.patch(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .update(req.user!, req.params.savedQueryUuid, req.body)
+            .update(
+                req.user!,
+                getObjectValue(req.params, 'savedQueryUuid'),
+                req.body,
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -109,7 +117,10 @@ savedChartRouter.patch(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .togglePinning(req.user!, req.params.savedQueryUuid)
+            .togglePinning(
+                req.user!,
+                getObjectValue(req.params, 'savedQueryUuid'),
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -128,7 +139,11 @@ savedChartRouter.post(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .createVersion(req.user!, req.params.savedQueryUuid, req.body)
+            .createVersion(
+                req.user!,
+                getObjectValue(req.params, 'savedQueryUuid'),
+                req.body,
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -149,7 +164,10 @@ savedChartRouter.get(
                 status: 'ok',
                 results: await req.services
                     .getSavedChartService()
-                    .getSchedulers(req.user!, req.params.savedQueryUuid),
+                    .getSchedulers(
+                        req.user!,
+                        getObjectValue(req.params, 'savedQueryUuid'),
+                    ),
             });
         } catch (e) {
             next(e);
@@ -170,7 +188,7 @@ savedChartRouter.post(
                     .getSavedChartService()
                     .createScheduler(
                         req.user!,
-                        req.params.savedQueryUuid,
+                        getObjectValue(req.params, 'savedQueryUuid'),
                         req.body,
                     ),
             });

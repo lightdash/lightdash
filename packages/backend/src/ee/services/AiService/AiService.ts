@@ -30,7 +30,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AgentExecutor } from 'langchain/agents';
-import { intersection, pick } from 'lodash';
+import { /* intersection, */ pick } from 'lodash';
 import moment from 'moment';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -398,7 +398,7 @@ export class AiService {
             // .filter(
             //     (explore) =>
             //         !availableTags ||
-            //         intersection(explore.tags, availableTags).length > 0,
+            //         /* (explore. */tags, availableTags).length > 0,
             // )
             .map((s) => ({
                 ...pick(s, ['name', 'label', 'description', 'baseTable']),
@@ -429,7 +429,7 @@ export class AiService {
             // TODO: enable this to allow filtering by tags
             // if (
             //     availableTags &&
-            //     intersection(explore.tags, availableTags).length === 0
+            //     /* (explore. */tags, availableTags).length === 0
             // ) {
             //     throw new Error('Explore is not available');
             // }
@@ -642,6 +642,8 @@ export class AiService {
             prompt,
             tools,
             streamRunnable: false,
+            // TODO: enable this when we have a way to have openai compliant zod/json schemas
+            // strict: true,
         });
 
         const agentExecutor = new AgentExecutor({

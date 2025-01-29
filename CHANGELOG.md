@@ -1,3 +1,24 @@
+## [0.1473.1](https://github.com/lightdash/lightdash/compare/0.1473.0...0.1473.1) (2025-01-29)
+
+
+### Bug Fixes
+
+* langchain version vulnerability ([#13440](https://github.com/lightdash/lightdash/issues/13440)) ([4c902f5](https://github.com/lightdash/lightdash/commit/4c902f50b123b304dfd94cf9406fc3f6b4305145))
+
+# [0.1473.0](https://github.com/lightdash/lightdash/compare/0.1472.0...0.1473.0) (2025-01-29)
+
+
+### Features
+
+* add script to fix duplicate slugs for charts ([#13446](https://github.com/lightdash/lightdash/issues/13446)) ([6434b2e](https://github.com/lightdash/lightdash/commit/6434b2ef85a77524b48a62fb80981a2c18417ac3))
+
+# [0.1472.0](https://github.com/lightdash/lightdash/compare/0.1471.0...0.1472.0) (2025-01-29)
+
+
+### Features
+
+* allow to filter dbt cloud models by tags ([#13445](https://github.com/lightdash/lightdash/issues/13445)) ([19159c9](https://github.com/lightdash/lightdash/commit/19159c9358acb0c583c242e1260264a66b7249e9))
+
 # [0.1471.0](https://github.com/lightdash/lightdash/compare/0.1470.0...0.1471.0) (2025-01-28)
 
 

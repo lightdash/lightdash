@@ -7854,6 +7854,7 @@ const models: TsoaRoute.Models = {
             api_key: { dataType: 'string', required: true },
             environment_id: { dataType: 'string', required: true },
             discovery_api_endpoint: { dataType: 'string' },
+            tags: { dataType: 'array', array: { dataType: 'string' } },
         },
         additionalProperties: true,
     },
