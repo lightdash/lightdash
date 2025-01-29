@@ -144,30 +144,25 @@ export const hasMatchingConditionalRules = (
 
     if (isConditionalFormattingConfigWithColorRange(config)) {
         if (typeof convertedValue !== 'number') return false;
+        const fieldId = field ? getItemId(field) : undefined;
+
+        if (!fieldId || !(fieldId in minMaxMap)) return false;
 
         let min: number;
         let max: number;
 
         if (config.rule.min === 'auto') {
-            if (field && getItemId(field) in minMaxMap) {
-                min = minMaxMap[getItemId(field)].min;
-            } else if (!field) {
-                min = getMinMaxFromMinMaxMap(minMaxMap).min;
-            } else {
-                throw new Error('Field not found in minMaxMap');
-            }
+            min = field
+                ? minMaxMap[fieldId].min
+                : getMinMaxFromMinMaxMap(minMaxMap).min;
         } else {
             min = config.rule.min;
         }
 
         if (config.rule.max === 'auto') {
-            if (field && getItemId(field) in minMaxMap) {
-                max = minMaxMap[getItemId(field)].max;
-            } else if (!field) {
-                max = getMinMaxFromMinMaxMap(minMaxMap).max;
-            } else {
-                throw new Error('Field not found in minMaxMap');
-            }
+            max = field
+                ? minMaxMap[fieldId].max
+                : getMinMaxFromMinMaxMap(minMaxMap).max;
         } else {
             max = config.rule.max;
         }
@@ -277,32 +272,26 @@ export const getConditionalFormattingColorWithColorRange = ({
 }) => {
     const numericValue = typeof value === 'string' ? parseFloat(value) : value;
     const convertedValue = convertFormattedValue(numericValue, field);
+    const fieldId = getItemId(field);
 
     if (typeof convertedValue !== 'number') return undefined;
+    if (!field || !(fieldId in minMaxMap)) return undefined;
 
     let min: number;
     let max: number;
 
     if (config.rule.min === 'auto') {
-        if (field && getItemId(field) in minMaxMap) {
-            min = minMaxMap[getItemId(field)].min;
-        } else if (!field) {
-            min = getMinMaxFromMinMaxMap(minMaxMap).min;
-        } else {
-            throw new Error('Field not found in minMaxMap');
-        }
+        min = field
+            ? minMaxMap[fieldId].min
+            : getMinMaxFromMinMaxMap(minMaxMap).min;
     } else {
         min = config.rule.min;
     }
 
     if (config.rule.max === 'auto') {
-        if (field && getItemId(field) in minMaxMap) {
-            max = minMaxMap[getItemId(field)].max;
-        } else if (!field) {
-            max = getMinMaxFromMinMaxMap(minMaxMap).max;
-        } else {
-            throw new Error('Field not found in minMaxMap');
-        }
+        max = field
+            ? minMaxMap[fieldId].max
+            : getMinMaxFromMinMaxMap(minMaxMap).max;
     } else {
         max = config.rule.max;
     }
