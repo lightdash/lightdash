@@ -148,8 +148,8 @@ export type TableChart = {
     showResultsTotal?: boolean;
     showSubtotals?: boolean;
     columns?: Record<string, ColumnProperties>;
-    metricsAsRows?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    metricsAsRows?: boolean;
 };
 
 export enum CartesianSeriesType {
