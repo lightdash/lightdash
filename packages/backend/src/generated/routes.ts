@@ -747,6 +747,8 @@ const models: TsoaRoute.Models = {
                 content: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        canExportPagePdf: { dataType: 'boolean' },
+                        canDateZoom: { dataType: 'boolean' },
                         canExportImages: { dataType: 'boolean' },
                         canExportCsv: { dataType: 'boolean' },
                         dashboardFiltersInteractivity: {
@@ -6764,6 +6766,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                tabName: { dataType: 'string' },
                 url: { dataType: 'string', required: true },
                 gdriveOrganizationName: { dataType: 'string', required: true },
                 gdriveName: { dataType: 'string', required: true },

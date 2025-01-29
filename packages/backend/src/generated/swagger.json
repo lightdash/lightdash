@@ -736,6 +736,12 @@
                     },
                     "content": {
                         "properties": {
+                            "canExportPagePdf": {
+                                "type": "boolean"
+                            },
+                            "canDateZoom": {
+                                "type": "boolean"
+                            },
                             "canExportImages": {
                                 "type": "boolean"
                             },
@@ -7467,6 +7473,9 @@
             },
             "SchedulerGsheetsOptions": {
                 "properties": {
+                    "tabName": {
+                        "type": "string"
+                    },
                     "url": {
                         "type": "string"
                     },
@@ -14580,7 +14589,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1465.0",
+        "version": "0.1470.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

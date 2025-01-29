@@ -334,6 +334,8 @@ export class EmbedService extends BaseService {
                 ).length,
                 canExportCsv: decodedToken.content.canExportCsv,
                 canExportImages: decodedToken.content.canExportImages,
+                canExportPagePdf: decodedToken.content.canExportPagePdf,
+                canDateZoom: decodedToken.content.canDateZoom,
                 ...(decodedToken.content.dashboardFiltersInteractivity
                     ? {
                           dashboardFiltersInteractivity: {
@@ -357,6 +359,8 @@ export class EmbedService extends BaseService {
                 decodedToken.content.dashboardFiltersInteractivity,
             canExportCsv: decodedToken.content.canExportCsv,
             canExportImages: decodedToken.content.canExportImages,
+            canExportPagePdf: decodedToken.content.canExportPagePdf ?? true, // enabled by default for backwards compatibility
+            canDateZoom: decodedToken.content.canDateZoom,
         };
     }
 

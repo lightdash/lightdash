@@ -297,6 +297,8 @@ interface DashboardChartTileMainProps
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
     canExportCsv?: boolean;
     canExportImages?: boolean;
+    canExportPagePdf?: boolean;
+    canDateZoom?: boolean;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
