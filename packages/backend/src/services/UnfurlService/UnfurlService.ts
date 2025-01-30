@@ -565,37 +565,44 @@ export class UnfurlService extends BaseService {
                                         },
                                     ); // NOTE: No await here
                                 });
+                            console.log('sqlChartTileUuids', sqlChartTileUuids);
                             // We wait for the sql charts to load and for the query to finish
-                            const sqlChartResultsPromises = sqlChartTileUuids
-                                ?.map((id) => [
-                                    // Wait for initial chart load
-                                    page?.waitForResponse(
-                                        new RegExp(`/sqlRunner/saved/${id}`),
-                                        { timeout: 60000 },
-                                    ),
-                                    // Wait for results job
-                                    page?.waitForResponse(
-                                        new RegExp(
-                                            `/sqlRunner/saved/${id}/results-job`,
-                                        ),
-                                        { timeout: 60000 },
-                                    ),
-                                    // Wait for results
-                                    page?.waitForResponse(
-                                        /\/sqlRunner\/results/,
-                                        { timeout: 60000 },
-                                    ),
-                                    // Wait for pivot query
-                                    page?.waitForResponse(
-                                        /\/sqlRunner\/runPivotQuery/,
-                                        { timeout: 60000 },
-                                    ),
-                                ])
-                                .flat();
+                            const sqlChartResultsPromises =
+                                sqlChartTileUuids &&
+                                sqlChartTileUuids.length > 0
+                                    ? sqlChartTileUuids
+                                          .map((id) => [
+                                              // Wait for initial chart load
+                                              page?.waitForResponse(
+                                                  new RegExp(
+                                                      `/sqlRunner/saved/${id}`,
+                                                  ),
+                                                  { timeout: 60000 },
+                                              ),
+                                              // Wait for results job
+                                              page?.waitForResponse(
+                                                  new RegExp(
+                                                      `/sqlRunner/saved/${id}/results-job`,
+                                                  ),
+                                                  { timeout: 60000 },
+                                              ),
+                                              // Wait for results
+                                              page?.waitForResponse(
+                                                  /\/sqlRunner\/results/,
+                                                  { timeout: 60000 },
+                                              ),
+                                              // Wait for pivot query
+                                              page?.waitForResponse(
+                                                  /\/sqlRunner\/runPivotQuery/,
+                                                  { timeout: 60000 },
+                                              ),
+                                          ])
+                                          .flat()
+                                    : [];
 
                             chartResultsPromises = [
                                 ...(exploreChartResultsPromises || []),
-                                ...(sqlChartResultsPromises || []),
+                                ...sqlChartResultsPromises,
                             ];
                         } else if (lightdashPage === LightdashPage.CHART) {
                             // Wait for the visualization to load if we are in an saved explore page
