@@ -1,3 +1,10 @@
+## [0.1474.1](https://github.com/lightdash/lightdash/compare/0.1474.0...0.1474.1) (2025-01-30)
+
+
+### Bug Fixes
+
+* EE migration rollbacks + add embed management API tests ([#13438](https://github.com/lightdash/lightdash/issues/13438)) ([4a9492e](https://github.com/lightdash/lightdash/commit/4a9492e71cb00bcf02f4f5e5921e8bb583c5e000))
+
 # [0.1474.0](https://github.com/lightdash/lightdash/compare/0.1473.1...0.1474.0) (2025-01-30)
 
 
