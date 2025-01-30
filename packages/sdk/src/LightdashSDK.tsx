@@ -11,9 +11,9 @@ const LightdashSDK: FC = () => {
         <>
             <div>Hello from @lightdash/sdk - React {version}</div>
 
-            <TestFrontendForSdk />
-
             <MantineProvider>
+                <TestFrontendForSdk />
+
                 <MantineIcon icon={IconHome} size="xxl" color="red" />
             </MantineProvider>
         </>
