@@ -61,12 +61,21 @@ export const useChartColorConfig = ({
                 colorMappings.set(group, groupMappings);
             }
 
-            // Generate a deterministic pallette index based on the identifier string
-            const hash = Array.from(identifier).reduce(
+            // Hash only the group to get a base offset
+            const groupHash = Array.from(group).reduce(
                 (acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0,
                 0,
             );
-            const colorIdx = Math.abs(hash) % colorPalette.length;
+
+            // Hash the identifier separately and add to the group offset
+            const identifierHash = Array.from(identifier).reduce(
+                (acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0,
+                0,
+            );
+
+            // Give more weight to the identifier hash, so that it's more likely to be a different index within the same group
+            const colorIdx =
+                Math.abs(groupHash + identifierHash * 2) % colorPalette.length;
             const colorHex = colorPalette[colorIdx];
 
             // Keep track of the color idx used for this identifier, within this group:
