@@ -37,6 +37,7 @@ const validationModel = {
 };
 const dashboardModel = {
     findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
+    getOrphanedCharts: jest.fn(async () => []),
 };
 
 describe('validation', () => {
