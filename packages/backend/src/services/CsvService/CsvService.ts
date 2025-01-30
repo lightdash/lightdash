@@ -40,6 +40,7 @@ import {
     SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
+    type RunQueryTags,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
@@ -82,15 +83,6 @@ type CsvServiceArguments = {
     downloadFileModel: DownloadFileModel;
     schedulerClient: SchedulerClient;
     projectModel: ProjectModel;
-};
-
-type RunQueryTags = {
-    project_uuid?: string;
-    user_uuid?: string;
-    organization_uuid?: string;
-    chart_uuid?: string;
-    dashboard_uuid?: string;
-    explore_name?: string;
 };
 
 const isRowValueTimestamp = (
@@ -587,6 +579,7 @@ This method can be memory intensive
             organization_uuid: user.organizationUuid,
             chart_uuid: chartUuid,
             explore_name: exploreId,
+            query_context: QueryExecutionContext.CSV,
         };
 
         const { rows, fields } = await this.projectService.runMetricQuery({
@@ -1165,7 +1158,7 @@ This method can be memory intensive
                 properties: analyticsProperties,
             });
 
-            const queryTags: RunQueryTags = {
+            const queryTags: Omit<RunQueryTags, 'query_context'> = {
                 project_uuid: projectUuid,
                 user_uuid: user.userUuid,
                 organization_uuid: user.organizationUuid,

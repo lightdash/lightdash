@@ -4,6 +4,7 @@ import {
     Explore,
     ExploreError,
     LightdashProjectConfig,
+    type RunQueryTags,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
@@ -11,15 +12,6 @@ import { ProjectAdapter } from '../types';
 
 type DbtNoneCredentialsProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
-};
-
-type RunQueryTags = {
-    project_uuid?: string;
-    user_uuid?: string;
-    organization_uuid?: string;
-    chart_uuid?: string;
-    dashboard_uuid?: string;
-    explore_name?: string;
 };
 
 export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
