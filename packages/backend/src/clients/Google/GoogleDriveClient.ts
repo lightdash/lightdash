@@ -7,6 +7,7 @@ import {
     formatDate,
     getItemLabel,
     getItemLabelWithoutTableName,
+    GoogleSheetsTransientError,
     isDimension,
     isField,
     ItemsMap,
@@ -111,10 +112,11 @@ export class GoogleDriveClient {
                     error.errors[0]?.message.includes(tabName)
                 ) {
                     Logger.debug(
-                        `Google sheet tab already exist, we will overwrite it: ${error.errors[0]?.message}`,
+                        `Google sheet tab already exists, we will overwrite it: ${error.errors[0]?.message}`,
                     );
-                } else {
-                    throw new UnexpectedGoogleSheetsError(error);
+                } else if (error.code === 500) {
+                    // This is a transient error, we will retry the request later
+                    throw new GoogleSheetsTransientError(error);
                 }
             });
 
