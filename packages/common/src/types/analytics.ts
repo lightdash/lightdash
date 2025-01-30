@@ -43,6 +43,7 @@ export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
     AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
     EXPLORE = 'exploreView',
+    FILTER_AUTOCOMPLETE = 'filterAutocomplete',
     CHART = 'chartView',
     SQL_CHART = 'sqlChartView',
     SQL_RUNNER = 'sqlRunner',
