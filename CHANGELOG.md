@@ -1,3 +1,10 @@
+# [0.1474.0](https://github.com/lightdash/lightdash/compare/0.1473.1...0.1474.0) (2025-01-30)
+
+
+### Features
+
+* add data zoom to embed dashboards ([#13443](https://github.com/lightdash/lightdash/issues/13443)) ([171a47e](https://github.com/lightdash/lightdash/commit/171a47e267505312f8cdca021dcfbe35ccfbb9e4))
+
 ## [0.1473.1](https://github.com/lightdash/lightdash/compare/0.1473.0...0.1473.1) (2025-01-29)
 
 
