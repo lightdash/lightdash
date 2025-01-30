@@ -61,13 +61,13 @@ export const useChartColorConfig = ({
                 colorMappings.set(group, groupMappings);
             }
 
-            // Hash only the group to get a base offset
+            // Hash only the group to get a base offset, using djb2 to avoid collisions and ensure a consistent index
             const groupHash = Array.from(group).reduce(
                 (acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0,
                 0,
             );
 
-            // Hash the identifier separately and add to the group offset
+            // Hash the identifier separately and add to the group offset, using djb2 to avoid collisions and ensure a consistent index
             const identifierHash = Array.from(identifier).reduce(
                 (acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0,
                 0,
