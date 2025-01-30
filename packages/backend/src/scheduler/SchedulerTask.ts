@@ -1995,7 +1995,6 @@ export default class SchedulerTask {
                         user.email,
                         scheduler?.name || 'Unknown',
                         deliveryUrl,
-                        getErrorMessage(e),
                     );
                 }
                 return; // Do not cascade error
