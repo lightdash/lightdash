@@ -226,8 +226,7 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
-            // TODO: Add this back once FIXME is solved in saveScreenshot
-            // sqlChartTileUuids: rest.sqlChartTileUuids,
+            sqlChartTileUuids: rest.sqlChartTileUuids,
         };
     }
 
@@ -567,23 +566,32 @@ export class UnfurlService extends BaseService {
                                     ); // NOTE: No await here
                                 });
                             // We wait for the sql charts to load and for the query to finish
-                            /*
-                             * FIXME: wait for /sqlRunner/saved/${id} and /\/sqlRunner\/runPivotQuery/, so that we can successfully capture the SQL charts visualizations
-                             *
-                             * We need to wait for /sqlRunner/saved/${id} so that we can successfully capture the SQL charts visualizations
-                             * We need to wait for /\/sqlRunner\/runPivotQuery/, so that we can successfully capture the SQL charts visualizations
-                             * Figure out how to wait for the Streamed query results from the warehouse when scheduling a dashboard of image type - this works already when exporting a dashboard, but not when scheduling it
-                             */
-                            const sqlChartResultsPromises =
-                                sqlChartTileUuids?.map(
-                                    (id) =>
-                                        page?.waitForResponse(
-                                            /\/sqlRunner\/results/,
-                                            {
-                                                timeout: 60000,
-                                            },
-                                        ), // NOTE: No await here
-                                );
+                            const sqlChartResultsPromises = sqlChartTileUuids
+                                ?.map((id) => [
+                                    // Wait for initial chart load
+                                    page?.waitForResponse(
+                                        new RegExp(`/sqlRunner/saved/${id}`),
+                                        { timeout: 60000 },
+                                    ),
+                                    // Wait for results job
+                                    page?.waitForResponse(
+                                        new RegExp(
+                                            `/sqlRunner/saved/${id}/results-job`,
+                                        ),
+                                        { timeout: 60000 },
+                                    ),
+                                    // Wait for results
+                                    page?.waitForResponse(
+                                        /\/sqlRunner\/results/,
+                                        { timeout: 60000 },
+                                    ),
+                                    // Wait for pivot query
+                                    page?.waitForResponse(
+                                        /\/sqlRunner\/runPivotQuery/,
+                                        { timeout: 60000 },
+                                    ),
+                                ])
+                                .flat();
 
                             chartResultsPromises = [
                                 ...(exploreChartResultsPromises || []),
