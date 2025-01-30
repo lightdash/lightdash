@@ -443,12 +443,6 @@ export class UnfurlService extends BaseService {
                                         args,
                                     )}`;
                                     switch (severity) {
-                                        case 'verbose':
-                                            this.logger.debug(logMessage);
-                                            break;
-                                        case 'info':
-                                            this.logger.info(logMessage);
-                                            break;
                                         case 'warning':
                                             this.logger.warn(logMessage);
                                             break;
@@ -456,7 +450,7 @@ export class UnfurlService extends BaseService {
                                             this.logger.error(logMessage);
                                             break;
                                         default:
-                                            this.logger.info(logMessage);
+                                            this.logger.debug(logMessage);
                                             break;
                                     }
                                 },
