@@ -1,3 +1,10 @@
+# [0.1476.0](https://github.com/lightdash/lightdash/compare/0.1475.0...0.1476.0) (2025-01-30)
+
+
+### Features
+
+* enforce query context in query tags. Unify all query tags into single export ([#13460](https://github.com/lightdash/lightdash/issues/13460)) ([260dd16](https://github.com/lightdash/lightdash/commit/260dd168790d1099699c6d308609d7ae76129e93))
+
 # [0.1475.0](https://github.com/lightdash/lightdash/compare/0.1474.1...0.1475.0) (2025-01-30)
 
 
