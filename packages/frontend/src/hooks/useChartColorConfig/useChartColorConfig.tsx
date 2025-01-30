@@ -75,7 +75,7 @@ export const useChartColorConfig = ({
 
             // Give more weight to the identifier hash, so that it's more likely to be a different index within the same group
             const colorIdx =
-                Math.abs(Math.floor(groupHash * 0.3 + identifierHash * 0.7)) %
+                Math.abs(Math.floor(groupHash * 0.4 + identifierHash * 0.6)) %
                 colorPalette.length;
             const colorHex = colorPalette[colorIdx];
 
