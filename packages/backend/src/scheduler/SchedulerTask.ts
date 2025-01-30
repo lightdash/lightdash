@@ -1991,22 +1991,11 @@ export default class SchedulerTask {
                 );
 
                 if (user?.email) {
-                    await this.emailClient.sendImageNotificationEmail(
-                        user?.email,
-                        'Google Sheets Sync disabled',
-                        'Google Sheets Sync has been disabled',
-                        `Your Google Sheets ${scheduler?.name} sync has been disabled due to an error.`,
-                        `There was an error syncing with Google Sheets: ${getErrorMessage(
-                            e,
-                        )}. The scheduler has been disabled to prevent further errors. Please check your Google Sheets configuration and re-enable the sync if you'd like to continue receiving updates.`,
-                        new Date().toLocaleString(),
-                        'One time notification',
-                        '', // no image url
+                    await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
+                        user.email,
+                        scheduler?.name || 'Unknown',
                         deliveryUrl,
-                        deliveryUrl,
-                        true,
-                        undefined,
-                        undefined,
+                        getErrorMessage(e),
                     );
                 }
                 return; // Do not cascade error

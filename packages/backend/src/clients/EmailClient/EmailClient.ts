@@ -128,6 +128,27 @@ export default class EmailClient {
         });
     }
 
+    public async sendGoogleSheetsErrorNotificationEmail(
+        recipient: string,
+        schedulerName: string,
+        schedulerUrl: string,
+        error: string,
+    ) {
+        return this.sendEmail({
+            to: recipient,
+            subject: `Google Sheets sync: "${schedulerName}" disabled due to error`,
+            template: 'googleSheetsSyncDisabledNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                subject: 'Google Sheets Sync disabled',
+                description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.`,
+                errorMessage: error,
+                schedulerUrl,
+            },
+            text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error: ${error}`,
+        });
+    }
+
     public async sendInviteEmail(
         userThatInvited: Pick<
             SessionUser,
