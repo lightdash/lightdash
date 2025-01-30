@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "target": "ESNext",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "jsx": "react-jsx",
+    },
+    "include": [
+        "src"
+    ],
+}

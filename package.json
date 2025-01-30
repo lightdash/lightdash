@@ -65,6 +65,7 @@
         "backend-test": "pnpm -F backend test",
         "frontend-dev": "pnpm -F frontend dev",
         "frontend-build": "pnpm -F frontend build",
+        "frontend-build-lib": "pnpm -F frontend build-lib",
         "frontend-lint": "pnpm -F frontend lint",
         "frontend-format": "pnpm -F frontend format",
         "frontend-fix-lint": "pnpm -F frontend fix-lint",
