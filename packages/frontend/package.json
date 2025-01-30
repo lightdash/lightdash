@@ -2,9 +2,20 @@
     "name": "@lightdash/frontend",
     "version": "0.1473.0",
     "private": true,
-    "main": "dist/index.js",
-    "module": "dist/index.mjs",
-    "types": "dist/index.d.ts",
+    "type": "module",
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/frontend.cjs",
+    "module": "./dist/frontend.js",
+    "types": "./dist/frontend.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/frontend.js",
+            "require": "./dist/frontend.cjs"
+        },
+        "./style.css": "./dist/frontend.css"
+    },
     "scripts": {
         "dev": "vite",
         "typecheck": "tsc --project tsconfig.build.json --noEmit",

@@ -29,6 +29,9 @@ lightdash_dev.yml
 /packages/cli/dist
 /packages/warehouses/dist
 
+# !!!!!!!!!! REMOVE THIS
+/packages/test-app/dist
+
 # misc
 .DS_Store
 .env.local

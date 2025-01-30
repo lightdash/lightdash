@@ -1,4 +1,6 @@
 import reactPlugin from '@vitejs/plugin-react';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { compression } from 'vite-plugin-compression2';
 import dts from 'vite-plugin-dts';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
@@ -6,36 +8,43 @@ import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
+const dirnamePath = dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig(({ mode }) => {
     const isLib = mode === 'lib';
 
+    const plugins = [
+        tsconfigPaths(),
+        svgrPlugin(),
+        reactPlugin(),
+        compression({
+            include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
+            filename: '[path][base].gzip',
+        }),
+    ];
+
+    if (isLib) {
+        plugins.push(
+            dts({
+                rollupTypes: true,
+                tsconfigPath: './tsconfig.json',
+            }),
+        );
+    } else {
+        plugins.push(
+            monacoEditorPlugin({
+                forceBuildCDN: true,
+                languageWorkers: ['json'],
+            }),
+        );
+    }
+
     return {
+        publicDir: isLib ? false : 'public',
         define: {
             __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
         },
-        plugins: [
-            tsconfigPaths(),
-            svgrPlugin(),
-            reactPlugin(),
-            compression({
-                include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
-                filename: '[path][base].gzip',
-            }),
-
-            ...(isLib
-                ? [
-                      dts({
-                          rollupTypes: true,
-                          tsconfigPath: './tsconfig.json',
-                      }),
-                  ]
-                : [
-                      monacoEditorPlugin({
-                          forceBuildCDN: true,
-                          languageWorkers: ['json'],
-                      }),
-                  ]),
-        ],
+        plugins,
         css: {
             transformer: 'lightningcss',
         },
@@ -48,10 +57,10 @@ export default defineConfig(({ mode }) => {
             ...(isLib
                 ? {
                       lib: {
-                          entry: 'src/sdk.tsx',
-                          name: 'LightdashFrontend',
+                          entry: resolve(dirnamePath, 'src/sdk.tsx'),
+                          name: '@lightdash/frontend',
                           formats: ['es', 'cjs'],
-                          fileName: 'index',
+                          fileName: 'frontend',
                       },
                   }
                 : {

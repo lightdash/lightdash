@@ -1,9 +1,19 @@
 {
     "name": "@lightdash/sdk",
     "version": "1.0.0",
-    "main": "./dist/index.umd.js",
-    "module": "./dist/index.mjs",
-    "types": "./dist/index.d.ts",
+    "type": "module",
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/sdk.cjs",
+    "module": "./dist/sdk.js",
+    "types": "./dist/sdk.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/sdk.js",
+            "require": "./dist/sdk.cjs"
+        }
+    },
     "scripts": {
         "build": "vite build"
     },

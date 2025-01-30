@@ -5,12 +5,16 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
-        "lint": "eslint .",
-        "preview": "vite preview"
+        "build": "vite build"
+    },
+    "resolutions": {
+        "react-is": "19.0.0",
+        "react": "19.0.0",
+        "react-dom": "19.0.0"
     },
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
+        "@tabler/icons-react": "2.32.0",
         "scheduler": "^0.23.0",
         "react": "19.0.0",
         "react-dom": "19.0.0",
