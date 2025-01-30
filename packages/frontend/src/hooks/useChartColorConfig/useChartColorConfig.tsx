@@ -1,6 +1,5 @@
 import { useMantineTheme } from '@mantine/core';
 import { useCallback, useContext } from 'react';
-import { ASSIGNMENT_IDX_KEY } from './constants';
 import { ChartColorMappingContext } from './context';
 import { type ChartColorMappingContextProps, type SeriesLike } from './types';
 import { calculateSeriesLikeIdentifier } from './utils';
@@ -62,20 +61,16 @@ export const useChartColorConfig = ({
                 colorMappings.set(group, groupMappings);
             }
 
-            /**
-             * Figure out the last color assigned in this group, and either pick the
-             * next color in the palette, or start over from 0.
-             */
-            const currentIdx = groupMappings.get(ASSIGNMENT_IDX_KEY) ?? -1;
-            const nextIdx =
-                currentIdx === colorPalette.length - 1 ? 0 : currentIdx + 1;
-            const colorHex = colorPalette[nextIdx];
-
-            // Keep track of the current value of the color idx for this group:
-            groupMappings.set(ASSIGNMENT_IDX_KEY, nextIdx);
+            // Generate a deterministic pallette index based on the identifier string
+            const hash = Array.from(identifier).reduce(
+                (acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0,
+                0,
+            );
+            const colorIdx = Math.abs(hash) % colorPalette.length;
+            const colorHex = colorPalette[colorIdx];
 
             // Keep track of the color idx used for this identifier, within this group:
-            groupMappings.set(identifier, nextIdx);
+            groupMappings.set(identifier, colorIdx);
 
             return colorHex;
         },
