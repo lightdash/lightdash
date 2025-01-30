@@ -432,6 +432,30 @@ export class UnfurlService extends BaseService {
 
                     browser = await playwright.chromium.connectOverCDP(
                         browserWSEndpoint,
+                        {
+                            timeout: 1000 * 60 * 30, // 30 minutes
+                            logger: {
+                                isEnabled() {
+                                    return true;
+                                },
+                                log: (name, severity, message, args): void => {
+                                    const logMessage = `[${name}] ${message} ${JSON.stringify(
+                                        args,
+                                    )}`;
+                                    switch (severity) {
+                                        case 'warning':
+                                            this.logger.warn(logMessage);
+                                            break;
+                                        case 'error':
+                                            this.logger.error(logMessage);
+                                            break;
+                                        default:
+                                            this.logger.debug(logMessage);
+                                            break;
+                                    }
+                                },
+                            },
+                        },
                     );
 
                     page = await browser.newPage({

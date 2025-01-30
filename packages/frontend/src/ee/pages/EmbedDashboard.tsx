@@ -42,6 +42,7 @@ import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile'
 import SemanticViewerChartTile from '../../components/DashboardTiles/DashboardSemanticViewerChartTile';
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
+import { DateZoom } from '../../features/dateZoom';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -77,13 +78,16 @@ const useEmbedChartAndResults = (
     tileUuid: string,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey: [
             'embed-chart-and-results',
             projectUuid,
             tileUuid,
             dashboardFilters,
+            dateZoomGranularity,
         ],
         queryFn: async () =>
             lightdashApi<ApiChartAndResults>({
@@ -95,6 +99,7 @@ const useEmbedChartAndResults = (
                 body: JSON.stringify({
                     tileUuid,
                     dashboardFilters,
+                    dateZoomGranularity,
                 }),
             }),
         enabled: !!embedToken,
@@ -116,6 +121,8 @@ const EmbedDashboardChartTile: FC<
     locked,
     canExportCsv,
     canExportImages,
+    canExportPagePdf,
+    canDateZoom,
     ...rest
 }) => {
     const { isLoading, data, error } = useEmbedChartAndResults(
@@ -136,6 +143,8 @@ const EmbedDashboardChartTile: FC<
             isLoading={isLoading}
             canExportCsv={canExportCsv}
             canExportImages={canExportImages}
+            canExportPagePdf={canExportPagePdf}
+            canDateZoom={canDateZoom}
             data={data}
             error={error}
         />
@@ -197,7 +206,7 @@ const DashboardFilter: FC<{
             itemsMap={{}}
             startOfWeek={undefined}
         >
-            <Flex gap="xs" wrap="wrap" m="sm">
+            <Flex gap="xs" wrap="wrap" w="100%" justify="flex-start">
                 <ActiveFilters
                     isEditMode={false}
                     onPopoverOpen={handlePopoverOpen}
@@ -210,9 +219,118 @@ const DashboardFilter: FC<{
     );
 };
 
+const ExportPagePdf: FC<{
+    dashboard: Dashboard & InteractivityOptions;
+    inHeader: boolean;
+    projectUuid: string;
+}> = ({ projectUuid, dashboard, inHeader }) => {
+    const { track } = useTracking();
+
+    if (!dashboard.canExportPagePdf) {
+        return null;
+    }
+    return (
+        <Tooltip label="Print this page" withinPortal position="bottom">
+            <ActionIcon
+                variant="default"
+                onClick={() => {
+                    const event = {
+                        name: 'embedding_print.clicked',
+                        properties: {
+                            projectUuid: projectUuid,
+                            dashboardUuid: dashboard.uuid,
+                        },
+                    };
+                    track(event as EventData);
+                    const printContainer = document.getElementById(
+                        'embed-scroll-container',
+                    );
+
+                    if (printContainer) {
+                        printContainer.style.height = 'auto';
+                        printContainer.style.overflowY = 'visible';
+                    }
+
+                    window.print();
+
+                    if (printContainer) {
+                        printContainer.style.height = '100vh';
+                        printContainer.style.overflowY = 'auto';
+                    }
+                }}
+                size="lg"
+                sx={{
+                    ...(inHeader
+                        ? {}
+                        : {
+                              position: 'absolute',
+                              top: 20,
+                              right: 72, // Make sure the button does not overlap the chart options
+                          }),
+                    zIndex: 1000,
+                }}
+            >
+                <MantineIcon size="xl" icon={IconPrinter} />
+            </ActionIcon>
+        </Tooltip>
+    );
+};
+
+const DashboardHeader: FC<{
+    dashboard: Dashboard & InteractivityOptions;
+    projectUuid: string;
+}> = ({ dashboard, projectUuid }) => {
+    const hasHeader =
+        dashboard.canDateZoom ||
+        isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
+
+    // If no header, and exportPagePdf is enabled, show the Export button on the top right corner
+    if (!hasHeader && dashboard.canExportPagePdf) {
+        return (
+            <ExportPagePdf
+                dashboard={dashboard}
+                projectUuid={projectUuid}
+                inHeader={false}
+            />
+        );
+    }
+    return (
+        <Flex
+            justify="flex-end"
+            align="center"
+            pos="relative"
+            m="sm"
+            mb="0"
+            gap="sm"
+            style={{ flexGrow: 1 }}
+        >
+            {dashboard.dashboardFiltersInteractivity &&
+                isFilterInteractivityEnabled(
+                    dashboard.dashboardFiltersInteractivity,
+                ) && (
+                    <DashboardFilter
+                        dashboardFilters={dashboard.filters}
+                        dashboardTiles={dashboard.tiles}
+                        filterInteractivityOptions={
+                            dashboard.dashboardFiltersInteractivity
+                        }
+                    />
+                )}
+            {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
+
+            {dashboard.canExportPagePdf && (
+                <ExportPagePdf
+                    dashboard={dashboard}
+                    projectUuid={projectUuid}
+                    inHeader={true}
+                />
+            )}
+        </Flex>
+    );
+};
+
 const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { track } = useTracking();
     const { data: dashboard, error: dashboardError } = useEmbedDashboard(
         projectUuid,
         embedToken,
@@ -285,68 +403,9 @@ const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
             getReactGridLayoutConfig(tile),
         ),
     };
-
     return (
         <div style={{ height: '100vh', overflowY: 'auto' }}>
-            <Tooltip label="Print this page" withinPortal position="bottom">
-                <ActionIcon
-                    variant="default"
-                    onClick={() => {
-                        const event = {
-                            name: 'embedding_print.clicked',
-                            properties: {
-                                projectUuid: projectUuid,
-                                dashboardUuid: dashboard.uuid,
-                            },
-                        };
-                        track(event as EventData);
-                        const printContainer = document.getElementById(
-                            'embed-scroll-container',
-                        );
-
-                        if (printContainer) {
-                            printContainer.style.height = 'auto';
-                            printContainer.style.overflowY = 'visible';
-                        }
-
-                        window.print();
-
-                        if (printContainer) {
-                            printContainer.style.height = '100vh';
-                            printContainer.style.overflowY = 'auto';
-                        }
-                    }}
-                    size="lg"
-                    sx={{
-                        position: 'absolute',
-                        top: isFilterInteractivityEnabled(
-                            dashboard.dashboardFiltersInteractivity,
-                        )
-                            ? 12
-                            : 20,
-                        right: isFilterInteractivityEnabled(
-                            dashboard.dashboardFiltersInteractivity,
-                        )
-                            ? 12
-                            : 40,
-                        zIndex: 1000,
-                    }}
-                >
-                    <MantineIcon size="xl" icon={IconPrinter} />
-                </ActionIcon>
-            </Tooltip>
-            {dashboard.dashboardFiltersInteractivity &&
-                isFilterInteractivityEnabled(
-                    dashboard.dashboardFiltersInteractivity,
-                ) && (
-                    <DashboardFilter
-                        dashboardFilters={dashboard.filters}
-                        dashboardTiles={dashboard.tiles}
-                        filterInteractivityOptions={
-                            dashboard.dashboardFiltersInteractivity
-                        }
-                    />
-                )}
+            <DashboardHeader dashboard={dashboard} projectUuid={projectUuid} />
 
             <LockedDashboardModal
                 opened={hasRequiredDashboardFiltersToSet && !!hasChartTiles}
