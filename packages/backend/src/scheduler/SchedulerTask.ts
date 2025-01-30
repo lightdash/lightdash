@@ -1983,11 +1983,32 @@ export default class SchedulerTask {
                 console.warn(
                     `Disabling Google sheets scheduler with non-retryable error: ${e}`,
                 );
+
                 await this.schedulerService.setSchedulerEnabled(
                     user!, // This error from gdriveClient happens after user initialized
                     schedulerUuid,
                     false,
                 );
+
+                if (user?.email) {
+                    await this.emailClient.sendImageNotificationEmail(
+                        user?.email,
+                        'Google Sheets Sync disabled',
+                        'Google Sheets Sync has been disabled',
+                        `Your Google Sheets ${scheduler?.name} sync has been disabled due to an error.`,
+                        `There was an error syncing with Google Sheets: ${getErrorMessage(
+                            e,
+                        )}. The scheduler has been disabled to prevent further errors. Please check your Google Sheets configuration and re-enable the sync if you'd like to continue receiving updates.`,
+                        new Date().toLocaleString(),
+                        'One time notification',
+                        '', // no image url
+                        deliveryUrl,
+                        deliveryUrl,
+                        true,
+                        undefined,
+                        undefined,
+                    );
+                }
                 return; // Do not cascade error
             }
             throw e; // Cascade error to it can be retried by graphile
