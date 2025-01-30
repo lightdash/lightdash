@@ -1,3 +1,10 @@
+# [0.1475.0](https://github.com/lightdash/lightdash/compare/0.1474.1...0.1475.0) (2025-01-30)
+
+
+### Features
+
+* browserless chromium latest version from ghcr ([#13386](https://github.com/lightdash/lightdash/issues/13386)) ([d3a36a9](https://github.com/lightdash/lightdash/commit/d3a36a9148338748c6510bc7f62bfe94fbb1205b))
+
 ## [0.1474.1](https://github.com/lightdash/lightdash/compare/0.1474.0...0.1474.1) (2025-01-30)
 
 
