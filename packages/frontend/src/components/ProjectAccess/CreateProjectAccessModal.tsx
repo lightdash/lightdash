@@ -136,12 +136,16 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                             creatable
                             required
                             disabled={isLoading}
-                            getCreateLabel={(query) =>
-                                validateEmail(query) &&
-                                userCanInviteUsersToOrganization
-                                    ? `Invite "${query}" as new member of this organization`
-                                    : null
-                            }
+                            getCreateLabel={(query) => {
+                                if (validateEmail(query)) {
+                                    if (userCanInviteUsersToOrganization) {
+                                        return `Invite "${query}" as new member of this project`;
+                                    }
+                                    return `This user is not a member of your organization.\n
+                                         You need to be an organization admin to add new users to your organization.`;
+                                }
+                                return null;
+                            }}
                             onCreate={(query) => {
                                 if (
                                     validateEmail(query) &&
