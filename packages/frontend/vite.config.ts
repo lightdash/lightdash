@@ -7,6 +7,7 @@ import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
+import { peerDependencies } from './package.json';
 
 const dirnamePath = dirname(fileURLToPath(import.meta.url));
 
@@ -51,16 +52,22 @@ export default defineConfig(({ mode }) => {
         build: {
             outDir: isLib ? 'dist' : 'build',
             target: isLib ? 'es2015' : 'es2020',
-            minify: false,
+            minify: isLib ? false : true,
             sourcemap: true,
 
             ...(isLib
                 ? {
                       lib: {
-                          entry: resolve(dirnamePath, 'src/sdk.tsx'),
+                          entry: resolve(dirnamePath, 'src/sdk.ts'),
                           name: '@lightdash/frontend',
                           formats: ['es', 'cjs'],
                           fileName: 'frontend',
+                      },
+                      rollupOptions: {
+                          external: [
+                              'react/jsx-runtime',
+                              ...Object.keys(peerDependencies),
+                          ],
                       },
                   }
                 : {

@@ -4,8 +4,7 @@ import { version } from 'react';
 function App() {
     return (
         <>
-            <div>test {version}</div>
-
+            <div>Hello from @lightdash/test-app - React {version}</div>
             <LightdashSDK />
         </>
     );

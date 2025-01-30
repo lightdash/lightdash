@@ -15,7 +15,6 @@
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
         "@tabler/icons-react": "2.32.0",
-        "scheduler": "^0.23.0",
         "react": "19.0.0",
         "react-dom": "19.0.0",
         "@mantine/core": "^6.0.21",

@@ -25,7 +25,6 @@
         "react": "19.0.0",
         "react-dom": "19.0.0",
         "@lightdash/frontend": "workspace:*",
-        "scheduler": "^0.23.0",
         "@tabler/icons-react": "2.32.0"
     },
     "devDependencies": {

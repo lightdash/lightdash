@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+import { peerDependencies } from './package.json';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -16,14 +17,19 @@ export default defineConfig({
     ],
 
     build: {
-        minify: false,
         outDir: 'dist',
+        target: 'es2020',
         sourcemap: true,
+        minify: false,
+
         lib: {
-            entry: resolve(__dirname, 'src/index.tsx'),
-            name: 'LightdashSdk',
+            entry: resolve(__dirname, 'src/index.ts'),
+            name: 'LightdashSDK',
             formats: ['es', 'cjs'],
             fileName: 'sdk',
+        },
+        rollupOptions: {
+            external: ['react/jsx-runtime', ...Object.keys(peerDependencies)],
         },
     },
 });
