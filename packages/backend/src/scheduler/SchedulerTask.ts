@@ -1977,11 +1977,20 @@ export default class SchedulerTask {
                 console.warn(
                     `Disabling Google sheets scheduler with non-retryable error: ${e}`,
                 );
+
                 await this.schedulerService.setSchedulerEnabled(
                     user!, // This error from gdriveClient happens after user initialized
                     schedulerUuid,
                     false,
                 );
+
+                if (user?.email) {
+                    await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
+                        user.email,
+                        scheduler?.name || 'Unknown',
+                        deliveryUrl,
+                    );
+                }
                 return; // Do not cascade error
             }
             throw e; // Cascade error to it can be retried by graphile
