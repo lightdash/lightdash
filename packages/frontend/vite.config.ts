@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compression } from 'vite-plugin-compression2';
 import dts from 'vite-plugin-dts';
-import monacoEditorPlugin from 'vite-plugin-monaco-editor';
+import monacoEditorPlugin from 'vite-plugin-monaco-editor-esm';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
@@ -14,38 +14,34 @@ const dirnamePath = dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
     const isLib = mode === 'lib';
 
-    const plugins = [
-        tsconfigPaths(),
-        svgrPlugin(),
-        reactPlugin(),
-        compression({
-            include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
-            filename: '[path][base].gzip',
-        }),
-    ];
-
-    if (isLib) {
-        plugins.push(
-            dts({
-                rollupTypes: true,
-                tsconfigPath: './tsconfig.json',
-            }),
-        );
-    } else {
-        plugins.push(
-            monacoEditorPlugin({
-                forceBuildCDN: true,
-                languageWorkers: ['json'],
-            }),
-        );
-    }
-
     return {
         publicDir: isLib ? false : 'public',
         define: {
             __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
         },
-        plugins,
+        plugins: [
+            tsconfigPaths(),
+            svgrPlugin(),
+            reactPlugin(),
+            compression({
+                include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
+                filename: '[path][base].gzip',
+            }),
+
+            ...(isLib
+                ? [
+                      dts({
+                          rollupTypes: true,
+                          tsconfigPath: './tsconfig.json',
+                      }),
+                  ]
+                : [
+                      monacoEditorPlugin({
+                          forceBuildCDN: true,
+                          languageWorkers: ['json'],
+                      }),
+                  ]),
+        ],
         css: {
             transformer: 'lightningcss',
         },
