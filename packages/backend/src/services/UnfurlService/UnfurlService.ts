@@ -565,8 +565,9 @@ export class UnfurlService extends BaseService {
                                         },
                                     ); // NOTE: No await here
                                 });
-                            console.log('sqlChartTileUuids', sqlChartTileUuids);
+
                             // We wait for the sql charts to load and for the query to finish
+                            // Each chart will trigger a scheduled task
                             const sqlChartResultsPromises =
                                 sqlChartTileUuids &&
                                 sqlChartTileUuids.length > 0
