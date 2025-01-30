@@ -95,6 +95,7 @@ export const chartForValidation: Awaited<
     customBinDimensions: [],
     customSqlDimensions: [],
     sorts: ['table_dimension'],
+    dashboardUuid: undefined,
 };
 
 export const chartForValidationWithJoinedField: Awaited<
