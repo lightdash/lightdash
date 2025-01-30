@@ -16,12 +16,14 @@ export default defineConfig({
     ],
 
     build: {
+        minify: false,
+        outDir: 'dist',
+        sourcemap: true,
         lib: {
             entry: resolve(__dirname, 'src/index.tsx'),
             name: 'LightdashSdk',
             formats: ['es', 'cjs'],
             fileName: 'sdk',
         },
-        outDir: 'dist',
     },
 });
