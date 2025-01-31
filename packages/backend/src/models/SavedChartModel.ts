@@ -1064,7 +1064,7 @@ export class SavedChartModel {
         );
     }
 
-    private async getOrphanedChartUuids(
+    private async getChartsNotInTilesUuids(
         savedCharts: Pick<SavedChartDAO, 'uuid' | 'dashboardUuid'>[],
     ): Promise<string[]> {
         const dashboardUuids = savedCharts.map((chart) => chart.dashboardUuid);
@@ -1091,12 +1091,12 @@ export class SavedChartModel {
                             limit 1)`),
             );
 
-        const orphanedChartUuids = await this.database(SavedChartsTableName)
+        const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
             .pluck(`saved_query_uuid`)
             .whereIn(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuids)
             .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
 
-        return orphanedChartUuids;
+        return chartsNotInTilesUuids;
     }
 
     async findChartsForValidation(projectUuid: string): Promise<
@@ -1233,11 +1233,11 @@ export class SavedChartModel {
             .groupBy(1, 2, 3, 4, 5);
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
-        const orphanedChartUuids = await this.getOrphanedChartUuids(
+        const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
             savedCharts,
         );
         return savedCharts.filter(
-            (chart) => !orphanedChartUuids.includes(chart.uuid),
+            (chart) => !chartsNotInTilesUuids.includes(chart.uuid),
         );
     }
 
