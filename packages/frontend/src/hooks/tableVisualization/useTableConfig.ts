@@ -21,8 +21,7 @@ import {
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
-import { maxBy, minBy } from 'lodash';
-import uniq from 'lodash/uniq';
+import { uniq } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     type TableColumn,
@@ -429,46 +428,33 @@ const useTableConfig = (
             return undefined;
         }
 
-        return Object.keys(itemsMap)
-            .filter((fieldId): fieldId is string => {
-                const field = getField(fieldId);
-                return Boolean(
-                    field && isNumericItem(field) && isFilterableItem(field),
-                );
-            })
-            .filter(isColumnVisible)
-            .filter((fieldId) => fieldId in resultsData.rows[0])
-            .reduce<ConditionalFormattingMinMaxMap>((acc, fieldId) => {
-                const field = getField(fieldId);
-
-                const min = Number(
-                    minBy(
-                        resultsData.rows,
-                        (row) => Number(row[fieldId].value.raw) || 0,
-                    )?.[fieldId]?.value?.raw || 0,
-                );
-                const max = Number(
-                    maxBy(
-                        resultsData.rows,
-                        (row) => Number(row[fieldId].value.raw) || 0,
-                    )?.[fieldId]?.value?.raw || 0,
-                );
+        return Object.entries(itemsMap)
+            .filter(
+                ([_, field]) => isNumericItem(field) && isFilterableItem(field),
+            )
+            .filter(([fieldId]) => isColumnVisible(fieldId))
+            .filter(([fieldId]) => fieldId in resultsData.rows[0])
+            .reduce<ConditionalFormattingMinMaxMap>((acc, [fieldId, field]) => {
+                const columnValues = resultsData.rows
+                    .map((row) => row[fieldId].value.raw)
+                    .filter(
+                        (value) =>
+                            value !== undefined &&
+                            value !== null &&
+                            value !== '',
+                    )
+                    .map((value) => Number(value))
+                    .map((value) => convertFormattedValue(value, field));
 
                 return {
                     ...acc,
                     [fieldId]: {
-                        min: convertFormattedValue(min, field),
-                        max: convertFormattedValue(max, field),
+                        min: Math.min(...columnValues),
+                        max: Math.max(...columnValues),
                     },
                 };
             }, {});
-    }, [
-        conditionalFormattings,
-        getField,
-        isColumnVisible,
-        itemsMap,
-        resultsData,
-    ]);
+    }, [conditionalFormattings, isColumnVisible, itemsMap, resultsData]);
 
     const validConfig: TableChart = useMemo(
         () => ({
