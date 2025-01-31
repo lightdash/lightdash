@@ -22,8 +22,7 @@
         "react-dom": "19.0.0"
     },
     "dependencies": {
-        "@lightdash/frontend": "workspace:*",
-        "@tabler/icons-react": "2.32.0"
+        "@lightdash/frontend": "workspace:*"
     },
     "devDependencies": {
         "@types/react": "19.0.0",

@@ -1,9 +1,9 @@
 import {
+    IconHome,
     MantineIcon,
     MantineProvider,
     TestFrontendForSdk,
 } from '@lightdash/frontend';
-import { IconHome } from '@tabler/icons-react';
 import { FC, version } from 'react';
 
 const LightdashSDK: FC = () => {

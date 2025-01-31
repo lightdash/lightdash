@@ -28,8 +28,7 @@ lightdash_dev.yml
 /packages/backend/dist
 /packages/cli/dist
 /packages/warehouses/dist
-
-# !!!!!!!!!! REMOVE THIS
+/packages/sdk/dist
 /packages/sdk-test-app/dist
 
 # misc

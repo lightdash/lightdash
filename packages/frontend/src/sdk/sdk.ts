@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { IconHome } from '@tabler/icons-react';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineProvider from '../providers/MantineProvider';
 import '../styles/react-grid.css';
@@ -12,4 +13,4 @@ export const test = (args: TestArgs) => {
     return 'hello' + args.name;
 };
 
-export { MantineProvider, MantineIcon, TestFrontendForSdk };
+export { MantineProvider, MantineIcon, TestFrontendForSdk, IconHome };

@@ -1044,9 +1044,6 @@ importers:
       '@lightdash/frontend':
         specifier: workspace:*
         version: link:../frontend
-      '@tabler/icons-react':
-        specifier: 2.32.0
-        version: 2.32.0(react@19.0.0)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -1075,18 +1072,6 @@ importers:
       '@lightdash/sdk':
         specifier: workspace:*
         version: link:../sdk
-      '@mantine/core':
-        specifier: ^6.0.21
-        version: 6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@mantine/hooks':
-        specifier: ^6.0.21
-        version: 6.0.21(react@19.0.0)
-      '@tabler/icons-react':
-        specifier: 2.32.0
-        version: 2.32.0(react@19.0.0)
-      lodash:
-        specifier: ^4.17.21
-        version: 4.17.21
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -3840,18 +3825,10 @@ packages:
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
 
-  '@tabler/icons-react@2.32.0':
-    resolution: {integrity: sha512-B6op3r/up+QRiB3CQOo8wqF5FNv+hG8dEWmBnO1v5KRjubGKLFRpBldQ6rjqfsdg/QW+jvcZQ5OMEEcA0tOPIA==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0
-
   '@tabler/icons-react@2.47.0':
     resolution: {integrity: sha512-iqly2FvCF/qUbgmvS8E40rVeYY7laltc5GUjRxQj59DuX0x/6CpKHTXt86YlI2whg4czvd/c8Ce8YR08uEku0g==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0
-
-  '@tabler/icons@2.32.0':
-    resolution: {integrity: sha512-w1oNvrnqFipoBEy2/0X4/IHo2aLsijuz4QRi/HizxqiaoMfmWG5X2DpEYTw9WnGvFmixpu/rtQsQAr7Wr0Mc2w==}
 
   '@tabler/icons@2.47.0':
     resolution: {integrity: sha512-4w5evLh+7FUUiA1GucvGj2ReX2TvOjEr4ejXdwL/bsjoSkof6r1gQmzqI+VHrE2CpJpB3al7bCTulOkFa/RcyA==}
@@ -15984,19 +15961,11 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tabler/icons-react@2.32.0(react@19.0.0)':
-    dependencies:
-      '@tabler/icons': 2.32.0
-      prop-types: 15.8.1
-      react: 19.0.0
-
   '@tabler/icons-react@2.47.0(react@19.0.0)':
     dependencies:
       '@tabler/icons': 2.47.0
       prop-types: 15.8.1
       react: 19.0.0
-
-  '@tabler/icons@2.32.0': {}
 
   '@tabler/icons@2.47.0': {}
 

@@ -9,12 +9,8 @@
     },
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
-        "@tabler/icons-react": "2.32.0",
         "react": "19.0.0",
-        "react-dom": "19.0.0",
-        "@mantine/core": "^6.0.21",
-        "@mantine/hooks": "^6.0.21",
-        "lodash": "^4.17.21"
+        "react-dom": "19.0.0"
     },
     "devDependencies": {
         "@types/react": "19.0.0",
