@@ -1128,6 +1128,18 @@ type CreateTagEvent = BaseTrack & {
         name: string;
         projectId: string;
         organizationId: string;
+        context: 'yaml' | 'ui';
+    };
+};
+
+export type CategoriesAppliedEvent = BaseTrack & {
+    event: 'categories.applied';
+    userId: string;
+    properties: {
+        count: number;
+        projectId: string;
+        organizationId: string;
+        context: 'ui' | 'yaml';
     };
 };
 
@@ -1207,7 +1219,8 @@ type TypedEvent =
     | GithubInstallEvent
     | WriteBackEvent
     | SchedulerTimezoneUpdateEvent
-    | CreateTagEvent;
+    | CreateTagEvent
+    | CategoriesAppliedEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 

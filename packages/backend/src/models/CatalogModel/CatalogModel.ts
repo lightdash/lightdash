@@ -80,11 +80,13 @@ export class CatalogModel {
     ): Promise<{
         catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
+        numberOfCategoriesApplied?: number;
     }> {
         if (cachedExplores.length === 0) {
             return {
                 catalogInserts: [],
                 catalogFieldMap: {},
+                numberOfCategoriesApplied: 0,
             };
         }
 
@@ -93,20 +95,23 @@ export class CatalogModel {
                 'indexCatalog',
                 { projectUuid, cachedExploresSize: cachedExplores.length },
                 async () => {
-                    const { catalogInserts, catalogFieldMap } =
-                        await wrapSentryTransaction(
-                            'indexCatalog.convertExploresToCatalog',
-                            {
+                    const {
+                        catalogInserts,
+                        catalogFieldMap,
+                        numberOfCategoriesApplied,
+                    } = await wrapSentryTransaction(
+                        'indexCatalog.convertExploresToCatalog',
+                        {
+                            projectUuid,
+                            cachedExploresLength: cachedExplores.length,
+                        },
+                        async () =>
+                            convertExploresToCatalog(
                                 projectUuid,
-                                cachedExploresLength: cachedExplores.length,
-                            },
-                            async () =>
-                                convertExploresToCatalog(
-                                    projectUuid,
-                                    cachedExplores,
-                                    projectYamlTags,
-                                ),
-                        );
+                                cachedExplores,
+                                projectYamlTags,
+                            ),
+                    );
 
                     const transactionInserts = await wrapSentryTransaction(
                         'indexCatalog.insert',
@@ -166,6 +171,7 @@ export class CatalogModel {
                     return {
                         catalogInserts: transactionInserts,
                         catalogFieldMap,
+                        numberOfCategoriesApplied,
                     };
                 },
             );
@@ -176,6 +182,7 @@ export class CatalogModel {
             return {
                 catalogInserts: [],
                 catalogFieldMap: {},
+                numberOfCategoriesApplied: 0,
             };
         }
     }

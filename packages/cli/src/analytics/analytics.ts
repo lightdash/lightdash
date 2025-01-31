@@ -275,6 +275,17 @@ type CliContentAsCode = BaseTrack &
           }
     );
 
+type CliLightdashConfigLoaded = BaseTrack & {
+    event: 'lightdashconfig.loaded';
+    properties: {
+        userId?: string;
+        organizationId?: string;
+        projectId: string;
+        categories_count?: number;
+        default_visibility?: 'show' | 'hide';
+    };
+};
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -301,7 +312,8 @@ type Track =
     | CliGenerateExposuresCompleted
     | CliGenerateExposuresError
     | CliLogin
-    | CliContentAsCode;
+    | CliContentAsCode
+    | CliLightdashConfigLoaded;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {

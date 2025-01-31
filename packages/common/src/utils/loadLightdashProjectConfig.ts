@@ -10,6 +10,7 @@ import {
 
 export const loadLightdashProjectConfig = async (
     yamlFileContents: string,
+    onLoaded?: (config: LightdashProjectConfig) => Promise<void>,
 ): Promise<LightdashProjectConfig> => {
     if (yamlFileContents.trim() === '') {
         return {
@@ -32,6 +33,10 @@ export const loadLightdashProjectConfig = async (
         throw new ParseError(
             `Invalid lightdash.config.yml with errors:\n${errors}`,
         );
+    }
+
+    if (onLoaded) {
+        await onLoaded(configFile);
     }
 
     return configFile;
