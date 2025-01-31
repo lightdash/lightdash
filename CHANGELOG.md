@@ -1,3 +1,31 @@
+## [0.1477.4](https://github.com/lightdash/lightdash/compare/0.1477.3...0.1477.4) (2025-01-31)
+
+
+### Bug Fixes
+
+* use batch insert and don't pass full explores as index catalog job payload ([#13477](https://github.com/lightdash/lightdash/issues/13477)) ([e39b984](https://github.com/lightdash/lightdash/commit/e39b9847782e66cb89a04972a07f45838ea0a098))
+
+## [0.1477.3](https://github.com/lightdash/lightdash/compare/0.1477.2...0.1477.3) (2025-01-31)
+
+
+### Bug Fixes
+
+* add trace id to api response ([#13470](https://github.com/lightdash/lightdash/issues/13470)) ([672ef2d](https://github.com/lightdash/lightdash/commit/672ef2d15e03684f5a6dfbfae6729a966dec4126))
+
+## [0.1477.2](https://github.com/lightdash/lightdash/compare/0.1477.1...0.1477.2) (2025-01-31)
+
+
+### Bug Fixes
+
+* sql runner error serialization error ([#13451](https://github.com/lightdash/lightdash/issues/13451)) ([01607b4](https://github.com/lightdash/lightdash/commit/01607b4ed2bc0a5084376d6edd243fc161bcf2c5))
+
+## [0.1477.1](https://github.com/lightdash/lightdash/compare/0.1477.0...0.1477.1) (2025-01-31)
+
+
+### Bug Fixes
+
+* only validate charts saved in space or latest dashboard version ([#13466](https://github.com/lightdash/lightdash/issues/13466)) ([a790367](https://github.com/lightdash/lightdash/commit/a79036795f2d23ae930f517f0c05d2ef8fe02072))
+
 # [0.1477.0](https://github.com/lightdash/lightdash/compare/0.1476.0...0.1477.0) (2025-01-30)
 
 

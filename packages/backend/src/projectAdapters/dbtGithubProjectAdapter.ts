@@ -5,6 +5,7 @@ import {
     validateGithubToken,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -24,6 +25,7 @@ type DbtGithubProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
     selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -41,6 +43,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         useDbtLs,
         selector,
+        analytics,
     }: DbtGithubProjectAdapterArgs) {
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
@@ -62,6 +65,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             useDbtLs,
             selector,
+            analytics,
         });
     }
 }

@@ -32,9 +32,11 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public async compileAllExplores(
-        loadSources: boolean = false,
-    ): Promise<(Explore | ExploreError)[]> {
+    public async compileAllExplores(_args: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<(Explore | ExploreError)[]> {
         throw new Error('Cannot compile explores with CLI-created projects');
     }
 
