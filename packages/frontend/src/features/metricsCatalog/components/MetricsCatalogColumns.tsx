@@ -68,9 +68,10 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
         accessorKey: SpotlightTableColumns.TABLE,
         header: 'Table',
-        enableSorting: false,
+        enableSorting: true,
         enableEditing: false,
-        size: 150,
+        size: 250,
+        minSize: 150,
         Header: ({ column }) => (
             <MetricCatalogColumnHeaderCell Icon={Table} tooltipLabel="Table">
                 {column.columnDef.header}

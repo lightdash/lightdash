@@ -511,6 +511,10 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 loading={
                                                     isCreatingSpotlightConfig
                                                 }
+                                                disabled={
+                                                    isDefaultConfig &&
+                                                    !hasConfigChanges
+                                                }
                                             >
                                                 Save for everyone
                                             </Button>
