@@ -199,7 +199,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     },
                     {
                         id: col.fieldId,
-                        cell: (info: any) => {
+                        cell: (info) => {
                             return info.getValue()?.value?.formatted || '-';
                         },
                         meta: {
