@@ -1,4 +1,3 @@
-import { maxBy, minBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { ItemsMap } from '..';
 import {
@@ -86,8 +85,8 @@ export const convertFormattedValue = <T extends unknown>(
 export const getMinMaxFromMinMaxMap = (
     minMaxMap: ConditionalFormattingMinMaxMap,
 ) => ({
-    min: minBy(Object.values(minMaxMap), 'min')?.min ?? 0,
-    max: maxBy(Object.values(minMaxMap), 'max')?.max ?? 0,
+    min: Math.min(...Object.values(minMaxMap).map((m) => m.min)),
+    max: Math.max(...Object.values(minMaxMap).map((m) => m.max)),
 });
 
 export const hasMatchingConditionalRules = (
@@ -269,27 +268,33 @@ export const getConditionalFormattingColorWithColorRange = ({
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     getColorFromRange: GetColorFromRangeFunction;
 }) => {
+    if (!field) return undefined;
+
     const numericValue = typeof value === 'string' ? parseFloat(value) : value;
     const convertedValue = convertFormattedValue(numericValue, field);
-    const fieldId = field ? getItemId(field) : undefined;
+
+    const currentFieldId = getItemId(field);
+    const targetFieldId = config.target?.fieldId;
+    if (targetFieldId !== undefined && targetFieldId !== currentFieldId) {
+        return undefined;
+    }
 
     if (typeof convertedValue !== 'number') return undefined;
-    if (!fieldId || !(fieldId in minMaxMap)) return undefined;
 
     let min: number;
     let max: number;
 
     if (config.rule.min === 'auto') {
-        min = field
-            ? minMaxMap[fieldId].min
+        min = targetFieldId
+            ? minMaxMap[targetFieldId].min
             : getMinMaxFromMinMaxMap(minMaxMap).min;
     } else {
         min = config.rule.min;
     }
 
     if (config.rule.max === 'auto') {
-        max = field
-            ? minMaxMap[fieldId].max
+        max = targetFieldId
+            ? minMaxMap[targetFieldId].max
             : getMinMaxFromMinMaxMap(minMaxMap).max;
     } else {
         max = config.rule.max;
