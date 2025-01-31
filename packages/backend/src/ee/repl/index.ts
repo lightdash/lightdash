@@ -4,6 +4,8 @@ import App from '../../App';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import knexConfig from '../../knexfile';
 import { getEnterpriseAppArguments } from '../index';
+import { getFixDuplicateSlugsScripts } from './scripts/fixDuplicateSlugs';
+import { getListProjectsScripts } from './scripts/listProjects';
 
 (async () => {
     const app = new App({
@@ -29,5 +31,9 @@ import { getEnterpriseAppArguments } from '../index';
         serviceRepository,
         models,
         database,
+        scripts: {
+            fixDuplicateSlugs: getFixDuplicateSlugsScripts(database),
+            listProjects: getListProjectsScripts(database),
+        },
     });
 })();

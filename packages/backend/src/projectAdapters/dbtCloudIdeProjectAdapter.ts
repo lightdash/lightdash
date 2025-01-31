@@ -11,6 +11,7 @@ type DbtCloudideProjectAdapterArgs = {
     apiKey: string;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    tags: string[] | undefined;
 };
 
 export class DbtCloudIdeProjectAdapter
@@ -24,11 +25,13 @@ export class DbtCloudIdeProjectAdapter
         cachedWarehouse,
         dbtVersion,
         discoveryApiEndpoint,
+        tags,
     }: DbtCloudideProjectAdapterArgs) {
         const dbtClient = new DbtMetadataApiClient({
             environmentId,
             bearerToken: apiKey,
             discoveryApiEndpoint,
+            tags,
         });
         super(dbtClient, warehouseClient, cachedWarehouse, dbtVersion);
     }

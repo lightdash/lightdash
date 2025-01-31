@@ -1,3 +1,80 @@
+## [0.1477.3](https://github.com/lightdash/lightdash/compare/0.1477.2...0.1477.3) (2025-01-31)
+
+
+### Bug Fixes
+
+* add trace id to api response ([#13470](https://github.com/lightdash/lightdash/issues/13470)) ([672ef2d](https://github.com/lightdash/lightdash/commit/672ef2d15e03684f5a6dfbfae6729a966dec4126))
+
+## [0.1477.2](https://github.com/lightdash/lightdash/compare/0.1477.1...0.1477.2) (2025-01-31)
+
+
+### Bug Fixes
+
+* sql runner error serialization error ([#13451](https://github.com/lightdash/lightdash/issues/13451)) ([01607b4](https://github.com/lightdash/lightdash/commit/01607b4ed2bc0a5084376d6edd243fc161bcf2c5))
+
+## [0.1477.1](https://github.com/lightdash/lightdash/compare/0.1477.0...0.1477.1) (2025-01-31)
+
+
+### Bug Fixes
+
+* only validate charts saved in space or latest dashboard version ([#13466](https://github.com/lightdash/lightdash/issues/13466)) ([a790367](https://github.com/lightdash/lightdash/commit/a79036795f2d23ae930f517f0c05d2ef8fe02072))
+
+# [0.1477.0](https://github.com/lightdash/lightdash/compare/0.1476.0...0.1477.0) (2025-01-30)
+
+
+### Features
+
+* handle sheets transient err and send email if disabled ([#13461](https://github.com/lightdash/lightdash/issues/13461)) ([277c55b](https://github.com/lightdash/lightdash/commit/277c55b792d7fbec63e3bc185b7eaea7dddc9f7b))
+
+# [0.1476.0](https://github.com/lightdash/lightdash/compare/0.1475.0...0.1476.0) (2025-01-30)
+
+
+### Features
+
+* enforce query context in query tags. Unify all query tags into single export ([#13460](https://github.com/lightdash/lightdash/issues/13460)) ([260dd16](https://github.com/lightdash/lightdash/commit/260dd168790d1099699c6d308609d7ae76129e93))
+
+# [0.1475.0](https://github.com/lightdash/lightdash/compare/0.1474.1...0.1475.0) (2025-01-30)
+
+
+### Features
+
+* browserless chromium latest version from ghcr ([#13386](https://github.com/lightdash/lightdash/issues/13386)) ([d3a36a9](https://github.com/lightdash/lightdash/commit/d3a36a9148338748c6510bc7f62bfe94fbb1205b))
+
+## [0.1474.1](https://github.com/lightdash/lightdash/compare/0.1474.0...0.1474.1) (2025-01-30)
+
+
+### Bug Fixes
+
+* EE migration rollbacks + add embed management API tests ([#13438](https://github.com/lightdash/lightdash/issues/13438)) ([4a9492e](https://github.com/lightdash/lightdash/commit/4a9492e71cb00bcf02f4f5e5921e8bb583c5e000))
+
+# [0.1474.0](https://github.com/lightdash/lightdash/compare/0.1473.1...0.1474.0) (2025-01-30)
+
+
+### Features
+
+* add data zoom to embed dashboards ([#13443](https://github.com/lightdash/lightdash/issues/13443)) ([171a47e](https://github.com/lightdash/lightdash/commit/171a47e267505312f8cdca021dcfbe35ccfbb9e4))
+
+## [0.1473.1](https://github.com/lightdash/lightdash/compare/0.1473.0...0.1473.1) (2025-01-29)
+
+
+### Bug Fixes
+
+* langchain version vulnerability ([#13440](https://github.com/lightdash/lightdash/issues/13440)) ([4c902f5](https://github.com/lightdash/lightdash/commit/4c902f50b123b304dfd94cf9406fc3f6b4305145))
+
+# [0.1473.0](https://github.com/lightdash/lightdash/compare/0.1472.0...0.1473.0) (2025-01-29)
+
+
+### Features
+
+* add script to fix duplicate slugs for charts ([#13446](https://github.com/lightdash/lightdash/issues/13446)) ([6434b2e](https://github.com/lightdash/lightdash/commit/6434b2ef85a77524b48a62fb80981a2c18417ac3))
+
+# [0.1472.0](https://github.com/lightdash/lightdash/compare/0.1471.0...0.1472.0) (2025-01-29)
+
+
+### Features
+
+* allow to filter dbt cloud models by tags ([#13445](https://github.com/lightdash/lightdash/issues/13445)) ([19159c9](https://github.com/lightdash/lightdash/commit/19159c9358acb0c583c242e1260264a66b7249e9))
+
 # [0.1471.0](https://github.com/lightdash/lightdash/compare/0.1470.0...0.1471.0) (2025-01-28)
 
 

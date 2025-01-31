@@ -63,6 +63,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    type RunQueryTags,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import { instance } from 'apache-arrow/visitor/typecomparator';
@@ -123,14 +124,6 @@ export type SchedulerTaskArguments = {
     encryptionUtil: EncryptionUtil;
 };
 
-type RunQueryTags = {
-    project_uuid?: string;
-    user_uuid?: string;
-    organization_uuid?: string;
-    chart_uuid?: string;
-    dashboard_uuid?: string;
-    explore_name?: string;
-};
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
 
@@ -1180,6 +1173,7 @@ export default class SchedulerTask {
                 user_uuid: payload.userUuid,
                 organization_uuid: payload.organizationUuid,
                 explore_name: payload.exploreId,
+                query_context: QueryExecutionContext.GSHEETS,
             };
 
             const { rows } = await this.projectService.runMetricQuery({
@@ -1983,11 +1977,20 @@ export default class SchedulerTask {
                 console.warn(
                     `Disabling Google sheets scheduler with non-retryable error: ${e}`,
                 );
+
                 await this.schedulerService.setSchedulerEnabled(
                     user!, // This error from gdriveClient happens after user initialized
                     schedulerUuid,
                     false,
                 );
+
+                if (user?.email) {
+                    await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
+                        user.email,
+                        scheduler?.name || 'Unknown',
+                        deliveryUrl,
+                    );
+                }
                 return; // Do not cascade error
             }
             throw e; // Cascade error to it can be retried by graphile

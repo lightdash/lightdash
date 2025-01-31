@@ -245,6 +245,7 @@ export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
+export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
@@ -749,7 +750,8 @@ export type ApiErrorDetail = {
     statusCode: number;
     message: string;
     data: { [key: string]: string };
-    id?: string;
+    sentryTraceId?: string;
+    sentryEventId?: string;
 };
 export type ApiError = {
     status: 'error';
@@ -1014,15 +1016,14 @@ export const getAxisName = ({
     series?: Series[];
     itemsMap: ItemsMap | undefined;
 }): string | undefined => {
-    const defaultItem = itemsMap
-        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
-        : undefined;
+    const itemIndex = (series || [])[0]?.encode[axisReference].field;
+    const defaultItem = itemsMap && itemIndex ? itemsMap[itemIndex] : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name ||
+            ? series[0]?.name ||
               (defaultItem && getItemLabelWithoutTableName(defaultItem))
             : undefined;
 

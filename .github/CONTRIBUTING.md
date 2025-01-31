@@ -308,7 +308,12 @@ brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman python-set
 nvm install v20.8.0
 nvm alias default v20.8.0
 
-# 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew)
+# 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
+
+# pgvector is an extension for postgres we use in Lightdash, it needs to be installed separately 
+# More info about this extension and a detailed installation guide available here: https://github.com/pgvector/pgvector
+# on Linux, you can install `postgresql-14-pgvector`, available on apt
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd .. 
 brew install postgresql@14
 brew services start postgresql@14
 
@@ -422,7 +427,7 @@ If you are running lightdash without docker, you will have to run headless brows
 to your lightdash endpoint in localhost. You can achive this on Linux by doing:
 
 ```shell
-docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm browserless/chrome
+docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm ghcr.io/browserless/chromium:v2.24.3
 ```
 
 Then make sure to configure the following ENV variables:
@@ -439,7 +444,7 @@ If you are running Lightdash without docker on Mac, you will have to run docker 
 lightdash because it can't use localhost.
 
 ```shell
-docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm browserless/chrome
+docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm ghcr.io/browserless/chromium:v2.24.3
 ```
 
 Make sure to add the following line to your `/etc/hosts` file:

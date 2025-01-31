@@ -747,6 +747,8 @@ const models: TsoaRoute.Models = {
                 content: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        canExportPagePdf: { dataType: 'boolean' },
+                        canDateZoom: { dataType: 'boolean' },
                         canExportImages: { dataType: 'boolean' },
                         canExportCsv: { dataType: 'boolean' },
                         dashboardFiltersInteractivity: {
@@ -3811,6 +3813,11 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DateGranularity: {
+        dataType: 'refEnum',
+        enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FieldValueSearchResult: {
@@ -7244,11 +7251,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DateGranularity: {
-        dataType: 'refEnum',
-        enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQueryRequest: {
         dataType: 'refAlias',
         type: {
@@ -7854,6 +7856,7 @@ const models: TsoaRoute.Models = {
             api_key: { dataType: 'string', required: true },
             environment_id: { dataType: 'string', required: true },
             discovery_api_endpoint: { dataType: 'string' },
+            tags: { dataType: 'array', array: { dataType: 'string' } },
         },
         additionalProperties: true,
     },
@@ -15064,6 +15067,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dateZoomGranularity: { ref: 'DateGranularity' },
                 dashboardFilters: { ref: 'DashboardFilters' },
                 tileUuid: { dataType: 'string', required: true },
             },

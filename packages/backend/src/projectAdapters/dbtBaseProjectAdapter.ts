@@ -141,10 +141,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             ) as DbtRawModelNode[];
             Logger.info(`Filtered models ${models.length}`);
         } else {
-            Logger.info(`Manifest models ${manifest.nodes.length}`);
+            const nodes = Object.values(manifest.nodes);
+            Logger.info(`Manifest models ${nodes.length}`);
             // If selector is not provided, we use all the models from the manifest
             // models with invalid metadata will compile to failed Explores
-            models = Object.values(manifest.nodes).filter(
+            models = nodes.filter(
                 (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
             ) as DbtRawModelNode[];
             Logger.info(`Filtered models ${models.length}`);

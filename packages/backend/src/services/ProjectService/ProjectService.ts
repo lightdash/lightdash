@@ -117,6 +117,7 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
+    type RunQueryTags,
     type SemanticLayerConnectionUpdate,
     type Tag,
 } from '@lightdash/common';
@@ -177,15 +178,6 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
-
-type RunQueryTags = {
-    project_uuid?: string;
-    user_uuid?: string;
-    organization_uuid?: string;
-    chart_uuid?: string;
-    dashboard_uuid?: string;
-    explore_name?: string;
-};
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1348,6 +1340,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: exploreName,
+            query_context: context,
         };
 
         return this.runQueryAndFormatRows({
@@ -1429,6 +1422,7 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             chart_uuid: chartUuid,
             explore_name: savedChart.tableName,
+            query_context: context,
         };
 
         const { cacheMetadata, rows, fields } =
@@ -1556,6 +1550,7 @@ export class ProjectService extends BaseService {
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
+            query_context: context,
         };
 
         const exploreDimensions = getDimensions(explore);
@@ -1647,6 +1642,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: exploreName,
+            query_context: context,
         };
 
         const explore = await this.getExplore(
@@ -1825,6 +1821,7 @@ export class ProjectService extends BaseService {
                     user_uuid: user.userUuid,
                     chart_uuid: chartUuid,
                     explore_name: exploreId,
+                    query_context: context,
                 };
 
                 return this.runMetricQuery({
@@ -1855,7 +1852,7 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient;
         query: AnyType;
         metricQuery: MetricQuery;
-        queryTags: RunQueryTags;
+        queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
         invalidateCache?: boolean;
     }): Promise<{
         rows: Record<string, AnyType>[];
@@ -2003,7 +2000,7 @@ export class ProjectService extends BaseService {
         exploreName: string;
         csvLimit: number | null | undefined;
         context: QueryExecutionContext;
-        queryTags: RunQueryTags;
+        queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
@@ -2288,6 +2285,7 @@ export class ProjectService extends BaseService {
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
+            query_context: QueryExecutionContext.SQL_RUNNER,
         };
 
         // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
@@ -2338,6 +2336,7 @@ export class ProjectService extends BaseService {
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: userUuid,
+            query_context: context,
         };
 
         const columns: VizColumn[] = [];
@@ -2514,6 +2513,7 @@ export class ProjectService extends BaseService {
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: userUuid,
+            query_context: context,
         };
 
         const columns: VizColumn[] = [];
@@ -2829,6 +2829,7 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
+            query_context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
         };
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
@@ -3627,6 +3628,7 @@ export class ProjectService extends BaseService {
     async getWarehouseFields(
         user: SessionUser,
         projectUuid: string,
+        queryContext: QueryExecutionContext,
         tableName?: string,
         schemaName?: string,
     ): Promise<WarehouseTableSchema> {
@@ -3655,6 +3657,7 @@ export class ProjectService extends BaseService {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
+            query_context: queryContext,
         };
         let database = ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
@@ -4583,6 +4586,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: exploreName,
+            query_context: QueryExecutionContext.CALCULATE_TOTAL,
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
@@ -4617,6 +4621,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: explore.name,
+            query_context: QueryExecutionContext.CALCULATE_TOTAL,
         };
 
         const { rows, cacheMetadata } =

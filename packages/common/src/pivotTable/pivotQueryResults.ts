@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import { FieldType, isField, isSummable, type ItemsMap } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
 import {
@@ -10,6 +11,7 @@ import {
     type TotalField,
 } from '../types/pivot';
 import { type ResultRow, type ResultValue } from '../types/results';
+import { getArrayValue, getObjectValue } from '../utils/accessors';
 import { formatItemValue } from '../utils/formatting';
 
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
@@ -66,6 +68,12 @@ const setIndexByKey = (
         return false;
     }
     const [key, ...rest] = keys;
+
+    if (key === undefined) {
+        throw new UnexpectedIndexError(
+            `setIndexByKey: Cannot get key from keys ${keys.length}`,
+        );
+    }
     if (rest.length === 0) {
         if (obj[key] === undefined) {
             // eslint-disable-next-line no-param-reassign
@@ -96,7 +104,11 @@ const getIndexByKey = (
     }
 
     const [key, ...rest] = keys;
-
+    if (key === undefined) {
+        throw new UnexpectedServerError(
+            `getIndexByKey: Cannot get key from keys ${keys.length}`,
+        );
+    }
     if (rest.length === 0) {
         const value = obj[key];
 
@@ -143,8 +155,11 @@ const getAllIndicesByKey = (
     keys: string[],
 ): number[] => {
     const [key, ...rest] = keys;
+    if (key === undefined) {
+        throw new UnexpectedIndexError('Cannot set key on undefined');
+    }
     if (rest.length === 0) {
-        const value = obj[key];
+        const value = getObjectValue(obj, key);
         if (isNumber(value)) {
             return [value];
         }
@@ -205,8 +220,13 @@ const combinedRetrofit = (
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
+    if (data.headerValues[0] === undefined) {
+        throw new UnexpectedIndexError(
+            'combinedRetrofit: Cannot get header values',
+        );
+    }
     const uniqueIdsForDataValueColumns: string[] = Array(
-        data.headerValues[0].length,
+        getArrayValue(data.headerValues, 0).length,
     );
 
     data.headerValues.forEach((headerRow) => {
@@ -273,13 +293,15 @@ const combinedRetrofit = (
             };
         });
 
-        const remappedDataValues = data.dataValues[rowIndex].map(
+        const remappedDataValues = getArrayValue(data.dataValues, rowIndex).map(
             (dataValue, colIndex) => {
                 const baseIdInfoForCol = baseIdInfo
                     ? baseIdInfo[colIndex]
                     : undefined;
                 const baseId = baseIdInfoForCol?.fieldId;
-                const id = uniqueIdsForDataValueColumns[colIndex] + colIndex;
+                const id =
+                    getArrayValue(uniqueIdsForDataValueColumns, colIndex) +
+                    colIndex;
                 return {
                     baseId,
                     fieldId: id,
@@ -431,13 +453,11 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
 
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
-            const metric = metrics[nMetric];
-
             const indexRowValues = indexDimensions
                 .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
-                    value: row[fieldId].value,
+                    value: getObjectValue(row, fieldId).value,
                     colSpan: 1,
                 }))
                 .concat(
@@ -445,7 +465,8 @@ export const pivotQueryResults = ({
                         ? [
                               {
                                   type: 'label',
-                                  fieldId: metric.fieldId,
+                                  fieldId: getArrayValue(metrics, nMetric)
+                                      .fieldId,
                               },
                           ]
                         : [],
@@ -455,7 +476,7 @@ export const pivotQueryResults = ({
                 .map<PivotData['headerValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
-                    value: row[fieldId].value,
+                    value: getObjectValue(row, fieldId).value,
                     colSpan: 1,
                 }))
                 .concat(
@@ -464,7 +485,8 @@ export const pivotQueryResults = ({
                         : [
                               {
                                   type: 'label',
-                                  fieldId: metric.fieldId,
+                                  fieldId: getArrayValue(metrics, nMetric)
+                                      .fieldId,
                               },
                           ],
                 );
@@ -509,7 +531,7 @@ export const pivotQueryResults = ({
         headerValuesT[0]?.map((_, colIndex) =>
             headerValuesT.map<PivotData['headerValues'][number][number]>(
                 (row, rowIndex) => {
-                    const cell = row[colIndex];
+                    const cell = getArrayValue(row, colIndex);
                     if (cell.type === 'label') {
                         return cell;
                     }
@@ -558,7 +580,7 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const { value } = row[metric.fieldId];
+            const { value } = row?.[metric.fieldId] ?? {};
 
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),

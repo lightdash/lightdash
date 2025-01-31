@@ -1,7 +1,8 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Alert, Anchor, Stack } from '@mantine/core';
+import { Alert, Anchor, MultiSelect, Stack } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import React, { type FC } from 'react';
+import React, { useCallback, useState, type FC } from 'react';
+import { Controller } from 'react-hook-form';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 import Input from '../../ReactHookForm/Input';
@@ -12,6 +13,11 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE;
+
+    const [search, setSearch] = useState('');
+    const handleResetSearch = useCallback(() => {
+        setTimeout(() => setSearch(() => ''), 0);
+    }, [setSearch]);
 
     return (
         <Stack>
@@ -94,6 +100,59 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 }}
                 placeholder={'https://metadata.cloud.getdbt.com/graphql'}
                 disabled={disabled}
+            />
+            <Controller
+                name="dbt.tags"
+                render={({ field }) => (
+                    <MultiSelect
+                        {...field}
+                        label="Tags"
+                        disabled={disabled}
+                        description={
+                            <p>
+                                Only models with <b>all</b> these tags will be
+                                synced.
+                            </p>
+                        }
+                        placeholder="e.g lightdash, prod"
+                        searchable
+                        searchValue={search}
+                        onSearchChange={setSearch}
+                        clearable
+                        creatable
+                        clearSearchOnChange
+                        data={field.value || []}
+                        getCreateLabel={(query) => `+ Add ${query}`}
+                        onCreate={(query) => {
+                            const newValue = [...(field.value || []), query];
+                            field.onChange(newValue);
+                            return query;
+                        }}
+                        onChange={field.onChange}
+                        onKeyDown={(
+                            event: React.KeyboardEvent<HTMLInputElement>,
+                        ) => {
+                            if (
+                                event.key === 'Enter' &&
+                                event.currentTarget.value.trim()
+                            ) {
+                                event.preventDefault(); // Prevent form submission
+                                const newValue =
+                                    event.currentTarget.value.trim();
+                                if (!field.value?.includes(newValue)) {
+                                    field.onChange([
+                                        ...(field.value || []),
+                                        newValue,
+                                    ]);
+                                    handleResetSearch();
+                                }
+                            }
+                        }}
+                        onDropdownClose={() => {
+                            handleResetSearch();
+                        }}
+                    />
+                )}
             />
         </Stack>
     );

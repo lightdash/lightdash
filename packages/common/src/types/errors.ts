@@ -146,7 +146,19 @@ export class UnexpectedServerError extends LightdashError {
         });
     }
 }
-
+export class UnexpectedIndexError extends LightdashError {
+    constructor(
+        message = 'Invalid index in array.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'UnexpectedIndexError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
 export class UnexpectedGitError extends LightdashError {
     constructor(
         message = 'Unexpected error in Git adapter',
@@ -360,6 +372,20 @@ export class UnexpectedGoogleSheetsError extends LightdashError {
             message,
             name: 'UnexpectedGoogleSheetsError',
             statusCode: 400,
+            data,
+        });
+    }
+}
+
+export class GoogleSheetsTransientError extends LightdashError {
+    constructor(
+        message = 'Unexpected error in Google Sheets API',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'GoogleSheetsTransientError',
+            statusCode: 500,
             data,
         });
     }

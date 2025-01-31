@@ -1,3 +1,11 @@
+// ℹ️ This file was originally sourced from the LangChain repository.
+// It has been modified to allow a different ref strategy
+// and to improve logging and error handling.
+
+import {
+    FunctionDefinition,
+    ToolDefinition,
+} from '@langchain/core/language_models/base';
 import {
     AIMessage,
     BaseMessage,
@@ -14,8 +22,13 @@ import {
     RunnableLike,
     RunnablePassthrough,
     RunnableSequence,
+    RunnableToolLike,
 } from '@langchain/core/runnables';
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import type {
+    StructuredToolInterface,
+    StructuredToolParams,
+} from '@langchain/core/tools';
+import { isLangChainTool } from '@langchain/core/utils/function_calling';
 import { OpenAIClient } from '@langchain/openai';
 import { AnyType } from '@lightdash/common';
 import {
@@ -76,23 +89,86 @@ export class AgentRunnableSequence<
     }
 }
 
-function formatToOpenAIAssistantTool(tool: StructuredToolInterface) {
-    const jsonSchema = zodToJsonSchema(tool.schema, {
-        $refStrategy: 'none',
-    });
-
-    // console.debug('~~~~~~~~~~~~~~~~~~~~');
-    // console.debug(jsonSchema);
-    // console.debug('~~~~~~~~~~~~~~~~~~~~');
+/**
+ * Formats a `StructuredTool` or `RunnableToolLike` instance into a format
+ * that is compatible with OpenAI function calling. It uses the `zodToJsonSchema`
+ * function to convert the schema of the `StructuredTool` or `RunnableToolLike`
+ * into a JSON schema, which is then used as the parameters for the OpenAI function.
+ *
+ * @param {StructuredToolInterface | RunnableToolLike} tool The tool to convert to an OpenAI function.
+ * @returns {FunctionDefinition} The inputted tool in OpenAI function format.
+ */
+export function convertToOpenAIFunction(
+    tool: StructuredToolInterface | RunnableToolLike | StructuredToolParams,
+    fields?:
+        | {
+              /**
+               * If `true`, model output is guaranteed to exactly match the JSON Schema
+               * provided in the function definition.
+               */
+              strict?: boolean;
+          }
+        | number,
+): FunctionDefinition {
+    // @TODO 0.3.0 Remove the `number` typing
+    const fieldsCopy = typeof fields === 'number' ? undefined : fields;
 
     return {
-        type: 'function',
-        function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: jsonSchema,
-        },
+        name: tool.name,
+        description: tool.description,
+        parameters: zodToJsonSchema(tool.schema, {
+            // ℹ️ we have to use `none` strategy, otherwise it breaks.
+            $refStrategy: 'none',
+        }),
+        // Do not include the `strict` field if it is `undefined`.
+        ...(fieldsCopy?.strict !== undefined
+            ? { strict: fieldsCopy.strict }
+            : {}),
     };
+}
+
+/**
+ * Formats a `StructuredTool` or `RunnableToolLike` instance into a
+ * format that is compatible with OpenAI tool calling. It uses the
+ * `zodToJsonSchema` function to convert the schema of the `StructuredTool`
+ * or `RunnableToolLike` into a JSON schema, which is then used as the
+ * parameters for the OpenAI tool.
+ *
+ * @param {StructuredToolInterface | Record<string, any> | RunnableToolLike} tool The tool to convert to an OpenAI tool.
+ * @returns {ToolDefinition} The inputted tool in OpenAI tool format.
+ */
+export function convertToOpenAITool(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tool: StructuredToolInterface | Record<string, any> | RunnableToolLike,
+    fields?:
+        | {
+              /**
+               * If `true`, model output is guaranteed to exactly match the JSON Schema
+               * provided in the function definition.
+               */
+              strict?: boolean;
+          }
+        | number,
+): ToolDefinition {
+    // @TODO 0.3.0 Remove the `number` typing
+    const fieldsCopy = typeof fields === 'number' ? undefined : fields;
+
+    let toolDef: ToolDefinition | undefined;
+    if (isLangChainTool(tool)) {
+        toolDef = {
+            type: 'function',
+            function: convertToOpenAIFunction(tool),
+        };
+    } else {
+        toolDef = tool as ToolDefinition;
+    }
+
+    if (fieldsCopy?.strict !== undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (toolDef.function as any).strict = fieldsCopy.strict;
+    }
+
+    return toolDef;
 }
 
 /**
@@ -195,8 +271,8 @@ export class OpenAIToolsAgentOutputParser extends AgentMultiActionOutputParser {
                 throw new OutputParserException(
                     `Failed to parse tool arguments from chat model response. Text: "${JSON.stringify(
                         toolCalls,
-                    )}". 
-                    
+                    )}".
+
 ${error}
 
 Analyze what fields are missing based on the schema.
@@ -231,7 +307,8 @@ export async function createOpenAIToolsAgent({
     tools,
     prompt,
     streamRunnable,
-}: CreateOpenAIToolsAgentParams) {
+    strict,
+}: CreateOpenAIToolsAgentParams & { strict?: boolean }) {
     if (!prompt.inputVariables.includes('agent_scratchpad')) {
         throw new Error(
             [
@@ -240,9 +317,11 @@ export async function createOpenAIToolsAgent({
             ].join('\n'),
         );
     }
+
     const modelWithTools = llm.bind({
-        tools: tools.map(formatToOpenAIAssistantTool),
+        tools: tools.map((tool) => convertToOpenAITool(tool, { strict })),
     });
+
     const agent = AgentRunnableSequence.fromRunnables(
         [
             RunnablePassthrough.assign({

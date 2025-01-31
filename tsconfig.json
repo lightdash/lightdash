@@ -1,7 +1,7 @@
 {    "compilerOptions": {
-    // "noUncheckedIndexedAccess": true,
-    "useUnknownInCatchVariables": true,
-    "noImplicitAny": true
+     "noUncheckedIndexedAccess": false, // Disabled until we fix all tests in all packages
+     "useUnknownInCatchVariables": true,
+     "noImplicitAny": true
  },
     "references": [
         {

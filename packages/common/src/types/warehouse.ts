@@ -1,8 +1,19 @@
 import { type WeekDay } from '../utils/timeFrames';
+import { type QueryExecutionContext } from './analytics';
 import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
+
+export type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
+    explore_name?: string;
+    query_context: QueryExecutionContext;
+};
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
