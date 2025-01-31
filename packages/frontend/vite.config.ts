@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compression } from 'vite-plugin-compression2';
 import dts from 'vite-plugin-dts';
-import monacoEditorPlugin from 'vite-plugin-monaco-editor-esm';
+import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
