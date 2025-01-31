@@ -13,7 +13,7 @@ import {
     type VizCartesianChartOptions,
     type VizConfigErrors,
 } from '@lightdash/common';
-import type { PayloadAction } from '@reduxjs/toolkit';
+import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 
@@ -34,7 +34,7 @@ export type CartesianChartState = {
           >
         | undefined;
     chartDataLoading: boolean;
-    chartDataError: Error | null | undefined;
+    chartDataError: SerializedError | null | undefined;
     series?: PivotValuesColumn[];
 };
 

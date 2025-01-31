@@ -1,5 +1,6 @@
 import { isVizTableConfig, type AllVizChartConfig } from '@lightdash/common';
 import { Box, LoadingOverlay } from '@mantine/core';
+import { type SerializedError } from '@reduxjs/toolkit';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
@@ -10,7 +11,7 @@ type Props = {
     config: AllVizChartConfig | undefined;
     spec: EChartsReactProps['option'] | undefined;
     isLoading: boolean;
-    error?: Error | null;
+    error?: SerializedError | null;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo<Props>(

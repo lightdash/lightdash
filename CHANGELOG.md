@@ -1,3 +1,17 @@
+## [0.1477.3](https://github.com/lightdash/lightdash/compare/0.1477.2...0.1477.3) (2025-01-31)
+
+
+### Bug Fixes
+
+* add trace id to api response ([#13470](https://github.com/lightdash/lightdash/issues/13470)) ([672ef2d](https://github.com/lightdash/lightdash/commit/672ef2d15e03684f5a6dfbfae6729a966dec4126))
+
+## [0.1477.2](https://github.com/lightdash/lightdash/compare/0.1477.1...0.1477.2) (2025-01-31)
+
+
+### Bug Fixes
+
+* sql runner error serialization error ([#13451](https://github.com/lightdash/lightdash/issues/13451)) ([01607b4](https://github.com/lightdash/lightdash/commit/01607b4ed2bc0a5084376d6edd243fc161bcf2c5))
+
 ## [0.1477.1](https://github.com/lightdash/lightdash/compare/0.1477.0...0.1477.1) (2025-01-31)
 
 

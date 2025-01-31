@@ -11,17 +11,22 @@ import { IconCheck, IconCopy } from '@tabler/icons-react';
 import MantineIcon from '../../components/common/MantineIcon';
 
 const ApiErrorDisplay = ({ apiError }: { apiError: ApiErrorDetail }) => {
-    return apiError.id ? (
+    return apiError.sentryEventId || apiError.sentryTraceId ? (
         <Stack spacing="xxs">
             <Text mb={0}>{apiError.message}</Text>
             <Text mb={0} weight="bold">
-                You can contact support with this error ID
+                Contact support with the following information:
             </Text>
             <Group spacing="xxs">
                 <Text mb={0} weight="bold">
-                    {apiError.id}
+                    Error ID: {apiError.sentryEventId || 'n/a'}
+                    Trace ID: {apiError.sentryTraceId || 'n/a'}
                 </Text>
-                <CopyButton value={apiError.id}>
+                <CopyButton
+                    value={`Error ID: ${
+                        apiError.sentryEventId || 'n/a'
+                    } Trace ID: ${apiError.sentryTraceId || 'n/a'}`}
+                >
                     {({ copied, copy }) => (
                         <Tooltip
                             label={copied ? 'Copied' : 'Copy error ID'}
