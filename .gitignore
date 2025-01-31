@@ -30,7 +30,7 @@ lightdash_dev.yml
 /packages/warehouses/dist
 
 # !!!!!!!!!! REMOVE THIS
-/packages/test-app/dist
+/packages/sdk-test-app/dist
 
 # misc
 .DS_Store

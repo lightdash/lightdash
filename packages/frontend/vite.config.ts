@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
             ...(isLib
                 ? {
                       lib: {
-                          entry: resolve(dirnamePath, 'src/sdk.ts'),
+                          entry: resolve(dirnamePath, 'src/sdk/sdk.ts'),
                           name: '@lightdash/frontend',
                           formats: ['es', 'cjs'],
                           fileName: 'frontend',

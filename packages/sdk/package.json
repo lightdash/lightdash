@@ -22,14 +22,12 @@
         "react-dom": "19.0.0"
     },
     "dependencies": {
-        "react": "19.0.0",
-        "react-dom": "19.0.0",
         "@lightdash/frontend": "workspace:*",
         "@tabler/icons-react": "2.32.0"
     },
     "devDependencies": {
-        "@types/react": "19.0.2",
-        "@types/react-dom": "19.0.2",
+        "@types/react": "19.0.0",
+        "@types/react-dom": "19.0.0",
         "@vitejs/plugin-react": "^4.3.4",
         "vite": "^6.0.5",
         "vite-plugin-dts": "^4.5.0"
