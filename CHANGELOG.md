@@ -1,3 +1,10 @@
+## [0.1477.4](https://github.com/lightdash/lightdash/compare/0.1477.3...0.1477.4) (2025-01-31)
+
+
+### Bug Fixes
+
+* use batch insert and don't pass full explores as index catalog job payload ([#13477](https://github.com/lightdash/lightdash/issues/13477)) ([e39b984](https://github.com/lightdash/lightdash/commit/e39b9847782e66cb89a04972a07f45838ea0a098))
+
 ## [0.1477.3](https://github.com/lightdash/lightdash/compare/0.1477.2...0.1477.3) (2025-01-31)
 
 
