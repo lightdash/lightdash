@@ -60,7 +60,7 @@ const App = () => (
         <title>Lightdash</title>
 
         <ReactQueryProvider>
-            <MantineProvider>
+            <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>
                 <RouterProvider router={router} />
             </MantineProvider>
             <ReactQueryDevtools initialIsOpen={false} />

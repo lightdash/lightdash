@@ -29,15 +29,19 @@
         ],
         "paths": {
             "@lightdash/common": [
-                "./../common/src"
+                "../common/src"
             ]
         },
         "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
-
     },
     "include": [
         "src",
         "src/testing/vitest.setup.ts",
         "vite-env.d.ts"
+    ],
+    "references": [
+        {
+            "path": "../common"
+        },
     ]
 }
