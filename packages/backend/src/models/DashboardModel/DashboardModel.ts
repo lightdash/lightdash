@@ -1188,6 +1188,11 @@ export class DashboardModel {
         return this.getById(dashboardUuid);
     }
 
+    /* 
+    backend will only delete orphans if, and only if, they do not belong to any tile.
+    This means that version reverting will now work for charts created within the dashboard, 
+    even if they get removed from the tile in the next dashboard version save.
+    */
     async getOrphanedCharts(
         dashboardUuid: string,
     ): Promise<Pick<SavedChart, 'uuid'>[]> {

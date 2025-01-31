@@ -13,6 +13,7 @@ import {
     ApiWarehouseTablesCatalog,
     CreateSqlChart,
     CreateVirtualViewPayload,
+    QueryExecutionContext,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
@@ -90,6 +91,7 @@ export class SqlRunnerController extends BaseController {
                 .getWarehouseFields(
                     req.user!,
                     projectUuid,
+                    QueryExecutionContext.SQL_RUNNER,
                     tableName,
                     schemaName,
                 ),

@@ -747,6 +747,8 @@ const models: TsoaRoute.Models = {
                 content: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        canExportPagePdf: { dataType: 'boolean' },
+                        canDateZoom: { dataType: 'boolean' },
                         canExportImages: { dataType: 'boolean' },
                         canExportCsv: { dataType: 'boolean' },
                         dashboardFiltersInteractivity: {
@@ -3811,6 +3813,11 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DateGranularity: {
+        dataType: 'refEnum',
+        enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FieldValueSearchResult: {
@@ -7242,11 +7249,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DateGranularity: {
-        dataType: 'refEnum',
-        enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQueryRequest: {
@@ -15065,6 +15067,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dateZoomGranularity: { ref: 'DateGranularity' },
                 dashboardFilters: { ref: 'DashboardFilters' },
                 tileUuid: { dataType: 'string', required: true },
             },

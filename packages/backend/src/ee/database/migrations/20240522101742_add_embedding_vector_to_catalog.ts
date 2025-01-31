@@ -15,5 +15,9 @@ export async function down(knex: Knex): Promise<void> {
         `ALTER TABLE ${CatalogTableName} DROP COLUMN IF EXISTS embedding_vector`,
     );
 
-    await knex.raw('DROP EXTENSION IF EXISTS vector');
+    await knex.raw('DROP EXTENSION IF EXISTS vector').catch(() => {
+        console.warn(
+            "Failed to drop vector extension. This is expected if the user doesn't have permission to drop access methods.",
+        );
+    });
 }

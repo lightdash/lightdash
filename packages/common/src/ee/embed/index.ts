@@ -45,6 +45,8 @@ export const InteractivityOptionsSchema = z.object({
         DashboardFilterInteractivityOptionsSchema.optional(),
     canExportCsv: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
+    canExportPagePdf: z.boolean().optional(),
+    canDateZoom: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -86,6 +88,8 @@ export type CreateEmbedJwt = {
         };
         canExportCsv?: boolean;
         canExportImages?: boolean;
+        canDateZoom?: boolean;
+        canExportPagePdf?: boolean;
     };
     userAttributes?: { [key: string]: string };
     user?: {

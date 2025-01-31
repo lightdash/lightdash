@@ -28,7 +28,8 @@ const data = {
         },
         canExportCsv: {{canExportCsvEnabled}},
         canExportImages: {{canExportImagesEnabled}},
-    },
+        canExportPagePdf: {{canExportPagePdf}},
+        canDateZoom: {{canDateZoom}},
     user: {
         externalId: {{externalId}},
         email: {{email}}
@@ -56,7 +57,8 @@ data = {
         },
         "canExportCsv": {{canExportCsvEnabledPython}},
         "canExportImages": {{canExportImagesEnabledPython}},
-    },
+        "canExportPagePdf": {{canExportPagePdfPython}},
+        "canDateZoom": {{canDateZoomPython}},
     "user": {
         "externalId": {{externalIdPython}}
         "email": {{emailPython}}
@@ -94,6 +96,8 @@ func main() {
             } \`json:"dashboardFiltersInteractivity"\`
             CanExportCsv bool \`json:"canExportCsv"\`
             CanExportImages bool \`json:"canExportImages"\`
+            CanExportPagePdf bool \`json:"canExportPagePdf"\`
+            CanDateZoom bool \`json:"canDateZoom"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         jwt.StandardClaims
@@ -114,6 +118,8 @@ func main() {
             } \`json:"dashboardFiltersInteractivity"\`
             CanExportCsv bool \`json:"canExportCsv"\`
             CanExportImages bool \`json:"canExportImages"\`
+            CanExportPagePdf bool \`json:"canExportPagePdf"\`
+            CanDateZoom bool \`json:"canDateZoom"\`
         }{
             Type:          "dashboard",
             DashboardUuid: "{{dashboardUuid}}",
@@ -126,6 +132,8 @@ func main() {
             },
             CanExportCsv: {{canExportCsvEnabled}},
             CanExportImages: {{canExportImagesEnabled}},
+            CanExportPagePdf: {{canExportPagePdf}},
+            CanDateZoom: {{canDateZoom}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -217,6 +225,11 @@ const getCodeSnippet = (
                   )}"`
                 : 'nil',
         )
+        .replace('{{canDateZoom}}', data.content.canDateZoom ? 'true' : 'false')
+        .replace(
+            '{{canExportPagePdf}}',
+            data.content.canExportPagePdf ? 'true' : 'false',
+        )
         .replace(
             '{{canExportCsvEnabled}}',
             data.content.canExportCsv ? 'true' : 'false',
@@ -224,6 +237,14 @@ const getCodeSnippet = (
         .replace(
             '{{canExportCsvEnabledPython}}',
             data.content.canExportCsv ? 'True' : 'False',
+        )
+        .replace(
+            '{{canDateZoomPython}}',
+            data.content.canDateZoom ? 'True' : 'False',
+        )
+        .replace(
+            '{{canExportPagePdfPython}}',
+            data.content.canExportPagePdf ? 'True' : 'False',
         )
         .replace(
             '{{canExportImagesEnabled}}',
