@@ -524,11 +524,15 @@ export class ProjectService extends BaseService {
         const prevMetricTreeEdges =
             await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
 
-        await this.projectModel.saveExploresToCache(projectUuid, explores);
+        const { cachedExploreUuids } =
+            await this.projectModel.saveExploresToCache(projectUuid, explores);
+
+        this.logger.info(
+            `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
+        );
 
         await this.schedulerClient.indexCatalog({
             projectUuid,
-            explores,
             userUuid,
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,

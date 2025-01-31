@@ -315,22 +315,15 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-        userUuid: string | undefined,
-    ) {
-        const exploresWithCachedExploreUuid =
-            await this.projectModel.getCachedExploresWithUuid(
-                projectUuid,
-                explores,
-            );
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
+        const cachedExploresMap =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
 
         const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
 
         return this.catalogModel.indexCatalog(
             projectUuid,
-            exploresWithCachedExploreUuid,
+            cachedExploresMap,
             projectYamlTags,
             userUuid,
         );

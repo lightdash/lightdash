@@ -5,6 +5,7 @@ import {
     CatalogType,
     Explore,
     FieldType,
+    isExploreError,
     NotFoundError,
     TableSelectionType,
     UNCATEGORIZED_TAG_UUID,
@@ -18,6 +19,7 @@ import {
     type CatalogMetricsTreeEdge,
     type ChartFieldUsageChanges,
     type ChartUsageIn,
+    type ExploreError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type SessionUser,
@@ -74,13 +76,23 @@ export class CatalogModel {
 
     async indexCatalog(
         projectUuid: string,
-        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+        cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError },
         projectYamlTags: DbTag[],
         userUuid: string | undefined,
     ): Promise<{
         catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
     }> {
+        const cachedExplores = Object.entries(cachedExploreMap)
+            .filter(
+                (entry): entry is [string, Explore] =>
+                    !isExploreError(entry[1]),
+            )
+            .map(([cachedExploreUuid, explore]) => ({
+                ...explore,
+                cachedExploreUuid,
+            }));
+
         if (cachedExplores.length === 0) {
             return {
                 catalogInserts: [],
