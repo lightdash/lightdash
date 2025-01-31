@@ -315,16 +315,9 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-        userUuid: string | undefined,
-    ) {
-        const exploresWithCachedExploreUuid =
-            await this.projectModel.getCachedExploresWithUuid(
-                projectUuid,
-                explores,
-            );
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
+        const cachedExploresMap =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
 
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -334,7 +327,7 @@ export class CatalogService<
 
         const result = await this.catalogModel.indexCatalog(
             projectUuid,
-            exploresWithCachedExploreUuid,
+            cachedExploresMap,
             projectYamlTags,
             userUuid,
         );

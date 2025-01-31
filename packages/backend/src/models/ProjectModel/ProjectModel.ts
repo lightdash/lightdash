@@ -74,10 +74,10 @@ import {
     CachedExploresTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
-    DbCachedExplores,
     DbCachedWarehouse,
     DbProject,
     ProjectTableName,
+    type DbCachedExplore,
 } from '../../database/entities/projects';
 import {
     DbSavedChart,
@@ -865,6 +865,27 @@ export class ProjectModel {
         );
     }
 
+    async getAllExploresFromCache(
+        projectUuid: string,
+    ): Promise<{ [exploreUuid: string]: Explore | ExploreError }> {
+        const cachedExplores = await this.database(CachedExploreTableName)
+            .select<
+                {
+                    cached_explore_uuid: string;
+                    explore: Explore | ExploreError;
+                }[]
+            >(['explore', 'cached_explore_uuid'])
+            .where('project_uuid', projectUuid);
+
+        return cachedExplores.reduce<Record<string, Explore | ExploreError>>(
+            (acc, { cached_explore_uuid, explore }) => {
+                acc[cached_explore_uuid] = explore;
+                return acc;
+            },
+            {},
+        );
+    }
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
@@ -947,40 +968,10 @@ export class ProjectModel {
         );
     }
 
-    static getExploresWithCacheUuids(
-        explores: (Explore | ExploreError)[],
-        cachedExplore: { name: string; cached_explore_uuid: string }[],
-    ) {
-        return explores.reduce<(Explore & { cachedExploreUuid: string })[]>(
-            (acc, explore) => {
-                if (isExploreError(explore)) return acc;
-                const cachedExploreUuid = cachedExplore.find(
-                    (cached) => cached.name === explore.name,
-                )?.cached_explore_uuid;
-                if (!cachedExploreUuid) {
-                    Logger.error(
-                        `Could not find cached explore uuid for explore ${explore.name}`,
-                    );
-                    return acc;
-                }
-                return [
-                    ...acc,
-                    {
-                        ...explore,
-                        cachedExploreUuid,
-                    },
-                ];
-            },
-            [],
-        );
-    }
-
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
-    ): Promise<{
-        cachedExplores: DbCachedExplores;
-    }> {
+    ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
@@ -1007,8 +998,9 @@ export class ProjectModel {
                 }
 
                 // cache explores individually
-                await this.database(CachedExploreTableName)
-                    .insert(
+                const individualCachedExplores = await this.database
+                    .batchInsert<DbCachedExplore>(
+                        CachedExploreTableName,
                         uniqueExplores.map((explore) => ({
                             project_uuid: projectUuid,
                             name: explore.name,
@@ -1016,14 +1008,10 @@ export class ProjectModel {
                             explore: JSON.stringify(explore),
                         })),
                     )
-                    .onConflict(['project_uuid', 'name'])
-                    .merge()
-                    .returning(['name', 'cached_explore_uuid']);
+                    .returning('cached_explore_uuid');
 
                 // cache explores together
-                const [cachedExplores] = await this.database(
-                    CachedExploresTableName,
-                )
+                await this.database(CachedExploresTableName)
                     .insert({
                         project_uuid: projectUuid,
                         explores: JSON.stringify(uniqueExplores),
@@ -1033,7 +1021,9 @@ export class ProjectModel {
                     .returning('*');
 
                 return {
-                    cachedExplores,
+                    cachedExploreUuids: individualCachedExplores.map(
+                        (explore) => explore.cached_explore_uuid,
+                    ),
                 };
             },
         );
@@ -2320,16 +2310,5 @@ export class ProjectModel {
             .returning('*');
 
         return updatedProject;
-    }
-
-    async getCachedExploresWithUuid(
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-    ) {
-        const cachedExplores = await this.database(CachedExploreTableName)
-            .select('name', 'cached_explore_uuid')
-            .where('project_uuid', projectUuid);
-
-        return ProjectModel.getExploresWithCacheUuids(explores, cachedExplores);
     }
 }

@@ -1,10 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import {
-    type CompiledExploreJoin,
-    type Explore,
-    type ExploreError,
-    type InlineError,
-} from './explore';
+import { type CompiledExploreJoin, type InlineError } from './explore';
 import {
     DimensionType,
     MetricType,
@@ -238,7 +233,6 @@ export type CatalogItemsWithIcons = CatalogItemSummary &
 
 export type SchedulerIndexCatalogJobPayload = {
     projectUuid: string;
-    explores: (Explore | ExploreError)[];
     userUuid: string;
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
