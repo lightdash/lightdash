@@ -1,2 +1,4 @@
 import LightdashSDK from './LightdashSDK';
-export default LightdashSDK;
+import { LightdashVisualization } from './LightdashVisualization';
+
+export { LightdashSDK, LightdashVisualization };

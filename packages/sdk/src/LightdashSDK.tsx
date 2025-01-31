@@ -13,7 +13,6 @@ const LightdashSDK: FC = () => {
 
             <MantineProvider>
                 <TestFrontendForSdk />
-
                 <MantineIcon icon={IconHome} size="xxl" color="red" />
             </MantineProvider>
         </>

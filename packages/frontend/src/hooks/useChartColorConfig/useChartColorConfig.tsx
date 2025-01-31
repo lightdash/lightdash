@@ -23,6 +23,8 @@ export const useChartColorConfig = ({
     colorPalette: string[];
 }) => {
     const theme = useMantineTheme();
+
+    // TODO: can this have a fallback when no context is provided?
     const { colorMappings } = useChartColorMappingContext();
 
     /**
