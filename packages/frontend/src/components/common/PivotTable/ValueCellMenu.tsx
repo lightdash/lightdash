@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    createDashboardFilterRuleFromField,
     hasCustomDimension,
+    isDimension,
+    isDimensionValueInvalidDate,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
@@ -9,8 +12,10 @@ import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { FilterDashboardTo } from '../../DashboardFilter/FilterDashboardTo';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
@@ -45,7 +50,9 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
 
     // FIXME: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
     if (!value || !tracking || !metricQueryData) {
         return <>{children}</>;
     }
@@ -138,6 +145,24 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
         });
     };
 
+    const filterValue =
+        value.raw === undefined ||
+        (isDimension(item) && isDimensionValueInvalidDate(item, value))
+            ? null // Set as null if value is invalid date or undefined
+            : value.raw;
+
+    const filters =
+        isDimension(item) && !item.hidden
+            ? [
+                  createDashboardFilterRuleFromField({
+                      field: item,
+                      availableTileFilters: {},
+                      isTemporary: true,
+                      value: filterValue,
+                  }),
+              ]
+            : [];
+
     return (
         <Menu
             opened={opened}
@@ -208,6 +233,12 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                         ) : null}
                     </>
                 ) : null}
+                {filters.length > 0 && (
+                    <FilterDashboardTo
+                        filters={filters}
+                        onAddFilter={addDimensionDashboardFilter}
+                    />
+                )}
             </Menu.Dropdown>
         </Menu>
     );
