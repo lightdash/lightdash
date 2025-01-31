@@ -556,7 +556,13 @@ export default class App {
                         name: errorResponse.name,
                         message: errorResponse.message,
                         data: errorResponse.data,
-                        id:
+                        sentryTraceId:
+                            // Only return the Sentry trace ID for unexpected server errors
+                            errorResponse.statusCode === 500
+                                ? Sentry.getActiveSpan()?.spanContext().traceId
+                                : undefined,
+                        sentryEventId:
+                            // Only return the Sentry event ID for unexpected server errors
                             errorResponse.statusCode === 500
                                 ? Sentry.lastEventId()
                                 : undefined,
