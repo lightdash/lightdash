@@ -91,7 +91,7 @@ export const getMinMaxFromMinMaxMap = (
 });
 
 export const hasMatchingConditionalRules = (
-    field: ItemsMap[string] | undefined,
+    field: ItemsMap[string],
     value: unknown,
     minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
@@ -100,6 +100,12 @@ export const hasMatchingConditionalRules = (
 
     const parsedValue = typeof value === 'string' ? Number(value) : value;
     const convertedValue = convertFormattedValue(parsedValue, field);
+
+    const currentFieldId = getItemId(field);
+    const targetFieldId = config.target?.fieldId;
+    if (targetFieldId !== undefined && targetFieldId !== currentFieldId) {
+        return false;
+    }
 
     if (isConditionalFormattingConfigWithSingleColor(config)) {
         return config.rules.every((rule) => {
@@ -144,24 +150,21 @@ export const hasMatchingConditionalRules = (
 
     if (isConditionalFormattingConfigWithColorRange(config)) {
         if (typeof convertedValue !== 'number') return false;
-        const fieldId = field ? getItemId(field) : undefined;
-
-        if (!fieldId || !(fieldId in minMaxMap)) return false;
 
         let min: number;
         let max: number;
 
         if (config.rule.min === 'auto') {
-            min = field
-                ? minMaxMap[fieldId].min
+            min = targetFieldId
+                ? minMaxMap[targetFieldId].min
                 : getMinMaxFromMinMaxMap(minMaxMap).min;
         } else {
             min = config.rule.min;
         }
 
         if (config.rule.max === 'auto') {
-            max = field
-                ? minMaxMap[fieldId].max
+            max = targetFieldId
+                ? minMaxMap[targetFieldId].max
                 : getMinMaxFromMinMaxMap(minMaxMap).max;
         } else {
             max = config.rule.max;
@@ -194,11 +197,7 @@ export const getConditionalFormattingConfig = ({
     )
         return undefined;
 
-    const fieldConfigs = conditionalFormattings.filter(
-        (c) => c.target?.fieldId === getItemId(field) || !c.target,
-    );
-
-    return fieldConfigs
+    return conditionalFormattings
         .reverse()
         .find((config) =>
             hasMatchingConditionalRules(field, value, minMaxMap, config),
