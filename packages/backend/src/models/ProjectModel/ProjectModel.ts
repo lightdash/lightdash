@@ -1011,9 +1011,7 @@ export class ProjectModel {
                     .returning('cached_explore_uuid');
 
                 // cache explores together
-                const [cachedExplores] = await this.database(
-                    CachedExploresTableName,
-                )
+                await this.database(CachedExploresTableName)
                     .insert({
                         project_uuid: projectUuid,
                         explores: JSON.stringify(uniqueExplores),
