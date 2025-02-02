@@ -52,7 +52,7 @@ export type CatalogTable = Knex.CompositeTableType<
 >;
 
 /**
- * Utility to get a property name from either CatalogField or CatalogTableType to its corresponding
+ * Utility to map a property name from either CatalogField or CatalogTableType to its corresponding
  * database column name in DbCatalog (the `catalog` table).
  *
  * Note: We use 'keyof CatalogField | keyof CatalogTableType' instead of 'keyof CatalogItem'
