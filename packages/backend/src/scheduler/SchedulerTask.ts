@@ -40,6 +40,8 @@ import {
     operatorActionValue,
     pivotResultsAsCsv,
     QueryExecutionContext,
+    ReplaceCustomFieldsPayload,
+    ReplaceCustomFieldsTask,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
@@ -896,6 +898,12 @@ export default class SchedulerTask {
                     organizationUuid: user.organizationUuid,
                 });
             }
+            // Don't wait for replaceCustomFields response
+            void this.schedulerClient.replaceCustomFields({
+                createdByUserUuid: payload.createdByUserUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            });
         } catch (e) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2280,6 +2288,44 @@ export default class SchedulerTask {
 
                 return {}; // Don't pollute with more details
             },
+        );
+    }
+
+    protected async replaceCustomFields(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ReplaceCustomFieldsPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: ReplaceCustomFieldsTask,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () =>
+                // todo: get charts with custom metrics
+
+                // todo: get explores used in charts
+
+                // todo: find matches
+
+                // todo: replace matches
+
+                ({
+                    // todo: add values
+                    updatedCharts: {
+                        'chart-uuid': {
+                            replacedCustomMetrics: {
+                                'custom-metric-uuid': 'new-metric-uuid',
+                            },
+                        },
+                    },
+                }),
         );
     }
 }
