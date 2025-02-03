@@ -59,7 +59,7 @@ services:
             - db-data:/var/lib/postgresql/data
 
     headless-browser:
-        image: browserless/chrome
+        image: ghcr.io/browserless/chromium:v2.24.3
         restart: always
         ports:
             - '3001:3000'

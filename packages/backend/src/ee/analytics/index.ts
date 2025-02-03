@@ -15,6 +15,8 @@ export type EmbedDashboardViewed = BaseTrack & {
         dashboardFiltersInteractivity?: DashboardFilterInteractivityOptions;
         canExportCsv?: boolean;
         canExportImages?: boolean;
+        canExportPagePdf: boolean;
+        canDateZoom?: boolean;
     };
 };
 
