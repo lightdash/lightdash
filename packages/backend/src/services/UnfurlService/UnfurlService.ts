@@ -581,7 +581,7 @@ export class UnfurlService extends BaseService {
 
                             const filteredSqlChartTileUuids =
                                 sqlChartTileUuids?.filter(
-                                    (id): id is string => id !== undefined,
+                                    (id): id is string => !!id,
                                 );
 
                             const hasSqlCharts =
@@ -626,22 +626,22 @@ export class UnfurlService extends BaseService {
                                 ];
                             }
 
-                            this.logger.debug(
+                            this.logger.info(
                                 `sqlChartTileUuids: ${sqlChartTileUuids}`,
                             );
-                            this.logger.debug(
+                            this.logger.info(
                                 `sqlInitialLoadPromises: ${sqlInitialLoadPromises}`,
                             );
-                            this.logger.debug(
+                            this.logger.info(
                                 `sqlResultsJobPromises: ${sqlResultsJobPromises}`,
                             );
-                            this.logger.debug(
+                            this.logger.info(
                                 `sqlResultsPromises: ${sqlResultsPromises}`,
                             );
-                            this.logger.debug(
+                            this.logger.info(
                                 `sqlPivotPromises: ${sqlPivotPromises}`,
                             );
-                            this.logger.debug(
+                            this.logger.info(
                                 `exploreChartResultsPromises: ${exploreChartResultsPromises}`,
                             );
 
