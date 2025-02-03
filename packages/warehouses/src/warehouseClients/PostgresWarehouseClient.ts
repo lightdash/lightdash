@@ -354,7 +354,7 @@ export class PostgresClient<
 
             UNION ALL
 
-            SELECT mv.matviewowner AS table_catalog,
+            SELECT current_database() AS table_catalog,
                 n.nspname AS table_schema,
                 c.relname AS table_name,
                 a.attname AS column_name,
@@ -364,7 +364,7 @@ export class PostgresClient<
             JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
             JOIN pg_catalog.pg_matviews mv ON n.nspname = mv.schemaname AND c.relname = mv.matviewname
             WHERE c.relkind = 'm'
-            AND mv.matviewowner IN (${Array.from(databases)})
+            AND current_database() IN (${Array.from(databases)})
             AND n.nspname IN (${Array.from(schemas)})
             AND c.relname IN (${Array.from(tables)})
             AND a.attnum > 0
