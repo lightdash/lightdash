@@ -37,9 +37,12 @@ export const convertExploresToCatalog = (
 ): {
     catalogInserts: CatalogInsertWithYamlTags[];
     catalogFieldMap: CatalogFieldMap;
+    numberOfCategoriesApplied: number;
 } => {
     // Track fields' ids and names to calculate their chart usage
     const catalogFieldMap: CatalogFieldMap = {};
+
+    let numberOfCategoriesApplied = 0;
 
     const catalogInserts = cachedExplores.reduce<CatalogInsertWithYamlTags[]>(
         (acc, explore) => {
@@ -83,6 +86,10 @@ export const convertExploresToCatalog = (
                           )
                         : [];
 
+                    if (assignedYamlTags.length > 0) {
+                        numberOfCategoriesApplied += assignedYamlTags.length;
+                    }
+
                     return {
                         project_uuid: projectUuid,
                         cached_explore_uuid: explore.cachedExploreUuid,
@@ -115,6 +122,7 @@ export const convertExploresToCatalog = (
     return {
         catalogInserts,
         catalogFieldMap,
+        numberOfCategoriesApplied,
     };
 };
 

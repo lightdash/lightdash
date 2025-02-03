@@ -5,6 +5,7 @@ import {
     CatalogType,
     Explore,
     FieldType,
+    isExploreError,
     NotFoundError,
     TableSelectionType,
     UNCATEGORIZED_TAG_UUID,
@@ -18,6 +19,7 @@ import {
     type CatalogMetricsTreeEdge,
     type ChartFieldUsageChanges,
     type ChartUsageIn,
+    type ExploreError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type SessionUser,
@@ -74,17 +76,29 @@ export class CatalogModel {
 
     async indexCatalog(
         projectUuid: string,
-        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+        cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError },
         projectYamlTags: DbTag[],
         userUuid: string | undefined,
     ): Promise<{
         catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;
+        numberOfCategoriesApplied?: number;
     }> {
+        const cachedExplores = Object.entries(cachedExploreMap)
+            .filter(
+                (entry): entry is [string, Explore] =>
+                    !isExploreError(entry[1]),
+            )
+            .map(([cachedExploreUuid, explore]) => ({
+                ...explore,
+                cachedExploreUuid,
+            }));
+
         if (cachedExplores.length === 0) {
             return {
                 catalogInserts: [],
                 catalogFieldMap: {},
+                numberOfCategoriesApplied: 0,
             };
         }
 
@@ -93,20 +107,23 @@ export class CatalogModel {
                 'indexCatalog',
                 { projectUuid, cachedExploresSize: cachedExplores.length },
                 async () => {
-                    const { catalogInserts, catalogFieldMap } =
-                        await wrapSentryTransaction(
-                            'indexCatalog.convertExploresToCatalog',
-                            {
+                    const {
+                        catalogInserts,
+                        catalogFieldMap,
+                        numberOfCategoriesApplied,
+                    } = await wrapSentryTransaction(
+                        'indexCatalog.convertExploresToCatalog',
+                        {
+                            projectUuid,
+                            cachedExploresLength: cachedExplores.length,
+                        },
+                        async () =>
+                            convertExploresToCatalog(
                                 projectUuid,
-                                cachedExploresLength: cachedExplores.length,
-                            },
-                            async () =>
-                                convertExploresToCatalog(
-                                    projectUuid,
-                                    cachedExplores,
-                                    projectYamlTags,
-                                ),
-                        );
+                                cachedExplores,
+                                projectYamlTags,
+                            ),
+                    );
 
                     const transactionInserts = await wrapSentryTransaction(
                         'indexCatalog.insert',
@@ -166,6 +183,7 @@ export class CatalogModel {
                     return {
                         catalogInserts: transactionInserts,
                         catalogFieldMap,
+                        numberOfCategoriesApplied,
                     };
                 },
             );
@@ -176,6 +194,7 @@ export class CatalogModel {
             return {
                 catalogInserts: [],
                 catalogFieldMap: {},
+                numberOfCategoriesApplied: 0,
             };
         }
     }

@@ -90,6 +90,7 @@ export const deploy = async (
 
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
         path.resolve(options.projectDir),
+        options.projectUuid,
     );
 
     await replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig);

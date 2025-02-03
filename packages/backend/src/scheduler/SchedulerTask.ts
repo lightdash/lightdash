@@ -66,7 +66,6 @@ import {
     type RunQueryTags,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
-import { instance } from 'apache-arrow/visitor/typecomparator';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -2256,7 +2255,6 @@ export default class SchedulerTask {
                 const { catalogFieldMap } =
                     await this.catalogService.indexCatalog(
                         payload.projectUuid,
-                        payload.explores,
                         payload.userUuid,
                     );
 
