@@ -225,7 +225,8 @@ const combinedRetrofit = (
             'combinedRetrofit: Cannot get header values',
         );
     }
-    const uniqueIdsForDataValueColumns: string[] = Array(
+
+    const uniqueIdsForDataValueColumns = Array<string>(
         getArrayValue(data.headerValues, 0).length,
     );
 

@@ -1,12 +1,24 @@
 {
     "name": "@lightdash/common",
     "version": "0.1477.3",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "files": [
-        "dist/**/*"
-    ],
     "license": "MIT",
+    "types": "./dist/types/index.d.ts",
+    "main": "./dist/cjs/index.js",
+    "module": "./dist/esm/index.js",
+    "exports": {
+        ".": {
+            "types": "./dist/types/index.d.ts",
+            "require": "./dist/cjs/index.js",
+            "import": "./dist/esm/index.js",
+            "default": "./dist/esm/index.js"
+        },
+        "./pivotTable": {
+            "types": "./dist/types/pivotTable/index.d.ts",
+            "require": "./dist/cjs/pivotTable/index.js",
+            "import": "./dist/esm/pivotTable/index.js",
+            "default": "./dist/esm/pivotTable/index.js"
+        }
+    },
     "devDependencies": {
         "@types/js-yaml": "^4.0.9",
         "@types/pegjs": "^0.10.3",
@@ -35,8 +47,8 @@
         "zod": "^3.22.4"
     },
     "scripts": {
-        "dev": "tsx watch --clear-screen=false src/index.ts",
-        "build": "tsc --build tsconfig.json",
+        "dev": "tsc -b --watch ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+        "build": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

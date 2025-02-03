@@ -1,11 +1,9 @@
 import LightdashSDK from '@lightdash/sdk';
-import { version } from 'react';
 
 function App() {
     return (
         <>
-            <div>Hello from @lightdash/sdk-test-app - React {version}</div>
-            <LightdashSDK />
+            <LightdashSDK embedToken="123" />
         </>
     );
 }

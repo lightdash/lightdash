@@ -1,4 +1,5 @@
 {
+    "extends": "./../../tsconfig.json",
     "compilerOptions": {
         "composite": true,
         "target": "ESNext",
@@ -14,4 +15,9 @@
     "include": [
         "src"
     ],
+    "references": [
+        {
+            "path": "../sdk"
+        }
+    ]
 }

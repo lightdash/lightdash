@@ -1,4 +1,4 @@
-import { pivotQueryResults } from './pivotQueryResults';
+import { pivotQueryResults } from '.';
 import {
     METRIC_QUERY_0DIM_2METRIC,
     METRIC_QUERY_1DIM_2METRIC,
@@ -6,7 +6,7 @@ import {
     RESULT_ROWS_0DIM_2METRIC,
     RESULT_ROWS_1DIM_2METRIC,
     RESULT_ROWS_2DIM_2METRIC,
-} from './pivotQueryResults.mock';
+} from './index.mock';
 
 describe('Should pivot data', () => {
     it('with 1 dimension, pivoted, metrics as cols (everything on columns)', () => {

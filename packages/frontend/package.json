@@ -16,8 +16,9 @@
         "./style.css": "./dist/frontend.css"
     },
     "scripts": {
-        "dev": "vite",
         "typecheck": "tsc --project tsconfig.build.json --noEmit",
+        "dev": "vite",
+        "dev-lib": "vite build --watch --mode lib",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "build-lib": "pnpm run typecheck && vite build --mode lib",
         "serve": "vite preview",

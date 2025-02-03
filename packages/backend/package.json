@@ -9,6 +9,7 @@
         "@types/bcrypt": "^5.0.0",
         "@types/connect-flash": "^0.0.37",
         "@types/express": "^4.17.11",
+        "@types/express-serve-static-core": "^5.0.6",
         "@types/express-session": "^1.17.4",
         "@types/fs-extra": "^9.0.13",
         "@types/js-yaml": "^4.0.1",

@@ -27,8 +27,8 @@ import {
     useUpdateActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';

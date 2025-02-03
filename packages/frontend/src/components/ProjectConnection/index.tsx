@@ -31,11 +31,11 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
