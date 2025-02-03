@@ -1,3 +1,4 @@
+import { findLast } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { ItemsMap } from '..';
 import {
@@ -196,11 +197,9 @@ export const getConditionalFormattingConfig = ({
     )
         return undefined;
 
-    return conditionalFormattings
-        .reverse()
-        .find((config) =>
-            hasMatchingConditionalRules(field, value, minMaxMap, config),
-        );
+    return findLast(conditionalFormattings, (config) =>
+        hasMatchingConditionalRules(field, value, minMaxMap, config),
+    );
 };
 
 export const getConditionalFormattingDescription = (
