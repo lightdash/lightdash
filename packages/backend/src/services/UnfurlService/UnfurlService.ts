@@ -626,25 +626,6 @@ export class UnfurlService extends BaseService {
                                 ];
                             }
 
-                            this.logger.info(
-                                `sqlChartTileUuids: ${sqlChartTileUuids}`,
-                            );
-                            this.logger.info(
-                                `sqlInitialLoadPromises: ${sqlInitialLoadPromises}`,
-                            );
-                            this.logger.info(
-                                `sqlResultsJobPromises: ${sqlResultsJobPromises}`,
-                            );
-                            this.logger.info(
-                                `sqlResultsPromises: ${sqlResultsPromises}`,
-                            );
-                            this.logger.info(
-                                `sqlPivotPromises: ${sqlPivotPromises}`,
-                            );
-                            this.logger.info(
-                                `exploreChartResultsPromises: ${exploreChartResultsPromises}`,
-                            );
-
                             chartResultsPromises = [
                                 ...(exploreChartResultsPromises || []),
                                 ...(sqlInitialLoadPromises || []),
