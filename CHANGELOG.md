@@ -1,3 +1,10 @@
+## [0.1478.2](https://github.com/lightdash/lightdash/compare/0.1478.1...0.1478.2) (2025-02-03)
+
+
+### Bug Fixes
+
+* remove unsafe destruct on projectAdapter ([#13500](https://github.com/lightdash/lightdash/issues/13500)) ([8f1f356](https://github.com/lightdash/lightdash/commit/8f1f356ffab91d11e3ab09918650ab9f9c594125))
+
 ## [0.1478.1](https://github.com/lightdash/lightdash/compare/0.1478.0...0.1478.1) (2025-02-03)
 
 
