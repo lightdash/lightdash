@@ -252,12 +252,12 @@ Affected charts:
     static generateDiff(original: string, updated: string): string {
         const diff = diffLines(original, updated);
         return diff
-            .map((part) => {
-                if (part.added) return `+${part.value}`;
-                if (part.removed) return `-${part.value}`;
-                return ` ${part.value}`;
-            })
-            .join('');
+            .reduce<string[]>((acc, part) => {
+                if (part.added) return [...acc, `+${part.value}`];
+                if (part.removed) return [...acc, `-${part.value}`];
+                return acc;
+            }, [])
+            .join('\n');
     }
 
     async updateFileForCustomMetrics({
@@ -332,7 +332,6 @@ Affected charts:
                         quotingType: quoteChar,
                     },
                 );
-
                 const diff = GitIntegrationService.generateDiff(
                     fileContent,
                     updatedYml,
@@ -355,7 +354,7 @@ Affected charts:
                 const changes = {
                     file: fileName,
                     yml: updatedYml,
-                    diff: updatedYml,
+                    diff,
                 };
                 return [...acc, changes];
             },
