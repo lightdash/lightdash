@@ -4,6 +4,7 @@ import {
     AppProvider,
     ChartColorMappingContextProvider,
     createBrowserRouter,
+    EmbedDashboard,
     EmbedProvider,
     ErrorBoundary,
     MantineProvider,
@@ -15,55 +16,49 @@ import {
 } from '@lightdash/frontend';
 import { FC } from 'react';
 
-const router = createBrowserRouter([
-    {
-        path: '/',
-        element: (
-            <AppProvider>
-                <ThirdPartyServicesProvider enabled={false}>
-                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                        <TrackingProvider enabled={false}>
-                            <AbilityProvider>
-                                <ActiveJobProvider>
-                                    <ChartColorMappingContextProvider>
-                                        <Outlet />
-                                    </ChartColorMappingContextProvider>
-                                </ActiveJobProvider>
-                            </AbilityProvider>
-                        </TrackingProvider>
-                    </ErrorBoundary>
-                </ThirdPartyServicesProvider>
-            </AppProvider>
-        ),
-        children: [
-            {
-                path: '/',
-                element: <div>hello!!!</div>,
-            },
-        ],
-    },
-]);
-
 type Props = {
+    projectUuid: string;
     embedToken: string;
 };
 
-const LightdashSDK: FC<Props> = ({ embedToken }) => {
-    return (
-        <ReactQueryProvider
-            queryClientOverride={{
-                queries: {
-                    queryFn: (query) => {
-                        console.log('query', query);
-                        return query.queryKey;
-                    },
+const LightdashSDK: FC<Props> = ({ embedToken, projectUuid }) => {
+    const router = createBrowserRouter([
+        {
+            path: '/',
+            element: (
+                <AppProvider>
+                    <ThirdPartyServicesProvider enabled={false}>
+                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                            <TrackingProvider enabled={false}>
+                                <AbilityProvider>
+                                    <ActiveJobProvider>
+                                        <ChartColorMappingContextProvider>
+                                            <Outlet />
+                                        </ChartColorMappingContextProvider>
+                                    </ActiveJobProvider>
+                                </AbilityProvider>
+                            </TrackingProvider>
+                        </ErrorBoundary>
+                    </ThirdPartyServicesProvider>
+                </AppProvider>
+            ),
+            children: [
+                {
+                    path: '/:projectUuid',
+                    element: (
+                        <EmbedProvider embedToken={embedToken}>
+                            <EmbedDashboard projectUuid={projectUuid} />
+                        </EmbedProvider>
+                    ),
                 },
-            }}
-        >
+            ],
+        },
+    ]);
+
+    return (
+        <ReactQueryProvider>
             <MantineProvider>
-                <EmbedProvider embedToken={embedToken}>
-                    <RouterProvider router={router} />
-                </EmbedProvider>
+                <RouterProvider router={router} />
             </MantineProvider>
         </ReactQueryProvider>
     );

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import EmbedDashboard from '../ee/pages/EmbedDashboard';
 import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -28,4 +29,5 @@ export {
     Outlet,
     RouterProvider,
     EmbedProvider,
+    EmbedDashboard,
 };

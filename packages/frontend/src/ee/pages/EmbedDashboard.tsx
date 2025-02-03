@@ -479,9 +479,19 @@ const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
     );
 };
 
-const EmbedDashboardPage: FC = () => {
+type Props = {
+    projectUuid?: string;
+};
+
+const EmbedDashboardPage: FC<Props> = ({
+    projectUuid: projectUuidFromProps,
+}) => {
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
     const { embedToken } = useEmbed();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const projectUuid = projectUuidFromProps ?? projectUuidFromParams;
 
     if (!embedToken) {
         return (

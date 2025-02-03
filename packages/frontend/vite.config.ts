@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
         build: {
             outDir: isLib ? 'dist' : 'build',
             target: isLib ? 'es2015' : 'es2020',
-            minify: isLib ? false : true,
+            minify: isLib ? 'esbuild' : true,
             sourcemap: true,
 
             ...(isLib
