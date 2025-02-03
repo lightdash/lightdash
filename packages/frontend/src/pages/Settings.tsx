@@ -15,7 +15,6 @@ import {
     IconPalette,
     IconPlug,
     IconReportAnalytics,
-    IconSql,
     IconTableOptions,
     IconUserCircle,
     IconUserPlus,
@@ -66,10 +65,6 @@ const Settings: FC = () => {
     );
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
-    );
-
-    const isCustomSQLEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CustomSQLEnabled,
     );
 
     const isSemanticLayerEnabled = useFeatureFlagEnabled(
@@ -684,17 +679,6 @@ const Settings: FC = () => {
                                             }
                                         />
                                     ) : null}
-
-                                    {isCustomSQLEnabled && (
-                                        <RouterNavLink
-                                            label="Custom SQL"
-                                            exact
-                                            to={`/generalSettings/projectManagement/${project.projectUuid}/customSql`}
-                                            icon={
-                                                <MantineIcon icon={IconSql} />
-                                            }
-                                        />
-                                    )}
                                 </Box>
                             ) : null}
                         </Stack>
