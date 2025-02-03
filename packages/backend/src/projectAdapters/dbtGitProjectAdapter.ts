@@ -19,7 +19,7 @@ import simpleGit, {
 } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import { CachedWarehouse } from '../types';
+import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {
@@ -72,7 +72,10 @@ const gitErrorHandler = (e: unknown, repository: string) => {
     );
 };
 
-export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
+export class DbtGitProjectAdapter
+    extends DbtLocalCredentialsProjectAdapter
+    implements ProjectAdapter
+{
     localRepositoryDir: string;
 
     remoteRepositoryUrl: string;
@@ -213,21 +216,13 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         }
     }
 
-    public async compileAllExplores({
-        userUuid,
-        organizationUuid,
-        projectUuid,
-    }: {
+    public async compileAllExplores(trackingParams?: {
         userUuid: string;
         organizationUuid: string;
         projectUuid: string;
     }) {
         await this._refreshRepo();
-        return super.compileAllExplores({
-            userUuid,
-            organizationUuid,
-            projectUuid,
-        });
+        return super.compileAllExplores(trackingParams);
     }
 
     public async test() {
