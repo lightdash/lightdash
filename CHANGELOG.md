@@ -1,3 +1,17 @@
+# [0.1478.0](https://github.com/lightdash/lightdash/compare/0.1477.5...0.1478.0) (2025-02-03)
+
+
+### Features
+
+* conditional formatting auto min max ([#13382](https://github.com/lightdash/lightdash/issues/13382)) ([a0fa1b8](https://github.com/lightdash/lightdash/commit/a0fa1b865c4166e6af40e9014cee8bd787ee49bb))
+
+## [0.1477.5](https://github.com/lightdash/lightdash/compare/0.1477.4...0.1477.5) (2025-02-03)
+
+
+### Bug Fixes
+
+* pin pnpm corepack installation ([#13489](https://github.com/lightdash/lightdash/issues/13489)) ([f2b013d](https://github.com/lightdash/lightdash/commit/f2b013d3f31e84a9ccd5ae013beacf8a87084c46))
+
 ## [0.1477.4](https://github.com/lightdash/lightdash/compare/0.1477.3...0.1477.4) (2025-01-31)
 
 
