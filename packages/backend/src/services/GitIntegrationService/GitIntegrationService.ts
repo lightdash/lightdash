@@ -462,6 +462,16 @@ Affected charts:
         });
     }
 
+    /*
+    Gets all the information needed to create a branch and a pull request
+    - owner: The owner of the repository
+    - repo: The repository name
+    - branch: A unique generated branch name (eg: lightdash-johndoe-1234)
+    - mainBranch: The original branch of the project (eg: main)
+    - path: The path to the project (eg: lightdash/dbt)
+    - installationId: The installation id of the user
+    - quoteChar: The quote character to use when replacing YML content ("" or "'")
+    */
     private async getGithubProps(
         user: SessionUser,
         projectUuid: string,
@@ -532,17 +542,17 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
         );
 
-        /*
         this.analytics.track({
             event: 'write_back.created',
             userId: user.userUuid,
             properties: {
-                name,
+                name: customMetricInfo,
                 projectId: projectUuid,
                 organizationId: user.organizationUuid!,
-                context: QueryExecutionContext.SQL_RUNNER,
+                context: QueryExecutionContext.EXPLORE,
+                customMetricsCount: customMetrics.length,
             },
-        }); */
+        });
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,

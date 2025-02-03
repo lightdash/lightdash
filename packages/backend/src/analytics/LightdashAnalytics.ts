@@ -1118,6 +1118,7 @@ export type WriteBackEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         context: QueryExecutionContext;
+        customMetricsCount?: number;
     };
 };
 
