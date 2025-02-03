@@ -33,7 +33,6 @@
         "src",
         "src/testing/vitest.setup.ts",
         "vite-env.d.ts",
-        "public/Authorization"
     ],
     "references": [
         {

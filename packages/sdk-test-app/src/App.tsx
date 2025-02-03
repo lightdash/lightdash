@@ -3,7 +3,10 @@ import LightdashSDK from '@lightdash/sdk';
 function App() {
     return (
         <>
-            <LightdashSDK embedToken="123" />
+            <LightdashSDK
+                lightdashBaseUrl="app.lightdash.com"
+                embedToken="123"
+            />
         </>
     );
 }

@@ -38,7 +38,7 @@ const router = createBrowserRouter([
         children: [
             {
                 path: '/',
-                element: <div>hello wsup</div>,
+                element: <div>hello!!!</div>,
             },
         ],
     },

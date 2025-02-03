@@ -1,15 +1,9 @@
-import react from '@vitejs/plugin-react';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
-import { peerDependencies } from './package.json';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
     plugins: [
-        react(),
         dts({
             tsconfigPath: './tsconfig.json',
             rollupTypes: true,
@@ -24,12 +18,9 @@ export default defineConfig({
 
         lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: 'LightdashSDK',
+            name: 'LightdashCommon',
             formats: ['es', 'cjs'],
-            fileName: 'sdk',
-        },
-        rollupOptions: {
-            external: ['react/jsx-runtime', ...Object.keys(peerDependencies)],
+            fileName: 'index',
         },
 
         emptyOutDir: false,

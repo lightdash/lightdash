@@ -2,21 +2,17 @@
     "name": "@lightdash/common",
     "version": "0.1477.3",
     "license": "MIT",
-    "types": "./dist/types/index.d.ts",
-    "main": "./dist/cjs/index.js",
-    "module": "./dist/esm/index.js",
+    "files": [
+        "dist"
+    ],
+    "type": "commonjs",
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/types/index.d.ts",
-            "require": "./dist/cjs/index.js",
-            "import": "./dist/esm/index.js",
-            "default": "./dist/esm/index.js"
-        },
-        "./pivotTable": {
-            "types": "./dist/types/pivotTable/index.d.ts",
-            "require": "./dist/cjs/pivotTable/index.js",
-            "import": "./dist/esm/pivotTable/index.js",
-            "default": "./dist/esm/pivotTable/index.js"
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
         }
     },
     "devDependencies": {
@@ -24,7 +20,9 @@
         "@types/pegjs": "^0.10.3",
         "@types/sanitize-html": "^2.11.0",
         "@types/uuid": "^10.0.0",
-        "typescript-json-schema": "^0.54.0"
+        "typescript-json-schema": "^0.54.0",
+        "vite": "^6.0.5",
+        "vite-plugin-dts": "^4.5.0"
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
@@ -47,8 +45,8 @@
         "zod": "^3.22.4"
     },
     "scripts": {
-        "dev": "tsc -b --watch ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
-        "build": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+        "dev": "vite build --watch",
+        "build": "vite build",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",
