@@ -141,8 +141,16 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                                     if (userCanInviteUsersToOrganization) {
                                         return `Invite "${query}" as new member of this project`;
                                     }
-                                    return `This user is not a member of your organization.\n
-                                         You need to be an organization admin to add new users to your organization.`;
+                                    return (
+                                        <span>
+                                            This user is not a member of your
+                                            organization.
+                                            <br />
+                                            You need to be an organization admin
+                                            to add <br />
+                                            new users to your organization.
+                                        </span>
+                                    );
                                 }
                                 return null;
                             }}
