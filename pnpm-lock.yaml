@@ -351,7 +351,7 @@ importers:
         specifier: ^2.5.0
         version: 2.7.0
       playwright:
-        specifier: ^1.50.0
+        specifier: ^1.44.1
         version: 1.50.0
       posthog-node:
         specifier: ^4.2.0
