@@ -105,9 +105,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             const config = await loadLightdashProjectConfig(
                 fileContents,
                 async (lightdashConfig) => {
-                    Logger.debug('Track lightdash config loaded');
-                    Logger.debug(trackingParams);
-                    Logger.debug(this.analytics);
                     if (trackingParams) {
                         void this.analytics?.track({
                             event: 'lightdashconfig.loaded',
