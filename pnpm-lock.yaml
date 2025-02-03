@@ -179,9 +179,6 @@ importers:
       '@types/async':
         specifier: ^3.2.16
         version: 3.2.16
-      '@types/diff':
-        specifier: ^7.0.1
-        version: 7.0.1
       '@types/sshpk':
         specifier: ^1.17.1
         version: 1.17.1
@@ -405,6 +402,9 @@ importers:
       '@types/connect-flash':
         specifier: ^0.0.37
         version: 0.0.37
+      '@types/diff':
+        specifier: ^7.0.1
+        version: 7.0.1
       '@types/express':
         specifier: ^4.17.11
         version: 4.17.14
