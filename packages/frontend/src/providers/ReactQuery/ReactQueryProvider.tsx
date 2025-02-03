@@ -13,6 +13,8 @@ const ReactQueryProvider: FC<PropsWithChildren<Props>> = ({
     children,
     queryClientOverride,
 }) => {
+    console.log('ReactQueryProvider', queryClientOverride);
+
     const queryClient = createQueryClient(queryClientOverride);
 
     console.log('-----------');

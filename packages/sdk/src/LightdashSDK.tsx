@@ -19,6 +19,7 @@ import { FC } from 'react';
 type Props = {
     projectUuid: string;
     embedToken: string;
+    lightdashBaseUrl: string;
 };
 
 const LightdashSDK: FC<Props> = ({ embedToken, projectUuid }) => {
