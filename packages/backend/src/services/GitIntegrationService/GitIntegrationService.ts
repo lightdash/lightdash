@@ -510,6 +510,17 @@ Affected charts:
         if (customMetrics.length === 0)
             throw new ParseError('Missing custom metrics');
 
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const githubProps = await this.getGithubProps(
             user,
             projectUuid,
