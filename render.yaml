@@ -12,9 +12,6 @@ services:
     env: docker
     name: headless-browser
     dockerfilePath: docker/Dockerfile.headless-browser
-    envVars:
-      - key: ALLOW_FILE_PROTOCOL
-        value: "true"
   - type: web
     env: docker
     name: lightdash
