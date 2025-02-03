@@ -1,11 +1,12 @@
-import {
-    type ConditionalFormattingConfig,
-    type CustomDimension,
-    type Field,
-    type PivotReference,
-    type ResultRow,
-    type SortField,
-    type TableCalculation,
+import type {
+    ConditionalFormattingConfig,
+    ConditionalFormattingMinMaxMap,
+    CustomDimension,
+    Field,
+    PivotReference,
+    ResultRow,
+    SortField,
+    TableCalculation,
 } from '@lightdash/common';
 import {
     createColumnHelper,
@@ -63,6 +64,7 @@ export type ProviderProps = {
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    minMaxMap?: ConditionalFormattingMinMaxMap;
     footer?: {
         show?: boolean;
     };
