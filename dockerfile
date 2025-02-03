@@ -167,7 +167,7 @@ FROM node:20-bookworm-slim as prod
 ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
-RUN corepack prepare pnpm@latest --activate
+RUN corepack prepare pnpm@9.15.4 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
