@@ -1143,6 +1143,16 @@ export type CategoriesAppliedEvent = BaseTrack & {
     };
 };
 
+export type CustomFieldsReplaced = BaseTrack & {
+    event: 'custom_fields.replaced';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        chartsCount: number;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1220,7 +1230,8 @@ type TypedEvent =
     | WriteBackEvent
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
-    | CategoriesAppliedEvent;
+    | CategoriesAppliedEvent
+    | CustomFieldsReplaced;
 
 type WrapTypedEvent = SemanticLayerView;
 

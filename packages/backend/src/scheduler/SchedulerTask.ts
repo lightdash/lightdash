@@ -2342,7 +2342,9 @@ export default class SchedulerTask {
                     );
                 const updatedCharts =
                     await this.projectService.replaceCustomFields({
+                        userUuid: payload.createdByUserUuid,
                         projectUuid: payload.projectUuid,
+                        organizationUuid: payload.organizationUuid,
                         replaceFields,
                         skipChartsUpdatedAfter: scheduledTime,
                     });

@@ -5423,10 +5423,14 @@ export class ProjectService extends BaseService {
     }
 
     async replaceCustomFields({
+        userUuid,
         projectUuid,
+        organizationUuid,
         replaceFields,
         skipChartsUpdatedAfter,
     }: {
+        userUuid: string;
+        organizationUuid: string;
         projectUuid: string;
         replaceFields: ReplaceCustomFields;
         skipChartsUpdatedAfter: Date;
@@ -5470,10 +5474,18 @@ export class ProjectService extends BaseService {
         const updatedCharts = (await Promise.all(updatedChartPromises)).filter(
             isNotNull,
         );
-        // todo: add analytics event
         this.logger.info(
             `Replaced fields in ${updatedCharts.length} charts in project ${projectUuid}`,
         );
+        this.analytics.track({
+            event: 'custom_fields.replaced',
+            userId: userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                chartsCount: Object.keys(updatedCharts).length,
+            },
+        });
         return updatedCharts;
     }
 }
