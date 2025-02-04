@@ -725,3 +725,14 @@ export type ReplaceCustomFields = {
         };
     };
 };
+
+export type SkippedReplaceCustomFields = {
+    [chartUuid: string]: {
+        customMetrics: {
+            [customMetricId: string]: {
+                replaceWithFieldId: string;
+                reason: string;
+            };
+        };
+    };
+};

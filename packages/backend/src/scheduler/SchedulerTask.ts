@@ -2345,6 +2345,7 @@ export default class SchedulerTask {
                     await this.projectService.replaceCustomFields({
                         projectUuid: payload.projectUuid,
                         replaceFields,
+                        skipChartsUpdatedAfter: scheduledTime,
                     });
                 return {
                     replaceableCustomFields,

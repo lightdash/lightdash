@@ -76,6 +76,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    maybeReplaceFieldsInChartVersion,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -2442,9 +2443,11 @@ export class ProjectService extends BaseService {
         const groupByQuery = `SELECT ${[
             ...new Set(groupBySelectDimensions), // Remove duplicate columns
             ...groupBySelectMetrics,
-        ].join(', ')} FROM original_query group by ${Array.from(
-            new Set(groupBySelectDimensions),
-        ).join(', ')}`;
+        ].join(', ')}
+                              FROM original_query
+                              group by ${Array.from(
+                                  new Set(groupBySelectDimensions),
+                              ).join(', ')}`;
 
         const selectReferences = [
             indexColumn.reference,
@@ -2471,11 +2474,13 @@ export class ProjectService extends BaseService {
             indexColumn.reference
         }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
-        }${q}) as ${q}column_index${q} FROM group_by_query`;
+        }${q}) as ${q}column_index${q}
+                            FROM group_by_query`;
 
         if (groupByColumns && groupByColumns.length > 0) {
             // Wrap the original query in a CTE
-            let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
+            let pivotedSql = `WITH original_query
+                                       AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
 
             pivotedSql += `\nSELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
                 limit ?? 500
@@ -5424,46 +5429,29 @@ export class ProjectService extends BaseService {
     async replaceCustomFields({
         projectUuid,
         replaceFields,
+        skipChartsUpdatedAfter,
     }: {
         projectUuid: string;
         replaceFields: ReplaceCustomFields;
+        skipChartsUpdatedAfter: Date;
     }): Promise<Array<Pick<SavedChartDAO, 'uuid' | 'name'>>> {
         const updatedChartPromises = Object.entries(replaceFields).map(
             async ([chartUuid, fieldsToReplace]) => {
                 const chart = await this.savedChartModel.get(chartUuid);
-                let newChartData: CreateSavedChartVersion | undefined;
-                if (Object.keys(fieldsToReplace.customMetrics).length > 0) {
-                    Object.entries(fieldsToReplace.customMetrics).forEach(
-                        ([customMetricToReplace, { replaceWithFieldId }]) => {
-                            if (customMetricToReplace === replaceWithFieldId) {
-                                const foundCustomMetric =
-                                    !!chart.metricQuery.additionalMetrics?.find(
-                                        (additionalMetric) =>
-                                            getItemId(additionalMetric) ===
-                                            customMetricToReplace,
-                                    );
-                                if (foundCustomMetric) {
-                                    newChartData = newChartData || { ...chart };
-                                    // remove custom metric
-                                    newChartData.metricQuery.additionalMetrics =
-                                        newChartData.metricQuery.additionalMetrics?.filter(
-                                            (additionalMetric) =>
-                                                getItemId(additionalMetric) !==
-                                                customMetricToReplace,
-                                        );
-                                }
-                            } else {
-                                throw new Error(
-                                    `Replacing custom metrics with different IDs is not supported yet. Trying to replace custom metric with ID: ${customMetricToReplace} with metric with ID: ${replaceWithFieldId}`,
-                                );
-                            }
-                        },
-                    );
+                if (chart.updatedAt > skipChartsUpdatedAfter) {
+                    // skip update if chart was recently updated
+                    return null;
                 }
-                if (newChartData !== undefined) {
+                const { hasChanges, chartVersion } =
+                    maybeReplaceFieldsInChartVersion({
+                        fieldsToReplace,
+                        chartVersion: chart,
+                    });
+                // create new version if any fields were replaced
+                if (hasChanges) {
                     await this.savedChartModel.createVersion(
                         chartUuid,
-                        newChartData,
+                        chartVersion,
                         undefined,
                     );
                     return { uuid: chart.uuid, name: chart.name };
