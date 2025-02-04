@@ -8,6 +8,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    FeatureFlags,
     FieldReferenceError,
     ForbiddenError,
     formatRows,
@@ -40,8 +41,11 @@ import {
     operatorActionValue,
     pivotResultsAsCsv,
     QueryExecutionContext,
+    ReplaceableCustomFields,
+    ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceCustomFieldsTask,
+    SavedChartDAO,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
@@ -88,8 +92,8 @@ import {
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
-import { AiService } from '../ee/services/AiService/AiService';
 import Logger from '../logging/logger';
+import { isFeatureFlagEnabled } from '../postHog';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
@@ -898,12 +902,27 @@ export default class SchedulerTask {
                     organizationUuid: user.organizationUuid,
                 });
             }
-            // Don't wait for replaceCustomFields response
-            void this.schedulerClient.replaceCustomFields({
-                createdByUserUuid: payload.createdByUserUuid,
-                projectUuid: payload.projectUuid,
-                organizationUuid: payload.organizationUuid,
-            });
+            const canReplaceCustomMetrics = await isFeatureFlagEnabled(
+                FeatureFlags.ReplaceCustomMetricsOnCompile,
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+                {
+                    // because we are checking this in the health check, we don't want to throw an error
+                    // nor do we want to wait too long
+                    throwOnTimeout: false,
+                    timeoutMilliseconds: 500,
+                },
+            );
+            if (canReplaceCustomMetrics) {
+                // Don't wait for replaceCustomFields response
+                void this.schedulerClient.replaceCustomFields({
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                });
+            }
         } catch (e) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
@@ -2307,25 +2326,58 @@ export default class SchedulerTask {
                     organizationUuid: payload.organizationUuid,
                 },
             },
-            async () =>
-                // todo: get charts with custom metrics
-
-                // todo: get explores used in charts
-
-                // todo: find matches
-
-                // todo: replace matches
-
-                ({
-                    // todo: add values
-                    updatedCharts: {
-                        'chart-uuid': {
-                            replacedCustomMetrics: {
-                                'custom-metric-uuid': 'new-metric-uuid',
+            async (): Promise<{
+                replaceableCustomFields: ReplaceableCustomFields;
+                replaceFields: ReplaceCustomFields;
+                updatedCharts: Array<Pick<SavedChartDAO, 'uuid' | 'name'>>;
+            }> => {
+                const replaceableCustomFields =
+                    await this.projectService.findReplaceableCustomFields(
+                        payload,
+                    );
+                const replaceFields = Object.entries(
+                    replaceableCustomFields,
+                ).reduce<ReplaceCustomFields>(
+                    (acc, [chartUuid, customFields]) => {
+                        const customMetrics = Object.entries(
+                            customFields.customMetrics,
+                        ).reduce<ReplaceCustomFields[string]['customMetrics']>(
+                            (acc2, [customFieldId, customField]) => {
+                                if (customField.match) {
+                                    return {
+                                        ...acc2,
+                                        [customFieldId]: {
+                                            replaceWithFieldId:
+                                                customField.match.fieldId,
+                                        },
+                                    };
+                                }
+                                return acc2;
                             },
-                        },
+                            {},
+                        );
+
+                        if (Object.keys(customMetrics).length > 0) {
+                            acc[chartUuid] = {
+                                customMetrics,
+                            };
+                        }
+                        return acc;
                     },
-                }),
+                    {},
+                );
+                // TODO: we need to pass the scheduled time so we can skip charts that have been updated since the scheduled time
+                const updatedCharts =
+                    await this.projectService.replaceCustomFields({
+                        projectUuid: payload.projectUuid,
+                        replaceFields,
+                    });
+                return {
+                    replaceableCustomFields,
+                    replaceFields,
+                    updatedCharts,
+                };
+            },
         );
     }
 }

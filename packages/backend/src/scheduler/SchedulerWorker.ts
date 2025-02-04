@@ -592,7 +592,7 @@ export class SchedulerWorker extends SchedulerTask {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.indexCatalog(
+                            await this.replaceCustomFields(
                                 helpers.job.id,
                                 helpers.job.run_at,
                                 payload,

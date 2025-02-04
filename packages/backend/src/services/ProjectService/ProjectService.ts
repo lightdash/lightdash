@@ -22,6 +22,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateSavedChartVersion,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -44,6 +45,7 @@ import {
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
+    findCustomMetricMatches,
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
@@ -66,6 +68,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterRule,
+    isNotNull,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -88,9 +91,13 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    ReplaceableCustomFields,
+    ReplaceCustomFields,
+    ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
+    SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
@@ -5372,5 +5379,109 @@ export class ProjectService extends BaseService {
                 },
             });
         });
+    }
+
+    async findReplaceableCustomFields({
+        projectUuid,
+    }: ReplaceCustomFieldsPayload): Promise<ReplaceableCustomFields> {
+        const charts = await this.savedChartModel.findChartsWithCustomFields(
+            projectUuid,
+        );
+        console.log(
+            'charts',
+            charts.map((chart) => chart.uuid),
+        );
+        const explores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            charts.map((chart) => chart.tableName),
+        );
+        const replaceableFields = charts.reduce<ReplaceableCustomFields>(
+            (acc, chart) => {
+                const explore = explores[chart.tableName];
+                if (!explore || isExploreError(explore)) {
+                    return acc;
+                }
+                const customMetricsMatches = findCustomMetricMatches({
+                    customMetrics: chart.customMetrics,
+                    metrics: getMetrics(explore),
+                });
+                if (Object.keys(customMetricsMatches).length > 0) {
+                    acc[chart.uuid] = {
+                        uuid: chart.uuid,
+                        label: chart.name,
+                        customMetrics: customMetricsMatches,
+                    };
+                }
+                return acc;
+            },
+            {},
+        );
+
+        this.logger.info(
+            `Found ${
+                Object.keys(replaceableFields).length
+            } charts with replaceable/suggested fields in project ${projectUuid}`,
+        );
+        return replaceableFields;
+    }
+
+    async replaceCustomFields({
+        projectUuid,
+        replaceFields,
+    }: {
+        projectUuid: string;
+        replaceFields: ReplaceCustomFields;
+    }): Promise<Array<Pick<SavedChartDAO, 'uuid' | 'name'>>> {
+        const updatedChartPromises = Object.entries(replaceFields).map(
+            async ([chartUuid, fieldsToReplace]) => {
+                const chart = await this.savedChartModel.get(chartUuid);
+                let newChartData: CreateSavedChartVersion | undefined;
+                if (Object.keys(fieldsToReplace.customMetrics).length > 0) {
+                    Object.entries(fieldsToReplace.customMetrics).forEach(
+                        ([customMetricToReplace, { replaceWithFieldId }]) => {
+                            if (customMetricToReplace === replaceWithFieldId) {
+                                const foundCustomMetric =
+                                    !!chart.metricQuery.additionalMetrics?.find(
+                                        (additionalMetric) =>
+                                            getItemId(additionalMetric) ===
+                                            customMetricToReplace,
+                                    );
+                                if (foundCustomMetric) {
+                                    newChartData = newChartData || { ...chart };
+                                    // remove custom metric
+                                    newChartData.metricQuery.additionalMetrics =
+                                        newChartData.metricQuery.additionalMetrics?.filter(
+                                            (additionalMetric) =>
+                                                getItemId(additionalMetric) !==
+                                                customMetricToReplace,
+                                        );
+                                }
+                            } else {
+                                throw new Error(
+                                    `Replacing custom metrics with different IDs is not supported yet. Trying to replace custom metric with ID: ${customMetricToReplace} with metric with ID: ${replaceWithFieldId}`,
+                                );
+                            }
+                        },
+                    );
+                }
+                if (newChartData !== undefined) {
+                    await this.savedChartModel.createVersion(
+                        chartUuid,
+                        newChartData,
+                        undefined,
+                    );
+                    return { uuid: chart.uuid, name: chart.name };
+                }
+                return null;
+            },
+        );
+        const updatedCharts = (await Promise.all(updatedChartPromises)).filter(
+            isNotNull,
+        );
+        // todo: add analytics event
+        this.logger.info(
+            `Replaced fields in ${updatedCharts.length} charts in project ${projectUuid}`,
+        );
+        return updatedCharts;
     }
 }
