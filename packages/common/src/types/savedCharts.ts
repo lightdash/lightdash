@@ -226,6 +226,7 @@ export type Series = {
     showSymbol?: boolean;
     smooth?: boolean;
     markLine?: MarkLine;
+    isFilteredOut?: boolean;
 };
 
 export type EchartsLegend = {

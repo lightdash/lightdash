@@ -149,7 +149,7 @@ export const mergeExistingAndExpectedSeries = ({
                         ...sum.existingValidSeries,
                         {
                             ...series,
-                            ...(isSeriesFilteredOut && { hidden: true }),
+                            isFilteredOut: isSeriesFilteredOut,
                         },
                     ],
                     existingValidSeriesIds: [...sum.existingValidSeriesIds, id],
