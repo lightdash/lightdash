@@ -515,6 +515,7 @@ export const mergedMixedSeries: Series[] = [
             },
         },
         hidden: true,
+        isFilteredOut: false,
     },
     {
         label: undefined,
@@ -534,6 +535,7 @@ export const mergedMixedSeries: Series[] = [
             },
         },
         name: 'custom label',
+        isFilteredOut: false,
     },
     {
         label: undefined,
