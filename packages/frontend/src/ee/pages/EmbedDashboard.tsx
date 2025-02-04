@@ -179,6 +179,7 @@ const DashboardFilter: FC<{
     }, [dashboardFilters, filterInteractivityOptions]);
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
 
     useEffect(() => {
         setDashboardFilters(allowedFilters);
@@ -197,7 +198,6 @@ const DashboardFilter: FC<{
     const handlePopoverClose = useCallback(() => {
         setPopoverId(undefined);
     }, []);
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     // FIXME fieldsWithSuggestions is required
     return (
@@ -330,7 +330,8 @@ const DashboardHeader: FC<{
 };
 
 const EmbedDashboard: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
+
     const { embedToken } = useEmbed();
 
     if (!embedToken) {

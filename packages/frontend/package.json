@@ -20,7 +20,7 @@
         "dev": "vite",
         "dev-lib": "vite build --watch --mode lib",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
-        "build-lib": "pnpm run typecheck && vite build --mode lib",
+        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --mode lib",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",

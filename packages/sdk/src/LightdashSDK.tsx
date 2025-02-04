@@ -46,7 +46,7 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
 
     const router = createBrowserRouter([
         {
-            path: '/',
+            path: '*',
             element: (
                 <AppProvider>
                     <ThirdPartyServicesProvider enabled={false}>
@@ -66,7 +66,7 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
             ),
             children: [
                 {
-                    path: '/:projectUuid',
+                    path: '*',
                     element: (
                         <EmbedProvider embedToken={token}>
                             <EmbedDashboard projectUuid={projectUuid} />
