@@ -7,7 +7,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm i -g corepack@latest 
 RUN corepack enable pnpm
-RUN corepack prepare pnpm@10.1.0 --activate
+RUN corepack prepare pnpm@9.15.4 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -169,7 +169,7 @@ ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm i -g corepack@latest 
 RUN corepack enable pnpm
-RUN corepack prepare pnpm@10.1.0 --activate
+RUN corepack prepare pnpm@9.15.4 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
