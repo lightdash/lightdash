@@ -10,7 +10,11 @@ import {
     type TableCalculation,
 } from '../types/field';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
-import { type ReplaceableFieldMatchMap } from '../types/savedCharts';
+import {
+    type ReplaceableCustomFields,
+    type ReplaceableFieldMatchMap,
+    type ReplaceCustomFields,
+} from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 
@@ -199,6 +203,39 @@ export function findReplaceableCustomMetrics({
                         match,
                         suggestedMatches,
                     },
+                };
+            }
+            return acc;
+        },
+        {},
+    );
+}
+
+export function convertReplaceableFieldMatchMapToReplaceCustomFields(
+    replaceableCustomFields: ReplaceableCustomFields,
+): ReplaceCustomFields {
+    return Object.entries(replaceableCustomFields).reduce<ReplaceCustomFields>(
+        (acc, [chartUuid, customFields]) => {
+            const customMetrics = Object.entries(
+                customFields.customMetrics,
+            ).reduce<ReplaceCustomFields[string]['customMetrics']>(
+                (acc2, [customFieldId, customField]) => {
+                    if (customField.match) {
+                        return {
+                            ...acc2,
+                            [customFieldId]: {
+                                replaceWithFieldId: customField.match.fieldId,
+                            },
+                        };
+                    }
+                    return acc2;
+                },
+                {},
+            );
+
+            if (Object.keys(customMetrics).length > 0) {
+                acc[chartUuid] = {
+                    customMetrics,
                 };
             }
             return acc;

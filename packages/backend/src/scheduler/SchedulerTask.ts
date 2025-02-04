@@ -2,6 +2,7 @@ import {
     AnyType,
     assertUnreachable,
     CompileProjectPayload,
+    convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
@@ -2335,37 +2336,10 @@ export default class SchedulerTask {
                     await this.projectService.findReplaceableCustomFields(
                         payload,
                     );
-                const replaceFields = Object.entries(
-                    replaceableCustomFields,
-                ).reduce<ReplaceCustomFields>(
-                    (acc, [chartUuid, customFields]) => {
-                        const customMetrics = Object.entries(
-                            customFields.customMetrics,
-                        ).reduce<ReplaceCustomFields[string]['customMetrics']>(
-                            (acc2, [customFieldId, customField]) => {
-                                if (customField.match) {
-                                    return {
-                                        ...acc2,
-                                        [customFieldId]: {
-                                            replaceWithFieldId:
-                                                customField.match.fieldId,
-                                        },
-                                    };
-                                }
-                                return acc2;
-                            },
-                            {},
-                        );
-
-                        if (Object.keys(customMetrics).length > 0) {
-                            acc[chartUuid] = {
-                                customMetrics,
-                            };
-                        }
-                        return acc;
-                    },
-                    {},
-                );
+                const replaceFields =
+                    convertReplaceableFieldMatchMapToReplaceCustomFields(
+                        replaceableCustomFields,
+                    );
                 // TODO: we need to pass the scheduled time so we can skip charts that have been updated since the scheduled time
                 const updatedCharts =
                     await this.projectService.replaceCustomFields({
