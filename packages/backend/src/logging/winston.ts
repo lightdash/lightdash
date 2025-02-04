@@ -3,7 +3,7 @@ import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
-import winston from 'winston';
+import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
 
 const levels = {
@@ -117,14 +117,7 @@ if (lightdashConfig.logging.outputs.includes('file')) {
     );
 }
 
-type WinstonLogger = {
-    debug: (message: string) => void;
-    info: (message: string) => void;
-    warn: (message: string) => void;
-    error: (message: string) => void;
-};
-
-export const winstonLogger: WinstonLogger = winston.createLogger({
+export const winstonLogger = winston.createLogger({
     levels,
     transports,
 });
