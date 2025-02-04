@@ -131,7 +131,8 @@ export function compareMetricAndCustomMetric({
         },
         filtersMatch: {
             isMatch:
-                customMetric.filters?.length === metric.filters?.length &&
+                (customMetric.filters || []).length ===
+                    (metric.filters || []).length &&
                 (metric.filters || []).every((filter) =>
                     customMetric.filters?.find((customFilter) => {
                         const fieldRefMatch =

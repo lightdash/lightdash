@@ -913,7 +913,7 @@ export default class SchedulerTask {
                     // because we are checking this in the health check, we don't want to throw an error
                     // nor do we want to wait too long
                     throwOnTimeout: false,
-                    timeoutMilliseconds: 500,
+                    timeoutMilliseconds: 2000,
                 },
             );
             if (canReplaceCustomMetrics) {
