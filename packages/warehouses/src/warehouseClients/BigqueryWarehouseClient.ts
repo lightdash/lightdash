@@ -420,6 +420,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             return new WarehouseQueryError(getErrorMessage(error));
         }
         switch (error?.reason) {
+            case 'accessDenied':
+                return new WarehouseQueryError(
+                    error?.message || 'Bigquery warehouse error: access denied',
+                );
+
             // if query is mistyped
             case 'invalidQuery':
                 // if the location is in query and the end of the message looks like "at [line:char]"
@@ -459,7 +464,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             default:
                 break;
         }
-        // otherwise return a generic error
-        return new WarehouseQueryError(getErrorMessage(error));
+        console.error(
+            `Unknown bigquery warehouse error reason: ${JSON.stringify(
+                error,
+                null,
+                2,
+            )}`,
+        );
+        return new WarehouseQueryError(
+            `Bigquery warehouse error: ${error?.reason}`,
+        );
     }
 }

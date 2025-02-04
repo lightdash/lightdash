@@ -32,7 +32,7 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public async compileAllExplores(_args: {
+    public async compileAllExplores(_args?: {
         userUuid: string;
         organizationUuid: string;
         projectUuid: string;

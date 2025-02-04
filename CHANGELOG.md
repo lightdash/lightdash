@@ -1,3 +1,54 @@
+## [0.1478.7](https://github.com/lightdash/lightdash/compare/0.1478.6...0.1478.7) (2025-02-04)
+
+
+### Bug Fixes
+
+* wait for sql runner charts before taking screenshot ([#13463](https://github.com/lightdash/lightdash/issues/13463)) ([f2872ff](https://github.com/lightdash/lightdash/commit/f2872ff286d82343bcdfe7b460bcc108722d9497))
+
+## [0.1478.6](https://github.com/lightdash/lightdash/compare/0.1478.5...0.1478.6) (2025-02-04)
+
+
+### Bug Fixes
+
+*  filter pivot table ([#13475](https://github.com/lightdash/lightdash/issues/13475)) ([4f407bb](https://github.com/lightdash/lightdash/commit/4f407bbb945f99c324524ea91f0aaec776b83be8))
+
+## [0.1478.5](https://github.com/lightdash/lightdash/compare/0.1478.4...0.1478.5) (2025-02-04)
+
+
+### Bug Fixes
+
+* better parse bigquery errors ([#13495](https://github.com/lightdash/lightdash/issues/13495)) ([756c201](https://github.com/lightdash/lightdash/commit/756c2012f3683b2e335fdc6a1498967351b14f45))
+* project admin cant invite new users ([#13467](https://github.com/lightdash/lightdash/issues/13467)) ([e27d475](https://github.com/lightdash/lightdash/commit/e27d475a8b5049e8b880fe256de1a39920c014b9))
+* write back custom metric PR (backend)  ([#13492](https://github.com/lightdash/lightdash/issues/13492)) ([9d73436](https://github.com/lightdash/lightdash/commit/9d734365778e5eaad68ed03cf6164a86ebb2b084))
+
+## [0.1478.4](https://github.com/lightdash/lightdash/compare/0.1478.3...0.1478.4) (2025-02-04)
+
+
+### Bug Fixes
+
+* disable emphasis on echarts mouseout ([#13507](https://github.com/lightdash/lightdash/issues/13507)) ([79dac85](https://github.com/lightdash/lightdash/commit/79dac8552a46642b203cfd13fd02e149500233da))
+
+## [0.1478.3](https://github.com/lightdash/lightdash/compare/0.1478.2...0.1478.3) (2025-02-04)
+
+
+### Bug Fixes
+
+* install latest corepack before pnpm & pin pnpm@9.15.5 ([#13504](https://github.com/lightdash/lightdash/issues/13504)) ([52e256d](https://github.com/lightdash/lightdash/commit/52e256d8eab456ef79a049c6a7efeecbcc1f3854))
+
+## [0.1478.2](https://github.com/lightdash/lightdash/compare/0.1478.1...0.1478.2) (2025-02-03)
+
+
+### Bug Fixes
+
+* remove unsafe destruct on projectAdapter ([#13500](https://github.com/lightdash/lightdash/issues/13500)) ([8f1f356](https://github.com/lightdash/lightdash/commit/8f1f356ffab91d11e3ab09918650ab9f9c594125))
+
+## [0.1478.1](https://github.com/lightdash/lightdash/compare/0.1478.0...0.1478.1) (2025-02-03)
+
+
+### Bug Fixes
+
+* use current_database instead of matviewowner ([#13494](https://github.com/lightdash/lightdash/issues/13494)) ([7195475](https://github.com/lightdash/lightdash/commit/71954757012a5b699e0de6ee929bc0ddf35e8cfa))
+
 # [0.1478.0](https://github.com/lightdash/lightdash/compare/0.1477.5...0.1478.0) (2025-02-03)
 
 
