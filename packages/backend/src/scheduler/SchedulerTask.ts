@@ -2340,7 +2340,6 @@ export default class SchedulerTask {
                     convertReplaceableFieldMatchMapToReplaceCustomFields(
                         replaceableCustomFields,
                     );
-                // TODO: we need to pass the scheduled time so we can skip charts that have been updated since the scheduled time
                 const updatedCharts =
                     await this.projectService.replaceCustomFields({
                         projectUuid: payload.projectUuid,
