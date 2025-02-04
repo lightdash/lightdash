@@ -45,8 +45,8 @@ import {
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
-    findCustomMetricMatches,
     findFieldByIdInExplore,
+    findReplaceableCustomMetrics,
     ForbiddenError,
     formatRows,
     getAggregatedField,
@@ -5401,15 +5401,15 @@ export class ProjectService extends BaseService {
                 if (!explore || isExploreError(explore)) {
                     return acc;
                 }
-                const customMetricsMatches = findCustomMetricMatches({
+                const replaceableCustomMetrics = findReplaceableCustomMetrics({
                     customMetrics: chart.customMetrics,
                     metrics: getMetrics(explore),
                 });
-                if (Object.keys(customMetricsMatches).length > 0) {
+                if (Object.keys(replaceableCustomMetrics).length > 0) {
                     acc[chart.uuid] = {
                         uuid: chart.uuid,
                         label: chart.name,
-                        customMetrics: customMetricsMatches,
+                        customMetrics: replaceableCustomMetrics,
                     };
                 }
                 return acc;

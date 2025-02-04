@@ -10,7 +10,7 @@ import {
     type TableCalculation,
 } from '../types/field';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
-import { type ReplaceableFieldMatchMap } from '../types/scheduler';
+import { type ReplaceableFieldMatchMap } from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 
@@ -157,18 +157,13 @@ export function compareMetricAndCustomMetric({
     };
 }
 
-export function findCustomMetricMatches({
+export function findReplaceableCustomMetrics({
     customMetrics,
     metrics,
 }: {
     customMetrics: AdditionalMetric[];
     metrics: Metric[];
 }): ReplaceableFieldMatchMap {
-    console.log(
-        'findCustomMetricMatches',
-        customMetrics.length,
-        metrics.length,
-    );
     return customMetrics.reduce<ReplaceableFieldMatchMap>(
         (acc, customMetric) => {
             let match: ReplaceableFieldMatchMap[string]['match'] = null;

@@ -1,7 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type Explore, type ExploreError } from './explore';
-import { type FieldId } from './field';
 import { type DashboardFilterRule } from './filter';
 import { type MetricQuery } from './metricQuery';
 import { type PivotConfig } from './pivot';
@@ -442,39 +441,6 @@ export type ReplaceCustomFieldsPayload = {
     createdByUserUuid: string;
     organizationUuid: string;
     projectUuid: string;
-};
-
-export type ReplaceableFieldMatchMap = {
-    [fieldId: string]: {
-        fieldId: string;
-        label: string;
-        match: {
-            fieldId: FieldId;
-            fieldLabel: string;
-        } | null;
-        suggestedMatches: Array<{
-            fieldId: FieldId;
-            fieldLabel: string;
-        }>;
-    };
-};
-
-export type ReplaceableCustomFields = {
-    [chartUuid: string]: {
-        uuid: string;
-        label: string;
-        customMetrics: ReplaceableFieldMatchMap;
-    };
-};
-
-export type ReplaceCustomFields = {
-    [chartUuid: string]: {
-        customMetrics: {
-            [customMetricId: string]: {
-                replaceWithFieldId: string;
-            };
-        };
-    };
 };
 
 export type ValidateProjectPayload = {
