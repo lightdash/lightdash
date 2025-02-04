@@ -570,8 +570,10 @@ export const convertMetricFilterToDbt = (
             )
                 return acc;
             const value: string = convertFilterOperatorToDbt(filter);
-
-            return [...(acc || []), { [target.fieldRef]: value }];
+            const fieldRefParts = target.fieldRef.split('.');
+            const fieldId =
+                fieldRefParts.length > 1 ? fieldRefParts[1] : target.fieldRef;
+            return [...(acc || []), { [fieldId]: value }];
         },
         [],
     );

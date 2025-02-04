@@ -825,14 +825,14 @@ describe('convertMetricFilterToDbt', () => {
     it('should convert EQUALS filter correctly', () => {
         const filters: MetricFilterRule[] = [
             {
-                target: { fieldRef: 'field1' },
+                target: { fieldRef: 'customers.customer_id' },
                 id: '1',
                 operator: FilterOperator.EQUALS,
                 values: ['value1'],
             },
         ];
         const expected: DbtColumnLightdashMetric['filters'] = [
-            { field1: 'value1' },
+            { customer_id: 'value1' },
         ];
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
     });
