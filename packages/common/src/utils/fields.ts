@@ -130,20 +130,23 @@ export function compareMetricAndCustomMetric({
             requiredForSuggestion: true,
         },
         filtersMatch: {
-            isMatch: (metric.filters || []).every((filter) =>
-                customMetric.filters?.find((customFilter) => {
-                    const fieldRefMatch =
-                        customFilter.target.fieldRef === filter.target.fieldRef;
-                    const operatorMatch =
-                        customFilter.operator === filter.operator;
-                    const valuesMatch =
-                        customFilter.values === filter.values ||
-                        customFilter.values?.every((value) =>
-                            filter.values?.includes(value),
-                        );
-                    return fieldRefMatch && operatorMatch && valuesMatch;
-                }),
-            ),
+            isMatch:
+                customMetric.filters?.length === metric.filters?.length &&
+                (metric.filters || []).every((filter) =>
+                    customMetric.filters?.find((customFilter) => {
+                        const fieldRefMatch =
+                            customFilter.target.fieldRef ===
+                            filter.target.fieldRef;
+                        const operatorMatch =
+                            customFilter.operator === filter.operator;
+                        const valuesMatch =
+                            customFilter.values === filter.values ||
+                            customFilter.values?.every((value) =>
+                                filter.values?.includes(value),
+                            );
+                        return fieldRefMatch && operatorMatch && valuesMatch;
+                    }),
+                ),
             requiredForSuggestion: true,
         },
     };
