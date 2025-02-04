@@ -1,3 +1,10 @@
+## [0.1478.4](https://github.com/lightdash/lightdash/compare/0.1478.3...0.1478.4) (2025-02-04)
+
+
+### Bug Fixes
+
+* disable emphasis on echarts mouseout ([#13507](https://github.com/lightdash/lightdash/issues/13507)) ([79dac85](https://github.com/lightdash/lightdash/commit/79dac8552a46642b203cfd13fd02e149500233da))
+
 ## [0.1478.3](https://github.com/lightdash/lightdash/compare/0.1478.2...0.1478.3) (2025-02-04)
 
 
