@@ -150,21 +150,7 @@ export function compareMetricAndCustomMetric({
     const isSuggestedMatch = Object.values(conditions)
         .filter((condition) => condition.requiredForSuggestion)
         .every((condition) => condition.isMatch);
-    if (
-        conditions.fieldIdMatch.isMatch &&
-        getItemId(metric) === 'customers_customer_id_average_of_customer_id'
-    ) {
-        console.log('isExactMatch', isExactMatch);
-        console.log('isSuggestedMatch', isSuggestedMatch);
-        console.log('conditions', conditions);
-        console.log(
-            'format',
-            metric.formatOptions,
-            metric.format,
-            customMetric.formatOptions,
-            customMetric.format,
-        );
-    }
+
     return {
         isExactMatch,
         isSuggestedMatch,
