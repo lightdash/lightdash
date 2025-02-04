@@ -55,6 +55,7 @@ import useEmbed from '../providers/Embed/useEmbed';
 const useEmbedDashboard = (
     projectUuid: string | undefined,
     embedToken: string | undefined,
+    baseUrl?: string,
 ) => {
     return useQuery<Dashboard & InteractivityOptions, ApiError>({
         queryKey: ['embed-dashboard'],
@@ -66,6 +67,7 @@ const useEmbedDashboard = (
                     'Lightdash-Embed-Token': embedToken!,
                 },
                 body: undefined,
+                baseUrl,
             }),
         enabled: !!embedToken && !!projectUuid,
         retry: false,
@@ -76,6 +78,7 @@ const useEmbedChartAndResults = (
     projectUuid: string,
     embedToken: string | undefined,
     tileUuid: string,
+    baseUrl?: string,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const dateZoomGranularity = useDashboardContext(
@@ -101,6 +104,7 @@ const useEmbedChartAndResults = (
                     dashboardFilters,
                     dateZoomGranularity,
                 }),
+                baseUrl,
             }),
         enabled: !!embedToken,
         retry: false,
@@ -114,6 +118,7 @@ const EmbedDashboardChartTile: FC<
         projectUuid: string;
         embedToken: string;
         locked: boolean;
+        baseUrl?: string;
     }
 > = ({
     projectUuid,
@@ -123,12 +128,14 @@ const EmbedDashboardChartTile: FC<
     canExportImages,
     canExportPagePdf,
     canDateZoom,
+    baseUrl,
     ...rest
 }) => {
     const { isLoading, data, error } = useEmbedChartAndResults(
         projectUuid,
         embedToken,
         rest.tile.uuid,
+        baseUrl,
     );
     if (locked) {
         return (
@@ -329,11 +336,15 @@ const DashboardHeader: FC<{
     );
 };
 
-const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
+const EmbedDashboard: FC<{ embedToken: string; baseUrl?: string }> = ({
+    embedToken,
+    baseUrl,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: dashboard, error: dashboardError } = useEmbedDashboard(
         projectUuid,
         embedToken,
+        baseUrl,
     );
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {
@@ -432,6 +443,7 @@ const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
                                 canExportCsv={dashboard.canExportCsv}
                                 canExportImages={dashboard.canExportImages}
                                 locked={hasRequiredDashboardFiltersToSet}
+                                baseUrl={baseUrl}
                             />
                         ) : tile.type === DashboardTileTypes.MARKDOWN ? (
                             <MarkdownTile
@@ -481,10 +493,12 @@ const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
 
 type Props = {
     projectUuid?: string;
+    baseUrl?: string;
 };
 
 const EmbedDashboardPage: FC<Props> = ({
     projectUuid: projectUuidFromProps,
+    baseUrl,
 }) => {
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid: string;
@@ -506,7 +520,10 @@ const EmbedDashboardPage: FC<Props> = ({
 
     return (
         <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
-            <EmbedDashboard embedToken={embedToken} />
+            <EmbedDashboard
+                embedToken={embedToken}
+                baseUrl={baseUrl}
+            />
         </DashboardProvider>
     );
 };

@@ -48,6 +48,7 @@ type LightdashApiProps = {
     body: BodyInit | null | undefined;
     headers?: Record<string, string> | undefined;
     version?: 'v1' | 'v2';
+    baseUrl?: string;
 };
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
@@ -55,8 +56,9 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     body,
     headers,
     version = 'v1',
+    baseUrl,
 }: LightdashApiProps): Promise<T> => {
-    const apiPrefix = `${BASE_API_URL}api/${version}`;
+    const apiPrefix = `${baseUrl ?? BASE_API_URL}api/${version}`;
 
     let sentryTrace: string | undefined;
     // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.

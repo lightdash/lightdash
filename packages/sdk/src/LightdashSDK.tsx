@@ -19,10 +19,14 @@ import { FC } from 'react';
 type Props = {
     projectUuid: string;
     embedToken: string;
-    lightdashBaseUrl: string;
+    lightdashBaseUrl?: string;
 };
 
-const LightdashSDK: FC<Props> = ({ embedToken, projectUuid }) => {
+const LightdashSDK: FC<Props> = ({
+    embedToken,
+    projectUuid,
+    lightdashBaseUrl,
+}) => {
     const router = createBrowserRouter([
         {
             path: '/',
@@ -30,7 +34,7 @@ const LightdashSDK: FC<Props> = ({ embedToken, projectUuid }) => {
                 <AppProvider>
                     <ThirdPartyServicesProvider enabled={false}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                            <TrackingProvider enabled={false}>
+                            <TrackingProvider enabled={true}>
                                 <AbilityProvider>
                                     <ActiveJobProvider>
                                         <ChartColorMappingContextProvider>
@@ -48,7 +52,10 @@ const LightdashSDK: FC<Props> = ({ embedToken, projectUuid }) => {
                     path: '/:projectUuid',
                     element: (
                         <EmbedProvider embedToken={embedToken}>
-                            <EmbedDashboard projectUuid={projectUuid} />
+                            <EmbedDashboard
+                                projectUuid={projectUuid}
+                                baseUrl={lightdashBaseUrl}
+                            />
                         </EmbedProvider>
                     ),
                 },
