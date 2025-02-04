@@ -1,3 +1,12 @@
+## [0.1478.5](https://github.com/lightdash/lightdash/compare/0.1478.4...0.1478.5) (2025-02-04)
+
+
+### Bug Fixes
+
+* better parse bigquery errors ([#13495](https://github.com/lightdash/lightdash/issues/13495)) ([756c201](https://github.com/lightdash/lightdash/commit/756c2012f3683b2e335fdc6a1498967351b14f45))
+* project admin cant invite new users ([#13467](https://github.com/lightdash/lightdash/issues/13467)) ([e27d475](https://github.com/lightdash/lightdash/commit/e27d475a8b5049e8b880fe256de1a39920c014b9))
+* write back custom metric PR (backend)  ([#13492](https://github.com/lightdash/lightdash/issues/13492)) ([9d73436](https://github.com/lightdash/lightdash/commit/9d734365778e5eaad68ed03cf6164a86ebb2b084))
+
 ## [0.1478.4](https://github.com/lightdash/lightdash/compare/0.1478.3...0.1478.4) (2025-02-04)
 
 
