@@ -117,7 +117,14 @@ if (lightdashConfig.logging.outputs.includes('file')) {
     );
 }
 
-export const winstonLogger = winston.createLogger({
+type WinstonLogger = {
+    debug: (message: string) => void;
+    info: (message: string) => void;
+    warn: (message: string) => void;
+    error: (message: string) => void;
+};
+
+export const winstonLogger: WinstonLogger = winston.createLogger({
     levels,
     transports,
 });
