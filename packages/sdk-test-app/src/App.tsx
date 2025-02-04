@@ -3,9 +3,11 @@ import LightdashSDK from '@lightdash/sdk';
 function App() {
     return (
         <>
-            <LightdashSDK
-                lightdashBaseUrl="http://localhost:3000/"
-                embedToken="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJkYXNoYm9hcmRVdWlkIjoiNWM5NDE2NDEtNDkxMS00ZWY5LWJhZmMtOGU1YjJmOTVhYzg4IiwiZGFzaGJvYXJkRmlsdGVyc0ludGVyYWN0aXZpdHkiOnsiZW5hYmxlZCI6Im5vbmUiLCJhbGxvd2VkRmlsdGVycyI6bnVsbH0sImNhbkV4cG9ydENzdiI6ZmFsc2UsImNhbkV4cG9ydEltYWdlcyI6ZmFsc2V9LCJ1c2VyIjp7ImV4dGVybmFsSWQiOm51bGwsImVtYWlsIjoiZGVtb0BsaWdodGRhc2guY29tIn0sInVzZXJBdHRyaWJ1dGVzIjp7fSwiaWF0IjoxNzM4NjYwOTQ5LCJleHAiOjE3Mzg2OTY5NDl9.aTtZ1InrTLx9FkzyT8_E7kOZX7I2ZaXenybBmf25B04"
+            <LightdashSDK.Dashboard
+                instanceUrl="http://localhost:3000/"
+                getEmbedToken={Promise.resolve(
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJkYXNoYm9hcmRVdWlkIjoiYzNkNDQ1MGUtZmE3Ni00MmY5LWEwN2ItNjMzNTFhMjExYmFkIiwiZGFzaGJvYXJkRmlsdGVyc0ludGVyYWN0aXZpdHkiOnsiZW5hYmxlZCI6Im5vbmUifSwiY2FuRXhwb3J0Q3N2IjpmYWxzZSwiY2FuRXhwb3J0SW1hZ2VzIjpmYWxzZSwiY2FuRXhwb3J0UGFnZVBkZiI6ZmFsc2UsImNhbkRhdGVab29tIjpmYWxzZSwidXNlciI6eyJlbWFpbCI6ImRlbW9AbGlnaHRkYXNoLmNvbSJ9LCJ1c2VyQXR0cmlidXRlcyI6eyIiOiIifX0sImlhdCI6MTczODY3NjI3MCwiZXhwIjoxNzQxMjY4MjcwfQ.csQg7WFD1CSRPWeDjy2YuZ-v_ME5-Sfx2c7Y6trWa-Q',
+                )}
                 projectUuid="3675b69e-8324-4110-bdca-059031aa8da3"
             />
         </>

@@ -14,19 +14,36 @@ import {
     ThirdPartyServicesProvider,
     TrackingProvider,
 } from '@lightdash/frontend';
-import { FC } from 'react';
+import { FC, useEffect, useState } from 'react';
 
 type Props = {
     projectUuid: string;
-    embedToken: string;
-    lightdashBaseUrl?: string;
+    getEmbedToken: Promise<string>;
+    instanceUrl: string;
 };
 
-const LightdashSDK: FC<Props> = ({
-    embedToken,
-    projectUuid,
-    lightdashBaseUrl,
-}) => {
+const persistInstanceUrl = (instanceUrl: string) => {
+    localStorage.setItem(
+        // TODO: should be a constant
+        '__lightdash_sdk_instance_url',
+        instanceUrl,
+    );
+};
+
+const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
+    const [token, setToken] = useState<string | null>(null);
+
+    useEffect(() => {
+        getEmbedToken.then((token) => {
+            persistInstanceUrl(instanceUrl);
+            setToken(token);
+        });
+    }, [getEmbedToken]);
+
+    if (!token) {
+        return null;
+    }
+
     const router = createBrowserRouter([
         {
             path: '/',
@@ -51,11 +68,8 @@ const LightdashSDK: FC<Props> = ({
                 {
                     path: '/:projectUuid',
                     element: (
-                        <EmbedProvider embedToken={embedToken}>
-                            <EmbedDashboard
-                                projectUuid={projectUuid}
-                                baseUrl={lightdashBaseUrl}
-                            />
+                        <EmbedProvider embedToken={token}>
+                            <EmbedDashboard projectUuid={projectUuid} />
                         </EmbedProvider>
                     ),
                 },
@@ -71,5 +85,7 @@ const LightdashSDK: FC<Props> = ({
         </ReactQueryProvider>
     );
 };
+
+const LightdashSDK = { Dashboard };
 
 export default LightdashSDK;

@@ -48,16 +48,17 @@ type LightdashApiProps = {
     body: BodyInit | null | undefined;
     headers?: Record<string, string> | undefined;
     version?: 'v1' | 'v2';
-    baseUrl?: string;
 };
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
     headers,
     version = 'v1',
-    baseUrl,
 }: LightdashApiProps): Promise<T> => {
+    // TODO: should be a constant
+    const baseUrl = localStorage.getItem('__lightdash_sdk_instance_url');
     const apiPrefix = `${baseUrl ?? BASE_API_URL}api/${version}`;
 
     let sentryTrace: string | undefined;
