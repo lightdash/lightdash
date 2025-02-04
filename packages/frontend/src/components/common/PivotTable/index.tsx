@@ -148,7 +148,7 @@ const PivotTable: FC<PivotTableProps> = ({
             (col, colIndex) => {
                 newColumnOrder.push(col.fieldId);
 
-                const itemId = col.underlyingId || col.baseId;
+                const itemId = col.underlyingId || col.baseId || col.fieldId;
                 const item = itemId ? getField(itemId) : undefined;
 
                 const shouldAggregate =
@@ -202,7 +202,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     },
                     {
                         id: col.fieldId,
-                        cell: (info: any) => {
+                        cell: (info) => {
                             return info.getValue()?.value?.formatted || '-';
                         },
                         meta: {
@@ -529,7 +529,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     )?.fieldId;
                                     item = underlyingId
                                         ? getField(underlyingId)
-                                        : undefined;
+                                        : item;
                                 }
 
                                 const fullValue =
@@ -600,7 +600,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const TableCellComponent = isRowTotal
                                     ? Table.CellHead
                                     : Table.Cell;
-
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}`}
