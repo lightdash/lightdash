@@ -2443,11 +2443,9 @@ export class ProjectService extends BaseService {
         const groupByQuery = `SELECT ${[
             ...new Set(groupBySelectDimensions), // Remove duplicate columns
             ...groupBySelectMetrics,
-        ].join(', ')}
-                              FROM original_query
-                              group by ${Array.from(
-                                  new Set(groupBySelectDimensions),
-                              ).join(', ')}`;
+        ].join(', ')} FROM original_query group by ${Array.from(
+            new Set(groupBySelectDimensions),
+        ).join(', ')}`;
 
         const selectReferences = [
             indexColumn.reference,
@@ -2474,13 +2472,11 @@ export class ProjectService extends BaseService {
             indexColumn.reference
         }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
-        }${q}) as ${q}column_index${q}
-                            FROM group_by_query`;
+        }${q}) as ${q}column_index${q} FROM group_by_query`;
 
         if (groupByColumns && groupByColumns.length > 0) {
             // Wrap the original query in a CTE
-            let pivotedSql = `WITH original_query
-                                       AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
+            let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
 
             pivotedSql += `\nSELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
                 limit ?? 500
