@@ -1,3 +1,10 @@
+## [0.1478.6](https://github.com/lightdash/lightdash/compare/0.1478.5...0.1478.6) (2025-02-04)
+
+
+### Bug Fixes
+
+*  filter pivot table ([#13475](https://github.com/lightdash/lightdash/issues/13475)) ([4f407bb](https://github.com/lightdash/lightdash/commit/4f407bbb945f99c324524ea91f0aaec776b83be8))
+
 ## [0.1478.5](https://github.com/lightdash/lightdash/compare/0.1478.4...0.1478.5) (2025-02-04)
 
 
