@@ -1,6 +1,13 @@
 import moment from 'moment-timezone';
-import { SupportedDbtAdapter } from '../types/dbt';
-import { CompileError } from '../types/errors';
+import {
+    SupportedDbtAdapter,
+    type DbtColumnLightdashMetric,
+} from '../types/dbt';
+import {
+    CompileError,
+    NotImplementedError,
+    ParameterError,
+} from '../types/errors';
 import {
     CustomFormatType,
     DimensionType,
@@ -20,6 +27,7 @@ import {
     unitOfTimeFormat,
     type DateFilterRule,
     type FilterRule,
+    type MetricFilterRule,
 } from '../types/filter';
 import assertUnreachable from '../utils/assertUnreachable';
 import { formatDate } from '../utils/formatting';
@@ -484,4 +492,87 @@ export const renderFilterRuleSql = (
             );
         }
     }
+};
+
+/**
+ * Converts a filter rule from custom metrics to dbt meta tags in yml
+ * More info about dbt filters: https://docs.lightdash.com/references/metrics/#available-filter-types
+ */
+const convertFilterOperatorToDbt = (filter: MetricFilterRule): string => {
+    const { values, operator } = filter;
+
+    if (
+        values === undefined ||
+        values.length === 0 ||
+        values[0] === undefined
+    ) {
+        throw new ParameterError(
+            `Filter values are undefined for filter: ${JSON.stringify(filter)}`,
+        );
+    }
+    // Value can be null
+
+    switch (operator) {
+        case FilterOperator.EQUALS:
+        case FilterOperator.NULL:
+            return `${values[0]}`;
+        case FilterOperator.NOT_EQUALS:
+        case FilterOperator.NOT_NULL:
+            return `!${values[0]}`;
+        case FilterOperator.INCLUDE:
+            return `%${values[0]}%`;
+        case FilterOperator.NOT_INCLUDE:
+            return `!%${values[0]}%`;
+        case FilterOperator.STARTS_WITH:
+            return `${values[0]}%`;
+        case FilterOperator.ENDS_WITH:
+            return `%${values[0]}`;
+        case FilterOperator.GREATER_THAN:
+            return `> ${values[0]}`;
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
+            return `>= ${values[0]}`;
+        case FilterOperator.LESS_THAN:
+            return `< ${values[0]}`;
+        case FilterOperator.LESS_THAN_OR_EQUAL:
+            return `<= ${values[0]}`;
+        case FilterOperator.IN_THE_NEXT:
+        case FilterOperator.IN_THE_PAST:
+            return `${operator} ${values[0]}`;
+        case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.IN_BETWEEN:
+        case FilterOperator.NOT_IN_THE_PAST:
+        case FilterOperator.NOT_IN_THE_CURRENT:
+            throw new NotImplementedError(
+                `No function implemented to convert custom metric filter to dbt: ${operator}`,
+            );
+
+        default:
+            assertUnreachable(
+                operator,
+                `No function implemented to convert custom metric filter to dbt: ${operator}`,
+            );
+    }
+    return `${values[0]}`;
+};
+export const convertMetricFilterToDbt = (
+    filters: MetricFilterRule[] | undefined,
+): DbtColumnLightdashMetric['filters'] => {
+    if (!filters) return undefined;
+
+    return filters.reduce<DbtColumnLightdashMetric['filters']>(
+        (acc, filter) => {
+            const { target, values } = filter;
+
+            if (
+                values === undefined ||
+                values.length === 0 ||
+                values[0] === undefined
+            )
+                return acc;
+            const value: string = convertFilterOperatorToDbt(filter);
+
+            return [...(acc || []), { [target.fieldRef]: value }];
+        },
+        [],
+    );
 };

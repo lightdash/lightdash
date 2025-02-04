@@ -1,7 +1,13 @@
 import moment from 'moment/moment';
-import { FilterOperator, UnitOfTime } from '../types/filter';
+import { type DbtColumnLightdashMetric } from '../types/dbt';
+import {
+    FilterOperator,
+    UnitOfTime,
+    type MetricFilterRule,
+} from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
+    convertMetricFilterToDbt,
     renderDateFilterSql,
     renderFilterRuleSql,
     renderNumberFilterSql,
@@ -804,5 +810,199 @@ describe('Filter SQL', () => {
                 disabledFilterMock.timezone,
             ),
         ).toBe('1=1');
+    });
+});
+
+describe('convertMetricFilterToDbt', () => {
+    it('should return undefined if filters are undefined', () => {
+        expect(convertMetricFilterToDbt(undefined)).toBeUndefined();
+    });
+
+    it('should return an empty array if filters are an empty array', () => {
+        expect(convertMetricFilterToDbt([])).toEqual([]);
+    });
+
+    it('should convert EQUALS filter correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.EQUALS,
+                values: ['value1'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field1: 'value1' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should convert NOT_EQUALS filter correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field2' },
+                id: '1',
+                operator: FilterOperator.NOT_EQUALS,
+                values: ['value2'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field2: '!value2' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+    it('should convert NULL filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field2' },
+                id: '1',
+                operator: FilterOperator.EQUALS,
+                values: [null],
+            },
+            {
+                target: { fieldRef: 'field3' },
+                id: '1',
+                operator: FilterOperator.NOT_EQUALS,
+                values: [null],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field2: 'null' },
+            { field3: '!null' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+    it('should convert boolean filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field2' },
+                id: '1',
+                operator: FilterOperator.EQUALS,
+                values: [false],
+            },
+            {
+                target: { fieldRef: 'field3' },
+                id: '1',
+                operator: FilterOperator.NOT_EQUALS,
+                values: [true],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field2: 'false' },
+            { field3: '!true' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should convert INCLUDE filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.INCLUDE,
+                values: ['katie'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field1: '%katie%' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should convert STARTS_WITH and ENDS_WITH filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.STARTS_WITH,
+                values: ['katie'],
+            },
+            {
+                target: { fieldRef: 'field2' },
+                id: '2',
+                operator: FilterOperator.ENDS_WITH,
+                values: ['katie'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field1: 'katie%' },
+            { field2: '%katie' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should convert GREATER_THAN and GREATER_THAN_OR_EQUAL filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.GREATER_THAN,
+                values: ['4'],
+            },
+            {
+                target: { fieldRef: 'field2' },
+                id: '2',
+                operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                values: ['5'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field1: '> 4' },
+            { field2: '>= 5' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should convert IN_THE_NEXT and IN_THE_PAST filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.IN_THE_NEXT,
+                values: ['14 days'],
+            },
+            {
+                target: { fieldRef: 'field2' },
+                id: '2',
+                operator: FilterOperator.IN_THE_PAST,
+                values: ['14 months'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field1: 'inTheNext 14 days' },
+            { field2: 'inThePast 14 months' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+    it('should handle filters with undefined or empty values', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field3' },
+                id: '1',
+                operator: FilterOperator.EQUALS,
+                values: [],
+            },
+            {
+                target: { fieldRef: 'field4' },
+                id: '2',
+                operator: FilterOperator.EQUALS,
+                values: [undefined],
+            },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual([]);
+    });
+
+    it('should throw NotImplementedError for unsupported operators', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field5' },
+                id: '1',
+                operator: FilterOperator.IN_BETWEEN,
+                values: ['value3', 'value4'],
+            },
+        ];
+        expect(() => convertMetricFilterToDbt(filters)).toThrow(
+            'No function implemented to convert custom metric filter to dbt: inBetween',
+        );
     });
 });
