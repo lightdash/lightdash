@@ -7,9 +7,9 @@ import {
     getConditionalFormattingConfigType,
     getItemId,
     getItemLabelWithoutTableName,
-    hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
     type ConditionalFormattingWithConditionalOperator,
@@ -25,16 +25,16 @@ import {
     SegmentedControl,
     Stack,
 } from '@mantine/core';
-import { IconPercentage, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
-import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
+import ConditionalFormattingItemColorRange from './ConditionalFormattingItemColorRange';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 type Props = {
@@ -200,11 +200,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const handleChangeColorRangeColor = useCallback(
-        (
-            newColor: Partial<
-                ConditionalFormattingConfigWithColorRange['color']
-            >,
-        ) => {
+        (newColor: Partial<ConditionalFormattingColorRange>) => {
             if (isConditionalFormattingConfigWithColorRange(config)) {
                 handleChange(
                     produce(config, (draft) => {
@@ -378,76 +374,13 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         ) : isConditionalFormattingConfigWithColorRange(
                               config,
                           ) ? (
-                            <Group spacing="xs" noWrap grow>
-                                <Group>
-                                    <Stack spacing="one">
-                                        <Config.Label>Start</Config.Label>
-                                        <ColorSelector
-                                            color={config.color.start}
-                                            swatches={colorPalette}
-                                            onColorChange={(newStartColor) => {
-                                                handleChangeColorRangeColor({
-                                                    start: newStartColor,
-                                                });
-                                            }}
-                                        />
-                                    </Stack>
-                                    <Stack spacing="one">
-                                        <Config.Label>End</Config.Label>
-                                        <ColorSelector
-                                            color={config.color.end}
-                                            swatches={colorPalette}
-                                            onColorChange={(newEndColor) => {
-                                                handleChangeColorRangeColor({
-                                                    end: newEndColor,
-                                                });
-                                            }}
-                                        />
-                                    </Stack>
-                                </Group>
-
-                                {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
-                                {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
-                                <FilterNumberInput
-                                    label="Min"
-                                    icon={
-                                        hasPercentageFormat(field) ? (
-                                            <MantineIcon
-                                                icon={IconPercentage}
-                                            />
-                                        ) : null
-                                    }
-                                    value={config.rule.min}
-                                    onChange={(newMin) => {
-                                        if (newMin === null) return;
-
-                                        handleChangeColorRangeRule({
-                                            min: newMin,
-                                        });
-                                    }}
-                                />
-
-                                {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
-                                {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
-                                <FilterNumberInput
-                                    label="Max"
-                                    icon={
-                                        hasPercentageFormat(field) ? (
-                                            <MantineIcon
-                                                icon={IconPercentage}
-                                            />
-                                        ) : null
-                                    }
-                                    value={config.rule.max}
-                                    onChange={(newMax) => {
-                                        if (newMax === null) return;
-
-                                        handleChangeColorRangeRule({
-                                            max: newMax,
-                                        });
-                                    }}
-                                />
-                            </Group>
+                            <ConditionalFormattingItemColorRange
+                                config={config}
+                                field={field}
+                                colorPalette={colorPalette}
+                                onChangeColorRange={handleChangeColorRangeColor}
+                                onChangeMinMax={handleChangeColorRangeRule}
+                            />
                         ) : (
                             assertUnreachable(config, 'Unknown config type')
                         )}

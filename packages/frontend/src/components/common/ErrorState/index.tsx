@@ -1,5 +1,6 @@
 import { type ApiErrorDetail } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import React, { useMemo, type ComponentProps, type FC } from 'react';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
@@ -22,11 +23,17 @@ const ErrorState: FC<{
             const description = (
                 <>
                     <Text maw={400}>{error.message}</Text>
-                    {error.id && (
-                        <Text maw={400} weight="bold">
-                            You can contact support with the following error ID{' '}
-                            {error.id}
-                        </Text>
+                    {(error.sentryEventId || error.sentryTraceId) && (
+                        <>
+                            <Text maw={400} weight="bold">
+                                Contact support with the following information:
+                            </Text>
+                            <Prism ta="left" language="yaml" pr="lg">
+                                {`\nError ID: ${
+                                    error.sentryEventId || 'n/a'
+                                }\nTrace ID: ${error.sentryTraceId || 'n/a'}`}
+                            </Prism>
+                        </>
                     )}
                 </>
             );

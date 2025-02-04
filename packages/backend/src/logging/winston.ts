@@ -3,7 +3,7 @@ import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
-import winston from 'winston';
+import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
 
 const levels = {

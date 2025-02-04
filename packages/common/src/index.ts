@@ -750,7 +750,8 @@ export type ApiErrorDetail = {
     statusCode: number;
     message: string;
     data: { [key: string]: string };
-    id?: string;
+    sentryTraceId?: string;
+    sentryEventId?: string;
 };
 export type ApiError = {
     status: 'error';

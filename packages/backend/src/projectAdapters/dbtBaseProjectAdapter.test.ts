@@ -5,6 +5,7 @@ import {
     type WarehouseClient,
 } from '@lightdash/common';
 import fs from 'fs/promises';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 

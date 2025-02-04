@@ -68,7 +68,14 @@ export class TagsModel {
         return tags;
     }
 
-    async replaceYamlTags(projectUuid: string, yamlTags: DbTagIn[]) {
+    async replaceYamlTags(
+        projectUuid: string,
+        yamlTags: DbTagIn[],
+    ): Promise<{ yamlTagsToCreateOrUpdate: string[] }> {
+        const result: {
+            yamlTagsToCreateOrUpdate: string[];
+        } = { yamlTagsToCreateOrUpdate: [] };
+
         await this.database.transaction(async (trx) => {
             // get all yaml tags in the project
             const projectYamlTags = await trx(TagsTableName)
@@ -83,6 +90,10 @@ export class TagsModel {
                             projectYamlTag.yaml_reference ===
                             yamlTag.yaml_reference,
                     ),
+            );
+
+            result.yamlTagsToCreateOrUpdate = yamlTagsToCreate.map(
+                (tag) => tag.name,
             );
 
             // get all updates for the existing project yaml tags
@@ -109,6 +120,11 @@ export class TagsModel {
                 },
                 {},
             );
+
+            result.yamlTagsToCreateOrUpdate = [
+                ...result.yamlTagsToCreateOrUpdate,
+                ...Object.values(yamlTagUpdates).map((tag) => tag.name ?? ''),
+            ];
 
             // delete all yaml tags that are in the project but are not in the yamlTags array
             await trx(TagsTableName)
@@ -137,5 +153,7 @@ export class TagsModel {
                 await Promise.all(updatePromises);
             }
         });
+
+        return result;
     }
 }

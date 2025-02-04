@@ -4,6 +4,7 @@ import {
     CatalogType,
     Explore,
     UnexpectedServerError,
+    type ExploreError,
     type TablesConfiguration,
     type UserAttributeValueMap,
 } from '@lightdash/common';
@@ -123,7 +124,7 @@ export class CommercialCatalogModel extends CatalogModel {
 
     async indexCatalog(
         projectUuid: string,
-        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+        cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError },
         projectYamlTags: DbTag[],
         userUuid: string | undefined,
     ): Promise<{
@@ -132,7 +133,7 @@ export class CommercialCatalogModel extends CatalogModel {
     }> {
         const { catalogInserts, catalogFieldMap } = await super.indexCatalog(
             projectUuid,
-            cachedExplores,
+            cachedExploreMap,
             projectYamlTags,
             userUuid,
         );
