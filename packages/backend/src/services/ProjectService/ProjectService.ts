@@ -5387,10 +5387,6 @@ export class ProjectService extends BaseService {
         const charts = await this.savedChartModel.findChartsWithCustomFields(
             projectUuid,
         );
-        console.log(
-            'charts',
-            charts.map((chart) => chart.uuid),
-        );
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
             charts.map((chart) => chart.tableName),
