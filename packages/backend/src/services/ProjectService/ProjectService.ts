@@ -5435,14 +5435,26 @@ export class ProjectService extends BaseService {
             async ([chartUuid, fieldsToReplace]) => {
                 const chart = await this.savedChartModel.get(chartUuid);
                 if (chart.updatedAt > skipChartsUpdatedAfter) {
-                    // skip update if chart was recently updated
+                    this.logger.info(
+                        `Skipped replace custom fields in chart ${chart.uuid} as it was recently updated.`,
+                    );
                     return null;
                 }
-                const { hasChanges, chartVersion } =
+                const { hasChanges, chartVersion, skippedFields } =
                     maybeReplaceFieldsInChartVersion({
                         fieldsToReplace,
                         chartVersion: chart,
                     });
+                if (Object.keys(skippedFields.customMetrics).length > 0) {
+                    const skippedReasons: string[] = Object.entries(
+                        skippedFields.customMetrics,
+                    ).map(([key, { reason }]) => `[${key}] ${reason}`);
+                    this.logger.info(
+                        `Skipped replace custom fields in chart ${
+                            chart.uuid
+                        }:\n ${skippedReasons.join('\n')}`,
+                    );
+                }
                 // create new version if any fields were replaced
                 if (hasChanges) {
                     await this.savedChartModel.createVersion(
