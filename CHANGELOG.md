@@ -1,3 +1,10 @@
+## [0.1478.8](https://github.com/lightdash/lightdash/compare/0.1478.7...0.1478.8) (2025-02-04)
+
+
+### Bug Fixes
+
+* series disappearing when adding filters ([#13510](https://github.com/lightdash/lightdash/issues/13510)) ([0baaceb](https://github.com/lightdash/lightdash/commit/0baaceb64b9f24b78893559ba989e7c24c1acea5))
+
 ## [0.1478.7](https://github.com/lightdash/lightdash/compare/0.1478.6...0.1478.7) (2025-02-04)
 
 
