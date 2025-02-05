@@ -209,6 +209,9 @@ importers:
       connect-session-knex:
         specifier: ^3.0.0
         version: 3.0.1(pg@8.13.1)
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       cron-converter:
         specifier: ^2.0.0
         version: 2.0.0
@@ -402,6 +405,9 @@ importers:
       '@types/connect-flash':
         specifier: ^0.0.37
         version: 0.0.37
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.17
       '@types/diff':
         specifier: ^7.0.1
         version: 7.0.1
@@ -4107,6 +4113,9 @@ packages:
   '@types/cookies@0.7.7':
     resolution: {integrity: sha512-h7BcvPUogWbKCzBR2lY4oqaZbO3jXZksexYJVFvkrFeLgbZjQkU4x8pRq6eg2MHXQhY0McQdqmmsxRWlVAHooA==}
 
+  '@types/cors@2.8.17':
+    resolution: {integrity: sha512-8CGDvrBj1zgo2qE+oS3pOCyYNqCPryMWY2bGfwA0dcfopWGgxs+78df0Rs3rc9THP4JkOhLsAa+15VdpAqkcUA==}
+
   '@types/d3-array@3.2.1':
     resolution: {integrity: sha512-Y2Jn2idRrLzUfAKV2LyRImR+y4oa2AntrgID95SHJxuMUrkNXmanDSed71sRNZysveJVt1hLLemQZIady0FpEg==}
 
@@ -5602,6 +5611,10 @@ packages:
 
   core-util-is@1.0.2:
     resolution: {integrity: sha512-3lqz5YjWTYnW6dlDa5TLaTCcShfar1e40rmcJVwCBJC6mWlFuj0eCHIElmG1g5kyuJ/GD+8Wn4FFCcz4gJPfaQ==}
+
+  cors@2.8.5:
+    resolution: {integrity: sha512-KIHbLJqu73RGr/hnbrO9uBeixNGuvSQjul/jdFvS/KFSIH1hWVd1ng7zOHx+YrEfInLG7q4n6GHQ9cDtxv/P6g==}
+    engines: {node: '>= 0.10'}
 
   cosmiconfig@7.1.0:
     resolution: {integrity: sha512-AdmX6xUzdNASswsFtmwSt7Vj8po9IuqXm0UXz7QKPuEUmPB4XyjGfaAr2PSuELMwkRMVH1EpIkX5bTZGRB3eCA==}
@@ -9826,7 +9839,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.13.0:
@@ -16061,7 +16073,7 @@ snapshots:
 
   '@types/connect@3.4.36':
     dependencies:
-      '@types/node': 20.11.19
+      '@types/node': 20.17.12
 
   '@types/content-disposition@0.5.5': {}
 
@@ -16073,6 +16085,10 @@ snapshots:
       '@types/express': 4.17.14
       '@types/keygrip': 1.0.2
       '@types/node': 20.11.19
+
+  '@types/cors@2.8.17':
+    dependencies:
+      '@types/node': 20.17.12
 
   '@types/d3-array@3.2.1': {}
 
@@ -16212,7 +16228,7 @@ snapshots:
 
   '@types/jsonwebtoken@8.5.9':
     dependencies:
-      '@types/node': 20.11.19
+      '@types/node': 20.17.12
 
   '@types/jsonwebtoken@9.0.5':
     dependencies:
@@ -16237,7 +16253,7 @@ snapshots:
       '@types/http-errors': 2.0.1
       '@types/keygrip': 1.0.2
       '@types/koa-compose': 3.2.5
-      '@types/node': 20.11.19
+      '@types/node': 20.17.12
 
   '@types/koa@2.15.0':
     dependencies:
@@ -16274,7 +16290,7 @@ snapshots:
 
   '@types/mysql@2.15.22':
     dependencies:
-      '@types/node': 20.11.19
+      '@types/node': 20.17.12
 
   '@types/node-fetch@2.5.12':
     dependencies:
@@ -16382,7 +16398,7 @@ snapshots:
 
   '@types/pg@8.6.1':
     dependencies:
-      '@types/node': 20.11.19
+      '@types/node': 20.17.12
       pg-protocol: 1.7.0
       pg-types: 2.2.0
 
@@ -16497,7 +16513,7 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 20.11.19
+      '@types/node': 20.17.12
 
   '@types/yargs-parser@20.2.0': {}
 
@@ -17823,6 +17839,11 @@ snapshots:
   core-js@3.38.0: {}
 
   core-util-is@1.0.2: {}
+
+  cors@2.8.5:
+    dependencies:
+      object-assign: 4.1.1
+      vary: 1.1.2
 
   cosmiconfig@7.1.0:
     dependencies:
