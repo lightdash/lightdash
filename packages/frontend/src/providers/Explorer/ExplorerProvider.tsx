@@ -799,9 +799,8 @@ function reducer(
                 modals: {
                     ...state.modals,
                     additionalMetricWriteBack: {
-                        ...action.payload,
-                        item: action.payload?.item,
                         isOpen: !state.modals.additionalMetricWriteBack.isOpen,
+                        ...(action.payload && { ...action.payload }),
                     },
                 },
             };
@@ -1279,7 +1278,7 @@ const ExplorerProvider: FC<
     );
 
     const toggleAdditionalMetricWriteBackModal = useCallback(
-        (args?: { item: AdditionalMetric }) => {
+        (args?: { item?: AdditionalMetric }) => {
             dispatch({
                 type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
                 payload: args,

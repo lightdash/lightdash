@@ -1,354 +1,141 @@
 import {
-    CustomFormatType,
-    friendlyName,
-    getFilterableDimensionsFromItemsMap,
-    getItemId,
-    isAdditionalMetric,
-    isCustomDimension,
-    isDimension,
-    MetricType,
-    NumberSeparator,
-    type AdditionalMetric,
-    type CustomFormat,
-    type FilterableDimension,
-} from '@lightdash/common';
-import {
-    Accordion,
     Button,
+    Group,
+    List,
     Modal,
-    NumberInput,
     Stack,
     Text,
-    TextInput,
-    Title,
+    Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { type ValueOf } from 'type-fest';
-import { v4 as uuidv4 } from 'uuid';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplore } from '../../../hooks/useExplore';
+import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+import { useCallback } from 'react';
+import { useParams } from 'react-router';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
-import FiltersProvider from '../../common/Filters/FiltersProvider';
-import { FormatForm } from '../FormatForm';
-import { FilterForm, type MetricFilterRuleWithFieldId } from './FilterForm';
-import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
-import {
-    addFieldIdToMetricFilterRule,
-    getCustomMetricName,
-    prepareCustomMetricData,
-} from './utils';
+import MantineIcon from '../../common/MantineIcon';
+import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
 
 export const CustomMetricWriteBackModal = () => {
     const { isOpen, item } = useExplorerContext(
         (context) => context.state.modals.additionalMetricWriteBack,
     );
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+    }>();
 
-    const isEditing = false;
-    const customMetricType = MetricType.PERCENTILE;
-    const canApplyFormatting = true;
     const toggleModal = useExplorerContext(
-        (context) => context.actions.toggleAdditionalMetricModal,
+        (context) => context.actions.toggleAdditionalMetricWriteBackModal,
     );
 
-    const { showToastSuccess } = useToaster();
-    const addAdditionalMetric = useExplorerContext(
-        (context) => context.actions.addAdditionalMetric,
-    );
-    const editAdditionalMetric = useExplorerContext(
-        (context) => context.actions.editAdditionalMetric,
-    );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-
-    const { data: exploreData } = useExplore(tableName);
-
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-
-    const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
-
-    const dimensionsMap = getFilterableDimensionsFromItemsMap(fieldsMap);
-
-    const form = useForm<
-        Pick<AdditionalMetric, 'percentile'> & {
-            format: CustomFormat;
-            customMetricLabel: string;
-        }
-    >({
-        validateInputOnChange: true,
-        initialValues: {
-            customMetricLabel: '',
-            percentile: 50,
-            format: {
-                type: CustomFormatType.DEFAULT,
-                round: undefined,
-                separator: NumberSeparator.DEFAULT,
-                currency: undefined,
-                compact: undefined,
-                prefix: undefined,
-                suffix: undefined,
-            },
-        },
-        validate: {
-            customMetricLabel: (label) => {
-                if (!label) return null;
-
-                if (!item) return null;
-
-                const metricName = getCustomMetricName(
-                    item.table,
-                    label,
-                    isEditing &&
-                        isAdditionalMetric(item) &&
-                        'baseDimensionName' in item &&
-                        item.baseDimensionName
-                        ? item.baseDimensionName
-                        : item.name,
-                );
-
-                if (isEditing && metricName === item.name) {
-                    return null;
-                }
-
-                return additionalMetrics?.some(
-                    (metric) => metric.name === metricName,
-                )
-                    ? 'Metric with this label already exists'
-                    : null;
-            },
-            percentile: (percentile) => {
-                if (!percentile) return null;
-                if (percentile < 0 || percentile > 100) {
-                    return 'Percentile must be a number between 0 and 100';
-                }
-            },
-        },
-    });
-
-    const { setFieldValue } = form;
-    useEffect(() => {
-        if (!item || !customMetricType) return;
-
-        const label = isCustomDimension(item) ? item.name : item.label;
-        if (label && customMetricType) {
-            setFieldValue(
-                'customMetricLabel',
-                isEditing
-                    ? label
-                    : customMetricType
-                    ? `${friendlyName(customMetricType)} of ${label}`
-                    : '',
-            );
-        }
-    }, [setFieldValue, item, customMetricType, isEditing]);
-
-    const initialCustomMetricFiltersWithIds = useMemo(() => {
-        if (!isEditing) return [];
-
-        return isAdditionalMetric(item)
-            ? item.filters?.map((filterRule) =>
-                  addFieldIdToMetricFilterRule(filterRule),
-              ) || []
-            : [];
-    }, [isEditing, item]);
-
-    const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
-        useState<MetricFilterRuleWithFieldId[]>(
-            initialCustomMetricFiltersWithIds,
-        );
-
-    useEffect(() => {
-        setCustomMetricFiltersWithIds(initialCustomMetricFiltersWithIds);
-    }, [initialCustomMetricFiltersWithIds]);
-
-    useEffect(
-        function populateForm() {
-            if (isEditing && isAdditionalMetric(item)) {
-                if (item.percentile)
-                    setFieldValue('percentile', item.percentile);
-
-                if (item.formatOptions) {
-                    setFieldValue('format', item.formatOptions);
-                }
-            }
-        },
-        [isEditing, item, setFieldValue],
-    );
+    const {
+        mutate: writeBackCustomMetrics,
+        data,
+        isLoading,
+        reset,
+    } = useWriteBackCustomMetrics(projectUuid!);
 
     const handleClose = useCallback(() => {
-        form.reset();
         toggleModal();
-    }, [form, toggleModal]);
-
-    const handleOnSubmit = form.onSubmit(
-        ({ customMetricLabel, percentile, format }) => {
-            if (!item || !customMetricType) return;
-
-            const data = prepareCustomMetricData({
-                item,
-                type: customMetricType,
-                customMetricLabel,
-                customMetricFiltersWithIds,
-                isEditingCustomMetric: !!isEditing,
-                exploreData,
-                percentile,
-                formatOptions: format,
-            });
-
-            if (isEditing && isAdditionalMetric(item)) {
-                editAdditionalMetric(
-                    {
-                        ...item,
-                        ...data,
-                    },
-                    getItemId(item),
-                );
-                showToastSuccess({
-                    title: 'Custom metric edited successfully',
-                });
-            } else if (isDimension(item) && form.values.customMetricLabel) {
-                addAdditionalMetric({
-                    uuid: uuidv4(),
-                    baseDimensionName: item.name,
-                    ...data,
-                });
-                showToastSuccess({
-                    title: 'Custom metric added successfully',
-                });
-            } else if (isCustomDimension(item)) {
-                addAdditionalMetric({
-                    uuid: uuidv4(),
-                    // Do not add baseDimensionName to avoid invalid validation errors in queryBuilder
-                    ...data,
-                });
-                showToastSuccess({
-                    title: 'Custom metric added successfully',
-                });
-            }
-            handleClose();
-        },
-    );
-
-    const defaultFilterRuleFieldId = useMemo(() => {
-        if (item) {
-            if (!isEditing) return getItemId(item);
-
-            if (
-                isEditing &&
-                'baseDimensionName' in item &&
-                item.baseDimensionName
-            ) {
-                return `${item.table}_${item.baseDimensionName}`;
-            }
-        }
-    }, [isEditing, item]);
-
-    const getFormatInputProps = (path: keyof CustomFormat) =>
-        form.getInputProps(`format.${path}`);
-
-    const setFormatFieldValue = (
-        path: keyof CustomFormat,
-        value: ValueOf<CustomFormat>,
-    ) => form.setFieldValue(`format.${path}`, value);
+        reset();
+    }, [toggleModal, reset]);
 
     return item ? (
         <Modal
-            size="xl"
+            size="lg"
             onClick={(e) => e.stopPropagation()}
             opened={isOpen}
             onClose={handleClose}
             title={
-                <Title order={4}>
-                    {isEditing ? 'Edit' : 'Create'} Custom Metric
-                </Title>
-            }
-        >
-            <form onSubmit={handleOnSubmit}>
-                <Stack>
-                    <TextInput
-                        label="Label"
-                        required
-                        placeholder="Enter custom metric label"
-                        {...form.getInputProps('customMetricLabel')}
+                <Group spacing="xs">
+                    <MantineIcon
+                        icon={IconBrandGithub}
+                        size="lg"
+                        color="gray.7"
                     />
-                    {customMetricType === MetricType.PERCENTILE && (
-                        <NumberInput
-                            w={100}
-                            max={100}
-                            min={0}
-                            required
-                            label="Percentile"
-                            {...form.getInputProps('percentile')}
+                    <Text fw={500}>Write back to dbt</Text>
+                    <Tooltip
+                        variant="xs"
+                        withinPortal
+                        multiline
+                        maw={300}
+                        label="Convert this custom metric into a metric in your dbt project. This will create a new branch and start a pull request."
+                    >
+                        <MantineIcon
+                            color="gray.7"
+                            icon={IconInfoCircle}
+                            size={16}
                         />
-                    )}
-                    <Accordion chevronPosition="left" chevronSize="xs">
-                        {canApplyFormatting && (
-                            <Accordion.Item value="format">
-                                <Accordion.Control>
-                                    <Text fw={500} fz="sm">
-                                        Format
-                                    </Text>
-                                </Accordion.Control>
-                                <Accordion.Panel>
-                                    <FormatForm
-                                        formatInputProps={getFormatInputProps}
-                                        format={form.values.format}
-                                        setFormatFieldValue={
-                                            setFormatFieldValue
-                                        }
-                                    />
-                                </Accordion.Panel>
-                            </Accordion.Item>
-                        )}
-                        <Accordion.Item value="filters">
-                            <Accordion.Control>
-                                <Text fw={500} fz="sm">
-                                    Filters
-                                    <Text span fw={400} fz="xs">
-                                        {customMetricFiltersWithIds.length > 0
-                                            ? `(${customMetricFiltersWithIds.length}) `
-                                            : ' '}
-                                    </Text>
-                                    <Text span fz="xs" color="gray.5" fw={400}>
-                                        (optional)
-                                    </Text>
-                                </Text>
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <FiltersProvider<
-                                    Record<string, FilterableDimension>
+                    </Tooltip>
+                </Group>
+            }
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
+        >
+            <Stack p="md">
+                {data ? (
+                    <>
+                        <Text>
+                            Your pull request{' '}
+                            <Text span fw={700}>
+                                {data.prTitle}
+                            </Text>{' '}
+                            was successfully created on Github.
+                            <Text pt="md">
+                                Once it is merged, refresh your dbt connection
+                                to see your updated metrics.
+                            </Text>
+                            <Group position="right" w="100%" p="md">
+                                <Button
+                                    color="gray.7"
+                                    onClick={handleClose}
+                                    variant="outline"
+                                    disabled={isLoading}
+                                    size="xs"
                                 >
-                                    projectUuid={projectUuid}
-                                    itemsMap={dimensionsMap}
-                                    startOfWeek={startOfWeek ?? undefined}
-                                    popoverProps={{
-                                        withinPortal: true,
-                                    }}
-                                >
-                                    <FilterForm
-                                        defaultFilterRuleFieldId={
-                                            defaultFilterRuleFieldId
-                                        }
-                                        customMetricFiltersWithIds={
-                                            customMetricFiltersWithIds
-                                        }
-                                        setCustomMetricFiltersWithIds={
-                                            setCustomMetricFiltersWithIds
-                                        }
-                                    />
-                                </FiltersProvider>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                    </Accordion>
-                    <Button display="block" ml="auto" type="submit">
-                        {isEditing ? 'Save changes' : 'Create'}
-                    </Button>
-                </Stack>
-            </form>
+                                    Back
+                                </Button>
+                            </Group>
+                        </Text>
+                    </>
+                ) : (
+                    <>
+                        <Text>
+                            Create a pull request in your dbt project’s GitHub
+                            repository for the following metric:
+                        </Text>
+                        <List spacing="xs" pl="xs">
+                            <List.Item fz="xs" ff="monospace">
+                                {item.label}
+                            </List.Item>
+                        </List>
+                        <Group position="right" w="100%" p="md">
+                            <Button
+                                color="gray.7"
+                                onClick={handleClose}
+                                variant="outline"
+                                disabled={isLoading}
+                                size="xs"
+                            >
+                                Cancel
+                            </Button>
+
+                            <Button
+                                disabled={isLoading}
+                                size="xs"
+                                onClick={() => {
+                                    if (!item) return;
+                                    writeBackCustomMetrics([item]);
+                                }}
+                            >
+                                {isLoading
+                                    ? 'Creating pull request...'
+                                    : 'Open Pull Request'}
+                            </Button>
+                        </Group>
+                    </>
+                )}
+            </Stack>
         </Modal>
     ) : null;
 };
