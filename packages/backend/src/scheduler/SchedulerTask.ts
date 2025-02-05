@@ -910,10 +910,7 @@ export default class SchedulerTask {
                     organizationUuid: user.organizationUuid,
                 },
                 {
-                    // because we are checking this in the health check, we don't want to throw an error
-                    // nor do we want to wait too long
                     throwOnTimeout: false,
-                    timeoutMilliseconds: 2000,
                 },
             );
             if (canReplaceCustomMetrics) {
