@@ -1,6 +1,6 @@
 import {
-    assertUnimplementedTimeframe,
     TimeFrames,
+    assertUnimplementedTimeframe,
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';

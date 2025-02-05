@@ -4,8 +4,8 @@ import { Navigate, useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import { useProjects } from '../hooks/useProjects';
 import useApp from '../providers/App/useApp';
-import { Can } from './common/Authorization';
 import PageSpinner from './PageSpinner';
+import { Can } from './common/Authorization';
 
 const ProjectRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const { user } = useApp();

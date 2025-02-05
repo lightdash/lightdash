@@ -1,9 +1,9 @@
 import {
-    assertUnreachable,
     CustomFormatType,
-    getFieldQuoteChar,
     MetricType,
     WarehouseTypes,
+    assertUnreachable,
+    getFieldQuoteChar,
     type CustomFormat,
     type Metric,
     type SortField,

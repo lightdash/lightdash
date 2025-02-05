@@ -7,10 +7,10 @@ import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { RenderedSql } from '../../RenderedSql';
 import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
-import { RenderedSql } from '../../RenderedSql';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
 interface SqlCardProps {

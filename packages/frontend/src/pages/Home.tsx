@@ -2,14 +2,14 @@ import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
-import ErrorState from '../components/common/ErrorState';
-import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import { MostPopularAndRecentlyUpdatedPanel } from '../components/Home/MostPopularAndRecentlyUpdatedPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
+import ErrorState from '../components/common/ErrorState';
+import Page from '../components/common/Page/Page';
 
 import { subject } from '@casl/ability';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';

@@ -1,6 +1,6 @@
 import {
-    createFilterRuleFromField,
     FilterGroupOperator,
+    createFilterRuleFromField,
     getFilterGroupItemsPropertyName,
     getFiltersFromGroup,
     getItemsFromFilterGroup,
@@ -11,10 +11,10 @@ import {
     isMetric,
     isTableCalculation,
     type CustomSqlDimension,
-    type FilterableDimension,
-    type FilterableField,
     type FilterGroup,
     type FilterRule,
+    type FilterableDimension,
+    type FilterableField,
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';

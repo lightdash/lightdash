@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    friendlyName,
     ProjectType,
+    friendlyName,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type DbtVersionOption,
@@ -35,10 +35,10 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import DocumentationHelpButton from '../DocumentationHelpButton';
 import { useAbilityContext } from '../common/Authorization/useAbilityContext';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
-import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';

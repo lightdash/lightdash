@@ -1,7 +1,7 @@
 import { Group, Input } from '@mantine/core';
 import React, { type FC } from 'react';
-import { getDailyCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';
+import { getDailyCronExpression } from './cronInputUtils';
 
 const DailyInputs: FC<{
     disabled?: boolean;

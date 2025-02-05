@@ -5,12 +5,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
-    getSchedulerTargetUuid,
-    getSchedulerUuid,
     GsheetsNotificationPayload,
-    hasSchedulerUuid,
-    indexCatalogJob,
-    isCreateSchedulerSlackTarget,
     JobPriority,
     NotificationPayloadBase,
     ReplaceCustomFieldsPayload,
@@ -21,21 +16,26 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerJobStatus,
-    semanticLayerQueryJob,
     SemanticLayerQueryPayload,
     SlackNotificationPayload,
-    sqlRunnerJob,
     SqlRunnerPayload,
-    sqlRunnerPivotQueryJob,
     SqlRunnerPivotQueryPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    getSchedulerTargetUuid,
+    getSchedulerUuid,
+    hasSchedulerUuid,
+    indexCatalogJob,
+    isCreateSchedulerSlackTarget,
+    semanticLayerQueryJob,
+    sqlRunnerJob,
+    sqlRunnerPivotQueryJob,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
-import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
+import { WorkerUtils, makeWorkerUtils } from 'graphile-worker';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';

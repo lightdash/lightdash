@@ -1,9 +1,9 @@
 import {
     CartesianChartDataModel,
     ChartKind,
-    isPivotChartLayout,
     PieChartDataModel,
     TableDataModel,
+    isPivotChartLayout,
     type IResultsRunner,
     type PivotChartLayout,
     type VizColumnsConfig,

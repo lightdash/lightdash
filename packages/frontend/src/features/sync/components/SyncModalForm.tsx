@@ -1,8 +1,8 @@
 import {
+    SchedulerFormat,
     formatMinutesOffset,
     getTzMinutesOffset,
     isSchedulerGsheetsOptions,
-    SchedulerFormat,
     type CreateSchedulerAndTargetsWithoutIds,
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -20,11 +20,11 @@ import {
 import { IconCirclesRelation, IconInfoCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import CronInput from '../../../components/ReactHookForm/CronInput';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
-import CronInput from '../../../components/ReactHookForm/CronInput';
 import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/useSchedulersUpdateMutation';

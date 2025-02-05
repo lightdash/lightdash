@@ -8,6 +8,7 @@ import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
+import Sidebar from './Sidebar';
 import {
     BANNER_HEIGHT,
     FOOTER_HEIGHT,
@@ -18,7 +19,6 @@ import {
     PAGE_HEADER_HEIGHT,
     PAGE_MIN_CONTENT_WIDTH,
 } from './constants';
-import Sidebar from './Sidebar';
 import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type StyleProps = {

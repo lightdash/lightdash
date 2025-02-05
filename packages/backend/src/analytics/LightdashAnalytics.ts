@@ -6,8 +6,6 @@ import {
     ChartKind,
     ChartType,
     DbtProjectType,
-    getErrorMessage,
-    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
     LightdashRequestMethodHeader,
@@ -23,6 +21,8 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    getErrorMessage,
+    getRequestMethod,
     type SemanticLayerType,
 } from '@lightdash/common';
 import Analytics, {

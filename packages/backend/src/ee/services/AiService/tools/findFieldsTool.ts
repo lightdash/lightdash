@@ -1,7 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import {
-    aiFindFieldsToolSchema,
     Explore,
+    aiFindFieldsToolSchema,
     getItemId,
     type CompiledField,
 } from '@lightdash/common';

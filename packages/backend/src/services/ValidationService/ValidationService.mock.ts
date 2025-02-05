@@ -13,8 +13,8 @@ import {
     OrganizationMemberRole,
     SessionUser,
     SupportedDbtAdapter,
-    TablesConfiguration,
     TableSelectionType,
+    TablesConfiguration,
     type DashboardFilters,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';

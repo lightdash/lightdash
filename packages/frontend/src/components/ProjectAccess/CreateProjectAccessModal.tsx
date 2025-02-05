@@ -23,8 +23,8 @@ import {
     PageName,
     PageType,
 } from '../../types/Events';
-import MantineIcon from '../common/MantineIcon';
 import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
+import MantineIcon from '../common/MantineIcon';
 
 interface Props {
     projectUuid: string;

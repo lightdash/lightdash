@@ -1,6 +1,6 @@
 import {
-    convertAdditionalMetric,
     DimensionType,
+    convertAdditionalMetric,
     getItemId,
     getResultValueArray,
     getVisibleFields,

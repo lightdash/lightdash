@@ -10,7 +10,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { lazy, Suspense, useState, useTransition, type FC } from 'react';
+import { Suspense, lazy, useState, useTransition, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useSearchParams from '../../../hooks/useSearchParams';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';

@@ -4,8 +4,8 @@ import {
     Modal,
     Stack,
     Text,
-    Textarea,
     TextInput,
+    Textarea,
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';

@@ -1,19 +1,19 @@
 import { useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
 import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import SelectConnectMethod from '../components/ProjectConnection/ProjectConnectFlow/SelectConnectMethod';
 import SelectWarehouse from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import {
     ConnectMethod,
     OtherWarehouse,
     type SelectedWarehouse,
 } from '../components/ProjectConnection/ProjectConnectFlow/types';
-import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
+import Page from '../components/common/Page/Page';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';

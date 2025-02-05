@@ -2,9 +2,9 @@
 // Not needed when viewing a cartesian chart on a dashboard
 import {
     ChartKind,
-    isFormat,
-    VizAggregationOptions,
     VIZ_DEFAULT_AGGREGATION,
+    VizAggregationOptions,
+    isFormat,
     type CartesianChartDisplay,
     type PivotValuesColumn,
     type SortByDirection,

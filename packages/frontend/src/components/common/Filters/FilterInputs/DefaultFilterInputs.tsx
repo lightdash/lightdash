@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     FilterOperator,
     FilterType,
+    assertUnreachable,
     isFilterRule,
     isTableCalculation,
     type ConditionalRule,

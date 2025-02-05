@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     SemanticLayerFilterBaseOperator,
+    assertUnreachable,
     type SemanticLayerFilter,
 } from '@lightdash/common';
 

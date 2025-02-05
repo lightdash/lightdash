@@ -1,8 +1,8 @@
 import {
-    assertUnreachable,
     ChartKind,
     ChartSourceType,
     ResourceViewItemType,
+    assertUnreachable,
     type ResourceViewChartItem,
     type ResourceViewItem,
 } from '@lightdash/common';
