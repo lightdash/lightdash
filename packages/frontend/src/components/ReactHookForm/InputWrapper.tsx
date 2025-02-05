@@ -9,8 +9,8 @@ import React, {
     type ReactNode,
 } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
-import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import MantineIcon from '../common/MantineIcon';
 
 interface InputProps {
     id: string;

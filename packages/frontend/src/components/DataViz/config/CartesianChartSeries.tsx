@@ -10,8 +10,8 @@ import {
 import { Accordion, SegmentedControl, Stack, Text } from '@mantine/core';
 import { useMemo } from 'react';
 import {
-    useAppDispatch as useVizDispatch,
     useAppSelector,
+    useAppDispatch as useVizDispatch,
 } from '../../../features/sqlRunner/store/hooks';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { Config } from '../../VisualizationConfigs/common/Config';

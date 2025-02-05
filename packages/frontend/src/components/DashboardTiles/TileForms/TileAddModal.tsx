@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     DashboardTileTypes,
+    assertUnreachable,
     defaultTileSize,
     type Dashboard,
     type DashboardLoomTileProperties,

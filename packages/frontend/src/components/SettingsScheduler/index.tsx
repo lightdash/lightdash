@@ -7,8 +7,8 @@ import {
     useProject,
     useProjectUpdateSchedulerSettings,
 } from '../../hooks/useProject';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SchedulersView from '../SchedulersView';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SchedulerSettingsForm from './schedulerSettingsForm';
 import { type schedulerSettingsSchema } from './types';
 

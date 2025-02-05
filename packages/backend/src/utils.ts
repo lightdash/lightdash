@@ -10,10 +10,10 @@ import { generateKeyPair } from 'crypto';
 import { parseKey } from 'sshpk';
 import { Worker } from 'worker_threads';
 import {
+    DBPinnedSpace,
     DbPinnedChart,
     DbPinnedDashboard,
     DbPinnedItem,
-    DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
 

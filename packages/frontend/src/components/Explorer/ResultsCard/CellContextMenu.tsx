@@ -21,11 +21,11 @@ import { useFilters } from '../../../hooks/useFilters';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 import { type CellContextMenuProps } from '../../common/Table/types';
-import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<

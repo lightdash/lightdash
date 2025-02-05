@@ -1,9 +1,9 @@
 import { Ability } from '@casl/ability';
 import {
-    type PossibleAbilities,
     type ApiError,
     type HealthState,
     type LightdashUserWithAbilityRules,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { type FC, type PropsWithChildren } from 'react';

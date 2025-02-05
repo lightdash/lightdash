@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     DashboardTileTypes,
+    assertUnreachable,
     type Dashboard,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,

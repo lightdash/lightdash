@@ -1,6 +1,6 @@
 import {
-    getEmailSchema,
     OrganizationMemberRole,
+    getEmailSchema,
     type CreateInviteLink,
 } from '@lightdash/common';
 import { Button, Group, Modal, Select, TextInput, Title } from '@mantine/core';

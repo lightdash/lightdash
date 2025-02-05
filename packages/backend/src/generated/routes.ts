@@ -73,8 +73,8 @@ import { FeatureFlagController } from './../controllers/v2/FeatureFlagController
 import type { IocContainer, IocContainerFactory } from '@tsoa/runtime';
 import type {
     Request as ExRequest,
-    RequestHandler,
     Response as ExResponse,
+    RequestHandler,
     Router,
 } from 'express';
 import { ContentController } from './../controllers/v2/ContentController';

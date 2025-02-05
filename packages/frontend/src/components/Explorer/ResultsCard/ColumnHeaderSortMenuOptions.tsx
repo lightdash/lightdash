@@ -10,9 +10,9 @@ import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import {
+    SortDirection,
     getSortDirectionOrder,
     getSortLabel,
-    SortDirection,
 } from '../../../utils/sortUtils';
 import MantineIcon from '../../common/MantineIcon';
 

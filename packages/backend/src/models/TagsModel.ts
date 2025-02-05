@@ -1,9 +1,9 @@
 import type { Tag } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    convertTagRow,
     DbTag,
     TagsTableName,
+    convertTagRow,
     type DbTagIn,
     type DbTagUpdate,
 } from '../database/entities/tags';

@@ -1,12 +1,12 @@
 import { AnyType, ExploreType } from '@lightdash/common';
 import knex from 'knex';
-import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
+import { MockClient, RawQuery, Tracker, getTracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
-    CachedExploresTableName,
     CachedExploreTableName,
+    CachedExploresTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { ProjectModel } from './ProjectModel';
@@ -14,8 +14,8 @@ import {
     encryptionUtilMock,
     expectedProject,
     expectedTablesConfiguration,
-    exploresWithSameName,
     exploreWithMetricFilters,
+    exploresWithSameName,
     mockExploreWithOutdatedMetricFilters,
     projectMock,
     projectUuid,

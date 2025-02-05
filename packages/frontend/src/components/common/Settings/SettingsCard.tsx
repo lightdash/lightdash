@@ -44,4 +44,4 @@ const ProjectCreationCard: FC<React.PropsWithChildren<PaperProps>> = ({
     );
 };
 
-export { SettingsCard, SettingsGridCard, ProjectCreationCard };
+export { ProjectCreationCard, SettingsCard, SettingsGridCard };

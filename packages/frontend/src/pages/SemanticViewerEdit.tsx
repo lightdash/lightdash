@@ -3,9 +3,9 @@ import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { useMatch, useNavigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
-import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
 import { getChartConfigAndOptions } from '../components/DataViz/transformers/getChartConfigAndOptions';
+import Page from '../components/common/Page/Page';
 import * as SemanticViewer from '../features/semanticViewer';
 import {
     useSavedSemanticViewerChart,
@@ -16,9 +16,9 @@ import {
 import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { selectSemanticViewerState } from '../features/semanticViewer/store/selectors';
 import {
+    SemanticViewerStateStatus,
     initializeSemanticViewer,
     resetState,
-    SemanticViewerStateStatus,
 } from '../features/semanticViewer/store/semanticViewerSlice';
 import { store } from '../features/sqlRunner/store';
 import {

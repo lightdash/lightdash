@@ -1,8 +1,8 @@
 import {
-    assertUnreachable,
     DashboardTileTypes,
-    type Dashboard as IDashboard,
+    assertUnreachable,
     type DashboardTab,
+    type Dashboard as IDashboard,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useProfiler } from '@sentry/react';

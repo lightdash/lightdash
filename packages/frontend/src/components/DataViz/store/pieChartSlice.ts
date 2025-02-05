@@ -1,7 +1,7 @@
 import {
     ChartKind,
-    isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
+    isVizPieChartConfig,
     type PivotValuesColumn,
     type VizAggregationOptions,
     type VizConfigErrors,

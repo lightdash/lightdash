@@ -1,9 +1,9 @@
 import {
-    assertUnreachable,
     ChartKind,
     FieldType,
     SemanticLayerFieldType,
     SortByDirection,
+    assertUnreachable,
     type RawResultRow,
     type SavedSemanticViewerChart,
     type SavedSemanticViewerChartResults,

@@ -1,12 +1,6 @@
 import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
-    isChartScheduler,
-    isCreateSchedulerSlackTarget,
-    isDashboardScheduler,
-    isSlackTarget,
-    isUpdateSchedulerEmailTarget,
-    isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
@@ -16,6 +10,12 @@ import {
     SchedulerSlackTarget,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
+    isChartScheduler,
+    isCreateSchedulerSlackTarget,
+    isDashboardScheduler,
+    isSlackTarget,
+    isUpdateSchedulerEmailTarget,
+    isUpdateSchedulerSlackTarget,
     type SchedulerCronUpdate,
 } from '@lightdash/common';
 import { Knex } from 'knex';

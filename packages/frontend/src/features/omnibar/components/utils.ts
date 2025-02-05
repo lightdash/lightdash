@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     SearchItemType,
+    assertUnreachable,
     type SavedChartSearchResult,
 } from '@lightdash/common';
 import {

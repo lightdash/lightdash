@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     SemanticLayerFieldType,
     SemanticLayerFilterRelativeTimeValue,
+    assertUnreachable,
     type SemanticLayerFilter,
 } from '@lightdash/common';
 import { v4 as uuidV4 } from 'uuid';

@@ -2,11 +2,11 @@ import {
     render,
     renderHook,
     type Queries,
-    type queries,
     type RenderHookOptions,
     type RenderHookResult,
     type RenderOptions,
     type RenderResult,
+    type queries,
 } from '@testing-library/react';
 import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
