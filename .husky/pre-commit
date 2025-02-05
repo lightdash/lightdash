@@ -1,5 +1,6 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
+. "$(dirname "$0")/runGitSecrets.sh"
 
 npx lint-staged
 pnpm -F frontend unused-exports
