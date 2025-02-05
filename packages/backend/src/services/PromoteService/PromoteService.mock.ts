@@ -5,6 +5,7 @@ import {
     DashboardChartTile,
     DashboardTileTypes,
     OrganizationMemberRole,
+    PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
     Space,
@@ -30,7 +31,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new Ability<PossibleAbilities>([
         { subject: 'Project', action: ['update', 'view'] },
         { subject: 'Job', action: ['view'] },
         { subject: 'SqlRunner', action: ['manage'] },
