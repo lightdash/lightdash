@@ -11,7 +11,7 @@ import {
     type DashboardFilters,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Flex, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Flex, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconPrinter, IconUnlink } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { mapValues } from 'lodash';
@@ -411,7 +411,10 @@ const EmbedDashboard: FC = () => {
         ),
     };
     return (
-        <div style={{ height: '100vh', overflowY: 'auto' }}>
+        <div
+            style={{ height: '100vh', overflowY: 'auto' }}
+            id="lightdash-dashboard"
+        >
             <DashboardHeader dashboard={dashboard} projectUuid={projectUuid} />
 
             <LockedDashboardModal

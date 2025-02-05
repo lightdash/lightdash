@@ -4,6 +4,7 @@ import {
     AppProvider,
     ChartColorMappingContextProvider,
     createBrowserRouter,
+    createEmotionCache,
     EmbedDashboard,
     EmbedProvider,
     ErrorBoundary,
@@ -14,7 +15,7 @@ import {
     ThirdPartyServicesProvider,
     TrackingProvider,
 } from '@lightdash/frontend';
-import { FC, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useRef, useState } from 'react';
 
 type Props = {
     projectUuid: string;
@@ -39,6 +40,21 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
             setToken(token);
         });
     }, [getEmbedToken]);
+
+    const [emotionCache, setEmotionCache] = useState(undefined);
+
+    const containerRef = useCallback(
+        (node) => {
+            if (node !== null && !emotionCache) {
+                const cache = createEmotionCache({
+                    key: 'mantine-subtree',
+                    container: node,
+                });
+                setEmotionCache(cache);
+            }
+        },
+        [emotionCache],
+    );
 
     if (!token) {
         return null;
@@ -69,7 +85,9 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
                     path: '*',
                     element: (
                         <EmbedProvider embedToken={token}>
-                            <EmbedDashboard projectUuid={projectUuid} />
+                            <div ref={containerRef}>
+                                <EmbedDashboard projectUuid={projectUuid} />
+                            </div>
                         </EmbedProvider>
                     ),
                 },
@@ -79,7 +97,7 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
 
     return (
         <ReactQueryProvider>
-            <MantineProvider>
+            <MantineProvider emotionCache={emotionCache}>
                 <RouterProvider router={router} />
             </MantineProvider>
         </ReactQueryProvider>

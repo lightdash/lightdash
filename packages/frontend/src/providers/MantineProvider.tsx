@@ -1,5 +1,6 @@
 import {
     MantineProvider as MantineProviderBase,
+    type EmotionCache,
     type MantineThemeOverride,
 } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -13,6 +14,7 @@ type Props = {
     withCSSVariables?: boolean;
     theme?: MantineThemeOverride;
     themeOverride?: MantineThemeOverride;
+    emotionCache?: EmotionCache;
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -22,6 +24,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     withCSSVariables = false,
     theme = getMantineThemeOverride(),
     themeOverride = {},
+    emotionCache,
 }) => {
     return (
         <MantineProviderBase
@@ -29,6 +32,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
             withNormalizeCSS={withNormalizeCSS}
             withCSSVariables={withCSSVariables}
             theme={{ ...theme, ...themeOverride }}
+            emotionCache={emotionCache}
         >
             {children}
 

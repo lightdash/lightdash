@@ -13,6 +13,8 @@ import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
 
+import { createEmotionCache } from '@mantine/core';
+
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 
 export {
@@ -30,4 +32,5 @@ export {
     RouterProvider,
     EmbedProvider,
     EmbedDashboard,
+    createEmotionCache,
 };
