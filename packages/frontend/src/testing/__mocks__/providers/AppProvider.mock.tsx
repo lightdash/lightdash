@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    type PossibleAbilities,
     type ApiError,
     type HealthState,
     type LightdashUserWithAbilityRules,
@@ -34,7 +35,9 @@ const AppProviderMock: FC<PropsWithChildren<AppProviderMockProps>> = ({
 
             return {
                 ...userResponse,
-                ability: new Ability(userResponse.abilityRules),
+                ability: new Ability<PossibleAbilities>(
+                    userResponse.abilityRules,
+                ),
             };
         },
         enabled: !!health.data?.isAuthenticated,
