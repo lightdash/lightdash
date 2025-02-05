@@ -71,12 +71,20 @@ export class S3CacheClient {
             }
 
             try {
+                const sanitizedMetadata = metadata
+                    ? Object.fromEntries(
+                          Object.entries(metadata).filter(
+                              ([_key, value]) => typeof value === 'string',
+                          ),
+                      )
+                    : {};
+
                 const command = new PutObjectCommand({
                     Bucket: this.configuration.bucket,
                     Key: `${key}.json`,
                     Body: results,
                     ContentType: 'application/json',
-                    Metadata: metadata,
+                    Metadata: sanitizedMetadata,
                 });
                 const response = await this.s3.send(command);
             } catch (error) {
