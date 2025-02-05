@@ -1,3 +1,10 @@
+## [0.1480.2](https://github.com/lightdash/lightdash/compare/0.1480.1...0.1480.2) (2025-02-05)
+
+
+### Bug Fixes
+
+* add error log for catalog query ([#13534](https://github.com/lightdash/lightdash/issues/13534)) ([599943a](https://github.com/lightdash/lightdash/commit/599943a3931ddf234101aeaffc3878ae355df348))
+
 ## [0.1480.1](https://github.com/lightdash/lightdash/compare/0.1480.0...0.1480.1) (2025-02-05)
 
 
