@@ -6115,11 +6115,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FileChanges: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                diff: { dataType: 'string', required: true },
+                yml: { dataType: 'string', required: true },
+                file: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PullRequestCreated: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                files: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FileChanges' },
+                },
                 prUrl: { dataType: 'string', required: true },
                 prTitle: { dataType: 'string', required: true },
             },

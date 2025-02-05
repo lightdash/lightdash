@@ -6807,8 +6807,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "FileChanges": {
+                "properties": {
+                    "diff": {
+                        "type": "string"
+                    },
+                    "yml": {
+                        "type": "string"
+                    },
+                    "file": {
+                        "type": "string"
+                    }
+                },
+                "required": ["diff", "yml", "file"],
+                "type": "object"
+            },
             "PullRequestCreated": {
                 "properties": {
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/FileChanges"
+                        },
+                        "type": "array"
+                    },
                     "prUrl": {
                         "type": "string"
                     },

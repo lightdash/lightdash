@@ -1,4 +1,5 @@
 import groupBy from 'lodash/groupBy';
+import { convertMetricFilterToDbt } from '../compiler/filtersCompiler';
 import { type AnyType } from '../types/any';
 import {
     type DbtColumnLightdashMetric,
@@ -44,6 +45,7 @@ function convertFormatOptionsToFormat(
 export function convertCustomMetricToDbt(
     field: AdditionalMetric,
 ): DbtColumnLightdashMetric {
+    const filters = convertMetricFilterToDbt(field.filters);
     return {
         label: field.label || friendlyName(field.name),
         description: field.description,
@@ -53,7 +55,7 @@ export function convertCustomMetricToDbt(
             field.format || convertFormatOptionsToFormat(field.formatOptions),
         compact: field.compact || field.formatOptions?.compact,
         percentile: field.percentile,
-        // todo: filters?: MetricFilterRule[];
+        filters,
     };
 }
 
