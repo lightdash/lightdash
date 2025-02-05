@@ -20,14 +20,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
-import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import {
     cartesianChartSelectors,
     selectCompleteConfigByKind,
 } from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
+import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {

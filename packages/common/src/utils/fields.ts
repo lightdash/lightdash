@@ -11,9 +11,9 @@ import {
 } from '../types/field';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
 import {
+    type ReplaceCustomFields,
     type ReplaceableCustomFields,
     type ReplaceableFieldMatchMap,
-    type ReplaceCustomFields,
 } from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';

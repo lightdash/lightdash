@@ -13,11 +13,11 @@ import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
+import ChartView from '../DataViz/visualizations/ChartView';
+import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import ChartView from '../DataViz/visualizations/ChartView';
-import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
 
 interface Props

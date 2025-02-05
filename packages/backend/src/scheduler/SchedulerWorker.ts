@@ -9,8 +9,8 @@ import {
     sqlRunnerPivotQueryJob,
 } from '@lightdash/common';
 import {
-    JobHelpers,
     Logger as GraphileLogger,
+    JobHelpers,
     parseCronItems,
     run as runGraphileWorker,
     Runner,

@@ -1,6 +1,6 @@
 import {
-    ColorPicker as MantineColorPicker,
     ColorSwatch,
+    ColorPicker as MantineColorPicker,
     Popover,
     Stack,
     TextInput,

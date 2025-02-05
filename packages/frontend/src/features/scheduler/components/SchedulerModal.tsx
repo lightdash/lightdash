@@ -2,8 +2,8 @@ import { type ItemsMap } from '@lightdash/common';
 import { Group, Modal, Text } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import React, { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
+import MantineIcon from '../../../components/common/MantineIcon';
 import SchedulerModalContent from './SchedulerModalContent';
 
 const SchedulersModal: FC<

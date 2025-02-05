@@ -1,8 +1,8 @@
 import {
-    applyCustomFormat,
     ComparisonFormatTypes,
     MetricExplorerComparison,
     TimeFrames,
+    applyCustomFormat,
     type MetricExploreDataPointWithDateValue,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,

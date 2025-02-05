@@ -2,8 +2,8 @@ import { type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useApp from '../providers/App/useApp';
-import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
+import ErrorState from './common/ErrorState';
 
 const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const { health } = useApp();

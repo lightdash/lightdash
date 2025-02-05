@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     ChartType,
+    assertUnreachable,
     type ChartConfig,
 } from '@lightdash/common';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';

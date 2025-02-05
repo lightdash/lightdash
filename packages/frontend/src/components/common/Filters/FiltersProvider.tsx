@@ -1,8 +1,8 @@
 import {
     isField,
     type DashboardFilters,
-    type FilterableItem,
     type FilterRule,
+    type FilterableItem,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';

@@ -1,10 +1,10 @@
 import {
-    applyCustomFormat,
     Compact,
     CompactConfigMap,
-    currencies,
     CustomFormatType,
     NumberSeparator,
+    applyCustomFormat,
+    currencies,
     type CustomFormat,
 } from '@lightdash/common';
 import {

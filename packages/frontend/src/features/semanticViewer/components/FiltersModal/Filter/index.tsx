@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     SemanticLayerFieldType,
     SemanticLayerFilterRelativeTimeValue,
+    assertUnreachable,
     type SemanticLayerField,
     type SemanticLayerFilter,
 } from '@lightdash/common';
@@ -10,9 +10,9 @@ import {
     Flex,
     Group,
     Menu,
-    rem,
     Stack,
     Text,
+    rem,
     useMantineTheme,
     type SelectItem,
     type StackProps,

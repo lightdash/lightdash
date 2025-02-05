@@ -1,4 +1,5 @@
 import {
+    MetricType,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -9,7 +10,6 @@ import {
     isMetric,
     isNumericItem,
     isSummable,
-    MetricType,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ItemsMap,

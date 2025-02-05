@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import {
     GoogleCallbackParameters,
-    Profile,
     Strategy as GoogleStrategy,
+    Profile,
     VerifyCallback,
 } from 'passport-google-oauth20';
 import { URL } from 'url';

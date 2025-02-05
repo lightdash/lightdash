@@ -1,7 +1,7 @@
 import {
+    VIZ_DEFAULT_AGGREGATION,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
-    VIZ_DEFAULT_AGGREGATION,
     type ApiJobScheduledResponse,
     type PivotChartData,
     type RawResultRow,

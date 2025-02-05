@@ -1,10 +1,10 @@
 import {
+    PieChartLegendLabelMaxLengthDefault,
+    PieChartLegendPositionDefault,
     formatItemValue,
     isField,
     isMetric,
     isTableCalculation,
-    PieChartLegendLabelMaxLengthDefault,
-    PieChartLegendPositionDefault,
     type ApiQueryResults,
     type CustomDimension,
     type Dimension,

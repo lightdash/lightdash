@@ -1,5 +1,8 @@
 import {
     FeatureFlags,
+    NotificationFrequency,
+    SchedulerFormat,
+    ThresholdOperator,
     formatMinutesOffset,
     getItemId,
     getMetricsFromItemsMap,
@@ -10,9 +13,6 @@ import {
     isSchedulerCsvOptions,
     isSchedulerImageOptions,
     isSlackTarget,
-    NotificationFrequency,
-    SchedulerFormat,
-    ThresholdOperator,
     validateEmail,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
@@ -56,13 +56,13 @@ import {
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { debounce, intersection, isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
+import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel/utils';
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
-import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
-import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel/utils';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';

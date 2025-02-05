@@ -1,12 +1,12 @@
 import {
     CartesianChartDataModel,
     ChartKind,
+    PieChartDataModel,
+    TableDataModel,
     isVizBarChartConfig,
     isVizLineChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
-    PieChartDataModel,
-    TableDataModel,
     type AllVizChartConfig,
     type IResultsRunner,
 } from '@lightdash/common';

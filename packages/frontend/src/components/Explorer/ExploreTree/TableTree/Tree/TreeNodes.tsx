@@ -1,6 +1,6 @@
 import {
-    isDimension,
     OrderFieldsByStrategy,
+    isDimension,
     sortTimeFrames,
     type AdditionalMetric,
     type CustomDimension,

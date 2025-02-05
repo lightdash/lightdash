@@ -12,8 +12,8 @@ import {
     Stack,
     Switch,
     Text,
-    Textarea,
     TextInput,
+    Textarea,
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';

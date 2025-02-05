@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     ConditionalFormattingConfigType,
+    assertUnreachable,
     createConditionalFormatingRule,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,

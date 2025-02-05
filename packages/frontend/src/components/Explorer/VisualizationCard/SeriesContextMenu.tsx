@@ -19,13 +19,13 @@ import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { Can } from '../../common/Authorization';
-import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';
+import { Can } from '../../common/Authorization';
+import MantineIcon from '../../common/MantineIcon';
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;

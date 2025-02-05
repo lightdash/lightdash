@@ -3,10 +3,10 @@ import { MantineProvider } from '@mantine/core';
 import { type FC } from 'react';
 import { Config } from '../VisualizationConfigs/common/Config';
 import { themeOverride } from '../VisualizationConfigs/mantineTheme';
+import { VisualizationSwitcher } from './VisualizationSwitcher';
 import { CartesianChartConfig } from './config/CartesianChartConfiguration';
 import { PieChartConfiguration } from './config/PieChartConfiguration';
 import TableVisConfiguration from './config/TableVisConfiguration';
-import { VisualizationSwitcher } from './VisualizationSwitcher';
 
 export const VisualizationConfigPanel: FC<{
     selectedChartType: ChartKind;

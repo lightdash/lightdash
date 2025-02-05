@@ -31,9 +31,9 @@ import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import MantineIcon from '../../common/MantineIcon';
-import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
+import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import {
     getFilterRuleRevertableObject,
     hasFilterValueSet,

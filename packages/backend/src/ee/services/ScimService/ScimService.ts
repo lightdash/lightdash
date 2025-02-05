@@ -28,9 +28,9 @@ import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
 import {
     InvalidScimPatchRequest,
+    ScimResource as PatchLibScimResource,
     ScimPatch,
     scimPatch,
-    ScimResource as PatchLibScimResource,
 } from 'scim-patch';
 import { parse } from 'scim2-parse-filter';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';

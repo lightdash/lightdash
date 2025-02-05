@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     AnyType,
-    assertUnreachable,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -14,6 +13,7 @@ import {
     SemanticLayerType,
     SemanticLayerView,
     SessionUser,
+    assertUnreachable,
     type AbilityAction,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';

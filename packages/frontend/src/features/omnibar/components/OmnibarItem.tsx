@@ -1,9 +1,9 @@
 import {
     Box,
-    createStyles,
     Group,
     Stack,
     Text,
+    createStyles,
     type CSSObject,
 } from '@mantine/core';
 import { type FC, type MutableRefObject } from 'react';
