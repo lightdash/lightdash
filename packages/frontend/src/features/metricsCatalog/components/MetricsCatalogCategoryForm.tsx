@@ -13,7 +13,7 @@ import {
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
-import { useFocusTrap } from '@mantine/hooks';
+import { captureException } from '@sentry/react';
 import { differenceBy, filter, includes } from 'lodash';
 import {
     memo,
@@ -24,6 +24,7 @@ import {
     type FC,
 } from 'react';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
+import useToaster from '../../../hooks/toaster/useToaster';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -60,14 +61,17 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
+        const { showToastError } = useToaster();
+
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
+        const [focusedCategoryIndex, setFocusedCategoryIndex] =
+            useState<number>(-1);
 
         const { data: tags } = useProjectTags(projectUuid);
         const createTagMutation = useCreateTag();
         const tagCatalogItemMutation = useAddCategoryToCatalogItem();
         const untagCatalogItemMutation = useRemoveCategoryFromCatalogItem();
-        const inputFocusTrapRef = useFocusTrap();
 
         const categoryNames = useMemo(
             () => metricCategories.map((category) => category.name),
@@ -81,6 +85,17 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         useEffect(() => {
             setTagColor(getRandomColor());
         }, [colors]);
+
+        useEffect(() => {
+            if (focusedCategoryIndex >= 0) {
+                const catalogCategoryItems = document.querySelectorAll(
+                    '[data-metrics-catalog-category-item]',
+                );
+                (
+                    catalogCategoryItems[focusedCategoryIndex] as HTMLElement
+                )?.focus();
+            }
+        }, [focusedCategoryIndex]);
 
         const handleAddTag = useCallback(
             async (tagName: string) => {
@@ -126,7 +141,13 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         },
                     });
                 } catch (error) {
-                    // TODO: Add toast on error
+                    showToastError({
+                        title: 'Error adding tags',
+                        subtitle: 'Unable to add tag to metric.',
+                    });
+                    captureException(
+                        `Error adding tag to metric. Attempted to add tag: ${tagName} to metric with catalogSearchUuid: ${catalogSearchUuid} and projectUuid: ${projectUuid} `,
+                    );
                     console.error(
                         `Error adding tag: ${getErrorMessage(error)}`,
                     );
@@ -142,6 +163,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 catalogSearchUuid,
                 tagColor,
                 createTagMutation,
+                showToastError,
             ],
         );
 
@@ -156,12 +178,24 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         tagUuid,
                     });
                 } catch (error) {
+                    showToastError({
+                        title: 'Error removing tag',
+                        subtitle: 'Unable to remove tag from metric.',
+                    });
+                    captureException(
+                        `Error removing tag from metric. Attempted to remove tag with tagUuid: ${tagUuid} from metric with catalogSearchUuid: ${catalogSearchUuid} and projectUuid: ${projectUuid}`,
+                    );
                     console.error(
                         `Error removing tag: ${getErrorMessage(error)}`,
                     );
                 }
             },
-            [projectUuid, untagCatalogItemMutation, catalogSearchUuid],
+            [
+                projectUuid,
+                untagCatalogItemMutation,
+                catalogSearchUuid,
+                showToastError,
+            ],
         );
 
         // Filter existing categories that are already applied to this metric
@@ -193,6 +227,56 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         ) && isCategoryDefinedInUI(category),
                 ),
             [tags, search, metricCategories],
+        );
+
+        const findIndexFromElement = useCallback((element: HTMLElement) => {
+            const items = Array.from(
+                document.querySelectorAll(
+                    '[data-metrics-catalog-category-item]',
+                ),
+            );
+            return items.indexOf(element);
+        }, []);
+
+        const handleCategoryItemFocus = useCallback(
+            (e: React.FocusEvent<HTMLDivElement>) => {
+                const newIndex = findIndexFromElement(e.target);
+                if (newIndex !== -1) {
+                    setFocusedCategoryIndex(newIndex);
+                }
+            },
+            [findIndexFromElement],
+        );
+
+        const handleKeyDownInCategoriesStack = useCallback(
+            (e: React.KeyboardEvent) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+
+                    const totalItems =
+                        filteredExistingCategories.length +
+                        (filteredAvailableCategories?.length ?? 0);
+
+                    setFocusedCategoryIndex((prevIndex) => {
+                        // If no item is focused yet, start from the beginning or end based on key
+                        if (prevIndex === -1) {
+                            return e.key === 'ArrowDown' ? 0 : totalItems - 1;
+                        }
+
+                        const direction = e.key === 'ArrowDown' ? 1 : -1;
+                        const newIndex = prevIndex + direction;
+
+                        // We wrap around at the beginning and end of the list
+                        if (newIndex >= totalItems) return 0;
+                        if (newIndex < 0) return totalItems - 1;
+                        return newIndex;
+                    });
+                }
+            },
+            [
+                filteredExistingCategories.length,
+                filteredAvailableCategories?.length,
+            ],
         );
 
         const renderValueComponent = useCallback(
@@ -250,6 +334,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 position="bottom"
                 width={300}
                 withArrow
+                trapFocus={!hasOpenSubPopover}
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
                 <Popover.Target>
@@ -263,7 +348,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             onSearchChange={handleSearchChange}
                             searchValue={search}
                             valueComponent={renderValueComponent}
-                            ref={inputFocusTrapRef}
                             placeholder="Search"
                             size="xs"
                             mb="xs"
@@ -305,7 +389,13 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             Select a category or create a new one
                         </Text>
                     </Stack>
-                    <Stack spacing="xs" align="flex-start" px="xs" pb="sm">
+                    <Stack
+                        spacing="xs"
+                        align="flex-start"
+                        px="xs"
+                        pb="sm"
+                        onKeyDown={handleKeyDownInCategoriesStack}
+                    >
                         <Stack
                             spacing={2}
                             w="100%"
@@ -320,6 +410,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     category={category}
                                     onSubPopoverChange={setHasOpenSubPopover}
                                     canEdit={category.yamlReference === null}
+                                    onFocus={handleCategoryItemFocus}
                                 />
                             ))}
                             {filteredAvailableCategories?.map((category) => (
@@ -329,6 +420,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     onClick={() => handleAddTag(category.name)}
                                     onSubPopoverChange={setHasOpenSubPopover}
                                     canEdit={category.yamlReference === null}
+                                    onFocus={handleCategoryItemFocus}
                                 />
                             ))}
                         </Stack>
