@@ -26,6 +26,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    CustomDimensionType,
     CustomFormatType,
     DashboardAvailableFilters,
     DashboardBasicDetails,
@@ -82,6 +83,7 @@ import {
     MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
+    OrFilterGroup,
     ParameterError,
     PivotChartData,
     PivotValuesColumn,
@@ -2775,7 +2777,7 @@ export class ProjectService extends BaseService {
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [getItemId(field)],
+            dimensions: [getItemId(field), 'custom_sql_match_priority'],
             metrics: [],
             filters: {
                 dimensions: {
@@ -2783,8 +2785,26 @@ export class ProjectService extends BaseService {
                     and: autocompleteDimensionFilters,
                 },
             },
+            customDimensions: [
+                {
+                    id: 'custom_sql_match_priority',
+                    name: 'match_priority',
+                    table,
+                    type: CustomDimensionType.SQL,
+                    sql: `CASE 
+                            WHEN ${field.sql} = '${search}' THEN 2
+                            WHEN LOWER(${field.sql}) = LOWER('${search}') THEN 1
+                            ELSE 0 
+                          END`,
+                    dimensionType: field.type,
+                },
+            ],
             tableCalculations: [],
             sorts: [
+                {
+                    fieldId: 'custom_sql_match_priority',
+                    descending: false,
+                },
                 {
                     fieldId: getItemId(field),
                     descending: false,

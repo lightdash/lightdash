@@ -363,12 +363,15 @@ describe('ProjectService', () => {
             );
             expect(runQueryMock).toHaveBeenCalledTimes(1);
             expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
-                replaceWhitespace(`SELECT AS "a_dim1"
-                                   FROM test.table AS "a"
-                                   WHERE (( LOWER() LIKE LOWER('%%') ))
-                                   GROUP BY 1
-                                   ORDER BY "a_dim1" 
-                                   LIMIT 10`),
+                replaceWhitespace(`
+                    SELECT AS "a_dim1", 
+                        (CASE WHEN = '' THEN 2 WHEN LOWER() = LOWER('') THEN 1 ELSE 0 END) AS "custom_sql_match_priority" 
+                    FROM test.table AS "a" 
+                    WHERE (( LOWER() LIKE LOWER('%%') )) 
+                    GROUP BY 1,2 
+                    ORDER BY "custom_sql_match_priority", "a_dim1" 
+                    LIMIT 10
+                `),
             );
         });
         test('should query unique values with valid filters', async () => {
@@ -420,13 +423,16 @@ describe('ProjectService', () => {
             );
             expect(runQueryMock).toHaveBeenCalledTimes(1);
             expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
-                replaceWhitespace(`SELECT AS "a_dim1" 
-                                        FROM test.table AS "a" 
-                                        LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1) 
-                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IN ('test') ) AND ( () IN ('test') )) 
-                                        GROUP BY 1 
-                                        ORDER BY "a_dim1" 
-                                        LIMIT 10`),
+                replaceWhitespace(`
+                    SELECT AS "a_dim1", 
+                        (CASE WHEN = '' THEN 2 WHEN LOWER() = LOWER('') THEN 1 ELSE 0 END) AS "custom_sql_match_priority" 
+                    FROM test.table AS "a" 
+                    LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1) 
+                    WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IN ('test') ) AND ( () IN ('test') )) 
+                    GROUP BY 1,2 
+                    ORDER BY "custom_sql_match_priority", "a_dim1" 
+                    LIMIT 10
+                `),
             );
         });
     });
