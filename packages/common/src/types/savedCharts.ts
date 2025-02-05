@@ -2,7 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
-import { type CompactOrAlias } from './field';
+import { type CompactOrAlias, type FieldId } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
@@ -226,6 +226,7 @@ export type Series = {
     showSymbol?: boolean;
     smooth?: boolean;
     markLine?: MarkLine;
+    isFilteredOut?: boolean;
 };
 
 export type EchartsLegend = {
@@ -691,4 +692,48 @@ export type CalculateTotalFromQuery = {
 export type ApiCalculateTotalResponse = {
     status: 'ok';
     results: Record<string, number>;
+};
+
+export type ReplaceableFieldMatchMap = {
+    [fieldId: string]: {
+        fieldId: string;
+        label: string;
+        match: {
+            fieldId: FieldId;
+            fieldLabel: string;
+        } | null;
+        suggestedMatches: Array<{
+            fieldId: FieldId;
+            fieldLabel: string;
+        }>;
+    };
+};
+
+export type ReplaceableCustomFields = {
+    [chartUuid: string]: {
+        uuid: string;
+        label: string;
+        customMetrics: ReplaceableFieldMatchMap;
+    };
+};
+
+export type ReplaceCustomFields = {
+    [chartUuid: string]: {
+        customMetrics: {
+            [customMetricId: string]: {
+                replaceWithFieldId: string;
+            };
+        };
+    };
+};
+
+export type SkippedReplaceCustomFields = {
+    [chartUuid: string]: {
+        customMetrics: {
+            [customMetricId: string]: {
+                replaceWithFieldId: string;
+                reason: string;
+            };
+        };
+    };
 };

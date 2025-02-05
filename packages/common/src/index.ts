@@ -250,6 +250,7 @@ export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/catalogMetricsTree';
+export * from './utils/charts';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
 export * from './utils/dashboard';
@@ -1229,3 +1230,7 @@ export const getProjectDirectory = (
             return undefined;
     }
 };
+
+export function isNotNull<T>(arg: T): arg is Exclude<T, null> {
+    return arg !== null;
+}

@@ -13,6 +13,8 @@ import {
     isCreateSchedulerSlackTarget,
     JobPriority,
     NotificationPayloadBase,
+    ReplaceCustomFieldsPayload,
+    ReplaceCustomFieldsTask,
     ScheduledDeliveryPayload,
     ScheduledJobs,
     Scheduler,
@@ -761,6 +763,33 @@ export class SchedulerClient {
                 requestMethod: payload.requestMethod,
                 isPreview: payload.isPreview,
                 jobUuid: payload.jobUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async replaceCustomFields(payload: ReplaceCustomFieldsPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            ReplaceCustomFieldsTask,
+            payload,
+            now,
+            JobPriority.LOW,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: ReplaceCustomFieldsTask,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
             },
         });
 

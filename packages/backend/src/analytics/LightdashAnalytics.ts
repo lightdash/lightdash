@@ -1118,6 +1118,7 @@ export type WriteBackEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         context: QueryExecutionContext;
+        customMetricsCount?: number;
     };
 };
 
@@ -1140,6 +1141,16 @@ export type CategoriesAppliedEvent = BaseTrack & {
         projectId: string;
         organizationId: string;
         context: 'ui' | 'yaml';
+    };
+};
+
+export type CustomFieldsReplaced = BaseTrack & {
+    event: 'custom_fields.replaced';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        chartsCount: number;
     };
 };
 
@@ -1220,7 +1231,8 @@ type TypedEvent =
     | WriteBackEvent
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
-    | CategoriesAppliedEvent;
+    | CategoriesAppliedEvent
+    | CustomFieldsReplaced;
 
 type WrapTypedEvent = SemanticLayerView;
 

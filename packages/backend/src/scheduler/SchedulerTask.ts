@@ -2,12 +2,14 @@ import {
     AnyType,
     assertUnreachable,
     CompileProjectPayload,
+    convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    FeatureFlags,
     FieldReferenceError,
     ForbiddenError,
     formatRows,
@@ -40,6 +42,11 @@ import {
     operatorActionValue,
     pivotResultsAsCsv,
     QueryExecutionContext,
+    ReplaceableCustomFields,
+    ReplaceCustomFields,
+    ReplaceCustomFieldsPayload,
+    ReplaceCustomFieldsTask,
+    SavedChartDAO,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
@@ -86,8 +93,8 @@ import {
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
-import { AiService } from '../ee/services/AiService/AiService';
 import Logger from '../logging/logger';
+import { isFeatureFlagEnabled } from '../postHog';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
@@ -894,6 +901,24 @@ export default class SchedulerTask {
                     context: 'dbt_refresh',
                     userUuid: payload.createdByUserUuid,
                     organizationUuid: user.organizationUuid,
+                });
+            }
+            const canReplaceCustomMetrics = await isFeatureFlagEnabled(
+                FeatureFlags.ReplaceCustomMetricsOnCompile,
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+                {
+                    throwOnTimeout: false,
+                },
+            );
+            if (canReplaceCustomMetrics) {
+                // Don't wait for replaceCustomFields response
+                void this.schedulerClient.replaceCustomFields({
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 });
             }
         } catch (e) {
@@ -2279,6 +2304,52 @@ export default class SchedulerTask {
                 );
 
                 return {}; // Don't pollute with more details
+            },
+        );
+    }
+
+    protected async replaceCustomFields(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ReplaceCustomFieldsPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: ReplaceCustomFieldsTask,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async (): Promise<{
+                replaceableCustomFields: ReplaceableCustomFields;
+                replaceFields: ReplaceCustomFields;
+                updatedCharts: Array<Pick<SavedChartDAO, 'uuid' | 'name'>>;
+            }> => {
+                const replaceableCustomFields =
+                    await this.projectService.findReplaceableCustomFields(
+                        payload,
+                    );
+                const replaceFields =
+                    convertReplaceableFieldMatchMapToReplaceCustomFields(
+                        replaceableCustomFields,
+                    );
+                const updatedCharts =
+                    await this.projectService.replaceCustomFields({
+                        userUuid: payload.createdByUserUuid,
+                        projectUuid: payload.projectUuid,
+                        organizationUuid: payload.organizationUuid,
+                        replaceFields,
+                        skipChartsUpdatedAfter: scheduledTime,
+                    });
+                return {
+                    replaceableCustomFields,
+                    replaceFields,
+                    updatedCharts,
+                };
             },
         );
     }

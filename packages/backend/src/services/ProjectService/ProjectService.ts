@@ -22,6 +22,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateSavedChartVersion,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -45,6 +46,7 @@ import {
     FilterGroupItem,
     FilterOperator,
     findFieldByIdInExplore,
+    findReplaceableCustomMetrics,
     ForbiddenError,
     formatRows,
     getAggregatedField,
@@ -66,6 +68,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterRule,
+    isNotNull,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -73,6 +76,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    maybeReplaceFieldsInChartVersion,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -88,9 +92,13 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    ReplaceableCustomFields,
+    ReplaceCustomFields,
+    ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
+    SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
@@ -5372,5 +5380,112 @@ export class ProjectService extends BaseService {
                 },
             });
         });
+    }
+
+    async findReplaceableCustomFields({
+        projectUuid,
+    }: ReplaceCustomFieldsPayload): Promise<ReplaceableCustomFields> {
+        const charts = await this.savedChartModel.findChartsWithCustomFields(
+            projectUuid,
+        );
+        const explores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            charts.map((chart) => chart.tableName),
+        );
+        const replaceableFields = charts.reduce<ReplaceableCustomFields>(
+            (acc, chart) => {
+                const explore = explores[chart.tableName];
+                if (!explore || isExploreError(explore)) {
+                    return acc;
+                }
+                const replaceableCustomMetrics = findReplaceableCustomMetrics({
+                    customMetrics: chart.customMetrics,
+                    metrics: getMetrics(explore),
+                });
+                if (Object.keys(replaceableCustomMetrics).length > 0) {
+                    acc[chart.uuid] = {
+                        uuid: chart.uuid,
+                        label: chart.name,
+                        customMetrics: replaceableCustomMetrics,
+                    };
+                }
+                return acc;
+            },
+            {},
+        );
+
+        this.logger.info(
+            `Found ${
+                Object.keys(replaceableFields).length
+            } charts with replaceable/suggested fields in project ${projectUuid}`,
+        );
+        return replaceableFields;
+    }
+
+    async replaceCustomFields({
+        userUuid,
+        projectUuid,
+        organizationUuid,
+        replaceFields,
+        skipChartsUpdatedAfter,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        replaceFields: ReplaceCustomFields;
+        skipChartsUpdatedAfter: Date;
+    }): Promise<Array<Pick<SavedChartDAO, 'uuid' | 'name'>>> {
+        const updatedChartPromises = Object.entries(replaceFields).map(
+            async ([chartUuid, fieldsToReplace]) => {
+                const chart = await this.savedChartModel.get(chartUuid);
+                if (chart.updatedAt > skipChartsUpdatedAfter) {
+                    this.logger.info(
+                        `Skipped replace custom fields in chart ${chart.uuid} as it was recently updated.`,
+                    );
+                    return null;
+                }
+                const { hasChanges, chartVersion, skippedFields } =
+                    maybeReplaceFieldsInChartVersion({
+                        fieldsToReplace,
+                        chartVersion: chart,
+                    });
+                if (Object.keys(skippedFields.customMetrics).length > 0) {
+                    const skippedReasons: string[] = Object.entries(
+                        skippedFields.customMetrics,
+                    ).map(([key, { reason }]) => `[${key}] ${reason}`);
+                    this.logger.info(
+                        `Skipped replace custom fields in chart ${
+                            chart.uuid
+                        }:\n ${skippedReasons.join('\n')}`,
+                    );
+                }
+                // create new version if any fields were replaced
+                if (hasChanges) {
+                    await this.savedChartModel.createVersion(
+                        chartUuid,
+                        chartVersion,
+                        undefined,
+                    );
+                    return { uuid: chart.uuid, name: chart.name };
+                }
+                return null;
+            },
+        );
+        const updatedCharts = (await Promise.all(updatedChartPromises)).filter(
+            isNotNull,
+        );
+        this.logger.info(
+            `Replaced fields in ${updatedCharts.length} charts in project ${projectUuid}`,
+        );
+        this.analytics.track({
+            event: 'custom_fields.replaced',
+            userId: userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                chartsCount: Object.keys(updatedCharts).length,
+            },
+        });
+        return updatedCharts;
     }
 }

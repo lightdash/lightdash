@@ -3154,15 +3154,47 @@
                 "required": ["rules", "color", "target"],
                 "type": "object"
             },
-            "ConditionalFormattingWithRange": {
+            "ConditionalFormattingColorRange": {
                 "properties": {
-                    "max": {
+                    "steps": {
                         "type": "number",
                         "format": "double"
                     },
+                    "end": {
+                        "type": "string"
+                    },
+                    "start": {
+                        "type": "string"
+                    }
+                },
+                "required": ["steps", "end", "start"],
+                "type": "object"
+            },
+            "ConditionalFormattingMinMax_number-or-auto_": {
+                "properties": {
+                    "max": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["auto"]
+                            }
+                        ]
+                    },
                     "min": {
-                        "type": "number",
-                        "format": "double"
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["auto"]
+                            }
+                        ]
                     }
                 },
                 "required": ["max", "min"],
@@ -3171,24 +3203,10 @@
             "ConditionalFormattingConfigWithColorRange": {
                 "properties": {
                     "rule": {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithRange"
+                        "$ref": "#/components/schemas/ConditionalFormattingMinMax_number-or-auto_"
                     },
                     "color": {
-                        "properties": {
-                            "steps": {
-                                "type": "number",
-                                "enum": [5],
-                                "nullable": false
-                            },
-                            "end": {
-                                "type": "string"
-                            },
-                            "start": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["steps", "end", "start"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/ConditionalFormattingColorRange"
                     },
                     "target": {
                         "allOf": [
@@ -14595,7 +14613,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1471.0",
+        "version": "0.1478.5",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20750,12 +20768,12 @@
                                     },
                                     "customMetrics": {
                                         "items": {
-                                            "type": "string"
+                                            "$ref": "#/components/schemas/AdditionalMetric"
                                         },
                                         "type": "array"
                                     }
                                 },
-                                "required": ["quoteChar", "customMetrics"],
+                                "required": ["customMetrics"],
                                 "type": "object"
                             }
                         }

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    type PossibleAbilities,
     type ApiError,
     type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
@@ -18,7 +19,7 @@ const getUserState = async (): Promise<UserWithAbility> => {
 
     return {
         ...user,
-        ability: new Ability(user.abilityRules),
+        ability: new Ability<PossibleAbilities>(user.abilityRules),
     };
 };
 

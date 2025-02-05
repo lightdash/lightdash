@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     ApiErrorPayload,
     GitIntegrationConfiguration,
     PullRequestCreated,
@@ -83,8 +84,8 @@ export class GitIntegrationController extends BaseController {
         @Path() projectUuid: string,
         @Body()
         body: {
-            customMetrics: string[];
-            quoteChar: `"` | `'`; // to be used in the yml dump options
+            customMetrics: AdditionalMetric[];
+            quoteChar?: `"` | `'`; // to be used in the yml dump options
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
@@ -97,7 +98,7 @@ export class GitIntegrationController extends BaseController {
                     req.user!,
                     projectUuid,
                     body.customMetrics,
-                    body.quoteChar,
+                    body.quoteChar || '"',
                 ),
         };
     }

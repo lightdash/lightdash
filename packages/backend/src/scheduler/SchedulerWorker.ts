@@ -2,6 +2,7 @@ import {
     AnyType,
     getErrorMessage,
     indexCatalogJob,
+    ReplaceCustomFieldsTask,
     SchedulerJobStatus,
     semanticLayerQueryJob,
     sqlRunnerJob,
@@ -574,6 +575,42 @@ export class SchedulerWorker extends SchedulerTask {
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
+                                error: getErrorMessage(e),
+                            },
+                        });
+                    },
+                );
+            },
+            [ReplaceCustomFieldsTask]: async (
+                payload: AnyType,
+                helpers: JobHelpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        ReplaceCustomFieldsTask,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.replaceCustomFields(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: ReplaceCustomFieldsTask,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.createdByUserUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                                 error: getErrorMessage(e),
                             },
                         });

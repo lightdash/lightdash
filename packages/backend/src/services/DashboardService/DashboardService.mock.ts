@@ -7,10 +7,10 @@ import {
     DashboardBasicDetails,
     DashboardTileTypes,
     OrganizationMemberRole,
+    PossibleAbilities,
     SavedChart,
     SessionUser,
     Space,
-    SpaceMemberRole,
     UpdateDashboard,
 } from '@lightdash/common';
 import { SpaceTable } from '../../database/entities/spaces';
@@ -28,7 +28,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new Ability<PossibleAbilities>([
         {
             subject: 'Dashboard',
             action: ['view', 'update', 'delete', 'create'],

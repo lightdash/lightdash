@@ -143,13 +143,13 @@ export const createBranch = async ({
     owner,
     repo,
     sha,
-    branchName,
+    branch,
     installationId,
 }: {
     owner: string;
     repo: string;
     sha: string;
-    branchName: string;
+    branch: string;
     installationId: string;
 }) => {
     const octokit = getOctokitRestForApp(installationId);
@@ -157,7 +157,7 @@ export const createBranch = async ({
     const response = await octokit.rest.git.createRef({
         owner,
         repo,
-        ref: `refs/heads/${branchName}`,
+        ref: `refs/heads/${branch}`,
         sha,
     });
     return response;

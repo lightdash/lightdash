@@ -12,6 +12,9 @@ services:
     env: docker
     name: headless-browser
     dockerfilePath: docker/Dockerfile.headless-browser
+    envVars:
+      - key: CONNECTION_TIMEOUT
+        value: 300000 # 5 minutes
   - type: web
     env: docker
     name: lightdash
