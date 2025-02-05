@@ -20,27 +20,26 @@ module.exports = {
             'error',
             {
                 prefer: 'type-imports',
-                fixStyle: 'inline-type-imports'
-            }
+                fixStyle: 'inline-type-imports',
+            },
         ],
         '@typescript-eslint/no-unused-vars': [
             'error',
             {
                 argsIgnorePattern: '^_',
                 varsIgnorePattern: '^_',
-                ignoreRestSiblings: true
+                ignoreRestSiblings: true,
             },
         ],
     },
     overrides: [
-        
         {
-            files: ['*.ts'], 
+            files: ['*.ts'],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "error",
-                "@typescript-eslint/no-unsafe-assignment": "error",
-                "@typescript-eslint/no-unsafe-call": "error"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'error',
+                '@typescript-eslint/no-unsafe-assignment': 'error',
+                '@typescript-eslint/no-unsafe-call': 'error',
+            },
         },
 
         {
@@ -60,25 +59,21 @@ module.exports = {
                 'src/utils/convertToDbt.ts',
                 'src/utils/filters.ts',
                 'src/visualizations/CartesianChartDataModel.ts',
-                'src/visualizations/TableDataModel.ts'
-            ], 
-            rules: {
-                "@typescript-eslint/no-unsafe-member-access": "warn",
-                "@typescript-eslint/no-unsafe-assignment": "warn",
-                "@typescript-eslint/no-unsafe-call": "warn"
-            }
-        },
-        {
-            files: [
-                '*.mock.ts',
-                '*.test.ts',
-                '*.spec.ts',
+                'src/visualizations/TableDataModel.ts',
             ],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "off",
-                "@typescript-eslint/no-unsafe-assignment": "off",
-                "@typescript-eslint/no-unsafe-call": "off"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'warn',
+                '@typescript-eslint/no-unsafe-assignment': 'warn',
+                '@typescript-eslint/no-unsafe-call': 'warn',
+            },
         },
-    ]
+        {
+            files: ['*.mock.ts', '*.test.ts', '*.spec.ts'],
+            rules: {
+                '@typescript-eslint/no-unsafe-member-access': 'off',
+                '@typescript-eslint/no-unsafe-assignment': 'off',
+                '@typescript-eslint/no-unsafe-call': 'off',
+            },
+        },
+    ],
 };

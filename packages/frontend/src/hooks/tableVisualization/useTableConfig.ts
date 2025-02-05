@@ -31,7 +31,7 @@ import { useCalculateTotal } from '../useCalculateTotal';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
-    () => import('@lightdash/common/src/pivotTable/pivotQueryResults'),
+    () => import('@lightdash/common/dist/esm/pivotTable/pivotQueryResults'),
 );
 
 const useTableConfig = (

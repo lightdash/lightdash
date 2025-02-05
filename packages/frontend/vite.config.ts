@@ -2,7 +2,6 @@ import reactPlugin from '@vitejs/plugin-react';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
-import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -10,7 +9,6 @@ export default defineConfig({
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },
     plugins: [
-        tsconfigPaths(),
         svgrPlugin(),
         reactPlugin(),
         compression({
