@@ -64,6 +64,7 @@ export enum ActionType {
     EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
     TOGGLE_ADDITIONAL_METRIC_MODAL,
+    TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -169,6 +170,13 @@ export type Action =
           >;
       }
     | {
+          type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['additionalMetricWriteBack'],
+              'isOpen'
+          >;
+      }
+    | {
           type: ActionType.SET_PIVOT_FIELDS;
           payload: FieldId[];
       }
@@ -237,6 +245,10 @@ export interface ExplorerReduceState {
             item?: Dimension | AdditionalMetric | CustomDimension;
             type?: MetricType;
         };
+        additionalMetricWriteBack: {
+            isOpen: boolean;
+            item?: AdditionalMetric;
+        };
         customDimension: {
             isOpen: boolean;
             isEditing?: boolean;
@@ -289,6 +301,12 @@ export interface ExplorerContextType {
         toggleAdditionalMetricModal: (
             additionalMetricModalData?: Omit<
                 ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => void;
+        toggleAdditionalMetricWriteBackModal: (
+            additionalMetricWriteBackModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetricWriteBack'],
                 'isOpen'
             >,
         ) => void;

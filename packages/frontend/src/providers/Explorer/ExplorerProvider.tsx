@@ -86,6 +86,9 @@ const defaultState: ExplorerReduceState = {
         customDimension: {
             isOpen: false,
         },
+        additionalMetricWriteBack: {
+            isOpen: false,
+        },
     },
 };
 
@@ -790,6 +793,19 @@ function reducer(
                 },
             };
         }
+        case ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    additionalMetricWriteBack: {
+                        ...action.payload,
+                        item: action.payload?.item,
+                        isOpen: !state.modals.additionalMetricWriteBack.isOpen,
+                    },
+                },
+            };
+        }
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
@@ -973,6 +989,7 @@ function reducer(
                 },
             };
         }
+
         default: {
             return assertUnreachable(
                 action,
@@ -1261,6 +1278,16 @@ const ExplorerProvider: FC<
         [],
     );
 
+    const toggleAdditionalMetricWriteBackModal = useCallback(
+        (args?: { item: AdditionalMetric }) => {
+            dispatch({
+                type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
+                payload: args,
+            });
+        },
+        [],
+    );
+
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
             type: ActionType.SET_COLUMN_ORDER,
@@ -1537,6 +1564,7 @@ const ExplorerProvider: FC<
             editAdditionalMetric,
             removeAdditionalMetric,
             toggleAdditionalMetricModal,
+            toggleAdditionalMetricWriteBackModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1586,6 +1614,7 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
+            toggleAdditionalMetricWriteBackModal,
         ],
     );
 
