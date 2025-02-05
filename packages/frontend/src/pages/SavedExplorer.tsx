@@ -108,6 +108,9 @@ const SavedExplorer = () => {
                               customDimension: {
                                   isOpen: false,
                               },
+                              additionalMetricWriteBack: {
+                                  isOpen: false,
+                              },
                           },
                       }
                     : undefined

@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip, type MenuProps } from '@mantine/core';
 import {
+    IconCode,
     IconCopy,
     IconDots,
     IconEdit,
@@ -88,6 +89,9 @@ const TreeSingleNodeActions: FC<Props> = ({
     );
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
+    );
+    const toggleAdditionalMetricWriteBackModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricWriteBackModal,
     );
     const removeCustomDimension = useExplorerContext(
         (context) => context.actions.removeCustomDimension,
@@ -227,6 +231,24 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Remove custom metric
                         </Menu.Item>
+                        <>
+                            <Menu.Divider />
+                            <Menu.Item
+                                key="custommetric"
+                                component="button"
+                                icon={<MantineIcon icon={IconCode} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    toggleAdditionalMetricWriteBackModal({
+                                        item,
+                                    });
+                                }}
+                            >
+                                Write back to dbt
+                            </Menu.Item>
+                        </>
                     </>
                 ) : null}
 
