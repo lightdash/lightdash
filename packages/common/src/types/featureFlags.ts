@@ -37,6 +37,11 @@ export enum FeatureFlags {
      * Enable dashboard comments
      */
     DashboardComments = 'dashboard-comments-enabled',
+
+    /**
+     * Enable scheduler task that replaces custom metrics after project compile
+     */
+    ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',
 }
 
 export type FeatureFlag = {

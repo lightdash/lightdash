@@ -866,11 +866,17 @@ const useCartesianChartConfig = ({
             isCompleteEchartsConfig(dirtyEchartsConfig)
             ? {
                   layout: dirtyLayout,
-                  eChartsConfig: dirtyEchartsConfig,
+                  eChartsConfig: {
+                      ...dirtyEchartsConfig,
+                      series: dirtyEchartsConfig.series.filter(
+                          (serie) => !serie.isFilteredOut,
+                      ),
+                  },
                   metadata: dirtyMetadata,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata]);
+
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
             dirtyEchartsConfig?.series?.[0]?.type || CartesianSeriesType.BAR;

@@ -1,13 +1,13 @@
 import { Box, Flex } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { isTableVisualizationConfig } from '../LightdashVisualization/types';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { LoadingChart } from '../SimpleChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
-import { isTableVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
@@ -45,6 +45,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         columns,
         showColumnCalculation,
         conditionalFormattings,
+        minMaxMap,
         hideRowNumbers,
         pivotTableData,
         getFieldLabel,
@@ -87,6 +88,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             className={className}
                             data={pivotTableData.data}
                             conditionalFormattings={conditionalFormattings}
+                            minMaxMap={minMaxMap}
                             getFieldLabel={getFieldLabel}
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
@@ -121,6 +123,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showColumnCalculation={showColumnCalculation}
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
+                minMaxMap={minMaxMap}
                 footer={{
                     show: showColumnCalculation,
                 }}

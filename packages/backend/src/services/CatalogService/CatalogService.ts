@@ -16,23 +16,23 @@ import {
     ExploreError,
     FieldType,
     ForbiddenError,
-    getAvailableCompareMetrics,
-    getAvailableSegmentDimensions,
-    getAvailableTimeDimensionsFromTables,
-    getDefaultTimeDimension,
-    hasIntersection,
     InlineErrorType,
-    isExploreError,
     MAX_METRICS_TREE_NODE_COUNT,
     MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
     SessionUser,
     SummaryExplore,
-    TablesConfiguration,
     TableSelectionType,
+    TablesConfiguration,
     TimeFrames,
     UserAttributeValueMap,
+    getAvailableCompareMetrics,
+    getAvailableSegmentDimensions,
+    getAvailableTimeDimensionsFromTables,
+    getDefaultTimeDimension,
+    hasIntersection,
+    isExploreError,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type CatalogFieldMap,
@@ -315,25 +315,41 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-        userUuid: string | undefined,
-    ) {
-        const exploresWithCachedExploreUuid =
-            await this.projectModel.getCachedExploresWithUuid(
-                projectUuid,
-                explores,
-            );
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
+        const cachedExploresMap =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
 
-        return this.catalogModel.indexCatalog(
+        const result = await this.catalogModel.indexCatalog(
             projectUuid,
-            exploresWithCachedExploreUuid,
+            cachedExploresMap,
             projectYamlTags,
             userUuid,
         );
+
+        if (
+            userUuid &&
+            result.numberOfCategoriesApplied &&
+            result.numberOfCategoriesApplied > 0
+        ) {
+            this.analytics.track({
+                event: 'categories.applied',
+                userId: userUuid,
+                properties: {
+                    count: result.numberOfCategoriesApplied,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    context: 'yaml',
+                },
+            });
+        }
+
+        return result;
     }
 
     /**
@@ -860,6 +876,17 @@ export class CatalogService<
             tagUuid,
             false,
         );
+
+        this.analytics.track({
+            event: 'categories.applied',
+            userId: user.userUuid,
+            properties: {
+                count: 1,
+                projectId: tag.projectUuid,
+                organizationId: tagOrganizationUuid,
+                context: 'ui',
+            },
+        });
     }
 
     async untagCatalogItem(

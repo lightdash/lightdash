@@ -1,8 +1,8 @@
 import {
-    assertUnreachable,
     ChartKind,
     ChartSourceType,
     DashboardTileTypes,
+    assertUnreachable,
     defaultTileSize,
     type ChartContent,
     type Dashboard,
@@ -10,7 +10,6 @@ import {
 import {
     Button,
     Flex,
-    getDefaultZIndex,
     Group,
     Loader,
     Modal,
@@ -20,6 +19,7 @@ import {
     Text,
     Title,
     Tooltip,
+    getDefaultZIndex,
     type ScrollAreaProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';

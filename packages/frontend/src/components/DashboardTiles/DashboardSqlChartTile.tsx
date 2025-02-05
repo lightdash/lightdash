@@ -1,21 +1,23 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    isVizCartesianChartConfig,
+    isVizPieChartConfig,
     isVizTableConfig,
     type DashboardSqlChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
+import ChartView from '../DataViz/visualizations/ChartView';
+import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import ChartView from '../DataViz/visualizations/ChartView';
-import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
 
 interface Props
@@ -86,6 +88,15 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         savedSqlUuid,
         context,
     });
+
+    // Charts in Dashboard shouldn't have animation
+    const specWithoutAnimation = useMemo(() => {
+        if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;
+        return {
+            ...chartResultsData.chartSpec,
+            animation: false,
+        };
+    }, [chartResultsData?.chartSpec]);
 
     // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
     if (chartData === undefined || !savedSqlUuid) {
@@ -175,12 +186,11 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         />
                     </Box>
                 )}
-            {(chartData.config.type === ChartKind.VERTICAL_BAR ||
-                chartData.config.type === ChartKind.LINE ||
-                chartData.config.type === ChartKind.PIE) && (
+            {(isVizCartesianChartConfig(chartData.config) ||
+                isVizPieChartConfig(chartData.config)) && (
                 <ChartView
                     config={chartData.config}
-                    spec={chartResultsData.chartSpec}
+                    spec={specWithoutAnimation}
                     isLoading={isChartResultsFetching}
                     error={undefined}
                     style={{

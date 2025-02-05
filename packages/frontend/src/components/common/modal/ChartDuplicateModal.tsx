@@ -4,8 +4,8 @@ import {
     Group,
     Modal,
     Stack,
-    Textarea,
     TextInput,
+    Textarea,
     Title,
     type ModalProps,
 } from '@mantine/core';

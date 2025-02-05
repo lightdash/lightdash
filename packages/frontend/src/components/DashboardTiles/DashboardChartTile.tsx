@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     ChartType,
-    createDashboardFilterRuleFromField,
     DashboardTileTypes,
+    createDashboardFilterRuleFromField,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -18,11 +18,11 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
-    type DashboardChartTile as IDashboardChartTile,
     type DashboardFilterRule,
     type DashboardFilters,
     type Field,
     type FilterDashboardToRule,
+    type DashboardChartTile as IDashboardChartTile,
     type ItemsMap,
     type PivotReference,
     type ResultValue,
@@ -79,10 +79,6 @@ import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { getConditionalRuleLabel } from '../common/Filters/FilterInputs/utils';
-import MantineIcon from '../common/MantineIcon';
-import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { FilterDashboardTo } from '../DashboardFilter/FilterDashboardTo';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
@@ -94,6 +90,10 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
+import { getConditionalRuleLabel } from '../common/Filters/FilterInputs/utils';
+import { default as MantineIcon } from '../common/MantineIcon';
+import { default as SuboptimalState } from '../common/SuboptimalState/SuboptimalState';
+import { default as MoveChartThatBelongsToDashboardModal } from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import { DashboardExportImage } from './DashboardExportImage';
 import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';
 import EditChartMenuItem from './EditChartMenuItem';

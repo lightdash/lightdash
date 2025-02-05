@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
     ChartSourceType,
     ResourceViewItemType,
+    assertUnreachable,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';

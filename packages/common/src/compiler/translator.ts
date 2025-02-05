@@ -1,10 +1,10 @@
 import {
+    SupportedDbtAdapter,
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
     convertToGroups,
     isV9MetricRef,
-    SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtMetric,
     type DbtModelColumn,
@@ -19,11 +19,11 @@ import {
     type Table,
 } from '../types/explore';
 import {
-    defaultSql,
     DimensionType,
     FieldType,
-    friendlyName,
     MetricType,
+    defaultSql,
+    friendlyName,
     parseMetricType,
     type Dimension,
     type Metric,

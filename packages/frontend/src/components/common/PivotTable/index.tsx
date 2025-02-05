@@ -1,4 +1,5 @@
 import {
+    MetricType,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -9,8 +10,8 @@ import {
     isMetric,
     isNumericItem,
     isSummable,
-    MetricType,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMaxMap,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -81,6 +82,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
+        minMaxMap: ConditionalFormattingMinMaxMap | undefined;
         hideRowNumbers: boolean;
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
@@ -90,6 +92,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
 const PivotTable: FC<PivotTableProps> = ({
     data,
     conditionalFormattings,
+    minMaxMap = {},
     hideRowNumbers = false,
     getFieldLabel,
     getField,
@@ -145,7 +148,7 @@ const PivotTable: FC<PivotTableProps> = ({
             (col, colIndex) => {
                 newColumnOrder.push(col.fieldId);
 
-                const itemId = col.underlyingId || col.baseId;
+                const itemId = col.underlyingId || col.baseId || col.fieldId;
                 const item = itemId ? getField(itemId) : undefined;
 
                 const shouldAggregate =
@@ -199,7 +202,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     },
                     {
                         id: col.fieldId,
-                        cell: (info: any) => {
+                        cell: (info) => {
                             return info.getValue()?.value?.formatted || '-';
                         },
                         meta: {
@@ -526,7 +529,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     )?.fieldId;
                                     item = underlyingId
                                         ? getField(underlyingId)
-                                        : undefined;
+                                        : item;
                                 }
 
                                 const fullValue =
@@ -534,19 +537,21 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const value = fullValue?.value;
 
                                 const conditionalFormattingConfig =
-                                    getConditionalFormattingConfig(
-                                        item,
-                                        value?.raw,
+                                    getConditionalFormattingConfig({
+                                        field: item,
+                                        value: value?.raw,
+                                        minMaxMap,
                                         conditionalFormattings,
-                                    );
+                                    });
 
                                 const conditionalFormattingColor =
-                                    getConditionalFormattingColor(
-                                        item,
-                                        value?.raw,
-                                        conditionalFormattingConfig,
+                                    getConditionalFormattingColor({
+                                        field: item,
+                                        value: value?.raw,
+                                        config: conditionalFormattingConfig,
+                                        minMaxMap,
                                         getColorFromRange,
-                                    );
+                                    });
 
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =
@@ -595,7 +600,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const TableCellComponent = isRowTotal
                                     ? Table.CellHead
                                     : Table.Cell;
-
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}`}

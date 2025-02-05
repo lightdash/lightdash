@@ -15,9 +15,9 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
 import {
+    SidebarTabs,
     resetState,
     setActiveChartKind,
-    SidebarTabs,
 } from '../store/semanticViewerSlice';
 import SaveSemanticViewerChartModal from './Modals/SaveSemanticViewerChartModal';
 import SaveSemanticViewerChart from './SaveSemanticViewerChart';

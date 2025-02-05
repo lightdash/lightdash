@@ -4,8 +4,8 @@ import {
     isDimension,
     type ConditionalOperator,
     type FieldTarget,
-    type FilterableDimension,
     type FilterRule,
+    type FilterableDimension,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import {

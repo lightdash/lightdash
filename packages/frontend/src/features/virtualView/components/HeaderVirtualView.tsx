@@ -1,9 +1,9 @@
 import {
+    ValidationTarget,
     createTemporaryVirtualView,
     friendlyName,
     isApiError,
     isChartValidationError,
-    ValidationTarget,
     type Explore,
     type ValidationErrorChartResponse,
     type ValidationResponse,

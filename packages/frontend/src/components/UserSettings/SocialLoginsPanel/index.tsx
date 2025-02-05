@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     OpenIdIdentityIssuerType,
+    assertUnreachable,
     type HealthState,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';

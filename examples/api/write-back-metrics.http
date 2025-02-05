@@ -1,0 +1,33 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Create a pull request with custom metrics
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/pull-requests/custom-metrics
+Content-Type: application/json
+
+{
+    "customMetrics": [{
+                    "name": "customer_id_count_of_customer_id",
+                    "label": "Count of Customer id",
+                    "description": "Count of Customer id on the table Customers ",
+                    "uuid": "543e97e6-5781-47e6-8bc7-1b639890f4b7",
+                    "sql": "${TABLE}.customer_id",
+                    "table": "customers",
+                    "type": "count",
+                    "baseDimensionName": "customer_id",
+                    "formatOptions": {
+                        "type": "default",
+                        "separator": "default"
+                    }
+                }]
+}
+
+
+

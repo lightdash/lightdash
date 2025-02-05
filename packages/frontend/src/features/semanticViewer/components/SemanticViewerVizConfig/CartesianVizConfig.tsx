@@ -2,9 +2,9 @@ import { ChartKind, type VizColumn } from '@lightdash/common';
 import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { barChartConfigSlice } from '../../../../components/DataViz/store/barChartSlice';
 import { lineChartConfigSlice } from '../../../../components/DataViz/store/lineChartSlice';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { CartesianVizFieldConfig } from './CartesianVizFieldConfig';
 import { CartesianVizStyling } from './CartesianVizStyling';
 

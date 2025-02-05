@@ -9,8 +9,8 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
-import { getRawValueCell } from './useColumns';
 import useColumnTotals from './useColumnTotals';
+import { getRawValueCell } from './useColumns';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;

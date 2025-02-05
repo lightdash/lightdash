@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     DashboardTileTypes,
     FilterInteractivityValues,
+    assertUnreachable,
     getFilterInteractivityValue,
     isFilterInteractivityEnabled,
     type ApiChartAndResults,
@@ -26,10 +26,6 @@ import React, {
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../api';
-import FiltersProvider from '../../components/common/Filters/FiltersProvider';
-import MantineIcon from '../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
-import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import ActiveFilters from '../../components/DashboardFilter/ActiveFilters';
 import {
     getReactGridLayoutConfig,
@@ -42,6 +38,10 @@ import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile'
 import SemanticViewerChartTile from '../../components/DashboardTiles/DashboardSemanticViewerChartTile';
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
+import FiltersProvider from '../../components/common/Filters/FiltersProvider';
+import MantineIcon from '../../components/common/MantineIcon';
+import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import { DateZoom } from '../../features/dateZoom';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import DashboardProvider from '../../providers/Dashboard/DashboardProvider';

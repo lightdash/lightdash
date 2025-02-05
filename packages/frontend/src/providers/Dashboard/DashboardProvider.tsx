@@ -1,8 +1,8 @@
 import {
+    DateGranularity,
     applyDimensionOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
-    DateGranularity,
     getItemId,
     isDashboardChartTileType,
     type CacheMetadata,
@@ -18,8 +18,8 @@ import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
-import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
 import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
+import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
 import {
     useGetComments,
     type useDashboardCommentsCheck,

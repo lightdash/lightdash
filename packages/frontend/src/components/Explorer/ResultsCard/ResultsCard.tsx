@@ -10,14 +10,14 @@ import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import AddColumnButton from '../../AddColumnButton';
+import ExportSelector from '../../ExportSelector';
+import SortButton from '../../SortButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import ExportSelector from '../../ExportSelector';
-import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {

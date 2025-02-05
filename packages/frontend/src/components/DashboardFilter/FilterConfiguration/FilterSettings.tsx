@@ -4,8 +4,8 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     type DashboardFilterRule,
-    type FilterableDimension,
     type FilterRule,
+    type FilterableDimension,
 } from '@lightdash/common';
 import {
     Box,

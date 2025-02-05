@@ -1,12 +1,12 @@
 import { Box, Button, Popover } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ConfigTabs } from './FunnelChartConfigTabs';
 
 const FunnelChartConfig: React.FC = () => {

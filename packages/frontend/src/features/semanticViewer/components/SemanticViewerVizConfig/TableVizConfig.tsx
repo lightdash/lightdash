@@ -2,13 +2,13 @@ import { type VizColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { TableFieldIcon } from '../../../../components/DataViz/Icons';
 import {
     updateColumnVisibility,
     updateFieldLabel,
 } from '../../../../components/DataViz/store/tableVisSlice';
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,

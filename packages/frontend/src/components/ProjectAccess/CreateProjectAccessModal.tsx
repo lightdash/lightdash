@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -5,6 +6,7 @@ import {
     type CreateProjectMember,
     type InviteLink,
 } from '@lightdash/common';
+
 import { Button, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
@@ -12,6 +14,7 @@ import { useEffect, useState, type FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../hooks/useProjectAccess';
+import useApp from '../../providers/App/useApp';
 import { TrackPage } from '../../providers/Tracking/TrackingProvider';
 import useTracking from '../../providers/Tracking/useTracking';
 import {
@@ -20,8 +23,8 @@ import {
     PageName,
     PageType,
 } from '../../types/Events';
-import MantineIcon from '../common/MantineIcon';
 import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
+import MantineIcon from '../common/MantineIcon';
 
 interface Props {
     projectUuid: string;
@@ -30,6 +33,8 @@ interface Props {
 
 const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const { track } = useTracking();
+    const { user } = useApp();
+
     const { data: organizationUsers } = useOrganizationUsers();
     const { mutateAsync: createMutation, isLoading } =
         useCreateProjectAccessMutation(projectUuid);
@@ -87,6 +92,14 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
         }
     };
 
+    const userCanInviteUsersToOrganization = user.data?.ability.can(
+        'manage',
+        subject('Organization', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     return (
         <Modal
             opened
@@ -123,13 +136,24 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                             creatable
                             required
                             disabled={isLoading}
-                            getCreateLabel={(query) =>
-                                validateEmail(query)
-                                    ? `Invite "${query}" as new member of this organization`
-                                    : null
-                            }
-                            onCreate={(query) => {
+                            getCreateLabel={(query) => {
                                 if (validateEmail(query)) {
+                                    return (
+                                        <span style={{ wordBreak: 'keep-all' }}>
+                                            This user is not a member of your
+                                            organization. You need to be an
+                                            organization admin to add new users
+                                            to your organization.
+                                        </span>
+                                    );
+                                }
+                                return null;
+                            }}
+                            onCreate={(query) => {
+                                if (
+                                    validateEmail(query) &&
+                                    userCanInviteUsersToOrganization
+                                ) {
                                     setAddNewMember(true);
                                     setEmailOptions((prevState) => [
                                         ...prevState,

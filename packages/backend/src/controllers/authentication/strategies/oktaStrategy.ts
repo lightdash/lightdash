@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Request, RequestHandler } from 'express';
-import { generators, Issuer, UserinfoResponse } from 'openid-client';
+import { Issuer, UserinfoResponse, generators } from 'openid-client';
 import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';

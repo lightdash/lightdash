@@ -2,10 +2,10 @@ import {
     AuthorizationError,
     Explore,
     ExploreError,
-    friendlyName,
-    isExploreError,
     Project,
     ProjectType,
+    friendlyName,
+    isExploreError,
     type LightdashProjectConfig,
     type Tag,
 } from '@lightdash/common';
@@ -90,6 +90,7 @@ export const deploy = async (
 
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
         path.resolve(options.projectDir),
+        options.projectUuid,
     );
 
     await replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig);

@@ -1,36 +1,37 @@
 import {
     AnyType,
-    attachTypesToModels,
-    convertExplores,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DbtManifestVersion,
     DbtMetric,
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
-    DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     ExploreError,
+    InlineError,
+    InlineErrorType,
+    ManifestValidator,
+    MissingCatalogEntryError,
+    NotFoundError,
+    ParseError,
+    SupportedDbtAdapter,
+    SupportedDbtVersions,
+    attachTypesToModels,
+    convertExplores,
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
-    InlineError,
-    InlineErrorType,
     isSupportedDbtAdapter,
     loadLightdashProjectConfig,
-    ManifestValidator,
-    MissingCatalogEntryError,
     normaliseModelDatabase,
-    NotFoundError,
-    ParseError,
-    SupportedDbtAdapter,
-    SupportedDbtVersions,
     type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import fs from 'fs/promises';
 import path from 'path';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -43,6 +44,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtVersion: SupportedDbtVersions;
 
+    private readonly analytics: LightdashAnalytics | undefined;
+
     dbtProjectDir?: string;
 
     constructor(
@@ -51,12 +54,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         cachedWarehouse: CachedWarehouse,
         dbtVersion: SupportedDbtVersions,
         dbtProjectDir?: string,
+        analytics?: LightdashAnalytics,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
         this.dbtVersion = dbtVersion;
         this.dbtProjectDir = dbtProjectDir;
+        this.analytics = analytics;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -79,7 +84,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getLightdashProjectConfig(): Promise<LightdashProjectConfig> {
+    public async getLightdashProjectConfig(trackingParams?: {
+        projectUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<LightdashProjectConfig> {
         if (!this.dbtProjectDir) {
             return {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -93,7 +102,31 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         try {
             const fileContents = await fs.readFile(configPath, 'utf8');
-            const config = await loadLightdashProjectConfig(fileContents);
+            const config = await loadLightdashProjectConfig(
+                fileContents,
+                async (lightdashConfig) => {
+                    if (trackingParams) {
+                        void this.analytics?.track({
+                            event: 'lightdashconfig.loaded',
+                            userId: trackingParams.userUuid,
+                            properties: {
+                                projectId: trackingParams.projectUuid,
+                                userId: trackingParams.userUuid,
+                                organizationId: trackingParams.organizationUuid,
+                                categories_count: Number(
+                                    Object.keys(
+                                        lightdashConfig.spotlight.categories ??
+                                            {},
+                                    ).length,
+                                ),
+                                default_visibility:
+                                    lightdashConfig.spotlight
+                                        .default_visibility,
+                            },
+                        });
+                    }
+                },
+            );
             return config;
         } catch (e) {
             Logger.debug(`No lightdash.config.yml found in ${configPath}`);
@@ -109,6 +142,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async compileAllExplores(
+        trackingParams?: {
+            userUuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+        },
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
@@ -181,7 +219,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 : Object.values(manifest.metrics),
         );
 
-        const lightdashProjectConfig = await this.getLightdashProjectConfig();
+        const lightdashProjectConfig = await this.getLightdashProjectConfig(
+            trackingParams,
+        );
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {

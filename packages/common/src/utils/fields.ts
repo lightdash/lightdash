@@ -9,7 +9,12 @@ import {
     type Metric,
     type TableCalculation,
 } from '../types/field';
-import { type MetricQuery } from '../types/metricQuery';
+import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
+import {
+    type ReplaceCustomFields,
+    type ReplaceableCustomFields,
+    type ReplaceableFieldMatchMap,
+} from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 
@@ -78,3 +83,167 @@ export const getFieldsFromMetricQuery = (
         ...additionalMetrics,
     };
 };
+
+export function compareMetricAndCustomMetric({
+    metric,
+    customMetric,
+}: {
+    metric: Metric;
+    customMetric: AdditionalMetric;
+}) {
+    const conditions = {
+        fieldIdMatch: {
+            isMatch: getItemId(metric) === getItemId(customMetric),
+            requiredForSuggestion: false,
+        },
+        labelMatch: {
+            isMatch: metric.label === customMetric.label,
+            requiredForSuggestion: false,
+        },
+        sqlMatch: {
+            isMatch: metric.sql === customMetric.sql,
+            requiredForSuggestion: true,
+        },
+        baseDimensionMatch: {
+            isMatch:
+                metric.dimensionReference ===
+                `${customMetric.table}_${customMetric.baseDimensionName}`,
+            requiredForSuggestion: true,
+        },
+        metricTypeMatch: {
+            isMatch: metric.type === customMetric.type,
+            requiredForSuggestion: true,
+        },
+        formatMatch: {
+            // NOTE: We don't support format matching yet. Only match if both are undefined/null
+            isMatch:
+                !metric.formatOptions &&
+                !metric.format &&
+                (!customMetric.formatOptions ||
+                    customMetric.formatOptions.type === 'default') &&
+                !customMetric.format,
+            requiredForSuggestion: true,
+        },
+        percentileMatch: {
+            // NOTE: We don't support percentile matching yet. Only match if both are undefined/null
+            isMatch: !metric.percentile && !customMetric.percentile,
+            requiredForSuggestion: true,
+        },
+        filtersMatch: {
+            isMatch:
+                (customMetric.filters || []).length ===
+                    (metric.filters || []).length &&
+                (metric.filters || []).every((filter) =>
+                    customMetric.filters?.find((customFilter) => {
+                        const fieldRefMatch =
+                            customFilter.target.fieldRef ===
+                            filter.target.fieldRef;
+                        const operatorMatch =
+                            customFilter.operator === filter.operator;
+                        const valuesMatch =
+                            customFilter.values === filter.values ||
+                            customFilter.values?.every((value) =>
+                                filter.values?.includes(value),
+                            );
+                        return fieldRefMatch && operatorMatch && valuesMatch;
+                    }),
+                ),
+            requiredForSuggestion: true,
+        },
+    };
+
+    const isExactMatch = Object.values(conditions).every(
+        (condition) => condition.isMatch,
+    );
+    const isSuggestedMatch = Object.values(conditions)
+        .filter((condition) => condition.requiredForSuggestion)
+        .every((condition) => condition.isMatch);
+
+    return {
+        isExactMatch,
+        isSuggestedMatch,
+    };
+}
+
+export function findReplaceableCustomMetrics({
+    customMetrics,
+    metrics,
+}: {
+    customMetrics: AdditionalMetric[];
+    metrics: Metric[];
+}): ReplaceableFieldMatchMap {
+    return customMetrics.reduce<ReplaceableFieldMatchMap>(
+        (acc, customMetric) => {
+            let match: ReplaceableFieldMatchMap[string]['match'] = null;
+            const suggestedMatches: ReplaceableFieldMatchMap[string]['suggestedMatches'] =
+                [];
+            metrics.forEach((metric) => {
+                const fieldId = getItemId(metric);
+                const fieldLabel = metric.label;
+                const { isExactMatch, isSuggestedMatch } =
+                    compareMetricAndCustomMetric({
+                        metric,
+                        customMetric,
+                    });
+
+                if (isExactMatch) {
+                    match = {
+                        fieldId,
+                        fieldLabel,
+                    };
+                } else if (isSuggestedMatch) {
+                    suggestedMatches.push({
+                        fieldId,
+                        fieldLabel,
+                    });
+                }
+            });
+            if (match !== null || suggestedMatches.length > 0) {
+                return {
+                    ...acc,
+                    [getItemId(customMetric)]: {
+                        fieldId: customMetric.name,
+                        label: customMetric.label || customMetric.name,
+                        match,
+                        suggestedMatches,
+                    },
+                };
+            }
+            return acc;
+        },
+        {},
+    );
+}
+
+export function convertReplaceableFieldMatchMapToReplaceCustomFields(
+    replaceableCustomFields: ReplaceableCustomFields,
+): ReplaceCustomFields {
+    return Object.entries(replaceableCustomFields).reduce<ReplaceCustomFields>(
+        (acc, [chartUuid, customFields]) => {
+            const customMetrics = Object.entries(
+                customFields.customMetrics,
+            ).reduce<ReplaceCustomFields[string]['customMetrics']>(
+                (acc2, [customFieldId, customField]) => {
+                    if (customField.match) {
+                        return {
+                            ...acc2,
+                            [customFieldId]: {
+                                replaceWithFieldId: customField.match.fieldId,
+                            },
+                        };
+                    }
+                    return acc2;
+                },
+                {},
+            );
+
+            if (Object.keys(customMetrics).length > 0) {
+                acc[chartUuid] = {
+                    customMetrics,
+                };
+            }
+            return acc;
+        },
+        {},
+    );
+}

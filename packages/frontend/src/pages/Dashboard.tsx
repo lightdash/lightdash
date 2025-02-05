@@ -1,9 +1,9 @@
 import {
     DashboardTileTypes,
     ResourceViewItemType,
-    type Dashboard as IDashboard,
     type DashboardTab,
     type DashboardTile,
+    type Dashboard as IDashboard,
 } from '@lightdash/common';
 import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -12,16 +12,16 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
+import DashboardFilter from '../components/DashboardFilter';
+import DashboardTabs from '../components/DashboardTabs';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
+import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
-import Page from '../components/common/Page/Page';
-import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import DashboardFilter from '../components/DashboardFilter';
-import DashboardTabs from '../components/DashboardTabs';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
 import {

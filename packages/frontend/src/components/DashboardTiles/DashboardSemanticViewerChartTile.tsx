@@ -17,12 +17,12 @@ import {
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useApp from '../../providers/App/useApp';
-import LinkMenuItem from '../common/LinkMenuItem';
-import MantineIcon from '../common/MantineIcon';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import getChartDataModel from '../DataViz/transformers/getChartDataModel';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
+import LinkMenuItem from '../common/LinkMenuItem';
+import MantineIcon from '../common/MantineIcon';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import TileBase from './TileBase';
 
 interface Props
