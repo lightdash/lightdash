@@ -73,9 +73,14 @@ export class S3CacheClient {
             try {
                 const sanitizedMetadata = metadata
                     ? Object.fromEntries(
-                          Object.entries(metadata).filter(
-                              ([_key, value]) => typeof value === 'string',
-                          ),
+                          Object.entries(metadata).map(([_key, value]) => {
+                              switch (typeof value) {
+                                  case 'object':
+                                      return [key, JSON.stringify(value)];
+                                  default:
+                                      return [key, String(value)];
+                              }
+                          }),
                       )
                     : {};
 
