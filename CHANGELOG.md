@@ -1,3 +1,10 @@
+# [0.1479.0](https://github.com/lightdash/lightdash/compare/0.1478.8...0.1479.0) (2025-02-05)
+
+
+### Features
+
+* replace custom metrics with matched model metric after project compile ([#13511](https://github.com/lightdash/lightdash/issues/13511)) ([edf0981](https://github.com/lightdash/lightdash/commit/edf0981262bf2fc357a66e9dfc7bfa58e7701241))
+
 ## [0.1478.8](https://github.com/lightdash/lightdash/compare/0.1478.7...0.1478.8) (2025-02-04)
 
 
