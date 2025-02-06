@@ -15,6 +15,7 @@ import {
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
+    type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -74,6 +75,7 @@ export enum ActionType {
     TOGGLE_CUSTOM_DIMENSION_MODAL,
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
+    REPLACE_FIELDS,
 }
 
 export type ConfigCacheMap = {
@@ -215,6 +217,12 @@ export type Action =
     | {
           type: ActionType.UPDATE_METRIC_FORMAT;
           payload: { metric: Metric; formatOptions: CustomFormat | undefined };
+      }
+    | {
+          type: ActionType.REPLACE_FIELDS;
+          payload: {
+              fieldsToReplace: ReplaceCustomFields[string];
+          };
       };
 
 export interface ExplorerReduceState {
@@ -321,5 +329,6 @@ export interface ExplorerContextType {
             metric: Metric;
             formatOptions: CustomFormat | undefined;
         }) => void;
+        replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
     };
 }

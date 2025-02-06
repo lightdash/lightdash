@@ -6,6 +6,7 @@ import {
     getFieldRef,
     getItemId,
     lightdashVariablePattern,
+    maybeReplaceFieldsInChartVersion,
     removeEmptyProperties,
     removeFieldFromFilterGroup,
     toggleArrayValue,
@@ -17,6 +18,7 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
+    type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -973,6 +975,24 @@ function reducer(
                 },
             };
         }
+        case ActionType.REPLACE_FIELDS: {
+            console.log(
+                'action.payload.fieldsToReplace',
+                action.payload.fieldsToReplace,
+            );
+            const { hasChanges, chartVersion } =
+                maybeReplaceFieldsInChartVersion({
+                    fieldsToReplace: action.payload.fieldsToReplace,
+                    chartVersion: state.unsavedChartVersion,
+                });
+            if (hasChanges) {
+                return {
+                    ...state,
+                    unsavedChartVersion: chartVersion,
+                };
+            }
+            return state;
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -1397,6 +1417,18 @@ const ExplorerProvider: FC<
         [],
     );
 
+    const replaceFields = useCallback(
+        (fieldsToReplace: ReplaceCustomFields[string]) => {
+            dispatch({
+                type: ActionType.REPLACE_FIELDS,
+                payload: {
+                    fieldsToReplace,
+                },
+            });
+        },
+        [],
+    );
+
     const hasUnsavedChanges = useMemo<boolean>(() => {
         if (savedChart) {
             return !deepEqual(
@@ -1551,6 +1583,7 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
+            replaceFields,
         }),
         [
             clearExplore,
@@ -1586,6 +1619,7 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
+            replaceFields,
         ],
     );
 
