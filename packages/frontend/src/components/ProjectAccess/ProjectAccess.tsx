@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
-    OrganizationMemberRole,
     ProjectMemberRole,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToOrganizationRole,
     getHighestProjectRole,
     isGroupWithMembers,
     type InheritedRoles,
+    type OrganizationMemberRole,
 } from '@lightdash/common';
 import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
@@ -163,8 +163,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
         return organizationUsers.map((orgUser) => {
             const highestRole = getHighestProjectRole(
-                inheritedRoles[orgUser.userUuid] ||
-                    OrganizationMemberRole.MEMBER,
+                inheritedRoles[orgUser.userUuid],
             );
             const hasProjectRole = !!projectRoles[orgUser.userUuid];
             const inheritedRole = highestRole?.role
