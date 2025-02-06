@@ -391,15 +391,12 @@ export class GoogleSheetsTransientError extends LightdashError {
     }
 }
 export class NotImplementedError extends LightdashError {
-    constructor(
-        message = 'Not implemented',
-        data: { [key: string]: AnyType } = {},
-    ) {
+    constructor(message = 'Not implemented') {
         super({
             message,
             name: 'NotImplemented',
             statusCode: 501,
-            data,
+            data: {},
         });
     }
 }
