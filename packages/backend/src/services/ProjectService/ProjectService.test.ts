@@ -59,7 +59,9 @@ import {
 
 jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => ({
-        connect: jest.fn(() => ({})),
+        connect: jest.fn(() => ({
+            type: warehouseClientMock.credentials.type,
+        })),
         disconnect: jest.fn(),
     })),
 }));
