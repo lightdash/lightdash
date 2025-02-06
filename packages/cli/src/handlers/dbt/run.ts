@@ -1,5 +1,5 @@
 import { getErrorMessage, ParseError } from '@lightdash/common';
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 import execa from 'execa';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import GlobalState from '../../globalState';
@@ -23,6 +23,12 @@ export const dbtRunHandler = async (
 
     if (!command.parent) {
         throw new Error('Parent command not found');
+    }
+
+    if (options.assumeYes && options.assumeNo) {
+        throw new InvalidArgumentError(
+            'Cannot use both --assume-yes and --assume-no flags',
+        );
     }
 
     await LightdashAnalytics.track({
