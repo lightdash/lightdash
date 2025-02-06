@@ -15,9 +15,15 @@ import {
     TextInput,
     Textarea,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconTrash, IconUserPlus, IconUsersPlus } from '@tabler/icons-react';
+import {
+    IconInfoCircle,
+    IconTrash,
+    IconUserPlus,
+    IconUsersPlus,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
@@ -180,7 +186,22 @@ const UserAttributeModal: FC<{
                         {...form.getInputProps('description')}
                     />
                     <Stack spacing="xxs">
-                        <Text fw={500}>Default value</Text>
+                        <Group spacing="xs">
+                            <Text fw={500}>Default value</Text>
+
+                            <Tooltip
+                                variant="xs"
+                                position="right"
+                                multiline
+                                maw={200}
+                                label="This will be the default value for the attribute if no other value is assigned to the user or group."
+                            >
+                                <MantineIcon
+                                    color="gray.6"
+                                    icon={IconInfoCircle}
+                                />
+                            </Tooltip>
+                        </Group>
 
                         <Group h={36}>
                             <Switch

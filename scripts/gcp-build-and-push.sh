@@ -11,11 +11,11 @@ fi
 version=$(cat package.json | jq -r '.version')
 echo "fork version: $version"
 timestamp=$(date +%Y.%m.%d-%H.%M.%S)
-image="us-east4-docker.pkg.dev/lightdash-cloud-beta/lightdash-commercial/lightdash-commercial"
+image="us-docker.pkg.dev/lightdash-containers/lightdash/lightdash"
 
 echo "Building with tags: $version-commercial, beta, $timestamp"
 
-gcloud auth configure-docker us-east4-docker.pkg.dev
+gcloud auth configure-docker us-docker.pkg.dev
 
 docker build . -t "$image:beta" -t "$image:$timestamp" -t "$image:$version-commercial"
 

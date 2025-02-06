@@ -30,7 +30,7 @@ type Props = {
     projectUuid: string;
     canManageProjectAccess: boolean;
     user: OrganizationMemberProfile;
-    inheritedRoles: InheritedRoles;
+    inheritedRoles: InheritedRoles | undefined;
 };
 
 const ProjectAccessRow: FC<Props> = ({
@@ -82,10 +82,12 @@ const ProjectAccessRow: FC<Props> = ({
     }, [canManageProjectAccess, revokeAccess, user.userUuid]);
 
     const highestRole = useMemo(() => {
+        if (!inheritedRoles) return undefined;
         return getHighestProjectRole(inheritedRoles);
     }, [inheritedRoles]);
 
     const projectRole = useMemo(() => {
+        if (!inheritedRoles) return undefined;
         return inheritedRoles.find(
             (role): role is ProjectRole => role.type === 'project',
         );
