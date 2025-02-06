@@ -1,5 +1,5 @@
 import { Center, Loader, Text } from '@mantine/core';
-import { lazy, Suspense, type FC } from 'react';
+import { Suspense, lazy, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';

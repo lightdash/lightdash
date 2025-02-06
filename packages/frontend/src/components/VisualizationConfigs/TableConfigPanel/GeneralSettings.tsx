@@ -6,8 +6,8 @@ import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import ColumnConfiguration from './ColumnConfiguration';
-import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
+import { MAX_PIVOTS } from './constants';
 
 enum DroppableIds {
     COLUMNS = 'COLUMNS',

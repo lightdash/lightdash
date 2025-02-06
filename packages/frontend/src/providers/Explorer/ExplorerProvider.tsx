@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     ChartType,
+    assertUnreachable,
     convertFieldRefToFieldId,
     deepEqual,
     getFieldRef,

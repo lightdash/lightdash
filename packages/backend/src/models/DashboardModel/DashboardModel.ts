@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
@@ -18,25 +17,25 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
+    LightdashUser,
+    NotFoundError,
+    SavedChart,
+    SessionUser,
+    UnexpectedServerError,
+    UpdateMultipleDashboards,
+    assertUnreachable,
     isDashboardChartTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSemanticViewerChartTile,
     isDashboardSqlChartTile,
-    LightdashUser,
-    NotFoundError,
     sanitizeHtml,
-    SavedChart,
-    SessionUser,
-    UnexpectedServerError,
-    UpdateMultipleDashboards,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    DashboardsTableName,
     DashboardTable,
     DashboardTabsTableName,
     DashboardTileChartTable,
@@ -46,9 +45,10 @@ import {
     DashboardTileSemanticViewerChartTableName,
     DashboardTileSqlChartTableName,
     DashboardTilesTableName,
-    DashboardVersionsTableName,
     DashboardVersionTable,
+    DashboardVersionsTableName,
     DashboardViewsTableName,
+    DashboardsTableName,
 } from '../../database/entities/dashboards';
 import {
     OrganizationTable,
@@ -65,8 +65,8 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
-    SavedChartsTableName,
     SavedChartTable,
+    SavedChartsTableName,
 } from '../../database/entities/savedCharts';
 import { SavedSemanticViewerChartsTableName } from '../../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';

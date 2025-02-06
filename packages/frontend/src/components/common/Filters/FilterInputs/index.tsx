@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     FilterType,
+    assertUnreachable,
     type ConditionalRule,
     type FilterableItem,
 } from '@lightdash/common';

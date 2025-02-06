@@ -213,6 +213,10 @@ export type LightdashConfig = {
             allowedDomains: string[];
             reportUri?: string;
         };
+        crossOriginResourceSharingPolicy: {
+            enabled: boolean;
+            allowedDomains: string[];
+        };
     };
     cookiesMaxAgeHours?: number;
     trustProxy: boolean;
@@ -514,6 +518,14 @@ export const parseConfig = (): LightdashConfig => {
                     .split(',')
                     .map((domain) => domain.trim()),
                 reportUri: process.env.LIGHTDASH_CSP_REPORT_URI,
+            },
+            crossOriginResourceSharingPolicy: {
+                enabled: process.env.LIGHTDASH_CORS_ENABLED === 'true',
+                allowedDomains: (
+                    process.env.LIGHTDASH_CORS_ALLOWED_DOMAINS || ''
+                )
+                    .split(',')
+                    .map((domain) => domain.trim()),
             },
         },
         smtp: process.env.EMAIL_SMTP_HOST

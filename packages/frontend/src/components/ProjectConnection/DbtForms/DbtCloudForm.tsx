@@ -4,9 +4,9 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import { Controller } from 'react-hook-form';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
-import MantineIcon from '../../common/MantineIcon';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
+import MantineIcon from '../../common/MantineIcon';
 import { useProjectFormContext } from '../useProjectFormContext';
 
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {

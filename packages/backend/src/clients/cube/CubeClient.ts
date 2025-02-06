@@ -1,13 +1,13 @@
 import cube, { CubeApi, Query } from '@cubejs-client/core';
 import {
     CubeSemanticLayerConnection,
-    getDefaultedLimit,
     MissingConfigError,
     NotFoundError,
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
     SemanticLayerType,
+    getDefaultedLimit,
 } from '@lightdash/common';
 import { mapKeys } from 'lodash';
 import { LightdashConfig } from '../../config/parseConfig';

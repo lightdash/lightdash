@@ -1,9 +1,9 @@
 import {
     Card,
-    createPolymorphicComponent,
     Menu,
     Stack,
     Text,
+    createPolymorphicComponent,
     type MenuItemProps,
 } from '@mantine/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';

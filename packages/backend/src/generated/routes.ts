@@ -73,8 +73,8 @@ import { FeatureFlagController } from './../controllers/v2/FeatureFlagController
 import type { IocContainer, IocContainerFactory } from '@tsoa/runtime';
 import type {
     Request as ExRequest,
-    RequestHandler,
     Response as ExResponse,
+    RequestHandler,
     Router,
 } from 'express';
 import { ContentController } from './../controllers/v2/ContentController';
@@ -2442,6 +2442,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                isFilteredOut: { dataType: 'boolean' },
                 markLine: { ref: 'MarkLine' },
                 smooth: { dataType: 'boolean' },
                 showSymbol: { dataType: 'boolean' },
@@ -7050,6 +7051,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ReplaceCustomFieldsTaskType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'enum',
+            enums: ['replaceCustomFields'],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerJobStatus: {
         dataType: 'refEnum',
         enums: ['scheduled', 'started', 'completed', 'error'],
@@ -7098,6 +7108,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['sqlRunner'] },
                         { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
                         { dataType: 'enum', enums: ['semanticLayer'] },
+                        { ref: 'ReplaceCustomFieldsTaskType' },
                         { dataType: 'enum', enums: ['indexCatalog'] },
                     ],
                     required: true,

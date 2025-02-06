@@ -1,7 +1,7 @@
 import {
+    SchedulerJobStatus,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
-    SchedulerJobStatus,
     type ApiError,
     type ApiSqlRunnerJobStatusResponse,
     type ApiSqlRunnerJobSuccessResponse,

@@ -2,12 +2,12 @@ import { useParams } from 'react-router';
 
 import { ResourceViewItemType } from '@lightdash/common';
 import { useCallback, useEffect, useMemo } from 'react';
-import ErrorState from '../components/common/ErrorState';
-import Page from '../components/common/Page/Page';
-import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import ErrorState from '../components/common/ErrorState';
+import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useChartPinningMutation } from '../hooks/pinning/useChartPinningMutation';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';

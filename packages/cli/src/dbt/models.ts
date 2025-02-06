@@ -11,7 +11,7 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { searchForModel, YamlSchema } from './schema';
+import { YamlSchema, searchForModel } from './schema';
 
 type CompiledModel = {
     name: string;

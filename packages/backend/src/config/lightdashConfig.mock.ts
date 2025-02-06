@@ -169,6 +169,10 @@ export const lightdashConfigMock: LightdashConfig = {
             reportOnly: false,
             allowedDomains: [],
         },
+        crossOriginResourceSharingPolicy: {
+            enabled: false,
+            allowedDomains: [],
+        },
     },
     github: {
         appName: 'lightdash-app-dev',

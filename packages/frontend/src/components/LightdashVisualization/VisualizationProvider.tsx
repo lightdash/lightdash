@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     ChartType,
+    assertUnreachable,
     isDimension,
     type ApiQueryResults,
     type ChartConfig,
@@ -29,14 +29,14 @@ import {
 } from '../../hooks/useChartColorConfig/utils';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
-import Context from './context';
-import { type useVisualizationContext } from './useVisualizationContext';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
 import VisualizationPieConfig from './VisualizationConfigPie';
 import VisualizationTableConfig from './VisualizationConfigTable';
 import VisualizationCustomConfig from './VisualizationCustomConfig';
+import Context from './context';
+import { type useVisualizationContext } from './useVisualizationContext';
 
 type Props = {
     minimal?: boolean;

@@ -2,8 +2,8 @@ import React, { useEffect, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import useApp from '../providers/App/useApp';
-import { useAbilityContext } from './common/Authorization/useAbilityContext';
 import PageSpinner from './PageSpinner';
+import { useAbilityContext } from './common/Authorization/useAbilityContext';
 
 const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const {

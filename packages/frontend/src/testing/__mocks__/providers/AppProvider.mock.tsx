@@ -3,6 +3,7 @@ import {
     type ApiError,
     type HealthState,
     type LightdashUserWithAbilityRules,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { type FC, type PropsWithChildren } from 'react';
@@ -34,7 +35,9 @@ const AppProviderMock: FC<PropsWithChildren<AppProviderMockProps>> = ({
 
             return {
                 ...userResponse,
-                ability: new Ability(userResponse.abilityRules),
+                ability: new Ability<PossibleAbilities>(
+                    userResponse.abilityRules,
+                ),
             };
         },
         enabled: !!health.data?.isAuthenticated,

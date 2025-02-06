@@ -1,8 +1,8 @@
 import {
-    generateSlug,
     NotFoundError,
     SavedSemanticViewerChart,
     SpaceSummary,
+    generateSlug,
     type SemanticViewerChartCreate,
     type SemanticViewerChartUpdate,
 } from '@lightdash/common';
@@ -14,10 +14,10 @@ import {
 } from '../database/entities/organizations';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
 import {
-    DbSavedSemanticViewerChart,
     DBSavedSemanticViewerChartVersion,
-    SavedSemanticViewerChartsTableName,
+    DbSavedSemanticViewerChart,
     SavedSemanticViewerChartVersionsTableName,
+    SavedSemanticViewerChartsTableName,
 } from '../database/entities/savedSemanticViewerCharts';
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';

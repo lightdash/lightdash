@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.1478.7",
+    "version": "0.1480.3",
     "private": true,
     "scripts": {
         "dev": "vite",
@@ -104,6 +104,7 @@
         "sql-formatter": "^15.4.2",
         "styled-components": "^5.3.3",
         "tippy.js": "^6.3.7",
+        "type-fest": "^4.32.0",
         "unique-names-generator": "^4.7.1",
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
@@ -142,7 +143,6 @@
         "nock": "^13.5.1",
         "react-test-renderer": "^19.0.0",
         "ts-unused-exports": "^9.0.4",
-        "type-fest": "^4.32.0",
         "vite": "^6.0.7",
         "vite-plugin-compression2": "^1.3.0",
         "vite-plugin-monaco-editor": "^1.1.0",

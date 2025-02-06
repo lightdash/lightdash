@@ -1,8 +1,8 @@
 import {
-    applyCustomFormat,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
     CustomFormatType,
+    applyCustomFormat,
     formatItemValue,
     friendlyName,
     getCustomFormatFromLegacy,

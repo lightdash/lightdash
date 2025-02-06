@@ -8,9 +8,7 @@ import {
     renderStringFilterSql,
 } from './filtersCompiler';
 import {
-    adapterType,
     DimensionSqlMock,
-    disabledFilterMock,
     ExpectedInTheCurrentFilterSQL,
     ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     ExpectedInTheNextCompleteFilterSQL,
@@ -18,7 +16,6 @@ import {
     ExpectedInTheNextFilterSQL,
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
-    filterInTheCurrentDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -51,8 +48,6 @@ import {
     InThePastFilterBase,
     NumberDimensionMock,
     NumberFilterBase,
-    stringFilterDimension,
-    stringFilterRuleMocks,
     TrinoExpectedInTheCurrentFilterSQL,
     TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     TrinoExpectedInTheNextCompleteFilterSQL,
@@ -73,6 +68,11 @@ import {
     TrinoInTheLast1MonthFilterSQL,
     TrinoInTheLast1WeekFilterSQL,
     TrinoInTheLast1YearFilterSQL,
+    adapterType,
+    disabledFilterMock,
+    filterInTheCurrentDayTimezoneMocks,
+    stringFilterDimension,
+    stringFilterRuleMocks,
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>

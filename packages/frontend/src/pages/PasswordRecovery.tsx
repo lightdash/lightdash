@@ -1,8 +1,8 @@
 import { Card, Image, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate } from 'react-router';
-import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
+import Page from '../components/common/Page/Page';
 import useApp from '../providers/App/useApp';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';

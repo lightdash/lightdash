@@ -1,14 +1,14 @@
 import {
+    SemanticLayerFilterRelativeTimeValue,
     assertUnreachable,
     isSemanticLayerBaseOperator,
     isSemanticLayerRelativeTimeFilter,
     isSemanticLayerRelativeTimeValue,
-    SemanticLayerFilterRelativeTimeValue,
     type SemanticLayerField,
     type SemanticLayerFilter,
     type SemanticLayerTimeFilter,
 } from '@lightdash/common';
-import { Group, rem, Select, type SelectItem } from '@mantine/core';
+import { Group, Select, rem, type SelectItem } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterFieldSelect from '../FilterFieldSelect';
 import getOperatorString from '../getOperatorString';

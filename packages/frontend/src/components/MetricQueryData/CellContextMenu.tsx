@@ -4,9 +4,9 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
+import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
-import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const clipboard = useClipboard({ timeout: 2000 });

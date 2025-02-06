@@ -13,8 +13,8 @@ import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import {
-    Table as TableStyled,
     TABLE_HEADER_BG,
+    Table as TableStyled,
     Tr,
 } from '../../common/Table/Table.styles';
 import { useTableDataModel } from '../hooks/useTableDataModel';

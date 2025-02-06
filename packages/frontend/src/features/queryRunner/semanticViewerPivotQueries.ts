@@ -1,9 +1,9 @@
 import {
-    assertUnreachable,
     DimensionType,
     SemanticLayerFieldType,
     VizAggregationOptions,
     VizIndexType,
+    assertUnreachable,
     type PivotChartData,
     type PivotValuesColumn,
     type RunPivotQuery,

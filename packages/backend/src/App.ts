@@ -25,6 +25,7 @@ import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
+import cors from 'cors';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -395,6 +396,37 @@ export default class App {
                 },
             }),
         );
+
+        // Cross-Origin Resource Sharing policy (CORS)
+        if (
+            this.lightdashConfig.security.crossOriginResourceSharingPolicy
+                .enabled &&
+            this.lightdashConfig.security.crossOriginResourceSharingPolicy
+                .allowedDomains.length > 0
+        ) {
+            expressApp.use(
+                cors({
+                    origin: (origin, callback) => {
+                        if (
+                            !origin ||
+                            this.lightdashConfig.security.crossOriginResourceSharingPolicy.allowedDomains.includes(
+                                origin,
+                            )
+                        ) {
+                            callback(null, true);
+                        } else {
+                            callback(
+                                new Error(
+                                    'The CORS policy for this site does not allow access from the specified Origin.',
+                                ),
+                                false,
+                            );
+                        }
+                    },
+                    credentials: false,
+                }),
+            );
+        }
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234

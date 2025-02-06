@@ -1,9 +1,9 @@
 import {
+    MetricType,
     formatItemValue,
     friendlyName,
     isField,
     isMetric,
-    MetricType,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,

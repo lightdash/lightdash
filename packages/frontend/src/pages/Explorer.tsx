@@ -3,10 +3,10 @@ import { memo } from 'react';
 import { useParams } from 'react-router';
 
 import { useHotkeys } from '@mantine/hooks';
-import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import Page from '../components/common/Page/Page';
 import { useExplore } from '../hooks/useExplore';
 import {
     useDateZoomGranularitySearch,

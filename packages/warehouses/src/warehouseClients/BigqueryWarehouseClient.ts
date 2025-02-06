@@ -11,7 +11,6 @@ import {
     AnyType,
     CreateBigqueryCredentials,
     DimensionType,
-    getErrorMessage,
     Metric,
     MetricType,
     PartitionColumn,
@@ -20,8 +19,9 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    getErrorMessage,
 } from '@lightdash/common';
-import { pipeline, Transform, Writable } from 'stream';
+import { Transform, Writable, pipeline } from 'stream';
 import { WarehouseCatalog, WarehouseTableSchema } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 

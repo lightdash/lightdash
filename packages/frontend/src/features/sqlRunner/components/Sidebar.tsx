@@ -9,11 +9,11 @@ import {
 } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useRefreshTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
+import { SidebarTabs, setSelectedChartType } from '../store/sqlRunnerSlice';
 import { TablesPanel } from './TablesPanel';
 
 type Props = {
