@@ -1,3 +1,10 @@
+## [0.1481.2](https://github.com/lightdash/lightdash/compare/0.1481.1...0.1481.2) (2025-02-06)
+
+
+### Bug Fixes
+
+* get inherited roles if org roles exist ([#13552](https://github.com/lightdash/lightdash/issues/13552)) ([4c4f4ea](https://github.com/lightdash/lightdash/commit/4c4f4ea9001f512ec8f23216b00e4e003c86d981))
+
 ## [0.1481.1](https://github.com/lightdash/lightdash/compare/0.1481.0...0.1481.1) (2025-02-06)
 
 
