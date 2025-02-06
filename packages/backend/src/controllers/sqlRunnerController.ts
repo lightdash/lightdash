@@ -81,6 +81,7 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Query() tableName?: string,
         @Query() schemaName?: string,
+        @Query() databaseName?: string,
     ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
@@ -94,6 +95,7 @@ export class SqlRunnerController extends BaseController {
                     QueryExecutionContext.SQL_RUNNER,
                     tableName,
                     schemaName,
+                    databaseName,
                 ),
         };
     }
