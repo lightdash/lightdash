@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    MetricType,
     friendlyName,
     getItemId,
     isAdditionalMetric,
@@ -7,7 +8,6 @@ import {
     isCustomSqlDimension,
     isDimension,
     isFilterableField,
-    MetricType,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
@@ -217,6 +217,34 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Duplicate custom metric
                         </Menu.Item>
+                        {isGithubIntegrationEnabled && (
+                            <Tooltip
+                                label={
+                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                }
+                                position="top"
+                                withArrow
+                                withinPortal
+                                disabled={gitIntegration?.enabled}
+                            >
+                                <Menu.Item
+                                    key="custommetric"
+                                    component="button"
+                                    disabled={!gitIntegration?.enabled}
+                                    icon={<MantineIcon icon={IconCode} />}
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.stopPropagation();
+                                        toggleAdditionalMetricWriteBackModal({
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Write back to dbt
+                                </Menu.Item>
+                            </Tooltip>
+                        )}
                         <Menu.Item
                             color="red"
                             key="custommetric"
@@ -235,39 +263,6 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Remove custom metric
                         </Menu.Item>
-                        {isGithubIntegrationEnabled && (
-                            <Tooltip
-                                label={
-                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
-                                }
-                                position="top"
-                                withArrow
-                                withinPortal
-                                disabled={gitIntegration?.enabled}
-                            >
-                                <div>
-                                    <Menu.Divider />
-                                    <Menu.Item
-                                        key="custommetric"
-                                        component="button"
-                                        disabled={!gitIntegration?.enabled}
-                                        icon={<MantineIcon icon={IconCode} />}
-                                        onClick={(
-                                            e: React.MouseEvent<HTMLButtonElement>,
-                                        ) => {
-                                            e.stopPropagation();
-                                            toggleAdditionalMetricWriteBackModal(
-                                                {
-                                                    item,
-                                                },
-                                            );
-                                        }}
-                                    >
-                                        Write back to dbt
-                                    </Menu.Item>
-                                </div>
-                            </Tooltip>
-                        )}
                     </>
                 ) : null}
 
