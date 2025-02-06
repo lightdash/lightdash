@@ -976,10 +976,6 @@ function reducer(
             };
         }
         case ActionType.REPLACE_FIELDS: {
-            console.log(
-                'action.payload.fieldsToReplace',
-                action.payload.fieldsToReplace,
-            );
             const { hasChanges, chartVersion } =
                 maybeReplaceFieldsInChartVersion({
                     fieldsToReplace: action.payload.fieldsToReplace,
