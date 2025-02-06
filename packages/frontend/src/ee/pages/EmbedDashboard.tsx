@@ -412,7 +412,12 @@ const EmbedDashboard: FC = () => {
     };
     return (
         <div
-            style={{ height: '100vh', overflowY: 'auto' }}
+            style={{
+                height: '100%',
+                width: '100%',
+                position: 'relative',
+                overflow: 'hidden',
+            }}
             id="lightdash-dashboard"
         >
             <DashboardHeader dashboard={dashboard} projectUuid={projectUuid} />
@@ -422,6 +427,10 @@ const EmbedDashboard: FC = () => {
             />
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps({ enableAnimation: false })}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                }}
                 layouts={layouts}
                 className={`react-grid-layout-dashboard ${
                     hasRequiredDashboardFiltersToSet ? 'locked' : ''

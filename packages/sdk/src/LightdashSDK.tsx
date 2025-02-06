@@ -48,7 +48,7 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
             if (node !== null && !emotionCache) {
                 const cache = createEmotionCache({
                     key: 'mantine-subtree',
-                    container: node,
+                    container: node, // Use the node as the container for CSS injection
                 });
                 setEmotionCache(cache);
             }
@@ -59,6 +59,8 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
     if (!token) {
         return null;
     }
+
+    console.log('emotionCache', emotionCache);
 
     const router = createBrowserRouter([
         {
@@ -85,8 +87,24 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
                     path: '*',
                     element: (
                         <EmbedProvider embedToken={token}>
-                            <div ref={containerRef}>
-                                <EmbedDashboard projectUuid={projectUuid} />
+                            <div
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                }}
+                                ref={containerRef}
+                            >
+                                {emotionCache && (
+                                    <MantineProvider
+                                        emotionCache={emotionCache}
+                                        // withGlobalStyles
+                                        // withNormalizeCSS
+                                    >
+                                        <EmbedDashboard
+                                            projectUuid={projectUuid}
+                                        />
+                                    </MantineProvider>
+                                )}
                             </div>
                         </EmbedProvider>
                     ),
@@ -97,9 +115,7 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
 
     return (
         <ReactQueryProvider>
-            <MantineProvider emotionCache={emotionCache}>
-                <RouterProvider router={router} />
-            </MantineProvider>
+            <RouterProvider router={router} />
         </ReactQueryProvider>
     );
 };
