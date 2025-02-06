@@ -21,11 +21,13 @@ import {
 } from '../types/field';
 import {
     FilterOperator,
+    isDateFilterRule,
     isFilterTarget,
     isMetricFilterTarget,
     UnitOfTime,
     unitOfTimeFormat,
     type DateFilterRule,
+    type DateFilterSettings,
     type FilterRule,
     type MetricFilterRule,
 } from '../types/filter';
@@ -494,50 +496,84 @@ export const renderFilterRuleSql = (
     }
 };
 
+const isValidMetricFilterRule = (filter: MetricFilterRule): boolean => {
+    const { values, operator } = filter;
+    const operatorAllowsEmptyValues = [
+        FilterOperator.NULL,
+        FilterOperator.NOT_NULL,
+    ].includes(operator);
+    const firstValue = values?.[0] as string | number | undefined;
+    return operatorAllowsEmptyValues || firstValue !== undefined;
+};
 /**
  * Converts a filter rule from custom metrics to dbt meta tags in yml
  * More info about dbt filters: https://docs.lightdash.com/references/metrics/#available-filter-types
  */
-const convertFilterOperatorToDbt = (filter: MetricFilterRule): string => {
+const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
     const { values, operator } = filter;
 
-    if (
-        values === undefined ||
-        values.length === 0 ||
-        values[0] === undefined
-    ) {
+    if (!isValidMetricFilterRule(filter)) {
         throw new ParameterError(
             `Filter values are undefined for filter: ${JSON.stringify(filter)}`,
         );
     }
-    // Value can be null
+    // Operators without values are handled here
+    switch (operator) {
+        case FilterOperator.NULL:
+            return [`null`];
+        case FilterOperator.NOT_NULL:
+            return [`!null`];
+        default:
+            break; // continue
+    }
+    const validValues = values as (string | number)[];
+    const firstValue = validValues[0];
 
     switch (operator) {
         case FilterOperator.EQUALS:
-        case FilterOperator.NULL:
-            return `${values[0]}`;
+            return validValues?.map((value) => `${value}`);
         case FilterOperator.NOT_EQUALS:
-        case FilterOperator.NOT_NULL:
-            return `!${values[0]}`;
+            return [`!${firstValue}`];
         case FilterOperator.INCLUDE:
-            return `%${values[0]}%`;
+            return [`%${firstValue}%`];
         case FilterOperator.NOT_INCLUDE:
-            return `!%${values[0]}%`;
+            return [`!%${firstValue}%`];
         case FilterOperator.STARTS_WITH:
-            return `${values[0]}%`;
+            return [`${firstValue}%`];
         case FilterOperator.ENDS_WITH:
-            return `%${values[0]}`;
+            return [`%${firstValue}`];
         case FilterOperator.GREATER_THAN:
-            return `> ${values[0]}`;
+            return [`> ${firstValue}`];
         case FilterOperator.GREATER_THAN_OR_EQUAL:
-            return `>= ${values[0]}`;
+            return [`>= ${firstValue}`];
         case FilterOperator.LESS_THAN:
-            return `< ${values[0]}`;
+            return [`< ${firstValue}`];
         case FilterOperator.LESS_THAN_OR_EQUAL:
-            return `<= ${values[0]}`;
+            return [`<= ${firstValue}`];
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_PAST:
-            return `${operator} ${values[0]}`;
+            if (isDateFilterRule(filter)) {
+                const settings = filter.settings as DateFilterSettings;
+                const unitOfTime = settings.unitOfTime || UnitOfTime.days;
+
+                let totalValue = Number(firstValue);
+                if (
+                    settings.completed &&
+                    operator === FilterOperator.IN_THE_NEXT
+                ) {
+                    totalValue += 1;
+                }
+                if (
+                    settings.completed &&
+                    operator === FilterOperator.IN_THE_PAST
+                ) {
+                    totalValue -= 1;
+                }
+                return [`${operator} ${totalValue} ${unitOfTime}`];
+            }
+            throw new NotImplementedError(
+                `No function implemented to convert date custom metric filter to dbt: ${operator}`,
+            );
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.IN_BETWEEN:
         case FilterOperator.NOT_IN_THE_PAST:
@@ -552,7 +588,7 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string => {
                 `No function implemented to convert custom metric filter to dbt: ${operator}`,
             );
     }
-    return `${values[0]}`;
+    return [];
 };
 export const convertMetricFilterToDbt = (
     filters: MetricFilterRule[] | undefined,
@@ -561,19 +597,17 @@ export const convertMetricFilterToDbt = (
 
     return filters.reduce<DbtColumnLightdashMetric['filters']>(
         (acc, filter) => {
-            const { target, values } = filter;
+            const { target } = filter;
 
-            if (
-                values === undefined ||
-                values.length === 0 ||
-                values[0] === undefined
-            )
-                return acc;
-            const value: string = convertFilterOperatorToDbt(filter);
+            if (!isValidMetricFilterRule(filter)) return acc;
+            const values: string[] = convertFilterOperatorToDbt(filter);
             const fieldRefParts = target.fieldRef.split('.');
             const fieldId =
                 fieldRefParts.length > 1 ? fieldRefParts[1] : target.fieldRef;
-            return [...(acc || []), { [fieldId]: value }];
+            const dbtFilters = {
+                [fieldId]: values.length > 1 ? values : values[0],
+            };
+            return [...(acc || []), dbtFilters];
         },
         [],
     );

@@ -836,6 +836,20 @@ describe('convertMetricFilterToDbt', () => {
         ];
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
     });
+    it('should convert EQUALS with multiple values correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'customers.customer_id' },
+                id: '1',
+                operator: FilterOperator.EQUALS,
+                values: ['value1', 'value2'],
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { customer_id: ['value1', 'value2'] },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
 
     it('should convert NOT_EQUALS filter correctly', () => {
         const filters: MetricFilterRule[] = [
@@ -854,24 +868,25 @@ describe('convertMetricFilterToDbt', () => {
     it('should convert NULL filters correctly', () => {
         const filters: MetricFilterRule[] = [
             {
-                target: { fieldRef: 'field2' },
+                target: { fieldRef: 'field1' },
                 id: '1',
-                operator: FilterOperator.EQUALS,
-                values: [null],
+                operator: FilterOperator.NULL,
+                values: [],
             },
             {
-                target: { fieldRef: 'field3' },
+                target: { fieldRef: 'field2' },
                 id: '1',
-                operator: FilterOperator.NOT_EQUALS,
-                values: [null],
+                operator: FilterOperator.NOT_NULL,
+                values: [],
             },
         ];
         const expected: DbtColumnLightdashMetric['filters'] = [
-            { field2: 'null' },
-            { field3: '!null' },
+            { field1: 'null' },
+            { field2: '!null' },
         ];
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
     });
+
     it('should convert boolean filters correctly', () => {
         const filters: MetricFilterRule[] = [
             {
@@ -959,18 +974,49 @@ describe('convertMetricFilterToDbt', () => {
                 target: { fieldRef: 'field1' },
                 id: '1',
                 operator: FilterOperator.IN_THE_NEXT,
-                values: ['14 days'],
+                values: ['14'],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    completed: false,
+                },
             },
             {
                 target: { fieldRef: 'field2' },
+                id: '1',
+                operator: FilterOperator.IN_THE_NEXT,
+                values: ['14'],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    completed: true,
+                },
+            },
+            {
+                target: { fieldRef: 'field3' },
+                id: '1',
+                operator: FilterOperator.IN_THE_PAST,
+                values: ['14'],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    completed: true,
+                },
+            },
+            {
+                target: { fieldRef: 'field4' },
                 id: '2',
                 operator: FilterOperator.IN_THE_PAST,
-                values: ['14 months'],
+                values: [14],
+                settings: {
+                    unitOfTime: UnitOfTime.months,
+                    completed: false,
+                },
             },
         ];
         const expected: DbtColumnLightdashMetric['filters'] = [
             { field1: 'inTheNext 14 days' },
-            { field2: 'inThePast 14 months' },
+            { field2: 'inTheNext 15 days' },
+            { field3: 'inThePast 13 days' },
+
+            { field4: 'inThePast 14 months' },
         ];
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
     });

@@ -56,6 +56,16 @@ Content-Type: application/json
                             "operator": "greaterThan"
                         },
                         {
+                            "id": "aa4d2925-53d6-4ef3-b297-d8be269b0c62",
+                            "target": {
+                                "fieldRef": "customers.customer_id"
+                            },
+                            "values": [
+                                1,2,3,4,5
+                            ],
+                            "operator": "equals"
+                        },
+                        {
                             "id": "7e89437f-50ed-4d91-b4e4-a6aafffc959a",
                             "target": {
                                 "fieldRef": "customers.first_name"
