@@ -131,7 +131,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
     const inheritedRoles = useMemo(() => {
         // Organization users and org roles are not always available, and we don't want to show the user access page if they are not available
-        if (!organizationUsers || !orgRoles) return {};
+        if (!organizationUsers || !orgRoles) return undefined;
         return organizationUsers.reduce<Record<string, InheritedRoles>>(
             (acc, orgUser) => {
                 return {
@@ -159,7 +159,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     }, [organizationUsers, orgRoles, groupRoles, projectRoles]);
 
     const usersWithProjectRole = useMemo(() => {
-        if (!organizationUsers) return [];
+        if (!organizationUsers || !inheritedRoles) return [];
 
         return organizationUsers.map((orgUser) => {
             const highestRole = getHighestProjectRole(
@@ -241,7 +241,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                                 canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
                                 inheritedRoles={
-                                    inheritedRoles[orgUser.userUuid]
+                                    inheritedRoles?.[orgUser.userUuid]
                                 }
                             />
                         ))}
