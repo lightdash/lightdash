@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
+    OrganizationMemberRole,
+    ProjectMemberRole,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToOrganizationRole,
     getHighestProjectRole,
     isGroupWithMembers,
     type InheritedRoles,
-    type OrganizationMemberRole,
-    type ProjectMemberRole,
 } from '@lightdash/common';
 import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
@@ -129,6 +129,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
             projectUuid,
         }),
     );
+
     const inheritedRoles = useMemo(() => {
         if (!organizationUsers) return {};
         return organizationUsers.reduce<Record<string, InheritedRoles>>(
@@ -139,7 +140,8 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                         {
                             type: 'organization',
                             role: convertOrganizationRoleToProjectRole(
-                                orgRoles[orgUser.userUuid],
+                                orgRoles[orgUser.userUuid] ||
+                                    OrganizationMemberRole.MEMBER,
                             ),
                         },
                         {
@@ -162,7 +164,8 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
         return organizationUsers.map((orgUser) => {
             const highestRole = getHighestProjectRole(
-                inheritedRoles[orgUser.userUuid],
+                inheritedRoles[orgUser.userUuid] ||
+                    OrganizationMemberRole.MEMBER,
             );
             const hasProjectRole = !!projectRoles[orgUser.userUuid];
             const inheritedRole = highestRole?.role
@@ -172,7 +175,8 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                 ...orgUser,
                 finalRole: hasProjectRole
                     ? convertProjectRoleToOrganizationRole(
-                          projectRoles[orgUser.userUuid],
+                          projectRoles[orgUser.userUuid] ||
+                              ProjectMemberRole.VIEWER,
                       )
                     : inheritedRole,
             };
