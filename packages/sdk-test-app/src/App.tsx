@@ -1,16 +1,107 @@
 import LightdashSDK from '@lightdash/sdk';
 
 function App() {
+    const containerStyle = {
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        // A subtle gradient background
+        background: 'linear-gradient(135deg, #f0f2f5 0%, #e9eff5 100%)',
+        minHeight: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        padding: '20px',
+    };
+
+    // Content box style
+    const contentStyle = {
+        backgroundColor: '#ffffff',
+        padding: '40px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+        maxWidth: '800px',
+        width: '100%',
+    };
+
+    // Chart container style
+    const chartContainerStyle = {
+        margin: '20px auto',
+        width: '100%',
+        maxWidth: '600px',
+        height: '400px',
+        border: '2px dashed #ccc',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fafafa',
+    };
+
+    // Info box style with bluish text and a light blue background
+    const infoBoxStyle = {
+        backgroundColor: '#e7f3fe', // light blue background
+        borderLeft: '4px solid #2196F3', // blue accent border
+        padding: '15px',
+        margin: '20px auto',
+        maxWidth: '600px',
+        color: '#0b75c9', // bluish text
+        borderRadius: '4px',
+    };
+
     return (
-        <>
-            <LightdashSDK.Dashboard
-                instanceUrl="http://localhost:3000/"
-                getEmbedToken={Promise.resolve(
-                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJkYXNoYm9hcmRVdWlkIjoiNWM5NDE2NDEtNDkxMS00ZWY5LWJhZmMtOGU1YjJmOTVhYzg4IiwiZGFzaGJvYXJkRmlsdGVyc0ludGVyYWN0aXZpdHkiOnsiZW5hYmxlZCI6Im5vbmUiLCJhbGxvd2VkRmlsdGVycyI6bnVsbH0sImNhbkV4cG9ydENzdiI6ZmFsc2UsImNhbkV4cG9ydEltYWdlcyI6ZmFsc2V9LCJ1c2VyIjp7ImV4dGVybmFsSWQiOm51bGwsImVtYWlsIjoiZGVtb0BsaWdodGRhc2guY29tIn0sInVzZXJBdHRyaWJ1dGVzIjp7fSwiaWF0IjoxNzM4NjgxNDY3LCJleHAiOjE3Mzg3MTc0Njd9.krvPZqbDRw_olhoq6sSBNYHq5HL_uV0YH-lGJHC-38E',
-                )}
-                projectUuid="3675b69e-8324-4110-bdca-059031aa8da3"
-            />
-        </>
+        <div style={containerStyle}>
+            <div style={contentStyle}>
+                <header>
+                    <h1 style={{ color: '#333', margin: '0 0 10px' }}>
+                        Lightdash SDK
+                    </h1>
+                    <h2 style={{ color: '#555', margin: '0 0 20px' }}>
+                        Dashboard component
+                    </h2>
+                </header>
+
+                <main>
+                    <p
+                        style={{
+                            fontSize: '1.1em',
+                            lineHeight: '1.6',
+                            color: '#666',
+                        }}
+                    >
+                        This is a demo page that includes a Lightdash dashboard
+                        component. The data is fetched from the Lightdash
+                        server, but this app is running locally.
+                    </p>
+
+                    <div id="chart-container" style={chartContainerStyle}>
+                        <LightdashSDK.Dashboard
+                            instanceUrl="http://localhost:3000/"
+                            getEmbedToken={Promise.resolve(
+                                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJkYXNoYm9hcmRVdWlkIjoiMmNiMDMyMWItMTRlZC00NzAzLThlNTAtMjdhMzNlZjkyYTAwIiwiZGFzaGJvYXJkRmlsdGVyc0ludGVyYWN0aXZpdHkiOnsiZW5hYmxlZCI6Im5vbmUiLCJhbGxvd2VkRmlsdGVycyI6bnVsbH0sImNhbkV4cG9ydENzdiI6ZmFsc2UsImNhbkV4cG9ydEltYWdlcyI6ZmFsc2V9LCJ1c2VyIjp7ImV4dGVybmFsSWQiOm51bGwsImVtYWlsIjoiZGVtb0BsaWdodGRhc2guY29tIn0sInVzZXJBdHRyaWJ1dGVzIjp7fSwiaWF0IjoxNzM4ODM4MjU3LCJleHAiOjE3MzkxOTgyNTd9.ZwBwKb8SArH-XT2IqEwM7Om69P4t6MAAqTYUoBWIQTU',
+                            )}
+                            projectUuid="3675b69e-8324-4110-bdca-059031aa8da3"
+                        />
+                    </div>
+
+                    {/* Info box with bluish text */}
+                    <div style={infoBoxStyle}>
+                        <p>
+                            Additional Information: This chart is powered by
+                            LightdashSDK.
+                        </p>
+                    </div>
+                </main>
+
+                <footer>
+                    <p
+                        style={{
+                            fontSize: '0.9em',
+                            color: '#999',
+                            margin: '20px 0 0',
+                        }}
+                    >
+                        &copy; 2025 Lightdash
+                    </p>
+                </footer>
+            </div>
+        </div>
     );
 }
 
