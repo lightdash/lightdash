@@ -177,6 +177,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                               ProjectMemberRole.VIEWER,
                       )
                     : inheritedRole,
+                inheritedRole: inheritedRoles?.[orgUser.userUuid],
             };
         });
     }, [organizationUsers, projectRoles, inheritedRoles]);
@@ -189,10 +190,13 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                 threshold: 0.3,
             })
                 .search(search)
-                .map((result) => result.item);
+                .map((result) => ({
+                    ...result.item,
+                    inheritedRole: inheritedRoles?.[result.item.userUuid],
+                }));
         }
         return usersWithProjectRole;
-    }, [usersWithProjectRole, search]);
+    }, [usersWithProjectRole, search, inheritedRoles]);
 
     if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return <LoadingState title="Loading user access" />;
@@ -239,9 +243,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                                 projectUuid={projectUuid}
                                 canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
-                                inheritedRoles={
-                                    inheritedRoles?.[orgUser.userUuid]
-                                }
+                                inheritedRoles={orgUser.inheritedRole}
                             />
                         ))}
                     </tbody>
