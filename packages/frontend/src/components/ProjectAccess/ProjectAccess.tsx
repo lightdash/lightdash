@@ -140,8 +140,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                         {
                             type: 'organization',
                             role: convertOrganizationRoleToProjectRole(
-                                orgRoles[orgUser.userUuid] ||
-                                    OrganizationMemberRole.MEMBER,
+                                orgRoles[orgUser.userUuid],
                             ),
                         },
                         {
