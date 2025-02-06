@@ -1,3 +1,15 @@
+# [0.1481.0](https://github.com/lightdash/lightdash/compare/0.1480.3...0.1481.0) (2025-02-06)
+
+
+### Bug Fixes
+
+* replaceCustomFields type ([#13545](https://github.com/lightdash/lightdash/issues/13545)) ([c4466b7](https://github.com/lightdash/lightdash/commit/c4466b7d5f9ccd69b83edd8941596504a13bb145))
+
+
+### Features
+
+* add --assume-no option ([#13543](https://github.com/lightdash/lightdash/issues/13543)) ([6019b6c](https://github.com/lightdash/lightdash/commit/6019b6c09f17ed2c5a95ee021b81b12071c4aa32))
+
 ## [0.1480.3](https://github.com/lightdash/lightdash/compare/0.1480.2...0.1480.3) (2025-02-06)
 
 
