@@ -1,16 +1,26 @@
 import { subject } from '@casl/ability';
 import {
     convertFieldRefToFieldId,
+    convertReplaceableFieldMatchMapToReplaceFieldsMap,
     ExploreType,
+    findReplaceableCustomMetrics,
     getAllReferences,
     getItemId,
+    getMetrics,
     getVisibleFields,
     isCustomBinDimension,
     isCustomSqlDimension,
 } from '@lightdash/common';
 import { ActionIcon, Group, Menu, Skeleton, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
-import { memo, useMemo, useState, useTransition, type FC } from 'react';
+import {
+    memo,
+    useEffect,
+    useMemo,
+    useState,
+    useTransition,
+    type FC,
+} from 'react';
 import { useParams } from 'react-router';
 import {
     DeleteVirtualViewModal,
@@ -72,7 +82,28 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
     );
+    const replaceFields = useExplorerContext(
+        (context) => context.actions.replaceFields,
+    );
     const { data: explore, status } = useExplore(activeTableName);
+
+    useEffect(() => {
+        if (explore && additionalMetrics) {
+            const replaceableFieldsMap = findReplaceableCustomMetrics({
+                metrics: getMetrics(explore),
+                customMetrics: additionalMetrics,
+            });
+            const fieldsToReplace =
+                convertReplaceableFieldMatchMapToReplaceFieldsMap(
+                    replaceableFieldsMap,
+                );
+            if (fieldsToReplace) {
+                replaceFields({
+                    customMetrics: fieldsToReplace,
+                });
+            }
+        }
+    }, [explore, additionalMetrics, replaceFields]);
 
     const { user } = useApp();
     const canManageVirtualViews = user.data?.ability?.can(
