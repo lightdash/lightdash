@@ -1,3 +1,10 @@
+## [0.1481.1](https://github.com/lightdash/lightdash/compare/0.1481.0...0.1481.1) (2025-02-06)
+
+
+### Bug Fixes
+
+* undefined role project settings ([#13549](https://github.com/lightdash/lightdash/issues/13549)) ([9ebc262](https://github.com/lightdash/lightdash/commit/9ebc26261f90c5872d0404840088212e647cf341))
+
 # [0.1481.0](https://github.com/lightdash/lightdash/compare/0.1480.3...0.1481.0) (2025-02-06)
 
 
