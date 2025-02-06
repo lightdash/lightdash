@@ -1,3 +1,10 @@
+## [0.1480.3](https://github.com/lightdash/lightdash/compare/0.1480.2...0.1480.3) (2025-02-06)
+
+
+### Bug Fixes
+
+* sanitize metadata before sending request to s3 ([#13531](https://github.com/lightdash/lightdash/issues/13531)) ([a816147](https://github.com/lightdash/lightdash/commit/a816147e39b7f4a72f82a359458103799c74bc94))
+
 ## [0.1480.2](https://github.com/lightdash/lightdash/compare/0.1480.1...0.1480.2) (2025-02-05)
 
 
