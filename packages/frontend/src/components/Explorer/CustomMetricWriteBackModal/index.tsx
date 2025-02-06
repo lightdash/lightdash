@@ -1,4 +1,5 @@
 import {
+    Anchor,
     Button,
     Group,
     List,
@@ -77,25 +78,19 @@ export const CustomMetricWriteBackModal = () => {
                     <>
                         <Text>
                             Your pull request{' '}
-                            <Text span fw={700}>
-                                {data.prTitle}
-                            </Text>{' '}
+                            <Anchor
+                                href={data.prUrl}
+                                target="_blank"
+                                span
+                                fw={700}
+                            >
+                                #{data.prUrl.split('/').pop()}
+                            </Anchor>{' '}
                             was successfully created on Github.
                             <Text pt="md">
                                 Once it is merged, refresh your dbt connection
                                 to see your updated metrics.
                             </Text>
-                            <Group position="right" w="100%" p="md">
-                                <Button
-                                    color="gray.7"
-                                    onClick={handleClose}
-                                    variant="outline"
-                                    disabled={isLoading}
-                                    size="xs"
-                                >
-                                    Back
-                                </Button>
-                            </Group>
                         </Text>
                     </>
                 ) : (
@@ -109,33 +104,48 @@ export const CustomMetricWriteBackModal = () => {
                                 {item.label}
                             </List.Item>
                         </List>
-                        <Group position="right" w="100%" p="md">
-                            <Button
-                                color="gray.7"
-                                onClick={handleClose}
-                                variant="outline"
-                                disabled={isLoading}
-                                size="xs"
-                            >
-                                Cancel
-                            </Button>
-
-                            <Button
-                                disabled={isLoading}
-                                size="xs"
-                                onClick={() => {
-                                    if (!item) return;
-                                    writeBackCustomMetrics([item]);
-                                }}
-                            >
-                                {isLoading
-                                    ? 'Creating pull request...'
-                                    : 'Open Pull Request'}
-                            </Button>
-                        </Group>
                     </>
                 )}
             </Stack>
+
+            <Group position="right" w="100%" p="md">
+                {data ? (
+                    <Button
+                        color="gray.7"
+                        onClick={handleClose}
+                        variant="outline"
+                        disabled={isLoading}
+                        size="xs"
+                    >
+                        Back
+                    </Button>
+                ) : (
+                    <>
+                        <Button
+                            color="gray.7"
+                            onClick={handleClose}
+                            variant="outline"
+                            disabled={isLoading}
+                            size="xs"
+                        >
+                            Cancel
+                        </Button>
+
+                        <Button
+                            disabled={isLoading}
+                            size="xs"
+                            onClick={() => {
+                                if (!item) return;
+                                writeBackCustomMetrics([item]);
+                            }}
+                        >
+                            {isLoading
+                                ? 'Creating pull request...'
+                                : 'Open Pull Request'}
+                        </Button>
+                    </>
+                )}
+            </Group>
         </Modal>
     ) : null;
 };

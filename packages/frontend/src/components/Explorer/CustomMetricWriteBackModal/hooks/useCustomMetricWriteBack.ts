@@ -28,6 +28,8 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
         {
             mutationKey: ['custom_metric_write_back', projectUuid],
             onSuccess: (pullRequest) => {
+                window.open(pullRequest.prUrl, '_blank'); // always open in new tab by default
+
                 showToastSuccess({
                     title: `Success! Custom metric was written back.`,
                     action: {
@@ -37,7 +39,6 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
                             window.open(pullRequest.prUrl, '_blank');
                         },
                     },
-                    autoClose: 10000,
                 });
             },
             onError: ({ error }) => {
