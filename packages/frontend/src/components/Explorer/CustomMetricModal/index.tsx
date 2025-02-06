@@ -6,6 +6,7 @@ import {
     friendlyName,
     getFilterableDimensionsFromItemsMap,
     getItemId,
+    getMetrics,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -126,6 +127,17 @@ export const CustomMetricModal = () => {
                         ? item.baseDimensionName
                         : item.name,
                 );
+
+                const metricIds = exploreData
+                    ? getMetrics(exploreData).map(getItemId)
+                    : [];
+                if (
+                    metricIds.includes(
+                        getItemId({ table: item.table, name: metricName }),
+                    )
+                ) {
+                    return 'Metric with this ID already exists';
+                }
 
                 if (isEditing && metricName === item.name) {
                     return null;
