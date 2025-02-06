@@ -117,7 +117,7 @@ export const CustomMetricWriteBackModal = () => {
                         disabled={isLoading}
                         size="xs"
                     >
-                        Back
+                        Close
                     </Button>
                 ) : (
                     <>
