@@ -104,6 +104,7 @@ export const exploreBase: Explore = {
     tables: {},
     groupLabel: undefined,
     warehouse: undefined,
+    databricksComputeHttpPath: undefined,
     sqlPath: undefined,
     ymlPath: undefined,
 };
@@ -1491,6 +1492,8 @@ export const exploreWithMetricNumberCompiled: Explore = {
     ymlPath: exploreWithMetricNumber.ymlPath,
     sqlPath: exploreWithMetricNumber.sqlPath,
     groupLabel: exploreWithMetricNumber.groupLabel,
+    databricksComputeHttpPath:
+        exploreWithMetricNumber.databricksComputeHttpPath,
     spotlight: {
         visibility: 'show',
         categories: [],
