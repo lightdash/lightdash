@@ -18,6 +18,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../../dbt/profile';
+import type { Target } from '../../dbt/types';
 import GlobalState from '../../globalState';
 import { lightdashApi } from './apiClient';
 
@@ -163,6 +164,7 @@ type GetWarehouseClientOptions = {
 type GetWarehouseClientReturn = {
     warehouseClient: ReturnType<typeof warehouseClientFromCredentials>;
     credentials: CreateWarehouseCredentials;
+    target: Target | undefined;
 };
 
 export default async function getWarehouseClient(
@@ -170,6 +172,7 @@ export default async function getWarehouseClient(
 ): Promise<GetWarehouseClientReturn> {
     let warehouseClient;
     let credentials;
+    let profilesTarget: Target | undefined;
     if (options.isDbtCloudCLI) {
         const dbtAdaptorType = await getDbtCloudConnectionType();
         GlobalState.debug(`> Using ${dbtAdaptorType} client mock`);
@@ -250,6 +253,7 @@ export default async function getWarehouseClient(
             profileName: options.profile,
             targetName: options.target,
         });
+        profilesTarget = target;
         GlobalState.debug(`> Using target ${target}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
         warehouseClient = warehouseClientFromCredentials({
@@ -262,5 +266,6 @@ export default async function getWarehouseClient(
     return {
         warehouseClient,
         credentials,
+        target: profilesTarget,
     };
 }

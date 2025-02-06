@@ -16,7 +16,6 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
-    CreateSavedChartVersion,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -34,7 +33,6 @@ import {
     Explore,
     ExploreError,
     ExploreType,
-    FieldValueSearchResult,
     FilterGroupItem,
     FilterOperator,
     FilterableDimension,
@@ -465,7 +463,10 @@ export class ProjectService extends BaseService {
     async _getWarehouseClient(
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
-        snowflakeVirtualWarehouse?: string,
+        overrides?: {
+            snowflakeVirtualWarehouse?: string;
+            databricksComputeHttpPathOverride?: string;
+        },
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -474,7 +475,12 @@ export class ProjectService extends BaseService {
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}`;
+        const { snowflakeVirtualWarehouse, databricksComputeHttpPathOverride } =
+            overrides || {};
+
+        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
+            databricksComputeHttpPathOverride || ''
+        }`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | typeof this.warehouseClients[string]
@@ -499,15 +505,39 @@ export class ProjectService extends BaseService {
             return snowflakeVirtualWarehouse || snowflakeCredentials.warehouse;
         };
 
-        const credentialsWithWarehouse =
-            credentials.type === WarehouseTypes.SNOWFLAKE
-                ? {
-                      ...warehouseSshCredentials,
-                      warehouse: getSnowflakeWarehouse(credentials),
-                  }
-                : warehouseSshCredentials;
+        const credsType = warehouseSshCredentials.type;
+        let credentialsWithOverrides: CreateWarehouseCredentials;
+
+        switch (credsType) {
+            case WarehouseTypes.SNOWFLAKE:
+                credentialsWithOverrides = {
+                    ...warehouseSshCredentials,
+                    warehouse: getSnowflakeWarehouse(warehouseSshCredentials),
+                };
+                break;
+            case WarehouseTypes.DATABRICKS:
+                credentialsWithOverrides = {
+                    ...warehouseSshCredentials,
+                    httpPath:
+                        databricksComputeHttpPathOverride ||
+                        warehouseSshCredentials.httpPath,
+                };
+                break;
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.BIGQUERY:
+            case WarehouseTypes.TRINO:
+                credentialsWithOverrides = warehouseSshCredentials;
+                break;
+            default:
+                return assertUnreachable(
+                    credsType,
+                    `Unknown warehouse type: ${credsType}`,
+                );
+        }
+
         const client = this.projectModel.getWarehouseClientFromCredentials(
-            credentialsWithWarehouse,
+            credentialsWithOverrides,
         );
         this.warehouseClients[cacheKey] = client;
         return { warehouseClient: client, sshTunnel };
@@ -1272,7 +1302,11 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksComputeHttpPathOverride:
+                    explore.databricksComputeHttpPath,
+            },
         );
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -2084,7 +2118,11 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 user.userUuid,
                             ),
-                            explore.warehouse,
+                            {
+                                snowflakeVirtualWarehouse: explore.warehouse,
+                                databricksComputeHttpPathOverride:
+                                    explore.databricksComputeHttpPath,
+                            },
                         );
 
                     const userAttributes =
@@ -2796,7 +2834,11 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksComputeHttpPathOverride:
+                    explore.databricksComputeHttpPath,
+            },
         );
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -4616,7 +4658,11 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksComputeHttpPathOverride:
+                    explore.databricksComputeHttpPath,
+            },
         );
 
         const { query } = await this._getCalculateTotalQuery(
@@ -4651,7 +4697,11 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksComputeHttpPathOverride:
+                    explore.databricksComputeHttpPath,
+            },
         );
 
         const { query, totalQuery } = await this._getCalculateTotalQuery(

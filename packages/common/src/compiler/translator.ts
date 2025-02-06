@@ -634,6 +634,7 @@ export const convertExplores = async (
     metrics: DbtMetric[],
     warehouseClient: WarehouseClient,
     lightdashProjectConfig: LightdashProjectConfig,
+    databricksComputes?: Record<string, { http_path: string }>,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -700,6 +701,11 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseClient);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
+        const databricksCompute =
+            databricksComputes &&
+            model.config?.databricks_compute &&
+            databricksComputes[model.config?.databricks_compute];
+
         try {
             return exploreCompiler.compileExplore({
                 name: model.name,
@@ -724,6 +730,9 @@ export const convertExplores = async (
                 sqlPath: model.path,
                 spotlightConfig: lightdashProjectConfig.spotlight,
                 meta,
+                ...(databricksCompute
+                    ? { databricksComputeHttpPath: databricksCompute.http_path }
+                    : {}),
             });
         } catch (e: unknown) {
             return {
