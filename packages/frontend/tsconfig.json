@@ -28,6 +28,11 @@
             "vite-plugin-svgr/client"
         ],
         "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
+        "paths": {
+            "@lightdash/common": [
+                "../common/src"
+            ]
+        }
     },
     "include": [
         "src",

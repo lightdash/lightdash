@@ -170,7 +170,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
 export * from './dbt/validation';
 export * from './ee/index';
-export * from './pivotTable';
+export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';

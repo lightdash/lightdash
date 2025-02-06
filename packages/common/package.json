@@ -11,9 +11,7 @@
         "@types/js-yaml": "^4.0.9",
         "@types/pegjs": "^0.10.3",
         "@types/sanitize-html": "^2.11.0",
-        "@types/uuid": "^10.0.0",
-        "vite": "^6.1.0",
-        "vite-plugin-dts": "^4.5.0"
+        "@types/uuid": "^10.0.0"
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
@@ -36,8 +34,8 @@
         "zod": "^3.22.4"
     },
     "scripts": {
-        "dev": "vite build --watch",
-        "build": "vite build",
+        "dev": "tsc --watch tsconfig.json --preserveWatchOutput",
+        "build": "tsc --build tsconfig.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

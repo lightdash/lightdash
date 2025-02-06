@@ -30,7 +30,9 @@ import {
 import { useCalculateTotal } from '../useCalculateTotal';
 import getDataAndColumns from './getDataAndColumns';
 
-const createWorker = createWorkerFactory(() => import('@lightdash/common'));
+const createWorker = createWorkerFactory(
+    () => import('@lightdash/common/dist/pivotTable/pivotQueryResults'),
+);
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
