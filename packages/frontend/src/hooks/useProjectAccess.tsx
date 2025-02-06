@@ -22,6 +22,7 @@ export const useProjectAccess = (projectUuid: string) => {
         queryKey: ['project_access_users', projectUuid],
         queryFn: () => getProjectAccessQuery(projectUuid),
         onError: (result) => setErrorResponse(result),
+        enabled: !!projectUuid,
     });
 };
 
