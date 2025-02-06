@@ -12,6 +12,7 @@ type DbtRunHandlerOptions = DbtCompileOptions & {
     excludeMeta: boolean;
     verbose: boolean;
     assumeYes: boolean;
+    assumeNo: boolean;
 };
 
 export const dbtRunHandler = async (
@@ -32,7 +33,12 @@ export const dbtRunHandler = async (
     });
 
     const commands = command.parent.args.reduce<string[]>((acc, arg) => {
-        if (arg === '--verbose' || arg === '--assume-yes') return acc;
+        if (
+            arg === '--verbose' ||
+            arg === '--assume-yes' ||
+            arg === '--assume-no'
+        )
+            return acc;
         return [...acc, arg];
     }, []);
 
@@ -54,8 +60,11 @@ export const dbtRunHandler = async (
         });
         throw new ParseError(`Failed to run dbt:\n  ${msg}`);
     }
-    await generateHandler({
-        ...options,
-        excludeMeta: options.excludeMeta,
-    });
+
+    if (!options.assumeNo) {
+        await generateHandler({
+            ...options,
+            excludeMeta: options.excludeMeta,
+        });
+    }
 };
