@@ -98,6 +98,7 @@ export const CustomMetricModal = () => {
         }
     >({
         validateInputOnChange: true,
+        validateInputOnBlur: true,
         initialValues: {
             customMetricLabel: '',
             percentile: 50,
@@ -373,7 +374,12 @@ export const CustomMetricModal = () => {
                             </Accordion.Panel>
                         </Accordion.Item>
                     </Accordion>
-                    <Button display="block" ml="auto" type="submit">
+                    <Button
+                        display="block"
+                        ml="auto"
+                        type="submit"
+                        disabled={!form.isValid()}
+                    >
                         {isEditing ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>
