@@ -16,6 +16,7 @@ import {
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
+    hasProperty,
     InviteLink,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
@@ -43,7 +44,7 @@ import {
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
-import refresh from 'passport-oauth2-refresh';
+import { requestNewAccessToken } from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
@@ -1514,7 +1515,7 @@ export class UserService extends BaseService {
         refreshToken: string,
     ): Promise<string> {
         return new Promise((resolve, reject) => {
-            refresh.requestNewAccessToken(
+            requestNewAccessToken(
                 'google',
                 refreshToken,
                 (err: AnyType, accessToken: string, _refreshToken, result) => {
@@ -1523,10 +1524,13 @@ export class UserService extends BaseService {
                         return;
                     }
 
-                    const scopes: string[] =
-                        result && typeof result.scope === 'string'
-                            ? result.scope.split(' ')
-                            : [];
+                    const scopes: string[] = hasProperty<string>(
+                        result,
+                        'scope',
+                    )
+                        ? result.scope.split(' ')
+                        : [];
+
                     if (
                         scopes.includes(
                             'https://www.googleapis.com/auth/drive.file',
@@ -1553,7 +1557,7 @@ export class UserService extends BaseService {
      * @returns accessToken
      */
     async getAccessToken(user: SessionUser): Promise<string> {
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken: string = await this.userModel.getRefreshToken(
             user.userUuid,
         );
         const accessToken = await UserService.generateGoogleAccessToken(

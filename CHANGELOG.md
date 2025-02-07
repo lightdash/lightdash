@@ -1,3 +1,31 @@
+## [0.1484.3](https://github.com/lightdash/lightdash/compare/0.1484.2...0.1484.3) (2025-02-07)
+
+
+### Bug Fixes
+
+* any type in UserService ([#13565](https://github.com/lightdash/lightdash/issues/13565)) ([5b72d20](https://github.com/lightdash/lightdash/commit/5b72d20399209a45ca72b84c0ae2169c0f1fda1d))
+
+## [0.1484.2](https://github.com/lightdash/lightdash/compare/0.1484.1...0.1484.2) (2025-02-07)
+
+
+### Bug Fixes
+
+* handle hidden column if conditional format ([#13567](https://github.com/lightdash/lightdash/issues/13567)) ([c704b64](https://github.com/lightdash/lightdash/commit/c704b64ca64eca0d43a40800e6c6337187313ced))
+
+## [0.1484.1](https://github.com/lightdash/lightdash/compare/0.1484.0...0.1484.1) (2025-02-07)
+
+
+### Bug Fixes
+
+* allow database override for sql runner fields ([#13546](https://github.com/lightdash/lightdash/issues/13546)) ([357de52](https://github.com/lightdash/lightdash/commit/357de522c2e2a311c507515a6c1d0f9b1a043b71))
+
+# [0.1484.0](https://github.com/lightdash/lightdash/compare/0.1483.1...0.1484.0) (2025-02-07)
+
+
+### Features
+
+* custom metric duplicate id error ([#13558](https://github.com/lightdash/lightdash/issues/13558)) ([e05de1d](https://github.com/lightdash/lightdash/commit/e05de1de26a4e81bb2114525603bf386287afdb4))
+
 ## [0.1483.1](https://github.com/lightdash/lightdash/compare/0.1483.0...0.1483.1) (2025-02-07)
 
 

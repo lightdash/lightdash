@@ -116,6 +116,28 @@ const TableTreeSections: FC<Props> = ({
         FeatureFlags.CustomSQLEnabled,
     );
 
+    const customMetricsIssues: {
+        [id: string]: {
+            errors: { message: string }[];
+        };
+    } = useMemo(() => {
+        return additionalMetrics.reduce((acc, item) => {
+            const foundDuplicateId = Object.keys(metrics).includes(
+                getItemId(item),
+            );
+            return {
+                ...acc,
+                [getItemId(item)]: {
+                    errors: foundDuplicateId
+                        ? [
+                              `A metric with this ID already exists in the table. Rename your custom metric to prevent conflicts.`,
+                          ]
+                        : undefined,
+                },
+            };
+        }, {});
+    }, [metrics, additionalMetrics]);
+
     return (
         <>
             {missingFields && missingFields.all.length > 0 && (
@@ -297,6 +319,7 @@ const TableTreeSections: FC<Props> = ({
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}
                     missingCustomMetrics={missingFields?.customMetrics}
+                    itemsAlerts={customMetricsIssues}
                     groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                     isGithubIntegrationEnabled={
