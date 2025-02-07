@@ -1,3 +1,10 @@
+## [0.1484.3](https://github.com/lightdash/lightdash/compare/0.1484.2...0.1484.3) (2025-02-07)
+
+
+### Bug Fixes
+
+* any type in UserService ([#13565](https://github.com/lightdash/lightdash/issues/13565)) ([5b72d20](https://github.com/lightdash/lightdash/commit/5b72d20399209a45ca72b84c0ae2169c0f1fda1d))
+
 ## [0.1484.2](https://github.com/lightdash/lightdash/compare/0.1484.1...0.1484.2) (2025-02-07)
 
 
