@@ -69,7 +69,16 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
                     path: '*',
                     element: (
                         <EmbedProvider embedToken={token}>
-                            <EmbedDashboard projectUuid={projectUuid} />
+                            <div
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    position: 'relative',
+                                    overflow: 'auto',
+                                }}
+                            >
+                                <EmbedDashboard projectUuid={projectUuid} />
+                            </div>
                         </EmbedProvider>
                     ),
                 },
