@@ -29,7 +29,15 @@ export default defineConfig({
             fileName: 'sdk',
         },
         rollupOptions: {
-            external: ['react/jsx-runtime', ...Object.keys(peerDependencies)],
+            external: [
+                'react/jsx-runtime',
+                'react-dom/jsx-runtime',
+                'react/jsx-dev-runtime',
+                'react-dom/jsx-dev-runtime',
+                'react',
+                'react-dom',
+                ...Object.keys(peerDependencies),
+            ],
         },
 
         emptyOutDir: false,
