@@ -30,7 +30,7 @@
         "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
         "paths": {
             "@lightdash/common": [
-                "../common/src"
+                "./../common/src"
             ]
         }
     },
@@ -38,10 +38,5 @@
         "src",
         "src/testing/vitest.setup.ts",
         "vite-env.d.ts",
-    ],
-    "references": [
-        {
-            "path": "../common"
-        },
     ],
 }
