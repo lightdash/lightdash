@@ -15,6 +15,7 @@ import {
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
+    type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -64,6 +65,7 @@ export enum ActionType {
     EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
     TOGGLE_ADDITIONAL_METRIC_MODAL,
+    TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -74,6 +76,7 @@ export enum ActionType {
     TOGGLE_CUSTOM_DIMENSION_MODAL,
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
+    REPLACE_FIELDS,
 }
 
 export type ConfigCacheMap = {
@@ -169,6 +172,13 @@ export type Action =
           >;
       }
     | {
+          type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['additionalMetricWriteBack'],
+              'isOpen'
+          >;
+      }
+    | {
           type: ActionType.SET_PIVOT_FIELDS;
           payload: FieldId[];
       }
@@ -215,6 +225,12 @@ export type Action =
     | {
           type: ActionType.UPDATE_METRIC_FORMAT;
           payload: { metric: Metric; formatOptions: CustomFormat | undefined };
+      }
+    | {
+          type: ActionType.REPLACE_FIELDS;
+          payload: {
+              fieldsToReplace: ReplaceCustomFields[string];
+          };
       };
 
 export interface ExplorerReduceState {
@@ -236,6 +252,10 @@ export interface ExplorerReduceState {
             isEditing?: boolean;
             item?: Dimension | AdditionalMetric | CustomDimension;
             type?: MetricType;
+        };
+        additionalMetricWriteBack: {
+            isOpen: boolean;
+            item?: AdditionalMetric;
         };
         customDimension: {
             isOpen: boolean;
@@ -292,6 +312,12 @@ export interface ExplorerContextType {
                 'isOpen'
             >,
         ) => void;
+        toggleAdditionalMetricWriteBackModal: (
+            additionalMetricWriteBackModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetricWriteBack'],
+                'isOpen'
+            >,
+        ) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -321,5 +347,6 @@ export interface ExplorerContextType {
             metric: Metric;
             formatOptions: CustomFormat | undefined;
         }) => void;
+        replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
     };
 }

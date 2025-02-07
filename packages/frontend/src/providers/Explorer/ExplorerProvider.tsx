@@ -6,6 +6,7 @@ import {
     getFieldRef,
     getItemId,
     lightdashVariablePattern,
+    maybeReplaceFieldsInChartVersion,
     removeEmptyProperties,
     removeFieldFromFilterGroup,
     toggleArrayValue,
@@ -17,6 +18,7 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
+    type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -84,6 +86,9 @@ const defaultState: ExplorerReduceState = {
             isOpen: false,
         },
         customDimension: {
+            isOpen: false,
+        },
+        additionalMetricWriteBack: {
             isOpen: false,
         },
     },
@@ -790,6 +795,18 @@ function reducer(
                 },
             };
         }
+        case ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    additionalMetricWriteBack: {
+                        isOpen: !state.modals.additionalMetricWriteBack.isOpen,
+                        ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
@@ -972,6 +989,20 @@ function reducer(
                     ),
                 },
             };
+        }
+        case ActionType.REPLACE_FIELDS: {
+            const { hasChanges, chartVersion } =
+                maybeReplaceFieldsInChartVersion({
+                    fieldsToReplace: action.payload.fieldsToReplace,
+                    chartVersion: state.unsavedChartVersion,
+                });
+            if (hasChanges) {
+                return {
+                    ...state,
+                    unsavedChartVersion: chartVersion,
+                };
+            }
+            return state;
         }
         default: {
             return assertUnreachable(
@@ -1261,6 +1292,16 @@ const ExplorerProvider: FC<
         [],
     );
 
+    const toggleAdditionalMetricWriteBackModal = useCallback(
+        (args?: { item?: AdditionalMetric }) => {
+            dispatch({
+                type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
+                payload: args,
+            });
+        },
+        [],
+    );
+
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
             type: ActionType.SET_COLUMN_ORDER,
@@ -1391,6 +1432,18 @@ const ExplorerProvider: FC<
                 payload: args,
                 options: {
                     shouldFetchResults: true,
+                },
+            });
+        },
+        [],
+    );
+
+    const replaceFields = useCallback(
+        (fieldsToReplace: ReplaceCustomFields[string]) => {
+            dispatch({
+                type: ActionType.REPLACE_FIELDS,
+                payload: {
+                    fieldsToReplace,
                 },
             });
         },
@@ -1537,6 +1590,7 @@ const ExplorerProvider: FC<
             editAdditionalMetric,
             removeAdditionalMetric,
             toggleAdditionalMetricModal,
+            toggleAdditionalMetricWriteBackModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1551,6 +1605,7 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
+            replaceFields,
         }),
         [
             clearExplore,
@@ -1586,6 +1641,8 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
+            toggleAdditionalMetricWriteBackModal,
+            replaceFields,
         ],
     );
 

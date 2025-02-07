@@ -115,6 +115,15 @@ export type DateFilterRule = FilterRule<
     DateFilterSettings
 >;
 
+export const isDateFilterRule = (
+    filter: FilterRule<
+        ConditionalOperator,
+        FieldTarget | unknown,
+        AnyType,
+        AnyType
+    >,
+): filter is DateFilterRule => 'unitOfTime' in (filter.settings || {});
+
 export type FilterGroupItem = FilterGroup | FilterRule;
 
 export type OrFilterGroup = {

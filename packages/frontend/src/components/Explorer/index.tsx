@@ -10,6 +10,7 @@ import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider'
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
+import { CustomMetricWriteBackModal } from './CustomMetricWriteBackModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
@@ -64,6 +65,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <CustomMetricModal />
                 <CustomDimensionModal />
                 <FormatModal />
+                <CustomMetricWriteBackModal />
             </MetricQueryDataProvider>
         );
     },

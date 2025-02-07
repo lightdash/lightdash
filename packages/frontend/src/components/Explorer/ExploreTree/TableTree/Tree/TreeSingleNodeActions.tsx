@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip, type MenuProps } from '@mantine/core';
 import {
+    IconCode,
     IconCopy,
     IconDots,
     IconEdit,
@@ -30,6 +31,7 @@ import useExplorerContext from '../../../../../providers/Explorer/useExplorerCon
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useTableTreeContext } from './useTableTree';
 
 const getCustomMetricType = (type: DimensionType): MetricType[] => {
     switch (type) {
@@ -89,6 +91,9 @@ const TreeSingleNodeActions: FC<Props> = ({
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
     );
+    const toggleAdditionalMetricWriteBackModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricWriteBackModal,
+    );
     const removeCustomDimension = useExplorerContext(
         (context) => context.actions.removeCustomDimension,
     );
@@ -107,6 +112,9 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
+
+    const { isGithubIntegrationEnabled, gitIntegration } =
+        useTableTreeContext();
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -209,6 +217,34 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Duplicate custom metric
                         </Menu.Item>
+                        {isGithubIntegrationEnabled && (
+                            <Tooltip
+                                label={
+                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                }
+                                position="top"
+                                withArrow
+                                withinPortal
+                                disabled={gitIntegration?.enabled}
+                            >
+                                <Menu.Item
+                                    key="custommetric"
+                                    component="button"
+                                    disabled={!gitIntegration?.enabled}
+                                    icon={<MantineIcon icon={IconCode} />}
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.stopPropagation();
+                                        toggleAdditionalMetricWriteBackModal({
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Write back to dbt
+                                </Menu.Item>
+                            </Tooltip>
+                        )}
                         <Menu.Item
                             color="red"
                             key="custommetric"
