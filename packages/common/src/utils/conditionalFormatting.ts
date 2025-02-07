@@ -155,17 +155,19 @@ export const hasMatchingConditionalRules = (
         let max: number;
 
         if (config.rule.min === 'auto') {
-            min = targetFieldId
-                ? minMaxMap[targetFieldId].min
-                : getMinMaxFromMinMaxMap(minMaxMap).min;
+            min =
+                targetFieldId && targetFieldId in minMaxMap
+                    ? minMaxMap[targetFieldId].min
+                    : getMinMaxFromMinMaxMap(minMaxMap).min;
         } else {
             min = config.rule.min;
         }
 
         if (config.rule.max === 'auto') {
-            max = targetFieldId
-                ? minMaxMap[targetFieldId].max
-                : getMinMaxFromMinMaxMap(minMaxMap).max;
+            max =
+                targetFieldId && targetFieldId in minMaxMap
+                    ? minMaxMap[targetFieldId].max
+                    : getMinMaxFromMinMaxMap(minMaxMap).max;
         } else {
             max = config.rule.max;
         }
@@ -284,17 +286,19 @@ export const getConditionalFormattingColorWithColorRange = ({
     let max: number;
 
     if (config.rule.min === 'auto') {
-        min = targetFieldId
-            ? minMaxMap[targetFieldId].min
-            : getMinMaxFromMinMaxMap(minMaxMap).min;
+        min =
+            targetFieldId && targetFieldId in minMaxMap
+                ? minMaxMap[targetFieldId].min
+                : getMinMaxFromMinMaxMap(minMaxMap).min;
     } else {
         min = config.rule.min;
     }
 
     if (config.rule.max === 'auto') {
-        max = targetFieldId
-            ? minMaxMap[targetFieldId].max
-            : getMinMaxFromMinMaxMap(minMaxMap).max;
+        max =
+            targetFieldId && targetFieldId in minMaxMap
+                ? minMaxMap[targetFieldId].max
+                : getMinMaxFromMinMaxMap(minMaxMap).max;
     } else {
         max = config.rule.max;
     }
