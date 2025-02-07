@@ -9,8 +9,6 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
     embedToken = window.location.hash.replace('#', ''),
 }) => {
-    console.log('embedToken', embedToken);
-
     return (
         <AppProviderContext.Provider value={{ embedToken }}>
             {children}

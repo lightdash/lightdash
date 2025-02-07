@@ -48,8 +48,6 @@ const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
         return null;
     }
 
-    console.log('token', tokenString);
-
     return (
         <ReactQueryProvider>
             <MantineProvider>
