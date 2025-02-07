@@ -46,7 +46,9 @@ export enum JobPriority {
     LOW = 2, // Background jobs (scheduled deliveries, sheets sync)
 }
 
-export const ReplaceCustomFieldsTask = 'replaceCustomFields' as const;
+type ReplaceCustomFieldsTaskType = 'replaceCustomFields';
+export const ReplaceCustomFieldsTask: ReplaceCustomFieldsTaskType =
+    'replaceCustomFields';
 
 export type SchedulerLog = {
     task:
@@ -63,7 +65,7 @@ export type SchedulerLog = {
         | 'sqlRunner'
         | 'sqlRunnerPivotQuery'
         | 'semanticLayer'
-        | typeof ReplaceCustomFieldsTask
+        | ReplaceCustomFieldsTaskType
         | 'indexCatalog';
     schedulerUuid?: string;
     jobId: string;

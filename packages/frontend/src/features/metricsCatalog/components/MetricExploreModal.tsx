@@ -1,9 +1,9 @@
 import {
     DimensionType,
+    MetricExplorerComparison,
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
-    MetricExplorerComparison,
     type CatalogField,
     type FilterRule,
     type MetricExplorerDateRange,

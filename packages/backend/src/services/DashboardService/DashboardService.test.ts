@@ -3,6 +3,7 @@ import {
     defineUserAbility,
     ForbiddenError,
     OrganizationMemberRole,
+    PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
@@ -361,7 +362,7 @@ describe('DashboardService', () => {
         const editorUser: SessionUser = {
             ...user,
             role: OrganizationMemberRole.EDITOR,
-            ability: new Ability([
+            ability: new Ability<PossibleAbilities>([
                 {
                     subject: 'Dashboard',
                     action: ['view', 'update', 'delete', 'create'],

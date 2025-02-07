@@ -1,7 +1,7 @@
 import {
     AxisSide,
-    getEChartsChartTypeFromChartKind,
     ValueLabelPositionOptions,
+    getEChartsChartTypeFromChartKind,
     type CartesianChartDisplay,
     type ChartKind,
 } from '@lightdash/common';
@@ -15,9 +15,9 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
-import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
+import MantineIcon from '../../common/MantineIcon';
 import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
 import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig';
 

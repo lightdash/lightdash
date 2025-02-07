@@ -1,4 +1,5 @@
 import { Ability } from '@casl/ability';
+import { type PossibleAbilities } from '@lightdash/common';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { AbilityContext } from './components/common/Authorization/context';
@@ -18,7 +19,7 @@ import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import { TrackingProvider } from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
 
-const defaultAbility = new Ability();
+const defaultAbility = new Ability<PossibleAbilities>();
 
 // const isMobile =
 //     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(

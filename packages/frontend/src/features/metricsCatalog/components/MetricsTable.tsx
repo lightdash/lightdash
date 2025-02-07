@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     MAX_METRICS_TREE_NODE_COUNT,
     SpotlightTableColumns,
+    assertUnreachable,
     type CatalogItem,
 } from '@lightdash/common';
 import {
@@ -18,8 +18,8 @@ import {
 } from '@mantine/core';
 import {
     IconArrowDown,
-    IconArrowsSort,
     IconArrowUp,
+    IconArrowsSort,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import { ReactFlowProvider } from '@xyflow/react';

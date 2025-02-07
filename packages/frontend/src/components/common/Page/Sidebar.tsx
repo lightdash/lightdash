@@ -1,9 +1,9 @@
 import {
     Box,
     Flex,
-    getDefaultZIndex,
     Paper,
     Transition,
+    getDefaultZIndex,
     type FlexProps,
     type MantineTransition,
 } from '@mantine/core';

@@ -2687,6 +2687,9 @@
             },
             "Series": {
                 "properties": {
+                    "isFilteredOut": {
+                        "type": "boolean"
+                    },
                     "markLine": {
                         "$ref": "#/components/schemas/MarkLine"
                     },
@@ -6807,8 +6810,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "FileChanges": {
+                "properties": {
+                    "diff": {
+                        "type": "string"
+                    },
+                    "yml": {
+                        "type": "string"
+                    },
+                    "file": {
+                        "type": "string"
+                    }
+                },
+                "required": ["diff", "yml", "file"],
+                "type": "object"
+            },
             "PullRequestCreated": {
                 "properties": {
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/FileChanges"
+                        },
+                        "type": "array"
+                    },
                     "prUrl": {
                         "type": "string"
                     },
@@ -7800,6 +7824,11 @@
                     }
                 ]
             },
+            "ReplaceCustomFieldsTaskType": {
+                "type": "string",
+                "enum": ["replaceCustomFields"],
+                "nullable": false
+            },
             "SchedulerJobStatus": {
                 "enum": ["scheduled", "started", "completed", "error"],
                 "type": "string"
@@ -7837,22 +7866,29 @@
                         "type": "string"
                     },
                     "task": {
-                        "type": "string",
-                        "enum": [
-                            "handleScheduledDelivery",
-                            "sendEmailNotification",
-                            "sendSlackNotification",
-                            "uploadGsheets",
-                            "downloadCsv",
-                            "uploadGsheetFromQuery",
-                            "createProjectWithCompile",
-                            "compileProject",
-                            "testAndCompileProject",
-                            "validateProject",
-                            "sqlRunner",
-                            "sqlRunnerPivotQuery",
-                            "semanticLayer",
-                            "indexCatalog"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ReplaceCustomFieldsTaskType"
+                            },
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "handleScheduledDelivery",
+                                    "sendEmailNotification",
+                                    "sendSlackNotification",
+                                    "uploadGsheets",
+                                    "downloadCsv",
+                                    "uploadGsheetFromQuery",
+                                    "createProjectWithCompile",
+                                    "compileProject",
+                                    "testAndCompileProject",
+                                    "validateProject",
+                                    "sqlRunner",
+                                    "sqlRunnerPivotQuery",
+                                    "semanticLayer",
+                                    "indexCatalog"
+                                ]
+                            }
                         ]
                     }
                 },
@@ -14613,7 +14649,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1478.5",
+        "version": "0.1480.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

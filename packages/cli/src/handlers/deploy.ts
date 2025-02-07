@@ -2,10 +2,10 @@ import {
     AuthorizationError,
     Explore,
     ExploreError,
-    friendlyName,
-    isExploreError,
     Project,
     ProjectType,
+    friendlyName,
+    isExploreError,
     type LightdashProjectConfig,
     type Tag,
 } from '@lightdash/common';

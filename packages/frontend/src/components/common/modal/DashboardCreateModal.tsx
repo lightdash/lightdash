@@ -10,8 +10,8 @@ import {
     Select,
     Stack,
     Text,
-    Textarea,
     TextInput,
+    Textarea,
     Title,
     type ModalProps,
 } from '@mantine/core';

@@ -25,10 +25,10 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useCatalogContext } from '../context/useCatalogContext';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';

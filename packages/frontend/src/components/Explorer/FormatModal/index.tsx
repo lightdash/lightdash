@@ -1,9 +1,9 @@
 import {
     CustomFormatType,
+    NumberSeparator,
     getCustomFormat,
     getItemId,
     hasFormatting,
-    NumberSeparator,
     type CustomFormat,
 } from '@lightdash/common';
 import { Button, Group, Modal, Stack, Title } from '@mantine/core';

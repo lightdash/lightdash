@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     FilterOperator,
+    assertUnreachable,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { produce } from 'immer';

@@ -11,9 +11,9 @@ import {
 } from '../types/field';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
 import {
+    type ReplaceCustomFields,
     type ReplaceableCustomFields,
     type ReplaceableFieldMatchMap,
-    type ReplaceCustomFields,
 } from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
@@ -215,28 +215,34 @@ export function findReplaceableCustomMetrics({
     );
 }
 
+export function convertReplaceableFieldMatchMapToReplaceFieldsMap(
+    replaceableFieldMap: ReplaceableFieldMatchMap,
+): ReplaceCustomFields[string]['customMetrics'] {
+    return Object.entries(replaceableFieldMap).reduce<
+        ReplaceCustomFields[string]['customMetrics']
+    >((acc2, [customFieldId, customField]) => {
+        if (customField.match) {
+            return {
+                ...acc2,
+                [customFieldId]: {
+                    replaceWithFieldId: customField.match.fieldId,
+                },
+            };
+        }
+        return acc2;
+    }, {});
+}
+
+// todo: rename+breakdown this util and all the replace/replaceable types to be more descriptive
 export function convertReplaceableFieldMatchMapToReplaceCustomFields(
     replaceableCustomFields: ReplaceableCustomFields,
 ): ReplaceCustomFields {
     return Object.entries(replaceableCustomFields).reduce<ReplaceCustomFields>(
         (acc, [chartUuid, customFields]) => {
-            const customMetrics = Object.entries(
-                customFields.customMetrics,
-            ).reduce<ReplaceCustomFields[string]['customMetrics']>(
-                (acc2, [customFieldId, customField]) => {
-                    if (customField.match) {
-                        return {
-                            ...acc2,
-                            [customFieldId]: {
-                                replaceWithFieldId: customField.match.fieldId,
-                            },
-                        };
-                    }
-                    return acc2;
-                },
-                {},
-            );
-
+            const customMetrics =
+                convertReplaceableFieldMatchMapToReplaceFieldsMap(
+                    customFields.customMetrics,
+                );
             if (Object.keys(customMetrics).length > 0) {
                 acc[chartUuid] = {
                     customMetrics,

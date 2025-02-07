@@ -7,11 +7,11 @@ import { Stack, Title } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import ForbiddenPanel from '../components/ForbiddenPanel';
+import PageSpinner from '../components/PageSpinner';
 import ErrorState from '../components/common/ErrorState';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
-import ForbiddenPanel from '../components/ForbiddenPanel';
-import PageSpinner from '../components/PageSpinner';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useProjectSavedChartStatus } from '../hooks/useOnboardingStatus';
 import {

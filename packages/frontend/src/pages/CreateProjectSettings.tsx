@@ -2,9 +2,9 @@ import { Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import Page from '../components/common/Page/Page';
 import useApp from '../providers/App/useApp';
 
 const CreateProjectSettings: FC = () => {

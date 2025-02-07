@@ -1,12 +1,12 @@
 import {
     DimensionType,
     FilterOperator,
+    TimeFrames,
     formatDate,
     isCustomSqlDimension,
     isDimension,
     isFilterRule,
     parseDate,
-    TimeFrames,
     timeframeToUnitOfTime,
     type ConditionalRule,
     type DateFilterRule,

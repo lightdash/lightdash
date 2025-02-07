@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    contentToResourceViewItem,
     ContentType,
     LightdashMode,
     ResourceViewItemType,
+    contentToResourceViewItem,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
@@ -16,11 +16,15 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
+import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
+import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
-import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
@@ -28,11 +32,7 @@ import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
-import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
-import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
-import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
-import ForbiddenPanel from '../components/ForbiddenPanel';
+import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContent } from '../hooks/useContent';
 import { useSpace } from '../hooks/useSpaces';

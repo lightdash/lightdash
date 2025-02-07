@@ -12,9 +12,9 @@ import {
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import PageSpinner from '../components/PageSpinner';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-import PageSpinner from '../components/PageSpinner';
 import {
     usePasswordResetLink,
     usePasswordResetMutation,

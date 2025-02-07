@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     DashboardTileTypes,
+    assertUnreachable,
     getDefaultChartTileSize,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardTile,
@@ -13,8 +13,8 @@ import {
     Select,
     Stack,
     Text,
-    Textarea,
     TextInput,
+    Textarea,
     Title,
     Tooltip,
 } from '@mantine/core';

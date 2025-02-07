@@ -1,11 +1,11 @@
 import { getItemId } from '../utils/item';
 import {
     BinType,
-    convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
-    isFormat,
     MetricType,
+    convertFieldRefToFieldId,
+    isFormat,
     type CustomBinDimension,
     type CustomSqlDimension,
     type TableCalculation,

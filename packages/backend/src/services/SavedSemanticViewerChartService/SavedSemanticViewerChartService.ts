@@ -1,9 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    isVizBarChartConfig,
-    isVizLineChartConfig,
-    isVizPieChartConfig,
     Organization,
     Project,
     SavedSemanticViewerChart,
@@ -11,6 +8,9 @@ import {
     SpaceShare,
     SpaceSummary,
     VIZ_DEFAULT_AGGREGATION,
+    isVizBarChartConfig,
+    isVizLineChartConfig,
+    isVizPieChartConfig,
     type AbilityAction,
     type SemanticViewerChartCreate,
     type SemanticViewerChartCreateResult,

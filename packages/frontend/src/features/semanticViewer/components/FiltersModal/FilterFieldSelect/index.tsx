@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     SemanticLayerFieldType,
+    assertUnreachable,
     type SemanticLayerField,
     type SemanticLayerFilter,
 } from '@lightdash/common';
@@ -8,8 +8,8 @@ import {
     ActionIcon,
     Box,
     Group,
-    rem,
     Select,
+    rem,
     type GroupProps,
     type SelectItem,
 } from '@mantine/core';

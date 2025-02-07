@@ -22,8 +22,8 @@ import {
 import {
     IconAlertTriangleFilled,
     IconArrowDown,
-    IconArrowsSort,
     IconArrowUp,
+    IconArrowsSort,
     IconSearch,
     IconX,
 } from '@tabler/icons-react';

@@ -1,6 +1,6 @@
 import {
-    assertUnreachable,
     SemanticLayerFieldType,
+    assertUnreachable,
     type SemanticLayerField,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';

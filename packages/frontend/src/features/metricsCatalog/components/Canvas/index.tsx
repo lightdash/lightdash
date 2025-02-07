@@ -14,10 +14,10 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
 import {
-    addEdge,
     Background,
     Panel,
     ReactFlow,
+    addEdge,
     useEdgesState,
     useNodesInitialized,
     useNodesState,

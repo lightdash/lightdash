@@ -1,6 +1,6 @@
 import {
-    convertFormattedValue,
     FieldType,
+    convertFormattedValue,
     getItemLabel,
     isDimension,
     isField,

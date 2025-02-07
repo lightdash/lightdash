@@ -1,8 +1,8 @@
 import {
-    assertUnreachable,
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    assertUnreachable,
     type RawResultRow,
     type SemanticLayerField,
     type VizColumn,
