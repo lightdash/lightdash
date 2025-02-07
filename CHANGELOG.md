@@ -1,3 +1,10 @@
+## [0.1484.1](https://github.com/lightdash/lightdash/compare/0.1484.0...0.1484.1) (2025-02-07)
+
+
+### Bug Fixes
+
+* allow database override for sql runner fields ([#13546](https://github.com/lightdash/lightdash/issues/13546)) ([357de52](https://github.com/lightdash/lightdash/commit/357de522c2e2a311c507515a6c1d0f9b1a043b71))
+
 # [0.1484.0](https://github.com/lightdash/lightdash/compare/0.1483.1...0.1484.0) (2025-02-07)
 
 
