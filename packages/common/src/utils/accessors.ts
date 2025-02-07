@@ -12,6 +12,7 @@ export const getArrayValue = <T>(
     }
     const value = obj[key];
     if (value === undefined) {
+        // eslint-disable-next-line no-console
         console.trace();
         throw new UnexpectedIndexError(
             errorMessage || `Cannot get key "${key}" value from array`,
@@ -31,6 +32,7 @@ export const getObjectValue = <T>(
     }
     const value = obj[key];
     if (value === undefined) {
+        // eslint-disable-next-line no-console
         console.trace();
         throw new UnexpectedIndexError(
             errorMessage || `Cannot get key "${key}" value from object`,
@@ -38,3 +40,9 @@ export const getObjectValue = <T>(
     }
     return value;
 };
+
+export const hasProperty = <T>(
+    obj: unknown,
+    property: string,
+): obj is { scope: T } =>
+    typeof obj === 'object' && obj !== null && property in obj;
