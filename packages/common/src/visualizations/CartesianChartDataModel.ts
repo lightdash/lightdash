@@ -553,8 +553,8 @@ export class CartesianChartDataModel {
                     type: seriesType ?? defaultSeriesType,
                     stack:
                         shouldStack && seriesType === 'bar'
-                            ? 'stack-all-series'
-                            : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
+                            ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
+                            : undefined,
                     name:
                         seriesLabel ||
                         capitalize(seriesColumnId.toLowerCase()).replaceAll(

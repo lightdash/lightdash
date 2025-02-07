@@ -42,50 +42,48 @@ export const CartesianChartSeries = ({
         selectCurrentCartesianChartState(state, selectedChartType),
     );
 
-    const series = useAppSelector((state) =>
-        selectCurrentCartesianChartState(state, selectedChartType),
-    )?.series;
-
     const groupedSeries: Record<string, ConfigurableSeries[]> = useMemo(() => {
-        if (!series) {
+        if (!currentConfig?.series) {
             return {};
         }
 
-        return series.reduce<Record<string, ConfigurableSeries[]>>(
-            (acc, s, index) => {
-                const foundSeries =
-                    currentConfig?.display?.series?.[s.pivotColumnName];
+        return currentConfig.series.reduce<
+            Record<string, ConfigurableSeries[]>
+        >((acc, s, index) => {
+            const foundSeries =
+                currentConfig?.display?.series?.[s.pivotColumnName];
 
-                const seriesFormat = foundSeries?.format;
-                const seriesLabel = foundSeries?.label;
-                const seriesColor = foundSeries?.color;
-                const seriesType = foundSeries?.type;
-                const seriesValueLabelPosition =
-                    foundSeries?.valueLabelPosition;
-                const seriesWhichYAxis = foundSeries?.whichYAxis;
+            const seriesFormat = foundSeries?.format;
+            const seriesLabel = foundSeries?.label;
+            const seriesColor = foundSeries?.color;
+            const seriesType = foundSeries?.type;
+            const seriesValueLabelPosition = foundSeries?.valueLabelPosition;
+            const seriesWhichYAxis = foundSeries?.whichYAxis;
 
-                const config = {
-                    reference: s.pivotColumnName,
-                    format: seriesFormat,
-                    label: seriesLabel ?? friendlyName(s.pivotColumnName),
-                    color: seriesColor ?? colors[index],
-                    type: seriesType,
-                    valueLabelPosition: seriesValueLabelPosition,
-                    whichYAxis: seriesWhichYAxis,
-                };
+            const config = {
+                reference: s.pivotColumnName,
+                format: seriesFormat,
+                label: seriesLabel ?? friendlyName(s.pivotColumnName),
+                color: seriesColor ?? colors[index],
+                type: seriesType,
+                valueLabelPosition: seriesValueLabelPosition,
+                whichYAxis: seriesWhichYAxis,
+            };
 
-                // Grouped by referenceField
-                return {
-                    ...acc,
-                    [s.referenceField]: [
-                        ...(acc[s.referenceField] || []),
-                        config,
-                    ],
-                };
-            },
-            {},
+            // Grouped by referenceField
+            return {
+                ...acc,
+                [s.referenceField]: [...(acc[s.referenceField] || []), config],
+            };
+        }, {});
+    }, [colors, currentConfig?.display?.series, currentConfig?.series]);
+
+    // If any of the series in the groupedSeries have more than one value, then we can stack
+    const canStack = useMemo(() => {
+        return Object.keys(groupedSeries).some(
+            (key) => Object.values(groupedSeries[key]).length > 1,
         );
-    }, [colors, currentConfig?.display?.series, series]);
+    }, [groupedSeries]);
 
     const isGrouped = useMemo(() => {
         return (
@@ -157,12 +155,7 @@ export const CartesianChartSeries = ({
                             <Config.Label>{`Stacking`}</Config.Label>
                             <SegmentedControl
                                 radius="md"
-                                // TODO: disabled for grouped series. Re-enable when
-                                // stacking series is enabled.
-                                disabled={
-                                    Object.keys(groupedSeries).length === 1 ||
-                                    isGrouped
-                                }
+                                disabled={!canStack}
                                 data={[
                                     {
                                         value: 'None',
