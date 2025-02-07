@@ -263,6 +263,7 @@ Affected charts:
     async updateFileForCustomMetrics({
         owner,
         repo,
+        path,
         projectUuid,
         customMetrics,
         token,
@@ -271,6 +272,7 @@ Affected charts:
     }: {
         owner: string;
         repo: string;
+        path: string;
         projectUuid: string;
         customMetrics: AdditionalMetric[] | undefined;
         branch: string;
@@ -300,8 +302,10 @@ Affected charts:
                         'Explore is missing path, compile the project again to fix this issue',
                     );
 
-                const fileName = explore.ymlPath;
-
+                // Github's path cannot start with a slash
+                const fileName = `${path.replace(/^\//, '')}/${
+                    explore.ymlPath
+                }`;
                 const { content: fileContent, sha: fileSha } =
                     await getFileContent({
                         fileName,
@@ -420,7 +424,9 @@ Affected charts:
         if (customMetrics === undefined || customMetrics.length === 0)
             throw new Error('Missing custom metrics');
 
-        const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
+        const { owner, repo, branch, path } = await this.getProjectRepo(
+            projectUuid,
+        );
         const token = await this.getOrUpdateToken(user.organizationUuid!);
 
         const installationId = await this.getInstallationId(user);
@@ -439,6 +445,7 @@ Affected charts:
             owner,
             customMetrics,
             repo,
+            path,
             projectUuid,
             branch,
             token,
