@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     FeatureFlags,
-    findReplaceableCustomMetrics,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -120,29 +119,12 @@ const TableTreeSections: FC<Props> = ({
     const customMetricsIssues: {
         [id: string]: {
             errors: { message: string }[];
-            infos: { message: string }[];
         };
     } = useMemo(() => {
-        const replaceableFieldsMap = findReplaceableCustomMetrics({
-            metrics: Object.values(metrics),
-            customMetrics: additionalMetrics,
-        });
         return additionalMetrics.reduce((acc, item) => {
             const foundDuplicateId = Object.keys(metrics).includes(
                 getItemId(item),
             );
-            const suggestedReplacements =
-                replaceableFieldsMap[getItemId(item)]?.suggestedMatches || [];
-            let replacementSuggestionMessage = undefined;
-            if (suggestedReplacements.length > 1) {
-                replacementSuggestionMessage = `We found similar metrics: ${suggestedReplacements
-                    .map(({ fieldLabel }) => `"${fieldLabel}"`)
-                    .join(
-                        ', ',
-                    )}. Consider replacing it with one of them to improve consistency.`;
-            } else if (suggestedReplacements[0]) {
-                replacementSuggestionMessage = `We found a similar metric: "${suggestedReplacements[0].fieldLabel}".\n Consider replacing it to improve consistency.`;
-            }
             return {
                 ...acc,
                 [getItemId(item)]: {
@@ -150,9 +132,6 @@ const TableTreeSections: FC<Props> = ({
                         ? [
                               `A metric with this ID already exists in the table. Rename your custom metric to prevent conflicts.`,
                           ]
-                        : undefined,
-                    infos: replacementSuggestionMessage
-                        ? [replacementSuggestionMessage]
                         : undefined,
                 },
             };
