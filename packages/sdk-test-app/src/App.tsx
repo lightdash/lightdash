@@ -1,4 +1,4 @@
-import LightdashSDK from '@lightdash/sdk';
+import Lightdash from '@lightdash/sdk';
 
 function App() {
     const containerStyle = {
@@ -71,11 +71,11 @@ function App() {
                     </p>
 
                     <div id="chart-container" style={chartContainerStyle}>
-                        <LightdashSDK.Dashboard
+                        <Lightdash.Dashboard
                             instanceUrl="http://localhost:3000/"
-                            getEmbedToken={Promise.resolve(
-                                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJkYXNoYm9hcmRVdWlkIjoiNWM5NDE2NDEtNDkxMS00ZWY5LWJhZmMtOGU1YjJmOTVhYzg4IiwiZGFzaGJvYXJkRmlsdGVyc0ludGVyYWN0aXZpdHkiOnsiZW5hYmxlZCI6Im5vbmUifSwiY2FuRXhwb3J0Q3N2IjpmYWxzZSwiY2FuRXhwb3J0SW1hZ2VzIjpmYWxzZSwiY2FuRXhwb3J0UGFnZVBkZiI6ZmFsc2UsImNhbkRhdGVab29tIjpmYWxzZX0sInVzZXIiOnsiZW1haWwiOiJkZW1vQGxpZ2h0ZGFzaC5jb20ifSwidXNlckF0dHJpYnV0ZXMiOnsiIjoiIn0sImlhdCI6MTczODkxNzUwNiwiZXhwIjoxNzM5Mjc3NTA2fQ.ZsDhvqEjlo4j_ELQKfU1zTQw1bmZYqIZCXxQGmPg_-4',
-                            )}
+                            token={
+                                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJkYXNoYm9hcmRVdWlkIjoiNWM5NDE2NDEtNDkxMS00ZWY5LWJhZmMtOGU1YjJmOTVhYzg4IiwiZGFzaGJvYXJkRmlsdGVyc0ludGVyYWN0aXZpdHkiOnsiZW5hYmxlZCI6Im5vbmUifSwiY2FuRXhwb3J0Q3N2IjpmYWxzZSwiY2FuRXhwb3J0SW1hZ2VzIjpmYWxzZSwiY2FuRXhwb3J0UGFnZVBkZiI6ZmFsc2UsImNhbkRhdGVab29tIjpmYWxzZX0sInVzZXIiOnsiZW1haWwiOiJkZW1vQGxpZ2h0ZGFzaC5jb20ifSwidXNlckF0dHJpYnV0ZXMiOnsiIjoiIn0sImlhdCI6MTczODkxNzUwNiwiZXhwIjoxNzM5Mjc3NTA2fQ.ZsDhvqEjlo4j_ELQKfU1zTQw1bmZYqIZCXxQGmPg_-4'
+                            }
                             projectUuid="3675b69e-8324-4110-bdca-059031aa8da3"
                         />
                     </div>
@@ -84,7 +84,7 @@ function App() {
                     <div style={infoBoxStyle}>
                         <p>
                             Additional Information: This chart is powered by
-                            LightdashSDK.
+                            Lightdash SDK.
                         </p>
                     </div>
                 </main>

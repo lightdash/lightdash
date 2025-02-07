@@ -24,7 +24,7 @@ export default defineConfig({
 
         lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: 'LightdashSDK',
+            name: '@lightdash/sdk',
             formats: ['es', 'cjs'],
             fileName: 'sdk',
         },

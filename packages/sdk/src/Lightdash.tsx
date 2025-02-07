@@ -17,7 +17,7 @@ import { FC, useEffect, useState } from 'react';
 
 type Props = {
     projectUuid: string;
-    getEmbedToken: Promise<string>;
+    token: Promise<string> | string;
     instanceUrl: string;
 };
 
@@ -29,19 +29,26 @@ const persistInstanceUrl = (instanceUrl: string) => {
     );
 };
 
-const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
-    const [token, setToken] = useState<string | null>(null);
+const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
+    const [tokenString, setTokenString] = useState<string | null>(null);
 
     useEffect(() => {
-        getEmbedToken.then((token) => {
+        if (typeof token === 'string') {
             persistInstanceUrl(instanceUrl);
-            setToken(token);
-        });
-    }, [getEmbedToken]);
+            setTokenString(token);
+        } else {
+            token.then((t) => {
+                persistInstanceUrl(instanceUrl);
+                setTokenString(t);
+            });
+        }
+    }, [token]);
 
-    if (!token) {
+    if (!tokenString) {
         return null;
     }
+
+    console.log('token', tokenString);
 
     return (
         <ReactQueryProvider>
@@ -56,7 +63,7 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
                                             <ActiveJobProvider>
                                                 <ChartColorMappingContextProvider>
                                                     <EmbedProvider
-                                                        embedToken={token}
+                                                        embedToken={tokenString}
                                                     >
                                                         <div
                                                             style={{
@@ -89,6 +96,6 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
     );
 };
 
-const LightdashSDK = { Dashboard };
+const Lightdash = { Dashboard };
 
-export default LightdashSDK;
+export default Lightdash;

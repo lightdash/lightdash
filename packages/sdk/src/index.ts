@@ -1,2 +1,2 @@
-import LightdashSDK from './LightdashSDK';
-export default LightdashSDK;
+import Lightdash from './Lightdash';
+export default Lightdash;
