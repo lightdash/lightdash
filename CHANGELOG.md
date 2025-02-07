@@ -1,3 +1,10 @@
+# [0.1484.0](https://github.com/lightdash/lightdash/compare/0.1483.1...0.1484.0) (2025-02-07)
+
+
+### Features
+
+* custom metric duplicate id error ([#13558](https://github.com/lightdash/lightdash/issues/13558)) ([e05de1d](https://github.com/lightdash/lightdash/commit/e05de1de26a4e81bb2114525603bf386287afdb4))
+
 ## [0.1483.1](https://github.com/lightdash/lightdash/compare/0.1483.0...0.1483.1) (2025-02-07)
 
 
