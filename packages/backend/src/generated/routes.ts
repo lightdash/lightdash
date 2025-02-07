@@ -16921,6 +16921,7 @@ export function RegisterRoutes(app: Router) {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         tableName: { in: 'query', name: 'tableName', dataType: 'string' },
         schemaName: { in: 'query', name: 'schemaName', dataType: 'string' },
+        databaseName: { in: 'query', name: 'databaseName', dataType: 'string' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/sqlRunner/fields',

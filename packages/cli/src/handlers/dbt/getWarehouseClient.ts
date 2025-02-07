@@ -25,16 +25,18 @@ type GetTableCatalogProps = {
     projectUuid: string;
     tableName: string;
     schemaName: string;
+    databaseName?: string;
 };
 
 export const getTableSchema = async ({
     projectUuid,
     tableName,
     schemaName,
+    databaseName,
 }: GetTableCatalogProps) =>
     lightdashApi<WarehouseTableSchema>({
         method: 'GET',
-        url: `/api/v1/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${schemaName}`,
+        url: `/api/v1/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${schemaName}&databaseName=${databaseName}`,
         body: undefined,
     });
 
@@ -195,6 +197,7 @@ export default async function getWarehouseClient(
                         projectUuid: config.context.project,
                         tableName: ref.table,
                         schemaName: ref.schema,
+                        databaseName: ref.database,
                     });
                     acc[ref.database] = {
                         [ref.schema]: {
