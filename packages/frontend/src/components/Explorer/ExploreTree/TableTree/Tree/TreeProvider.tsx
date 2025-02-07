@@ -9,7 +9,7 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
     itemsMap,
     selectedItems,
     missingCustomMetrics,
-    itemsErrors,
+    itemsAlerts,
     missingCustomDimensions,
     groupDetails,
     ...rest
@@ -31,7 +31,7 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
                 searchQuery,
                 searchResults,
                 missingCustomMetrics,
-                itemsErrors,
+                itemsAlerts,
                 missingCustomDimensions,
                 ...rest,
             }}
