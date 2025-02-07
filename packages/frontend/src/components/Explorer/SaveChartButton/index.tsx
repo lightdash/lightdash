@@ -1,6 +1,8 @@
-import { Button } from '@mantine/core';
+import { getItemId, getMetrics } from '@lightdash/common';
+import { Button, Tooltip } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
+import { useExplore } from '../../../hooks/useExplore';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -30,7 +32,20 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
             });
         }
     };
-    const isDisabled = !unsavedChartVersion.tableName || !hasUnsavedChanges;
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const foundCustomMetricWithDuplicateId = useMemo<boolean>(() => {
+        if (!explore || !unsavedChartVersion.metricQuery.additionalMetrics)
+            return false;
+        const metricIds = getMetrics(explore).map(getItemId);
+        return unsavedChartVersion.metricQuery.additionalMetrics.some(
+            (metric) => metricIds.includes(getItemId(metric)),
+        );
+    }, [explore, unsavedChartVersion.metricQuery.additionalMetrics]);
+
+    const isDisabled =
+        !unsavedChartVersion.tableName ||
+        !hasUnsavedChanges ||
+        foundCustomMetricWithDuplicateId;
 
     const handleSaveChart = () => {
         return savedChart
@@ -40,21 +55,40 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
 
     return (
         <>
-            <Button
-                disabled={isDisabled}
-                variant={isExplorer ? 'default' : undefined}
-                color={isExplorer ? 'blue' : 'green.7'}
-                size="xs"
-                loading={update.isLoading}
-                leftIcon={
-                    isExplorer ? (
-                        <MantineIcon icon={IconDeviceFloppy} />
-                    ) : undefined
+            <Tooltip
+                label={
+                    'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
                 }
-                onClick={handleSaveChart}
+                disabled={!foundCustomMetricWithDuplicateId}
+                withinPortal
+                multiline
+                position={'bottom'}
+                maw={300}
             >
-                {savedChart ? 'Save changes' : 'Save chart'}
-            </Button>
+                <Button
+                    disabled={isDisabled}
+                    variant={isExplorer ? 'default' : undefined}
+                    color={isExplorer ? 'blue' : 'green.7'}
+                    size="xs"
+                    loading={update.isLoading}
+                    leftIcon={
+                        isExplorer ? (
+                            <MantineIcon icon={IconDeviceFloppy} />
+                        ) : undefined
+                    }
+                    {...(isDisabled && {
+                        'data-disabled': true,
+                    })}
+                    sx={{
+                        '&[data-disabled="true"]': {
+                            pointerEvents: 'all',
+                        },
+                    }}
+                    onClick={handleSaveChart}
+                >
+                    {savedChart ? 'Save changes' : 'Save chart'}
+                </Button>
+            </Tooltip>
 
             {unsavedChartVersion && (
                 <ChartCreateModal
