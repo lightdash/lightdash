@@ -30,6 +30,7 @@ const data = {
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+    },
     user: {
         externalId: {{externalId}},
         email: {{email}}
@@ -59,8 +60,9 @@ data = {
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
         "canDateZoom": {{canDateZoomPython}},
+    },
     "user": {
-        "externalId": {{externalIdPython}}
+        "externalId": {{externalIdPython}},
         "email": {{emailPython}}
     },
     "userAttributes": {{userAttributes}},
