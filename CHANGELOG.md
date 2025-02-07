@@ -1,3 +1,10 @@
+## [0.1483.1](https://github.com/lightdash/lightdash/compare/0.1483.0...0.1483.1) (2025-02-07)
+
+
+### Bug Fixes
+
+* syntax errors in embed snippets ([#13563](https://github.com/lightdash/lightdash/issues/13563)) ([37eec22](https://github.com/lightdash/lightdash/commit/37eec22750c2b1f556adee673801c561fae59250))
+
 # [0.1483.0](https://github.com/lightdash/lightdash/compare/0.1482.0...0.1483.0) (2025-02-07)
 
 
