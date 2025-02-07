@@ -34,7 +34,7 @@
         "zod": "^3.22.4"
     },
     "scripts": {
-        "dev": "tsc --watch tsconfig.json --preserveWatchOutput",
+        "dev": "tsx watch --clear-screen=false src/index.ts",
         "build": "tsc --build tsconfig.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
