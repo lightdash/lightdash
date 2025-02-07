@@ -1,4 +1,5 @@
 import { type DbtColumnLightdashMetric } from './dbt';
+import { NotImplementedError } from './errors';
 import { FilterOperator, UnitOfTime, type MetricFilterRule } from './filter';
 import { parseFilters } from './filterGrammar';
 import { convertMetricFilterToDbt } from './filterGrammarConversion';
@@ -170,26 +171,7 @@ describe('convertMetricFilterToDbt', () => {
                     completed: false,
                 },
             },
-            {
-                target: { fieldRef: 'field2' },
-                id: '1',
-                operator: FilterOperator.IN_THE_NEXT,
-                values: ['14'],
-                settings: {
-                    unitOfTime: UnitOfTime.days,
-                    completed: true,
-                },
-            },
-            {
-                target: { fieldRef: 'field3' },
-                id: '1',
-                operator: FilterOperator.IN_THE_PAST,
-                values: ['14'],
-                settings: {
-                    unitOfTime: UnitOfTime.days,
-                    completed: true,
-                },
-            },
+
             {
                 target: { fieldRef: 'field4' },
                 id: '2',
@@ -203,12 +185,28 @@ describe('convertMetricFilterToDbt', () => {
         ];
         const expected: DbtColumnLightdashMetric['filters'] = [
             { field1: 'inTheNext 14 days' },
-            { field2: 'inTheNext 15 days' },
-            { field3: 'inThePast 13 days' },
-
             { field4: 'inThePast 14 months' },
         ];
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should throw error on convert IN_THE_NEXT and IN_THE_PAST with completed', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.IN_THE_NEXT,
+                values: ['14'],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    completed: true,
+                },
+            },
+        ];
+
+        expect(() => convertMetricFilterToDbt(filters)).toThrow(
+            NotImplementedError,
+        );
     });
     it('should handle filters with undefined or empty values', () => {
         const filters: MetricFilterRule[] = [
@@ -246,10 +244,6 @@ describe('convertMetricFilterToDbt', () => {
 describe('convert from filterGrammar', () => {
     it('should return undefined if filters are undefined', () => {
         expect(convertMetricFilterToDbt(undefined)).toBeUndefined();
-    });
-
-    it('should return an empty array if filters are an empty array', () => {
-        expect(convertMetricFilterToDbt([])).toEqual([]);
     });
 
     it('should convert EQUALS filter correctly', () => {
