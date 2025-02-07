@@ -303,9 +303,7 @@ Affected charts:
                     );
 
                 // Github's path cannot start with a slash
-                const fileName = `${path.replace(/^\//, '')}/${
-                    explore.ymlPath
-                }`;
+                const fileName = `${explore.ymlPath}`;
                 const { content: fileContent, sha: fileSha } =
                     await getFileContent({
                         fileName,
