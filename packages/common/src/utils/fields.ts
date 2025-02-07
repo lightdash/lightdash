@@ -9,6 +9,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '../types/field';
+import { isDateFilterRule, type DateFilterSettings } from '../types/filter';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
 import {
     type ReplaceCustomFields,
@@ -145,7 +146,24 @@ export function compareMetricAndCustomMetric({
                             customFilter.values?.every((value) =>
                                 filter.values?.includes(value),
                             );
-                        return fieldRefMatch && operatorMatch && valuesMatch;
+                        let settingsMatch =
+                            isDateFilterRule(customFilter) ===
+                            isDateFilterRule(filter);
+                        if (isDateFilterRule(customFilter)) {
+                            const metricSettings =
+                                filter.settings as DateFilterSettings;
+                            const customMetricSettings =
+                                customFilter.settings as DateFilterSettings;
+                            settingsMatch =
+                                metricSettings.unitOfTime ===
+                                customMetricSettings.unitOfTime;
+                        }
+                        return (
+                            fieldRefMatch &&
+                            operatorMatch &&
+                            valuesMatch &&
+                            settingsMatch
+                        );
                     }),
                 ),
             requiredForSuggestion: true,

@@ -7,6 +7,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     type AdditionalMetric,
+    type DateFilterSettings,
     type Explore,
     type Metric,
     type MetricFilterRule,
@@ -165,11 +166,13 @@ export const metricFilterRule = (args?: {
     fieldRef?: string;
     values?: unknown[];
     operator?: FilterOperator;
+    settings?: DateFilterSettings;
 }): MetricFilterRule => ({
     id: 'uuid',
     operator: args?.operator || FilterOperator.GREATER_THAN_OR_EQUAL,
     target: {
         fieldRef: args?.fieldRef || 'a_dim1',
     },
+    settings: args?.settings || undefined,
     values: args?.values || [14],
 });

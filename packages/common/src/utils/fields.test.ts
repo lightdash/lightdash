@@ -1,5 +1,5 @@
 import { isField } from '../types/field';
-import { FilterOperator } from '../types/filter';
+import { FilterOperator, UnitOfTime } from '../types/filter';
 import {
     compareMetricAndCustomMetric,
     getFieldsFromMetricQuery,
@@ -114,22 +114,40 @@ describe('compareMetricAndCustomMetric', () => {
         },
     );
     test('should return exact match with multiple filters', async () => {
-        const filters = [
-            metricFilterRule(),
-            metricFilterRule({
-                fieldRef: 'b_dim2',
-                values: ['2', '4'],
-                operator: FilterOperator.IN_BETWEEN,
-            }),
-        ];
         const result = compareMetricAndCustomMetric({
             customMetric: {
                 ...customMetric,
-                filters,
+                filters: [
+                    metricFilterRule(),
+                    metricFilterRule({
+                        fieldRef: 'b_dim2',
+                        values: ['2', '4'],
+                        operator: FilterOperator.IN_BETWEEN,
+                    }),
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_PAST,
+                        settings: {
+                            unitOfTime: UnitOfTime.years,
+                        },
+                    }),
+                ],
             },
             metric: {
                 ...metric,
-                filters,
+                filters: [
+                    metricFilterRule(),
+                    metricFilterRule({
+                        fieldRef: 'b_dim2',
+                        values: ['2', '4'],
+                        operator: FilterOperator.IN_BETWEEN,
+                    }),
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_PAST,
+                        settings: {
+                            unitOfTime: UnitOfTime.years,
+                        },
+                    }),
+                ],
             },
         });
         expect(result.isExactMatch).toEqual(true);
@@ -204,5 +222,34 @@ describe('compareMetricAndCustomMetric', () => {
         });
         expect(result4.isExactMatch).toEqual(false);
         expect(result4.isSuggestedMatch).toEqual(false);
+
+        // Different unit of time
+        const result5 = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_PAST,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                        },
+                    }),
+                ],
+            },
+            metric: {
+                ...metric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_PAST,
+                        settings: {
+                            unitOfTime: UnitOfTime.years,
+                            completed: true,
+                        },
+                    }),
+                ],
+            },
+        });
+        expect(result5.isExactMatch).toEqual(false);
+        expect(result5.isSuggestedMatch).toEqual(false);
     });
 });
