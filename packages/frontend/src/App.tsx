@@ -11,6 +11,7 @@ import MobileRoutes from './MobileRoutes';
 import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
 import AppProvider from './providers/App/AppProvider';
+import FullscreenProvider from './providers/Fullscreen/FullscreenProvider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
@@ -31,20 +32,24 @@ const router = createBrowserRouter([
         path: '/',
         element: (
             <AppProvider>
-                <VersionAutoUpdater />
-                <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
-                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                        <TrackingProvider enabled={isMobile || !isMinimalPage}>
-                            <AbilityProvider>
-                                <ActiveJobProvider>
-                                    <ChartColorMappingContextProvider>
-                                        <Outlet />
-                                    </ChartColorMappingContextProvider>
-                                </ActiveJobProvider>
-                            </AbilityProvider>
-                        </TrackingProvider>
-                    </ErrorBoundary>
-                </ThirdPartyProvider>
+                <FullscreenProvider enabled={isMobile || !isMinimalPage}>
+                    <VersionAutoUpdater />
+                    <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
+                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                            <TrackingProvider
+                                enabled={isMobile || !isMinimalPage}
+                            >
+                                <AbilityProvider>
+                                    <ActiveJobProvider>
+                                        <ChartColorMappingContextProvider>
+                                            <Outlet />
+                                        </ChartColorMappingContextProvider>
+                                    </ActiveJobProvider>
+                                </AbilityProvider>
+                            </TrackingProvider>
+                        </ErrorBoundary>
+                    </ThirdPartyProvider>
+                </FullscreenProvider>
             </AppProvider>
         ),
         children: isMobile

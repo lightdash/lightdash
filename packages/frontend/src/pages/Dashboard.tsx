@@ -38,6 +38,7 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import useFullscreen from '../providers/Fullscreen/useFullscreen';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
@@ -98,7 +99,7 @@ const Dashboard: FC = () => {
     }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
-    const { isFullscreen, toggleFullscreen } = useApp();
+    const { isFullscreen, toggleFullscreen } = useFullscreen();
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();

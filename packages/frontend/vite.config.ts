@@ -7,7 +7,6 @@ import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
-import { peerDependencies } from './package.json';
 
 const dirnamePath = dirname(fileURLToPath(import.meta.url));
 
@@ -46,10 +45,9 @@ export default defineConfig(({ mode }) => {
         },
         build: {
             outDir: isLib ? 'dist' : 'build',
-            target: isLib ? 'es2015' : 'es2020',
-            minify: isLib ? 'esbuild' : true,
+            target: 'es2020',
+            minify: true,
             sourcemap: true,
-
             ...(isLib
                 ? {
                       lib: {
@@ -66,7 +64,6 @@ export default defineConfig(({ mode }) => {
                               'react-dom/jsx-dev-runtime',
                               'react',
                               'react-dom',
-                              ...Object.keys(peerDependencies),
                           ],
                       },
                   }

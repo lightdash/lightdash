@@ -3,14 +3,13 @@ import {
     ActiveJobProvider,
     AppProvider,
     ChartColorMappingContextProvider,
-    createBrowserRouter,
     EmbedDashboard,
     EmbedProvider,
     ErrorBoundary,
+    FullscreenProvider,
     MantineProvider,
-    Outlet,
+    MemoryRouter,
     ReactQueryProvider,
-    RouterProvider,
     ThirdPartyServicesProvider,
     TrackingProvider,
 } from '@lightdash/frontend';
@@ -44,52 +43,47 @@ const Dashboard: FC<Props> = ({ getEmbedToken, instanceUrl, projectUuid }) => {
         return null;
     }
 
-    const router = createBrowserRouter([
-        {
-            path: '*',
-            element: (
-                <AppProvider>
-                    <ThirdPartyServicesProvider enabled={false}>
-                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                            <TrackingProvider enabled={true}>
-                                <AbilityProvider>
-                                    <ActiveJobProvider>
-                                        <ChartColorMappingContextProvider>
-                                            <Outlet />
-                                        </ChartColorMappingContextProvider>
-                                    </ActiveJobProvider>
-                                </AbilityProvider>
-                            </TrackingProvider>
-                        </ErrorBoundary>
-                    </ThirdPartyServicesProvider>
-                </AppProvider>
-            ),
-            children: [
-                {
-                    path: '*',
-                    element: (
-                        <EmbedProvider embedToken={token}>
-                            <div
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    position: 'relative',
-                                    overflow: 'auto',
-                                }}
-                            >
-                                <EmbedDashboard projectUuid={projectUuid} />
-                            </div>
-                        </EmbedProvider>
-                    ),
-                },
-            ],
-        },
-    ]);
-
     return (
         <ReactQueryProvider>
             <MantineProvider>
-                <RouterProvider router={router} />
+                <AppProvider>
+                    <FullscreenProvider enabled={false}>
+                        <ThirdPartyServicesProvider enabled={false}>
+                            <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                <MemoryRouter>
+                                    <TrackingProvider enabled={true}>
+                                        <AbilityProvider>
+                                            <ActiveJobProvider>
+                                                <ChartColorMappingContextProvider>
+                                                    <EmbedProvider
+                                                        embedToken={token}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                position:
+                                                                    'relative',
+                                                                overflow:
+                                                                    'auto',
+                                                            }}
+                                                        >
+                                                            <EmbedDashboard
+                                                                projectUuid={
+                                                                    projectUuid
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </EmbedProvider>
+                                                </ChartColorMappingContextProvider>
+                                            </ActiveJobProvider>
+                                        </AbilityProvider>
+                                    </TrackingProvider>
+                                </MemoryRouter>
+                            </ErrorBoundary>
+                        </ThirdPartyServicesProvider>
+                    </FullscreenProvider>
+                </AppProvider>
             </MantineProvider>
         </ReactQueryProvider>
     );
