@@ -1,3 +1,15 @@
+# [0.1483.0](https://github.com/lightdash/lightdash/compare/0.1482.0...0.1483.0) (2025-02-07)
+
+
+### Bug Fixes
+
+* convert custom metric filters ([#13503](https://github.com/lightdash/lightdash/issues/13503)) ([a821783](https://github.com/lightdash/lightdash/commit/a821783c614cf5f3649705f5ffad93ba454ed467))
+
+
+### Features
+
+* frontend custom metric write back ([#13535](https://github.com/lightdash/lightdash/issues/13535)) ([7c9670c](https://github.com/lightdash/lightdash/commit/7c9670c28fd4266519c052e902b94fa658ec9ece))
+
 # [0.1482.0](https://github.com/lightdash/lightdash/compare/0.1481.2...0.1482.0) (2025-02-06)
 
 
