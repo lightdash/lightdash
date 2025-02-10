@@ -409,15 +409,18 @@ export default class App {
                     origin: (origin, callback) => {
                         if (
                             !origin ||
-                            this.lightdashConfig.security.crossOriginResourceSharingPolicy.allowedDomains.includes(
-                                origin,
-                            )
+                            [
+                                this.lightdashConfig.siteUrl,
+                                ...this.lightdashConfig.security
+                                    .crossOriginResourceSharingPolicy
+                                    .allowedDomains,
+                            ].includes(origin)
                         ) {
                             callback(null, true);
                         } else {
                             callback(
                                 new Error(
-                                    'The CORS policy for this site does not allow access from the specified Origin.',
+                                    `The CORS policy for this site does not allow access from the specified Origin: ${origin}`,
                                 ),
                                 false,
                             );
