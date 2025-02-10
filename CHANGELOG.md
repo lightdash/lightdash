@@ -1,3 +1,10 @@
+## [0.1484.9](https://github.com/lightdash/lightdash/compare/0.1484.8...0.1484.9) (2025-02-10)
+
+
+### Bug Fixes
+
+* cors include same domain in the check ([#13602](https://github.com/lightdash/lightdash/issues/13602)) ([2c9e872](https://github.com/lightdash/lightdash/commit/2c9e8724a3c8b113c5a1d0552d95d08456776b99))
+
 ## [0.1484.8](https://github.com/lightdash/lightdash/compare/0.1484.7...0.1484.8) (2025-02-10)
 
 
