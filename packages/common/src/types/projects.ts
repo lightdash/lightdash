@@ -69,6 +69,11 @@ export type BigqueryCredentials = Omit<
     CreateBigqueryCredentials,
     SensitiveCredentialsFieldNames
 >;
+export type DatabricksComputeConfig = {
+    [name: string]: {
+        http_path: string;
+    };
+};
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
     catalog?: string;
@@ -79,6 +84,7 @@ export type CreateDatabricksCredentials = {
     personalAccessToken: string;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    compute?: DatabricksComputeConfig;
 };
 export type DatabricksCredentials = Omit<
     CreateDatabricksCredentials,

@@ -123,6 +123,7 @@ import {
     replaceDimensionInExplore,
     snakeCaseName,
     type ApiCreateProjectResults,
+    type CreateDatabricksCredentials,
     type RunQueryTags,
     type SemanticLayerConnectionUpdate,
     type Tag,
@@ -465,7 +466,7 @@ export class ProjectService extends BaseService {
         credentials: CreateWarehouseCredentials,
         overrides?: {
             snowflakeVirtualWarehouse?: string;
-            databricksComputeHttpPathOverride?: string;
+            databricksCompute?: string;
         },
     ): Promise<{
         warehouseClient: WarehouseClient;
@@ -475,11 +476,11 @@ export class ProjectService extends BaseService {
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
 
-        const { snowflakeVirtualWarehouse, databricksComputeHttpPathOverride } =
+        const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
 
         const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
-            databricksComputeHttpPathOverride || ''
+            databricksCompute || ''
         }`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
@@ -505,6 +506,20 @@ export class ProjectService extends BaseService {
             return snowflakeVirtualWarehouse || snowflakeCredentials.warehouse;
         };
 
+        const getDatabricksHttpPath = (
+            databricksCredentials: CreateDatabricksCredentials,
+        ): string => {
+            if (
+                databricksCredentials.compute &&
+                databricksCompute &&
+                databricksCredentials.compute[databricksCompute]
+            ) {
+                return databricksCredentials.compute[databricksCompute]
+                    .http_path;
+            }
+            return databricksCredentials.httpPath;
+        };
+
         const credsType = warehouseSshCredentials.type;
         let credentialsWithOverrides: CreateWarehouseCredentials;
 
@@ -518,9 +533,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.DATABRICKS:
                 credentialsWithOverrides = {
                     ...warehouseSshCredentials,
-                    httpPath:
-                        databricksComputeHttpPathOverride ||
-                        warehouseSshCredentials.httpPath,
+                    httpPath: getDatabricksHttpPath(warehouseSshCredentials),
                 };
                 break;
             case WarehouseTypes.REDSHIFT:
@@ -1304,8 +1317,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
-                databricksComputeHttpPathOverride:
-                    explore.databricksComputeHttpPath,
+                databricksCompute: explore.databricksCompute,
             },
         );
         const userAttributes =
@@ -2120,8 +2132,7 @@ export class ProjectService extends BaseService {
                             ),
                             {
                                 snowflakeVirtualWarehouse: explore.warehouse,
-                                databricksComputeHttpPathOverride:
-                                    explore.databricksComputeHttpPath,
+                                databricksCompute: explore.databricksCompute,
                             },
                         );
 
@@ -2836,8 +2847,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
-                databricksComputeHttpPathOverride:
-                    explore.databricksComputeHttpPath,
+                databricksCompute: explore.databricksCompute,
             },
         );
         const userAttributes =
@@ -4660,8 +4670,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
-                databricksComputeHttpPathOverride:
-                    explore.databricksComputeHttpPath,
+                databricksCompute: explore.databricksCompute,
             },
         );
 
@@ -4699,8 +4708,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
-                databricksComputeHttpPathOverride:
-                    explore.databricksComputeHttpPath,
+                databricksCompute: explore.databricksCompute,
             },
         );
 

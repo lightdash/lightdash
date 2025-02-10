@@ -2,6 +2,7 @@ import {
     CreateDatabricksCredentials,
     ParseError,
     WarehouseTypes,
+    type DatabricksComputeConfig,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
@@ -16,6 +17,7 @@ export type DatabricksTarget = {
     http_path: string;
     token: string;
     threads?: number;
+    compute?: DatabricksComputeConfig;
 };
 
 export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
@@ -45,6 +47,20 @@ export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
             type: 'number',
             nullable: true,
         },
+        compute: {
+            type: 'object',
+            nullable: true,
+            required: [],
+            properties: {},
+            additionalProperties: {
+                type: 'object',
+                properties: {
+                    http_path: { type: 'string' },
+                },
+                required: ['http_path'],
+                additionalProperties: false,
+            },
+        },
     },
     required: ['type', 'schema', 'host', 'http_path', 'token'],
 };
@@ -62,6 +78,7 @@ export const convertDatabricksSchema = (
             serverHostName: target.host,
             httpPath: target.http_path,
             personalAccessToken: target.token,
+            compute: target.compute,
         };
     }
     const errs = betterAjvErrors(

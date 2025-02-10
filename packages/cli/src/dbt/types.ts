@@ -3,14 +3,8 @@ export type LoadProfileArgs = {
     profileName: string;
     targetName?: string;
 };
-type DatabricksComputeConfig = {
-    [name: string]: {
-        http_path: string;
-    };
-};
 export type Target = Record<string, unknown> & {
     type: string;
-    compute?: DatabricksComputeConfig;
 };
 type Profile = {
     target: string;

@@ -54,7 +54,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
-    const { warehouseClient, target } = await getWarehouseClient({
+    const { warehouseClient } = await getWarehouseClient({
         isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
         profilesDir: options.profilesDir,
         profile: options.profile || context.profileName,
@@ -148,7 +148,6 @@ ${errors.join('')}`),
             : Object.values(manifest.metrics),
         warehouseClient,
         lightdashProjectConfig,
-        target?.compute,
     );
     console.error('');
 

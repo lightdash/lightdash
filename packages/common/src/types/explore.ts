@@ -55,7 +55,7 @@ export type Explore = {
     unfilteredTables?: { [tableName: string]: CompiledTable }; // All tables, without user attribute filters, for error handling
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/databricks
     warehouse?: string;
-    databricksComputeHttpPath?: string;
+    databricksCompute?: string;
     ymlPath?: string;
     sqlPath?: string;
     type?: ExploreType;

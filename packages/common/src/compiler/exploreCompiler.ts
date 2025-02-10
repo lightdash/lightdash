@@ -84,7 +84,7 @@ export type UncompiledExplore = {
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     meta: DbtRawModelNode['meta'];
-    databricksComputeHttpPath?: string;
+    databricksCompute?: string;
 };
 
 const getReferencedTable = (
@@ -118,8 +118,8 @@ export class ExploreCompiler {
         ymlPath,
         sqlPath,
         spotlightConfig,
-        databricksComputeHttpPath,
         meta,
+        databricksCompute,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -277,7 +277,7 @@ export class ExploreCompiler {
             warehouse,
             ymlPath,
             sqlPath,
-            databricksComputeHttpPath,
+            databricksCompute,
             ...getSpotlightConfigurationForResource(
                 spotlightVisibility,
                 spotlightCategories,
