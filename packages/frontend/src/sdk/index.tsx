@@ -16,6 +16,9 @@ import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
 
+const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
+    '__lightdash_sdk_instance_url';
+
 export {
     AbilityProvider,
     ActiveJobProvider,
@@ -25,6 +28,7 @@ export {
     EmbedProvider,
     ErrorBoundary,
     FullscreenProvider,
+    LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     MantineProvider,
     MemoryRouter,
     ReactQueryProvider,

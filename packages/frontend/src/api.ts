@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { spanToTraceHeader, startSpan } from '@sentry/react';
 import fetch from 'isomorphic-fetch';
+import { LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY } from './sdk';
 
 export const BASE_API_URL =
     import.meta.env.VITEST === 'true'
@@ -57,8 +58,9 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     headers,
     version = 'v1',
 }: LightdashApiProps): Promise<T> => {
-    // TODO: should be a constant
-    const baseUrl = localStorage.getItem('__lightdash_sdk_instance_url');
+    const baseUrl = localStorage.getItem(
+        LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
+    );
     const apiPrefix = `${baseUrl ?? BASE_API_URL}api/${version}`;
 
     let sentryTrace: string | undefined;

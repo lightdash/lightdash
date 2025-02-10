@@ -7,6 +7,7 @@ import {
     EmbedProvider,
     ErrorBoundary,
     FullscreenProvider,
+    LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     MantineProvider,
     MemoryRouter,
     ReactQueryProvider,
@@ -23,8 +24,7 @@ type Props = {
 
 const persistInstanceUrl = (instanceUrl: string) => {
     localStorage.setItem(
-        // TODO: should be a constant
-        '__lightdash_sdk_instance_url',
+        LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
         instanceUrl,
     );
 };
