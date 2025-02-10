@@ -316,9 +316,6 @@ export class ProjectModel {
         data: CreateWarehouseCredentials,
     ): Promise<void> {
         let encryptedCredentials: Buffer;
-        console.log('UPSERTING', {
-            data,
-        });
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
                 JSON.stringify(data),

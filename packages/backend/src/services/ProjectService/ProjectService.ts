@@ -509,13 +509,12 @@ export class ProjectService extends BaseService {
         const getDatabricksHttpPath = (
             databricksCredentials: CreateDatabricksCredentials,
         ): string => {
-            if (
-                databricksCredentials.compute &&
-                databricksCompute &&
-                databricksCredentials.compute[databricksCompute]
-            ) {
-                return databricksCredentials.compute[databricksCompute]
-                    .http_path;
+            if (databricksCredentials.compute) {
+                return (
+                    databricksCredentials.compute.find(
+                        (compute) => compute.name === databricksCompute,
+                    )?.httpPath ?? databricksCredentials.httpPath
+                );
             }
             return databricksCredentials.httpPath;
         };

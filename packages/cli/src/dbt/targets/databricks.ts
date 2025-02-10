@@ -2,12 +2,17 @@ import {
     CreateDatabricksCredentials,
     ParseError,
     WarehouseTypes,
-    type DatabricksComputeConfig,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
+
+type DatabricksComputeConfig = {
+    [name: string]: {
+        http_path: string;
+    };
+};
 
 export type DatabricksTarget = {
     type: 'databricks';
@@ -78,7 +83,12 @@ export const convertDatabricksSchema = (
             serverHostName: target.host,
             httpPath: target.http_path,
             personalAccessToken: target.token,
-            compute: target.compute,
+            compute: Object.entries(target.compute || {}).map(
+                ([name, compute]) => ({
+                    name,
+                    httpPath: compute.http_path,
+                }),
+            ),
         };
     }
     const errs = betterAjvErrors(
