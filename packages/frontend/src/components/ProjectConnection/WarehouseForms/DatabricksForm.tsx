@@ -10,7 +10,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
@@ -163,79 +163,64 @@ const DatabricksForm: FC<{
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack>
                         <StartOfWeekSelect disabled={disabled} />
-                        <Group position="apart">
-                            <Group spacing="xs">
+                        <Stack spacing="xs">
+                            <Stack spacing={0}>
                                 <Text fw={500}>Compute Resources</Text>
-                                <Tooltip
-                                    variant="xs"
-                                    label="Configure compute resources to use in your models"
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        color="gray.6"
-                                    />
-                                </Tooltip>
-                            </Group>
-                            {computeFields.length === 0 && (
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    sx={(theme) => ({
-                                        alignSelf: 'flex-end',
-                                        boxShadow: theme.shadows.subtle,
-                                    })}
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
-                                    onClick={() =>
-                                        append({ name: '', httpPath: '' })
-                                    }
-                                >
-                                    Add compute
-                                </Button>
-                            )}
-                        </Group>
-                        <FormSection name="compute">
-                            <Stack>
-                                {computeFields.map((field, index) => (
-                                    <Group key={field.id} noWrap spacing="xs">
-                                        <TextInput
-                                            style={{
-                                                flexGrow: 1,
-                                            }}
-                                            size="xs"
-                                            {...register(
-                                                `warehouse.compute.${index}.name`,
-                                            )}
-                                            placeholder="Compute Name"
-                                            required
-                                        />
-                                        <TextInput
-                                            style={{
-                                                flexGrow: 1,
-                                            }}
-                                            size="xs"
-                                            {...register(
-                                                `warehouse.compute.${index}.httpPath`,
-                                            )}
-                                            placeholder="HTTP Path"
-                                            required
-                                        />
-                                        <Tooltip
-                                            variant="xs"
-                                            label="Remove compute"
+                                <Text c="dimmed" size="xs">
+                                    Configure compute resources to use in your
+                                    models
+                                </Text>
+                            </Stack>
+                            <FormSection name="compute">
+                                <Stack>
+                                    {computeFields.map((field, index) => (
+                                        <Group
+                                            key={field.id}
+                                            noWrap
+                                            spacing="xs"
                                         >
-                                            <ActionIcon
-                                                size="sm"
-                                                onClick={() => remove(index)}
+                                            <TextInput
                                                 style={{
-                                                    flexGrow: 0,
+                                                    flexGrow: 1,
                                                 }}
+                                                size="xs"
+                                                {...register(
+                                                    `warehouse.compute.${index}.name`,
+                                                )}
+                                                placeholder="Compute Name"
+                                                required
+                                            />
+                                            <TextInput
+                                                style={{
+                                                    flexGrow: 1,
+                                                }}
+                                                size="xs"
+                                                {...register(
+                                                    `warehouse.compute.${index}.httpPath`,
+                                                )}
+                                                placeholder="HTTP Path"
+                                                required
+                                            />
+                                            <Tooltip
+                                                variant="xs"
+                                                label="Remove compute"
                                             >
-                                                <MantineIcon icon={IconTrash} />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Group>
-                                ))}
-                                {computeFields.length > 0 && (
+                                                <ActionIcon
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        remove(index)
+                                                    }
+                                                    style={{
+                                                        flexGrow: 0,
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
+                                    ))}
                                     <Button
                                         variant="default"
                                         size="xs"
@@ -247,14 +232,17 @@ const DatabricksForm: FC<{
                                             <MantineIcon icon={IconPlus} />
                                         }
                                         onClick={() =>
-                                            append({ name: '', httpPath: '' })
+                                            append({
+                                                name: '',
+                                                httpPath: '',
+                                            })
                                         }
                                     >
                                         Add compute
                                     </Button>
-                                )}
-                            </Stack>
-                        </FormSection>
+                                </Stack>
+                            </FormSection>
+                        </Stack>
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
