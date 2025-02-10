@@ -17,6 +17,7 @@ import {
     isCustomSqlDimension,
     isDimension,
     isField,
+    isFormat,
     isMetric,
     isTableCalculation,
     type CompactOrAlias,
@@ -432,7 +433,13 @@ export function hasValidFormatExpression<
         | CustomDimension
         | Dimension,
 >(item: T | undefined): item is T & { format: string } {
-    return isField(item) && !!item.format && isValidFormat(item.format);
+    // filter out legacy format that might be valid expressions. eg: usd
+    return (
+        isField(item) &&
+        !!item.format &&
+        !isFormat(item.format) &&
+        isValidFormat(item.format)
+    );
 }
 
 export function formatValueWithExpression(expression: string, value: unknown) {
