@@ -79,6 +79,7 @@ type DashboardHeaderProps = {
     hasNewSemanticLayerChart: boolean;
     isEditMode: boolean;
     isSaving: boolean;
+    isFullScreenFeatureEnabled?: boolean;
     isFullscreen: boolean;
     isPinned: boolean;
     oldestCacheTime?: Date;
@@ -105,6 +106,7 @@ const DashboardHeader = ({
     hasNewSemanticLayerChart,
     isEditMode,
     isSaving,
+    isFullScreenFeatureEnabled,
     isFullscreen,
     isPinned,
     oldestCacheTime,
@@ -364,30 +366,32 @@ const DashboardHeader = ({
                         />
                     )}
 
-                    {!isEditMode && document.fullscreenEnabled && (
-                        <Tooltip
-                            label={
-                                isFullscreen
-                                    ? 'Exit Fullscreen Mode'
-                                    : 'Enter Fullscreen Mode'
-                            }
-                            withinPortal
-                            position="bottom"
-                        >
-                            <ActionIcon
-                                variant="default"
-                                onClick={onToggleFullscreen}
+                    {!isEditMode &&
+                        document.fullscreenEnabled &&
+                        isFullScreenFeatureEnabled && (
+                            <Tooltip
+                                label={
+                                    isFullscreen
+                                        ? 'Exit Fullscreen Mode'
+                                        : 'Enter Fullscreen Mode'
+                                }
+                                withinPortal
+                                position="bottom"
                             >
-                                <MantineIcon
-                                    icon={
-                                        isFullscreen
-                                            ? IconArrowsMinimize
-                                            : IconArrowsMaximize
-                                    }
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={onToggleFullscreen}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            isFullscreen
+                                                ? IconArrowsMinimize
+                                                : IconArrowsMaximize
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
 
                     {!!userCanManageDashboard && !isFullscreen && (
                         <Tooltip

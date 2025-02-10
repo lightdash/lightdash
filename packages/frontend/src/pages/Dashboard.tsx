@@ -99,7 +99,11 @@ const Dashboard: FC = () => {
     }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
-    const { isFullscreen, toggleFullscreen } = useFullscreen();
+    const {
+        enabled: isFullScreenFeatureEnabled,
+        isFullscreen,
+        toggleFullscreen,
+    } = useFullscreen();
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
@@ -293,6 +297,8 @@ const Dashboard: FC = () => {
     ]);
 
     const handleToggleFullscreen = useCallback(async () => {
+        if (!isFullScreenFeatureEnabled) return;
+
         const willBeFullscreen = !isFullscreen;
 
         if (document.fullscreenElement && !willBeFullscreen) {
@@ -306,9 +312,11 @@ const Dashboard: FC = () => {
         }
 
         toggleFullscreen();
-    }, [isFullscreen, toggleFullscreen]);
+    }, [isFullScreenFeatureEnabled, isFullscreen, toggleFullscreen]);
 
     useEffect(() => {
+        if (!isFullScreenFeatureEnabled) return;
+
         const onFullscreenChange = () => {
             if (isFullscreen && !document.fullscreenElement) {
                 toggleFullscreen(false);
@@ -585,6 +593,7 @@ const Dashboard: FC = () => {
                         isPinned={isPinned}
                         activeTabUuid={activeTab?.uuid}
                         dashboardTabs={dashboardTabs}
+                        isFullScreenFeatureEnabled={isFullScreenFeatureEnabled}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
