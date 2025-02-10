@@ -1,7 +1,6 @@
 import {
     Anchor,
     Button,
-    Code,
     Group,
     Loader,
     Modal,
@@ -10,6 +9,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { Prism } from '@mantine/prism';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
@@ -162,7 +162,7 @@ export const CustomMetricWriteBackModal = () => {
                             {previewLoading ? (
                                 <Loader size="lg" color="gray" mt="xs" />
                             ) : (
-                                <Stack>
+                                <Stack ml={36}>
                                     {previewData?.files?.map((file) => (
                                         <>
                                             <Group>
@@ -172,18 +172,15 @@ export const CustomMetricWriteBackModal = () => {
                                                 </Text>
                                             </Group>
                                             {file.diff.map((diff) => (
-                                                <Code
-                                                    p="md"
+                                                <Prism
+                                                    language="yaml"
+                                                    withLineNumbers
+                                                    trim={false}
                                                     key={diff.value}
-                                                    block={true}
-                                                    color={
-                                                        diff.type === 'added'
-                                                            ? 'green'
-                                                            : 'red'
-                                                    }
+                                                    // all lines are additions, no need to highlight
                                                 >
                                                     {diff.value}
-                                                </Code>
+                                                </Prism>
                                             ))}
                                         </>
                                     ))}
