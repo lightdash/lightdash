@@ -1,3 +1,11 @@
+## [0.1484.6](https://github.com/lightdash/lightdash/compare/0.1484.5...0.1484.6) (2025-02-10)
+
+
+### Bug Fixes
+
+* fix path on custom metric PR ([#13570](https://github.com/lightdash/lightdash/issues/13570)) ([d722497](https://github.com/lightdash/lightdash/commit/d722497edbb39d14322592196b8c798b752192a5))
+* resize edit tab to match Add New tab width ([#13340](https://github.com/lightdash/lightdash/issues/13340)) ([83e6fd7](https://github.com/lightdash/lightdash/commit/83e6fd73abaad023819eaf3cba2a0fe45e732e9c))
+
 ## [0.1484.5](https://github.com/lightdash/lightdash/compare/0.1484.4...0.1484.5) (2025-02-07)
 
 

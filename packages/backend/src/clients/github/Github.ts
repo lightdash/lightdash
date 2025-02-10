@@ -1,7 +1,9 @@
 import {
     AlreadyExistsError,
+    getErrorMessage,
     NotFoundError,
     ParameterError,
+    UnexpectedGitError,
 } from '@lightdash/common';
 import { App } from '@octokit/app';
 import { Octokit as OctokitRest } from '@octokit/rest';
@@ -121,22 +123,34 @@ export const getFileContent = async ({
     token: string;
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
-    const response = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path: fileName,
-        ref: branch,
-        headers,
-    });
+    try {
+        const response = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: fileName,
+            ref: branch,
+            headers,
+        });
 
-    if ('content' in response.data) {
-        const content = Buffer.from(response.data.content, 'base64').toString(
-            'utf-8',
-        );
-        return { content, sha: response.data.sha };
+        if ('content' in response.data) {
+            const content = Buffer.from(
+                response.data.content,
+                'base64',
+            ).toString('utf-8');
+            return { content, sha: response.data.sha };
+        }
+
+        throw new NotFoundError('file not found');
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(`file ${fileName} not found in Github`);
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
     }
-
-    throw new NotFoundError('file not found');
 };
 
 export const createBranch = async ({
