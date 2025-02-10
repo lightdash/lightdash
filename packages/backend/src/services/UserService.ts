@@ -1108,6 +1108,7 @@ export class UserService extends BaseService {
         } else {
             await this.userModel.createPassword(user.userId, data.newPassword);
         }
+        await this.userModel.revokeUserSessions(user.userUuid);
         this.analytics.track({
             userId: user.userUuid,
             event: 'password.updated',

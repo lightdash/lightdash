@@ -906,6 +906,14 @@ export class UserModel {
             });
     }
 
+    async revokeUserSessions(userUuid: string): Promise<void> {
+        await this.database('sessions')
+            .whereRaw(`(sess::jsonb -> 'passport' -> 'user' ->> 'id') = ?`, [
+                userUuid,
+            ])
+            .del();
+    }
+
     async joinOrg(
         userUuid: string,
         organizationUuid: string,
