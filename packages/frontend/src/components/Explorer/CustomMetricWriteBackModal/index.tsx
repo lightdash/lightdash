@@ -2,13 +2,11 @@ import {
     Anchor,
     Button,
     Code,
-    Collapse,
     Group,
     Loader,
     Modal,
     MultiSelect,
     Stack,
-    Switch,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -16,7 +14,7 @@ import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
-import { Config } from '../../VisualizationConfigs/common/Config';
+import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
 import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
@@ -70,19 +68,14 @@ export const CustomMetricWriteBackModal = () => {
     } = usePreviewWriteBackCustomMetrics(projectUuid!);
 
     useEffect(() => {
-        if (selectedItems?.length > 0 && showDiff) {
+        if (selectedItems?.length > 0) {
             const selectedCustomMetrics =
                 allCustomMetrics?.filter((item) =>
                     selectedItems.includes(item.name),
                 ) || [];
             previewWriteBackCustomMetrics(selectedCustomMetrics);
         }
-    }, [
-        selectedItems,
-        allCustomMetrics,
-        previewWriteBackCustomMetrics,
-        showDiff,
-    ]);
+    }, [selectedItems, allCustomMetrics, previewWriteBackCustomMetrics]);
 
     return availableCustomMetrics && availableCustomMetrics.length > 0 ? (
         <Modal
@@ -160,19 +153,12 @@ export const CustomMetricWriteBackModal = () => {
                             )}
                             onChange={setSelectedItems}
                         />
-                        <Config>
-                            <Group>
-                                <Config.Label>Show diff</Config.Label>
-                                <Switch
-                                    checked={showDiff}
-                                    onChange={() => {
-                                        setShowDiff(!showDiff);
-                                    }}
-                                />
-                            </Group>
-                        </Config>
 
-                        <Collapse in={showDiff}>
+                        <CollapsableCard
+                            isOpen={showDiff}
+                            title={'Show metrics code'}
+                            onToggle={() => setShowDiff(!showDiff)}
+                        >
                             {previewLoading ? (
                                 <Loader size="lg" color="gray" mt="xs" />
                             ) : (
@@ -203,7 +189,7 @@ export const CustomMetricWriteBackModal = () => {
                                     ))}
                                 </Stack>
                             )}
-                        </Collapse>
+                        </CollapsableCard>
                     </>
                 )}
             </Stack>
