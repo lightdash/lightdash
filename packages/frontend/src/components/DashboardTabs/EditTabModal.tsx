@@ -42,7 +42,7 @@ export const TabEditModal: FC<AddProps> = ({
                 </Group>
             }
             {...modalProps}
-            size="xl"
+            size="sm"
             onClose={handleClose}
         >
             <form onSubmit={handleConfirm}>

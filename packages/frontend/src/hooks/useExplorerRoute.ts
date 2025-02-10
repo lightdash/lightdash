@@ -250,6 +250,10 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         customDimension: {
                             isOpen: false,
                         },
+                        additionalMetricWriteBack: {
+                            isOpen: false,
+                            item: undefined,
+                        },
                     },
                 };
             } catch (e: any) {

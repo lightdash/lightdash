@@ -2,6 +2,7 @@ import {
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
+    type GitIntegrationConfiguration,
     type GroupType,
     type Metric,
     type OrderFieldsByStrategy,
@@ -30,8 +31,17 @@ export type TreeProviderProps = {
     itemsMap: Record<string, NodeItem>;
     selectedItems: Set<string>;
     missingCustomMetrics?: AdditionalMetric[];
+    itemsAlerts?: {
+        [id: string]: {
+            errors?: { message: string }[];
+            warnings?: { message: string }[];
+            infos?: { message: string }[];
+        };
+    };
     missingCustomDimensions?: CustomDimension[];
     groupDetails?: Record<string, GroupType>;
+    isGithubIntegrationEnabled?: boolean; // For displaying the write back on custom metrics in TreeSingleNodeActions
+    gitIntegration?: GitIntegrationConfiguration;
     onItemClick: (key: string, item: NodeItem) => void;
 };
 

@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    DbtProjectType,
+    FeatureFlags,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -9,6 +11,10 @@ import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
+import useHealth from '../../../../hooks/health/useHealth';
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
 import useExplorerContext from '../../../../providers/Explorer/useExplorerContext';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
@@ -98,6 +104,39 @@ const TableTreeSections: FC<Props> = ({
     const hasDimensions = Object.keys(table.dimensions).length > 0;
     const hasCustomMetrics = additionalMetrics.length > 0;
     const hasCustomDimensions = customDimensions && customDimensions.length > 0;
+
+    const health = useHealth();
+    const { data: project } = useProject(projectUuid);
+
+    const isGithubIntegrationEnabled =
+        health?.data?.hasGithub &&
+        project?.dbtConnection.type === DbtProjectType.GITHUB;
+    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const isCustomSqlEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
+
+    const customMetricsIssues: {
+        [id: string]: {
+            errors: { message: string }[];
+        };
+    } = useMemo(() => {
+        return additionalMetrics.reduce((acc, item) => {
+            const foundDuplicateId = Object.keys(metrics).includes(
+                getItemId(item),
+            );
+            return {
+                ...acc,
+                [getItemId(item)]: {
+                    errors: foundDuplicateId
+                        ? [
+                              `A metric with this ID already exists in the table. Rename your custom metric to prevent conflicts.`,
+                          ]
+                        : undefined,
+                },
+            };
+        }, {});
+    }, [metrics, additionalMetrics]);
 
     return (
         <>
@@ -280,8 +319,13 @@ const TableTreeSections: FC<Props> = ({
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}
                     missingCustomMetrics={missingFields?.customMetrics}
+                    itemsAlerts={customMetricsIssues}
                     groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
+                    isGithubIntegrationEnabled={
+                        isGithubIntegrationEnabled && isCustomSqlEnabled
+                    }
+                    gitIntegration={gitIntegration}
                 >
                     <TreeRoot />
                 </TreeProvider>

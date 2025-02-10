@@ -60,7 +60,8 @@ module.exports = {
                 'src/utils/convertToDbt.ts',
                 'src/utils/filters.ts',
                 'src/visualizations/CartesianChartDataModel.ts',
-                'src/visualizations/TableDataModel.ts'
+                'src/visualizations/TableDataModel.ts',
+                'src/types/filterGrammarConversion.ts'
             ], 
             rules: {
                 "@typescript-eslint/no-unsafe-member-access": "warn",

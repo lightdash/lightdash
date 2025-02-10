@@ -11,6 +11,7 @@ import {
     friendlyName,
     type CustomFormat,
 } from '../types/field';
+import { convertMetricFilterToDbt } from '../types/filterGrammarConversion';
 import { type AdditionalMetric } from '../types/metricQuery';
 
 function convertFormatOptionsToFormat(
@@ -44,6 +45,7 @@ function convertFormatOptionsToFormat(
 export function convertCustomMetricToDbt(
     field: AdditionalMetric,
 ): DbtColumnLightdashMetric {
+    const filters = convertMetricFilterToDbt(field.filters);
     return {
         label: field.label || friendlyName(field.name),
         description: field.description,
@@ -53,7 +55,7 @@ export function convertCustomMetricToDbt(
             field.format || convertFormatOptionsToFormat(field.formatOptions),
         compact: field.compact || field.formatOptions?.compact,
         percentile: field.percentile,
-        // todo: filters?: MetricFilterRule[];
+        filters,
     };
 }
 

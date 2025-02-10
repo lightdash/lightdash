@@ -390,6 +390,15 @@ export class GoogleSheetsTransientError extends LightdashError {
         });
     }
 }
-
+export class NotImplementedError extends LightdashError {
+    constructor(message = 'Not implemented') {
+        super({
+            message,
+            name: 'NotImplemented',
+            statusCode: 501,
+            data: {},
+        });
+    }
+}
 export const getErrorMessage = (e: unknown) =>
     e instanceof Error ? e.message : `Unknown ${typeof e} error`;
