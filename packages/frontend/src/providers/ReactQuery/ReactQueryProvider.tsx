@@ -1,19 +1,9 @@
-import {
-    QueryClientProvider,
-    type DefaultOptions,
-} from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { type FC, type PropsWithChildren } from 'react';
 import { createQueryClient } from './createQueryClient';
 
-type Props = {
-    queryClientOverride?: DefaultOptions;
-};
-
-const ReactQueryProvider: FC<PropsWithChildren<Props>> = ({
-    children,
-    queryClientOverride,
-}) => {
-    const queryClient = createQueryClient(queryClientOverride);
+const ReactQueryProvider: FC<PropsWithChildren> = ({ children }) => {
+    const queryClient = createQueryClient();
 
     return (
         <QueryClientProvider client={queryClient}>
