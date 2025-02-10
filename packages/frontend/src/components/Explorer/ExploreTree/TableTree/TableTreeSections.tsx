@@ -69,6 +69,12 @@ const TableTreeSections: FC<Props> = ({
     const toggleAdditionalMetricWriteBackModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricWriteBackModal,
     );
+
+    const allAdditionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -324,7 +330,7 @@ const TableTreeSections: FC<Props> = ({
                         <ActionIcon
                             onClick={() => {
                                 toggleAdditionalMetricWriteBackModal({
-                                    items: Object.values(customMetrics),
+                                    items: allAdditionalMetrics || [],
                                     multiple: true,
                                 });
                             }}
