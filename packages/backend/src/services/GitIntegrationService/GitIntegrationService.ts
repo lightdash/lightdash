@@ -26,7 +26,7 @@ import {
     VizColumn,
 } from '@lightdash/common';
 import Ajv from 'ajv';
-import { Change, diffLines } from 'diff';
+import { diffLines } from 'diff';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';

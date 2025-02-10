@@ -23,7 +23,7 @@ describe('GitIntegrationService.generateDiff', () => {
             sql: customer_id
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff.trim()).toBe('');
+        expect(diff).toEqual([]);
     });
 
     it('should detect added lines', () => {
@@ -54,7 +54,10 @@ describe('GitIntegrationService.generateDiff', () => {
             sql: new_field
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff).toContain('+          - name: new_metric');
+        expect(diff).toContainEqual({
+            type: 'added',
+            value: "          - name: new_metric\n            label: New Metric\n            model: ref('new_model')\n            description: A new metric\n            type: sum\n            sql: new_field\n",
+        });
     });
 
     it('should detect removed lines', () => {
@@ -85,7 +88,10 @@ describe('GitIntegrationService.generateDiff', () => {
             sql: customer_id
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff).toContain('-          - name: old_metric');
+        expect(diff).toContainEqual({
+            type: 'removed',
+            value: "          - name: old_metric\n            label: Old Metric\n            model: ref('old_model')\n            description: An old metric\n            type: sum\n            sql: old_field\n",
+        });
     });
 
     it('should detect changed lines', () => {
@@ -110,12 +116,14 @@ describe('GitIntegrationService.generateDiff', () => {
             sql: customer_id
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff).toContain(
-            '-            description: Total number of customers',
-        );
-        expect(diff).toContain(
-            '+            description: Total number of unique customers',
-        );
+        expect(diff).toContainEqual({
+            type: 'removed',
+            value: '            description: Total number of customers\n',
+        });
+        expect(diff).toContainEqual({
+            type: 'added',
+            value: '            description: Total number of unique customers\n',
+        });
     });
 
     it('should get diff for quoting style differences', () => {
@@ -130,8 +138,14 @@ describe('GitIntegrationService.generateDiff', () => {
             sql: "customer_id"
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff).toContain(`-            sql: 'customer_id'`);
-        expect(diff).toContain('+            sql: "customer_id"');
+        expect(diff).toContainEqual({
+            type: 'removed',
+            value: "            sql: 'customer_id'\n",
+        });
+        expect(diff).toContainEqual({
+            type: 'added',
+            value: '            sql: "customer_id"\n',
+        });
     });
 
     it('should handle reordering of elements', () => {
@@ -146,7 +160,7 @@ describe('GitIntegrationService.generateDiff', () => {
           - name: metric_one
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff.trim()).not.toBe('');
+        expect(diff).not.toEqual([]);
     });
 
     it('should handle nested structure changes', () => {
@@ -165,10 +179,14 @@ describe('GitIntegrationService.generateDiff', () => {
                 description: Unique Identifier
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
-        expect(diff).toContain('-                description: Unique ID');
-        expect(diff).toContain(
-            '+                description: Unique Identifier',
-        );
+        expect(diff).toContainEqual({
+            type: 'removed',
+            value: '                description: Unique ID\n',
+        });
+        expect(diff).toContainEqual({
+            type: 'added',
+            value: '                description: Unique Identifier\n',
+        });
     });
 
     it('should handle complex changes', () => {
@@ -200,14 +218,17 @@ describe('GitIntegrationService.generateDiff', () => {
         `;
         const diff = GitIntegrationService.generateDiff(original, updated);
 
-        expect(diff).toContain('-        version: 2');
-        expect(diff).toContain('+        version: 3');
-        expect(diff.trim()).toContain(
-            `-            description: Total number of customers`,
-        );
-        expect(diff.trim()).toContain(
-            `+            description: Total number of unique customers`,
-        );
-        expect(diff).toContain('+          - name: new_metric');
+        expect(diff).toContainEqual({
+            type: 'removed',
+            value: '        version: 2\n',
+        });
+        expect(diff).toContainEqual({
+            type: 'added',
+            value: '        version: 3\n',
+        });
+        expect(diff).toContainEqual({
+            type: 'added',
+            value: "          - name: new_metric\n            label: New Metric\n            model: ref('new_model')\n            description: A new metric\n            type: sum\n            sql: new_field\n",
+        });
     });
 });
