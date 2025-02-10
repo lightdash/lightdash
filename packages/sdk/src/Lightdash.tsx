@@ -28,12 +28,8 @@ const decodeJWT = (token: string) => {
 
     const [header, payload, signature] = splits;
 
-    const decodedHeader = JSON.parse(
-        atob(header).replace(/-/g, '+').replace(/_/g, '/'),
-    );
-    const decodedPayload = JSON.parse(
-        atob(payload).replace(/-/g, '+').replace(/_/g, '/'),
-    );
+    const decodedHeader = JSON.parse(atob(header));
+    const decodedPayload = JSON.parse(atob(payload));
 
     return {
         header: decodedHeader,
