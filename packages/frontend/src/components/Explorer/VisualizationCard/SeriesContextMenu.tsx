@@ -25,7 +25,7 @@ import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';
-import { default as MantineIcon } from '../../common/MantineIcon';
+import MantineIcon from '../../common/MantineIcon';
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;

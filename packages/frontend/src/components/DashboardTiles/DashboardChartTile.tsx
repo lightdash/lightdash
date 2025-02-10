@@ -91,9 +91,9 @@ import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryData
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
 import { getConditionalRuleLabel } from '../common/Filters/FilterInputs/utils';
-import { default as MantineIcon } from '../common/MantineIcon';
-import { default as SuboptimalState } from '../common/SuboptimalState/SuboptimalState';
-import { default as MoveChartThatBelongsToDashboardModal } from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import MantineIcon from '../common/MantineIcon';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import { DashboardExportImage } from './DashboardExportImage';
 import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';
 import EditChartMenuItem from './EditChartMenuItem';
