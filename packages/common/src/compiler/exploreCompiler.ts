@@ -642,9 +642,15 @@ export class ExploreCompiler {
                 tablesReferences: new Set([currentTable]),
             };
         }
-        const { refTable, refName } = getParsedReference(ref, currentTable);
 
-        const referencedMetric = tables[refTable]?.metrics[refName];
+        const { refTable: refTableName, refName } = getParsedReference(
+            ref,
+            currentTable,
+        );
+
+        const referencedTable = getReferencedTable(refTableName, tables);
+        const referencedMetric = referencedTable?.metrics[refName];
+
         if (referencedMetric === undefined) {
             throw new CompileError(
                 `Model "${currentTable}" has a metric reference: \${${ref}} which matches no metric`,
@@ -657,7 +663,7 @@ export class ExploreCompiler {
         return {
             sql: `(${compiledMetric.sql})`,
             tablesReferences: new Set([
-                refTable,
+                referencedTable?.name || refTableName,
                 ...compiledMetric.tablesReferences,
             ]),
         };
