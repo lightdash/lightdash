@@ -28,6 +28,10 @@ const handleError = (err: any): ApiError => {
             // redirect to login page when account is deactivated
             window.location.href = '/login';
         }
+        if (err.error?.statusCode === 401) {
+            // redirect to login page when user is unauthenticated
+            window.location.href = '/login';
+        }
         return err;
     }
     return {
