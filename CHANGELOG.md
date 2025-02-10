@@ -1,3 +1,10 @@
+## [0.1484.7](https://github.com/lightdash/lightdash/compare/0.1484.6...0.1484.7) (2025-02-10)
+
+
+### Bug Fixes
+
+* model join alias metric reference ([#13585](https://github.com/lightdash/lightdash/issues/13585)) ([de63822](https://github.com/lightdash/lightdash/commit/de638223a7b99d63fc2220d53dace7a463d8e708))
+
 ## [0.1484.6](https://github.com/lightdash/lightdash/compare/0.1484.5...0.1484.6) (2025-02-10)
 
 
