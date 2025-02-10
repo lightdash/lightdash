@@ -2,21 +2,21 @@ import {
     Anchor,
     Button,
     Group,
-    List,
     Modal,
+    MultiSelect,
     Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
 
 export const CustomMetricWriteBackModal = () => {
-    const { isOpen, item } = useExplorerContext(
+    const { isOpen, items: allCustomMetrics } = useExplorerContext(
         (context) => context.state.modals.additionalMetricWriteBack,
     );
     const { projectUuid } = useParams<{
@@ -33,13 +33,29 @@ export const CustomMetricWriteBackModal = () => {
         isLoading,
         reset,
     } = useWriteBackCustomMetrics(projectUuid!);
+    const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
+    useEffect(() => {
+        setSelectedItems(
+            allCustomMetrics?.[0]?.name ? [allCustomMetrics?.[0]?.name] : [],
+        );
+    }, [allCustomMetrics]);
     const handleClose = useCallback(() => {
         toggleModal();
         reset();
+        setSelectedItems([]);
     }, [toggleModal, reset]);
 
-    return item ? (
+    const availableCustomMetrics = useMemo(
+        () =>
+            allCustomMetrics?.map((item) => ({
+                label: item.label,
+                value: item.name,
+            })) || [],
+        [allCustomMetrics],
+    );
+
+    return availableCustomMetrics && availableCustomMetrics.length > 0 ? (
         <Modal
             size="lg"
             onClick={(e) => e.stopPropagation()}
@@ -97,13 +113,28 @@ export const CustomMetricWriteBackModal = () => {
                     <>
                         <Text>
                             Create a pull request in your dbt project’s GitHub
-                            repository for the following metric:
+                            repository for the following metrics:
                         </Text>
-                        <List spacing="xs" pl="xs">
-                            <List.Item fz="xs" ff="monospace">
-                                {item.label}
-                            </List.Item>
-                        </List>
+                        <MultiSelect
+                            withinPortal
+                            required
+                            data={availableCustomMetrics}
+                            disabled={availableCustomMetrics.length === 0}
+                            value={selectedItems}
+                            placeholder="Select a custom metric to write back to dbt"
+                            searchable
+                            clearSearchOnChange={false}
+                            itemComponent={({ label, ...others }) => (
+                                <Text color="dimmed" {...others}>
+                                    {label}
+                                </Text>
+                            )}
+                            onChange={setSelectedItems}
+
+                            /* onDropdownClose={() => {
+                                            handleResetSearch();
+                                        }}*/
+                        />
                     </>
                 )}
             </Stack>
@@ -135,8 +166,12 @@ export const CustomMetricWriteBackModal = () => {
                             disabled={isLoading}
                             size="xs"
                             onClick={() => {
-                                if (!item) return;
-                                writeBackCustomMetrics([item]);
+                                if (selectedItems?.length === 0) return;
+                                writeBackCustomMetrics(
+                                    allCustomMetrics?.filter((item) =>
+                                        selectedItems.includes(item.name),
+                                    ) || [],
+                                );
                             }}
                         >
                             {isLoading

@@ -106,6 +106,11 @@ const TreeSingleNodeActions: FC<Props> = ({
     const addAdditionalDimension = useExplorerContext(
         (context) => context.actions.addCustomDimension,
     );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
@@ -236,8 +241,18 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {
                                         e.stopPropagation();
+                                        if (!additionalMetrics) return;
+                                        // The first custom metric is the one that is going to be selected by default
+                                        const allCustomMetrics =
+                                            additionalMetrics.sort((a, b) => {
+                                                if (a.name === item.name)
+                                                    return -1;
+                                                if (b.name === item.name)
+                                                    return 1;
+                                                return 0;
+                                            });
                                         toggleAdditionalMetricWriteBackModal({
-                                            item,
+                                            items: allCustomMetrics,
                                         });
                                     }}
                                 >
