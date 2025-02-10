@@ -1,10 +1,14 @@
 import {
     Anchor,
     Button,
+    Code,
+    Collapse,
     Group,
+    Loader,
     Modal,
     MultiSelect,
     Stack,
+    Switch,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -12,8 +16,10 @@ import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { Config } from '../../VisualizationConfigs/common/Config';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
+import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
 
 export const CustomMetricWriteBackModal = () => {
     const { isOpen, items: allCustomMetrics } = useExplorerContext(
@@ -34,6 +40,7 @@ export const CustomMetricWriteBackModal = () => {
         reset,
     } = useWriteBackCustomMetrics(projectUuid!);
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
+    const [showDiff, setShowDiff] = useState(false);
 
     useEffect(() => {
         setSelectedItems(
@@ -44,6 +51,7 @@ export const CustomMetricWriteBackModal = () => {
         toggleModal();
         reset();
         setSelectedItems([]);
+        setShowDiff(false);
     }, [toggleModal, reset]);
 
     const availableCustomMetrics = useMemo(
@@ -54,6 +62,27 @@ export const CustomMetricWriteBackModal = () => {
             })) || [],
         [allCustomMetrics],
     );
+
+    const {
+        mutate: previewWriteBackCustomMetrics,
+        data: previewData,
+        isLoading: previewLoading,
+    } = usePreviewWriteBackCustomMetrics(projectUuid!);
+
+    useEffect(() => {
+        if (selectedItems?.length > 0 && showDiff) {
+            const selectedCustomMetrics =
+                allCustomMetrics?.filter((item) =>
+                    selectedItems.includes(item.name),
+                ) || [];
+            previewWriteBackCustomMetrics(selectedCustomMetrics);
+        }
+    }, [
+        selectedItems,
+        allCustomMetrics,
+        previewWriteBackCustomMetrics,
+        showDiff,
+    ]);
 
     return availableCustomMetrics && availableCustomMetrics.length > 0 ? (
         <Modal
@@ -130,11 +159,51 @@ export const CustomMetricWriteBackModal = () => {
                                 </Text>
                             )}
                             onChange={setSelectedItems}
-
-                            /* onDropdownClose={() => {
-                                            handleResetSearch();
-                                        }}*/
                         />
+                        <Config>
+                            <Group>
+                                <Config.Label>Show diff</Config.Label>
+                                <Switch
+                                    checked={showDiff}
+                                    onChange={() => {
+                                        setShowDiff(!showDiff);
+                                    }}
+                                />
+                            </Group>
+                        </Config>
+
+                        <Collapse in={showDiff}>
+                            {previewLoading ? (
+                                <Loader size="lg" color="gray" mt="xs" />
+                            ) : (
+                                <Stack>
+                                    {previewData?.files?.map((file) => (
+                                        <>
+                                            <Group>
+                                                <Text>File:</Text>
+                                                <Text fw={600} key={file.file}>
+                                                    {file.file}
+                                                </Text>
+                                            </Group>
+                                            {file.diff.map((diff) => (
+                                                <Code
+                                                    p="md"
+                                                    key={diff.value}
+                                                    block={true}
+                                                    color={
+                                                        diff.type === 'added'
+                                                            ? 'green'
+                                                            : 'red'
+                                                    }
+                                                >
+                                                    {diff.value}
+                                                </Code>
+                                            ))}
+                                        </>
+                                    ))}
+                                </Stack>
+                            )}
+                        </Collapse>
                     </>
                 )}
             </Stack>

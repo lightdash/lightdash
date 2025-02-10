@@ -6116,28 +6116,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FileChanges: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                diff: { dataType: 'string', required: true },
-                yml: { dataType: 'string', required: true },
-                file: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PullRequestCreated: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                files: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FileChanges' },
-                },
                 prUrl: { dataType: 'string', required: true },
                 prTitle: { dataType: 'string', required: true },
             },
@@ -11624,6 +11607,57 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DiffChange: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string', required: true },
+                type: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['added'] },
+                        { dataType: 'enum', enums: ['removed'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FileChanges: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                diff: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DiffChange' },
+                    required: true,
+                },
+                yml: { dataType: 'string', required: true },
+                file: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreviewPullRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                files: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FileChanges' },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -24848,6 +24882,88 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'CreatePullRequestForCustomMetrics',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGitIntegrationController_PreviewPullRequestForCustomMetrics: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                quoteChar: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['"'] },
+                        { dataType: 'enum', enums: ["'"] },
+                    ],
+                },
+                customMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                    required: true,
+                },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/git-integration/preview/custom-metrics',
+        ...fetchMiddlewares<RequestHandler>(GitIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            GitIntegrationController.prototype
+                .PreviewPullRequestForCustomMetrics,
+        ),
+
+        async function GitIntegrationController_PreviewPullRequestForCustomMetrics(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGitIntegrationController_PreviewPullRequestForCustomMetrics,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GitIntegrationController>(
+                        GitIntegrationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'PreviewPullRequestForCustomMetrics',
                     controller,
                     response,
                     next,
