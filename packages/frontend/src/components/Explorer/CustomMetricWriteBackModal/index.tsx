@@ -281,7 +281,7 @@ const MultipleCustomMetricModalContent = ({
                     <Text>
                         Available metrics ({selectedItems.length} selected)
                     </Text>
-                    <Text>Metric YAML definitions to be created:</Text>
+                    <Text>Metric YAML to be created:</Text>
                 </Group>
 
                 <Group grow align="flex-start" h="235px">
@@ -366,18 +366,28 @@ const MultipleCustomMetricModalContent = ({
                             Cancel
                         </Button>
 
-                        <Button
-                            disabled={isLoading}
-                            size="xs"
-                            onClick={() => {
-                                if (!items) return;
-                                writeBackCustomMetrics(items);
-                            }}
+                        <Tooltip
+                            label="Select metrics to open a pull request"
+                            disabled={selectedItems.length > 0}
                         >
-                            {isLoading
-                                ? 'Creating pull request...'
-                                : 'Open Pull Request'}
-                        </Button>
+                            <div>
+                                {' '}
+                                <Button
+                                    disabled={
+                                        isLoading || selectedItems.length === 0
+                                    }
+                                    size="xs"
+                                    onClick={() => {
+                                        if (!items) return;
+                                        writeBackCustomMetrics(items);
+                                    }}
+                                >
+                                    {isLoading
+                                        ? 'Creating pull request...'
+                                        : 'Open Pull Request'}
+                                </Button>
+                            </div>
+                        </Tooltip>
                     </>
                 )}
             </Group>
