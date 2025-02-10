@@ -1,3 +1,10 @@
+## [0.1484.8](https://github.com/lightdash/lightdash/compare/0.1484.7...0.1484.8) (2025-02-10)
+
+
+### Bug Fixes
+
+* request new access token ([#13598](https://github.com/lightdash/lightdash/issues/13598)) ([1d8bf08](https://github.com/lightdash/lightdash/commit/1d8bf081d2ad262003d0c5f1619a7119a7aa5f1c))
+
 ## [0.1484.7](https://github.com/lightdash/lightdash/compare/0.1484.6...0.1484.7) (2025-02-10)
 
 
