@@ -139,18 +139,7 @@
                                                 "minimum": 0
                                             },
                                             "format": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "km",
-                                                    "mi",
-                                                    "usd",
-                                                    "gbp",
-                                                    "jpy",
-                                                    "dkk",
-                                                    "eur",
-                                                    "percent",
-                                                    "id"
-                                                ]
+                                                "type": "string"
                                             },
                                             "percentile": {
                                                 "type": "number"
@@ -358,18 +347,7 @@
                                                             "minimum": 0
                                                         },
                                                         "format": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "km",
-                                                                "mi",
-                                                                "usd",
-                                                                "jpy",
-                                                                "dkk",
-                                                                "gbp",
-                                                                "eur",
-                                                                "percent",
-                                                                "id"
-                                                            ]
+                                                            "type": "string"
                                                         },
                                                         "percentile": {
                                                             "type": "number"
@@ -477,18 +455,7 @@
                                                     "minimum": 0
                                                 },
                                                 "format": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "km",
-                                                        "mi",
-                                                        "usd",
-                                                        "jpy",
-                                                        "dkk",
-                                                        "gbp",
-                                                        "eur",
-                                                        "percent",
-                                                        "id"
-                                                    ]
+                                                    "type": "string"
                                                 },
                                                 "time_intervals": {
                                                     "anyOf": [
@@ -679,18 +646,7 @@
                                 "minimum": 0
                             },
                             "format": {
-                                "type": "string",
-                                "enum": [
-                                    "km",
-                                    "mi",
-                                    "usd",
-                                    "jpy",
-                                    "dkk",
-                                    "gbp",
-                                    "eur",
-                                    "percent",
-                                    "id"
-                                ]
+                                "type": "string"
                             },
                             "default_time_dimension": {
                                 "type": "object",

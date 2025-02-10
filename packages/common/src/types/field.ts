@@ -245,9 +245,11 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
+    // @deprecated Use format expression instead
     round?: number;
-    format?: Format;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     /**
      * @deprecated Use groups property instead.
      */

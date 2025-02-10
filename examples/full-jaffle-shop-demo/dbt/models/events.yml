@@ -55,6 +55,7 @@ models:
         meta:
           dimension:
             type: date
+            format: "dd mmmm yyyy"
             urls:
               - label: Open in Google Calendar
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'

@@ -127,9 +127,11 @@ export type DbtColumnLightdashDimension = {
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
+    // @deprecated Use format expression instead
     round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     group_label?: string;
     groups?: string[] | string;
     colors?: Record<string, string>;
@@ -148,9 +150,11 @@ export type DbtColumnLightdashMetric = {
     description?: string;
     sql?: string;
     hidden?: boolean;
-    round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    // @deprecated Use format expression instead
+    round?: number;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     group_label?: string;
     groups?: string[];
     urls?: FieldUrl[];

@@ -70,7 +70,7 @@ export class CartesianChartDataModel {
     }
 
     // Get the formatter for the tooltip, which has a simple callback signature
-    static getTooltipFormatter(format: Format | undefined) {
+    static getTooltipFormatter(format: Format | string | undefined) {
         if (format === Format.PERCENT) {
             return (value: number) =>
                 applyCustomFormat(value, {
@@ -82,7 +82,7 @@ export class CartesianChartDataModel {
 
     // Get the formatter for the value label,
     // which has more complex inputs
-    static getValueFormatter(format: Format | undefined) {
+    static getValueFormatter(format: Format | string | undefined) {
         if (format === Format.PERCENT) {
             // Echarts doesn't export the types for this function
             return (params: AnyType) => {
@@ -723,13 +723,13 @@ export type CartesianChartDisplay = {
     yAxis?: {
         label?: string;
         position?: string;
-        format?: Format;
+        format?: Format | string;
     }[];
     series?: {
         [key: string]: {
             // 'label' maps to 'name' in ECharts
             label?: string;
-            format?: Format;
+            format?: Format | string; // Format type is deprecated, use format expression(string) instead
             // NOTE: this is the yAxisIndex in the display object, NOT the
             // eCharts yAxisIndex. It shouldn't be used to refer to a y-axis, but
             // the series index in the yAxis array.

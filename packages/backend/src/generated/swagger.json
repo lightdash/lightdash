@@ -1675,17 +1675,6 @@
                 ]
             },
             "Format": {
-                "enum": [
-                    "km",
-                    "mi",
-                    "usd",
-                    "gbp",
-                    "eur",
-                    "jpy",
-                    "dkk",
-                    "id",
-                    "percent"
-                ],
                 "type": "string"
             },
             "FieldUrl": {

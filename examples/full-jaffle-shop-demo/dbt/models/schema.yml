@@ -152,8 +152,7 @@ models:
           metrics:
             fulfillment_rate:
               type: average
-              format: percent
-              round: 1
+              format: "#,##0%"
               sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
               show_underlying_values:
                 - amount
@@ -226,8 +225,7 @@ models:
                 - is_completed: "true"
             total_non_completed_order_amount:
               type: number
-              format: usd
-              round: 2
+              format: "$#,##0.00"
               sql: ${total_order_amount}-${total_completed_order_amount}
           dimension:
             hidden: true

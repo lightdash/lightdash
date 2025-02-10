@@ -611,6 +611,9 @@ importers:
       moment-timezone:
         specifier: ^0.5.45
         version: 0.5.45
+      numfmt:
+        specifier: ^3.2.1
+        version: 3.2.1
       pegjs:
         specifier: ^0.10.0
         version: 0.10.0
@@ -8960,6 +8963,9 @@ packages:
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
 
+  numfmt@3.2.1:
+    resolution: {integrity: sha512-rlkdBc2suovrHUP0Id6xA3uVtwuPvwMG7F5RUDGzl82B2gyzMGHLBpVUWJDiSdIsFDe8WaUHeSg95yAzDcDGwg==}
+
   nunjucks@3.2.3:
     resolution: {integrity: sha512-psb6xjLj47+fE76JdZwskvwG4MYsQKXUtMsPh6U0YMvmyjRtKRFcxnlXGWglNybtNTNVmGdp94K62/+NjF5FDQ==}
     engines: {node: '>= 6.9.0'}
@@ -9694,7 +9700,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.13.0:
@@ -10275,7 +10280,7 @@ packages:
 
   rudder-sdk-js@2.9.1:
     resolution: {integrity: sha512-SqOYuZNfV2UIv80guHF3YbA7J2ofOOp/SkpUYam09J8Lzfe/0dB1cZBoHWDQtuqEeAkjZwdzy+P3yEPo0jVd9A==}
-    deprecated: 'This package is deprecated and no longer maintained. While your events are still being tracked and delivered, we strongly recommend you to migrate to the latest package, @rudderstack/analytics-js (https://www.npmjs.com/package/@rudderstack/analytics-js), for the latest features, security updates, and improved performance. For more details, visit the migration guide: https://www.rudderstack.com/docs/sources/event-streams/sdks/rudderstack-javascript-sdk/migration-guide/.'
+    deprecated: This package is deprecated. Please switch to the latest @rudderstack/analytics-js package for improved features and support. For more details visit, https://www.rudderstack.com/docs/sources/event-streams/sdks/rudderstack-javascript-sdk/.
 
   run-async@2.4.1:
     resolution: {integrity: sha512-tvVnVv01b8c1RrA6Ep7JkStj85Guv/YrMcwqYQnwjsAS2cTmmPGBBjAjpCW7RrSodNSoE2/qg9O4bceNvUuDgQ==}
@@ -22193,6 +22198,8 @@ snapshots:
   nth-check@2.1.1:
     dependencies:
       boolbase: 1.0.0
+
+  numfmt@3.2.1: {}
 
   nunjucks@3.2.3(chokidar@3.6.0):
     dependencies:

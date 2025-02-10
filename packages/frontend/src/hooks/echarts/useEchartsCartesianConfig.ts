@@ -7,6 +7,7 @@ import {
     applyCustomFormat,
     assertUnreachable,
     formatItemValue,
+    formatValueWithExpression,
     friendlyName,
     getAxisName,
     getCustomFormatFromLegacy,
@@ -31,6 +32,7 @@ import {
     type CartesianChart,
     type CustomDimension,
     type Field,
+    type Item,
     type ItemsMap,
     type PivotReference,
     type ResultRow,
@@ -581,6 +583,27 @@ type GetPivotSeriesArg = {
     pivotReference: Required<PivotReference>;
 };
 
+const seriesValueFormatter = (item: Item, value: unknown) => {
+    if (isField(item) && item.format) {
+        return formatValueWithExpression(item.format, value);
+    }
+
+    if (isCustomDimension(item)) {
+        return value;
+    }
+    if (isTableCalculation(item)) {
+        return formatItemValue(item, value);
+    } else {
+        const defaultFormatOptions = getCustomFormatFromLegacy({
+            format: item.format,
+            round: item.round,
+            compact: item.compact,
+        });
+        const formatOptions = isMetric(item) ? item.formatOptions : undefined;
+        return applyCustomFormat(value, formatOptions || defaultFormatOptions);
+    }
+};
+
 const getPivotSeries = ({
     series,
     pivotReference,
@@ -641,30 +664,8 @@ const getPivotSeries = ({
                     itemsMap[series.encode.yRef.field] && {
                         formatter: (value: any) => {
                             const field = itemsMap[series.encode.yRef.field];
-
-                            if (isCustomDimension(field)) {
-                                return value;
-                            }
-                            if (isTableCalculation(field)) {
-                                return formatItemValue(
-                                    field,
-                                    value?.value?.[yFieldHash],
-                                );
-                            } else {
-                                const defaultFormatOptions =
-                                    getCustomFormatFromLegacy({
-                                        format: field.format,
-                                        round: field.round,
-                                        compact: field.compact,
-                                    });
-                                const formatOptions = isMetric(field)
-                                    ? field.formatOptions
-                                    : undefined;
-                                return applyCustomFormat(
-                                    value?.value?.[yFieldHash],
-                                    formatOptions || defaultFormatOptions,
-                                );
-                            }
+                            const rawValue = value?.value?.[yFieldHash];
+                            return seriesValueFormatter(field, rawValue);
                         },
                     }),
             },
@@ -750,29 +751,8 @@ const getSimpleSeries = ({
                 itemsMap[yFieldHash] && {
                     formatter: (value: any) => {
                         const field = itemsMap[yFieldHash];
-                        if (isCustomDimension(field)) {
-                            return value;
-                        }
-                        if (isTableCalculation(field)) {
-                            return formatItemValue(
-                                field,
-                                value?.value?.[yFieldHash],
-                            );
-                        } else {
-                            const defaultFormatOptions =
-                                getCustomFormatFromLegacy({
-                                    format: field.format,
-                                    round: field.round,
-                                    compact: field.compact,
-                                });
-                            const formatOptions = isMetric(field)
-                                ? field.formatOptions
-                                : undefined;
-                            return applyCustomFormat(
-                                value?.value?.[yFieldHash],
-                                formatOptions || defaultFormatOptions,
-                            );
-                        }
+                        const rawValue = value?.value?.[yFieldHash];
+                        return seriesValueFormatter(field, rawValue);
                     },
                 }),
         },
@@ -945,8 +925,12 @@ const getEchartAxes = ({
         rotate?: number;
         defaultNameGap?: number;
     }) => {
-        const hasFormattingConfig = hasFormatting(axisItem);
-
+        const isTimestamp =
+            isField(axisItem) &&
+            (axisItem.type === DimensionType.DATE ||
+                axisItem.type === DimensionType.TIMESTAMP);
+        // Only apply axis formatting if the axis is NOT a date or timestamp
+        const hasFormattingConfig = !isTimestamp && hasFormatting(axisItem);
         const axisMinInterval =
             isDimension(axisItem) &&
             axisItem.timeInterval &&

@@ -2,6 +2,11 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment';
 import {
+    format as formatWithExpression,
+    isDateFormat,
+    isValidFormat,
+} from 'numfmt';
+import {
     CustomFormatType,
     DimensionType,
     Format,
@@ -11,6 +16,7 @@ import {
     findCompactConfig,
     isCustomSqlDimension,
     isDimension,
+    isField,
     isMetric,
     isTableCalculation,
     type CompactOrAlias,
@@ -240,7 +246,7 @@ export function getCustomFormatFromLegacy({
     compact,
     round,
 }: {
-    format?: Format;
+    format?: Format | string;
     compact?: CompactOrAlias;
     round?: number;
 }): CustomFormat {
@@ -418,6 +424,28 @@ export function applyCustomFormat(
     }
 }
 
+export function hasValidFormatExpression<
+    T extends
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | Dimension,
+>(item: T | undefined): item is T & { format: string } {
+    return isField(item) && !!item.format && isValidFormat(item.format);
+}
+
+export function formatValueWithExpression(expression: string, value: unknown) {
+    if (isDateFormat(expression)) {
+        if (!isMomentInput(value)) {
+            return 'NaT';
+        }
+        return formatWithExpression(expression, moment(value).toDate());
+    }
+
+    return formatWithExpression(expression, value);
+}
+
 export function formatItemValue(
     item:
         | Field
@@ -431,8 +459,11 @@ export function formatItemValue(
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-
     if (item) {
+        if (hasValidFormatExpression(item)) {
+            return formatValueWithExpression(item.format, value);
+        }
+
         const customFormat = getCustomFormat(item);
 
         if (isCustomSqlDimension(item) || 'type' in item) {
