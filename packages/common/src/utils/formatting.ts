@@ -443,14 +443,21 @@ export function hasValidFormatExpression<
 }
 
 export function formatValueWithExpression(expression: string, value: unknown) {
+    const sanitizedValue =
+        typeof value === 'bigint' || value instanceof BigInt
+            ? Number(value)
+            : value;
     if (isDateFormat(expression)) {
-        if (!isMomentInput(value)) {
+        if (!isMomentInput(sanitizedValue)) {
             return 'NaT';
         }
-        return formatWithExpression(expression, moment(value).toDate());
+        return formatWithExpression(
+            expression,
+            moment(sanitizedValue).toDate(),
+        );
     }
 
-    return formatWithExpression(expression, value);
+    return formatWithExpression(expression, sanitizedValue);
 }
 
 export function formatItemValue(
