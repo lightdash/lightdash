@@ -152,7 +152,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 ) : (
                     <Tooltip
                         disabled={!description || !!titleLeftIcon}
-                        label={description}
+                        label={
+                            <Text style={{ whiteSpace: 'pre-line' }}>
+                                {description}
+                            </Text>
+                        }
                         multiline
                         position="top-start"
                         withinPortal
