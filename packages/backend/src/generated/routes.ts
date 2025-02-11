@@ -770,6 +770,7 @@ const models: TsoaRoute.Models = {
                         },
                         isPreview: { dataType: 'boolean' },
                         dashboardUuid: { dataType: 'string', required: true },
+                        projectUuid: { dataType: 'string' },
                         type: {
                             dataType: 'enum',
                             enums: ['dashboard'],

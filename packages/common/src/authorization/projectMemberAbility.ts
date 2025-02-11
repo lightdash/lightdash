@@ -225,6 +225,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'SpotlightTableConfig', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ContentAsCode', {
+            projectUuid: member.projectUuid,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });

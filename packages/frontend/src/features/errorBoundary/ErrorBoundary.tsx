@@ -3,9 +3,9 @@ import { Prism } from '@mantine/prism';
 import * as Sentry from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
-import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 
-export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
+const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
     children,
     wrapper,
 }) => {
@@ -55,3 +55,5 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
         </Sentry.ErrorBoundary>
     );
 };
+
+export default ErrorBoundary;

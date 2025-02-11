@@ -1,3 +1,59 @@
+## [0.1486.1](https://github.com/lightdash/lightdash/compare/0.1486.0...0.1486.1) (2025-02-11)
+
+
+### Bug Fixes
+
+* use getCatalog to get columns information when all arguments of get fields are available ([#13617](https://github.com/lightdash/lightdash/issues/13617)) ([e942681](https://github.com/lightdash/lightdash/commit/e942681896cc5fba2d1ee1d9196919258291d6a9))
+
+# [0.1486.0](https://github.com/lightdash/lightdash/compare/0.1485.1...0.1486.0) (2025-02-11)
+
+
+### Features
+
+* react sdk decode project uuid from token ([#13600](https://github.com/lightdash/lightdash/issues/13600)) ([df08617](https://github.com/lightdash/lightdash/commit/df0861735afc3a9f4791ee7b569120005f1222fa))
+
+## [0.1485.1](https://github.com/lightdash/lightdash/compare/0.1485.0...0.1485.1) (2025-02-11)
+
+
+### Bug Fixes
+
+* get formatted value when tooltip in isolation ([#13614](https://github.com/lightdash/lightdash/issues/13614)) ([dc2ba4d](https://github.com/lightdash/lightdash/commit/dc2ba4d27eecf9c67aa6d8a0bbe8d4e73bdd9b6f))
+
+# [0.1485.0](https://github.com/lightdash/lightdash/compare/0.1484.10...0.1485.0) (2025-02-11)
+
+
+### Features
+
+* cors enable regex domains ([#13618](https://github.com/lightdash/lightdash/issues/13618)) ([60f2f88](https://github.com/lightdash/lightdash/commit/60f2f884a135337fe0653c0004600a75f01a7e9b))
+
+## [0.1484.10](https://github.com/lightdash/lightdash/compare/0.1484.9...0.1484.10) (2025-02-11)
+
+
+### Bug Fixes
+
+* cors allowed headers ([#13611](https://github.com/lightdash/lightdash/issues/13611)) ([b74f779](https://github.com/lightdash/lightdash/commit/b74f779eb37219f10ae34c3d1f11ce7e2eaafd7f))
+
+## [0.1484.9](https://github.com/lightdash/lightdash/compare/0.1484.8...0.1484.9) (2025-02-10)
+
+
+### Bug Fixes
+
+* cors include same domain in the check ([#13602](https://github.com/lightdash/lightdash/issues/13602)) ([2c9e872](https://github.com/lightdash/lightdash/commit/2c9e8724a3c8b113c5a1d0552d95d08456776b99))
+
+## [0.1484.8](https://github.com/lightdash/lightdash/compare/0.1484.7...0.1484.8) (2025-02-10)
+
+
+### Bug Fixes
+
+* request new access token ([#13598](https://github.com/lightdash/lightdash/issues/13598)) ([1d8bf08](https://github.com/lightdash/lightdash/commit/1d8bf081d2ad262003d0c5f1619a7119a7aa5f1c))
+
+## [0.1484.7](https://github.com/lightdash/lightdash/compare/0.1484.6...0.1484.7) (2025-02-10)
+
+
+### Bug Fixes
+
+* model join alias metric reference ([#13585](https://github.com/lightdash/lightdash/issues/13585)) ([de63822](https://github.com/lightdash/lightdash/commit/de638223a7b99d63fc2220d53dace7a463d8e708))
+
 ## [0.1484.6](https://github.com/lightdash/lightdash/compare/0.1484.5...0.1484.6) (2025-02-10)
 
 

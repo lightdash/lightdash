@@ -179,6 +179,7 @@ const DashboardFilter: FC<{
     }, [dashboardFilters, filterInteractivityOptions]);
 
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
 
     useEffect(() => {
         setDashboardFilters(allowedFilters);
@@ -197,7 +198,6 @@ const DashboardFilter: FC<{
     const handlePopoverClose = useCallback(() => {
         setPopoverId(undefined);
     }, []);
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     // FIXME fieldsWithSuggestions is required
     return (
@@ -329,8 +329,15 @@ const DashboardHeader: FC<{
     );
 };
 
-const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+const EmbedDashboard: FC = () => {
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
+
+    const { embedToken } = useEmbed();
+
+    if (!embedToken) {
+        throw new Error('Embed token is required');
+    }
+
     const { data: dashboard, error: dashboardError } = useEmbedDashboard(
         projectUuid,
         embedToken,
@@ -479,9 +486,19 @@ const EmbedDashboard: FC<{ embedToken: string }> = ({ embedToken }) => {
     );
 };
 
-const EmbedDashboardPage: FC = () => {
+type Props = {
+    projectUuid?: string;
+};
+
+const EmbedDashboardPage: FC<Props> = ({
+    projectUuid: projectUuidFromProps,
+}) => {
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
     const { embedToken } = useEmbed();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const projectUuid = projectUuidFromProps ?? projectUuidFromParams;
 
     if (!embedToken) {
         return (
@@ -496,7 +513,7 @@ const EmbedDashboardPage: FC = () => {
 
     return (
         <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
-            <EmbedDashboard embedToken={embedToken} />
+            <EmbedDashboard />
         </DashboardProvider>
     );
 };
