@@ -320,7 +320,7 @@ export const checkFileDoesNotExist = async ({
     token: string;
     branch: string;
 }): Promise<boolean> => {
-    const octokit = getOctokitRestForUser(token);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
         await octokit.rest.repos.getContent({
@@ -328,6 +328,7 @@ export const checkFileDoesNotExist = async ({
             repo,
             path,
             branch,
+            headers,
         });
         throw new AlreadyExistsError(`File "${path}" already exists in Github`);
     } catch (error) {
