@@ -11,7 +11,7 @@ import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
-import useApp from '../../providers/App/useApp';
+import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { MainNavBarContent } from './MainNavBarContent';
@@ -43,7 +43,7 @@ const NavBar = memo(() => {
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
         useActiveProjectUuid({ refetchOnMount: true });
-    const { isFullscreen } = useApp();
+    const { isFullscreen } = useFullscreen();
 
     const { navBarMode } = useNavBarMode();
 

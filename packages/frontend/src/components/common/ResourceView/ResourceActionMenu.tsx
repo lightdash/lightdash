@@ -33,8 +33,8 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import { Can } from '../Authorization';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,

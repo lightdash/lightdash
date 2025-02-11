@@ -48,8 +48,6 @@ const AppProviderMock: FC<PropsWithChildren<AppProviderMockProps>> = ({
             value={{
                 health,
                 user,
-                isFullscreen: false,
-                toggleFullscreen: () => {},
             }}
         >
             {children}

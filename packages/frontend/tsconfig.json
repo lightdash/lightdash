@@ -27,17 +27,16 @@
             "vite/client",
             "vite-plugin-svgr/client"
         ],
+        "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
         "paths": {
             "@lightdash/common": [
                 "./../common/src"
             ]
-        },
-        "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
-
+        }
     },
     "include": [
         "src",
         "src/testing/vitest.setup.ts",
-        "vite-env.d.ts"
-    ]
+        "vite-env.d.ts",
+    ],
 }
