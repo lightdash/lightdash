@@ -2,7 +2,7 @@ import { ProjectType } from '@lightdash/common';
 import { Box, createStyles } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
-import { ErrorBoundary } from '../../../features/errorBoundary';
+import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';

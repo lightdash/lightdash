@@ -5,13 +5,13 @@ import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import AddColumnButton from '../../AddColumnButton';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
-import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,

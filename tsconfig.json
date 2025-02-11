@@ -1,8 +1,9 @@
-{    "compilerOptions": {
-     "noUncheckedIndexedAccess": false, // Disabled until we fix all tests in all packages
-     "useUnknownInCatchVariables": true,
-     "noImplicitAny": true
- },
+{
+    "compilerOptions": {
+        "noUncheckedIndexedAccess": false, // Disabled until we fix all tests in all packages
+        "useUnknownInCatchVariables": true,
+        "noImplicitAny": true
+    },
     "references": [
         {
             "path": "./packages/frontend"
@@ -21,7 +22,17 @@
         },
         {
             "path": "./packages/e2e"
-        }
+        },
+        {
+            "path": "./packages/sdk"
+        },
+        {
+            "path": "./packages/sdk-test-app"
+        },
     ],
-    "exclude": ["dist", "build", "node_modules"]
+    "exclude": [
+        "dist",
+        "build",
+        "node_modules"
+    ]
 }
