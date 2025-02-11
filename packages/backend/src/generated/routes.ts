@@ -1655,7 +1655,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean', required: true },
             compact: { ref: 'CompactOrAlias' },
             round: { dataType: 'double' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -1964,7 +1967,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean' },
             round: { dataType: 'double' },
             compact: { ref: 'CompactOrAlias' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             table: { dataType: 'string', required: true },
             name: { dataType: 'string', required: true },
             index: { dataType: 'double' },
@@ -3297,7 +3303,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean', required: true },
             compact: { ref: 'CompactOrAlias' },
             round: { dataType: 'double' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -3364,7 +3373,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean', required: true },
             compact: { ref: 'CompactOrAlias' },
             round: { dataType: 'double' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -3705,7 +3717,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean', required: true },
             compact: { ref: 'CompactOrAlias' },
             round: { dataType: 'double' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -3736,7 +3751,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean', required: true },
             compact: { ref: 'CompactOrAlias' },
             round: { dataType: 'double' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -11098,7 +11116,10 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean', required: true },
             compact: { ref: 'CompactOrAlias' },
             round: { dataType: 'double' },
-            format: { ref: 'Format' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {

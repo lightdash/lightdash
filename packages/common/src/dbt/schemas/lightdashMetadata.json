@@ -31,18 +31,7 @@
             ]
         },
         "Format": {
-            "type": "string",
-            "enum": [
-                "km",
-                "mi",
-                "usd",
-                "gbp",
-                "eur",
-                "jpy",
-                "dkk",
-                "id",
-                "percent"
-            ]
+            "type": "string"
         },
         "Urls": {
             "type": "array",

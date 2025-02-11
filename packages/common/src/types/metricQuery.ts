@@ -27,9 +27,11 @@ export interface AdditionalMetric {
     description?: string;
     sql: string;
     hidden?: boolean;
+    // @deprecated Use format expression instead
     round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    format?: Format | string; // // Format type is deprecated, use format expression(string) instead
     table: string;
     name: string;
     index?: number;
