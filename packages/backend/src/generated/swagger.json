@@ -3972,6 +3972,9 @@
                     "ymlPath": {
                         "type": "string"
                     },
+                    "databricksCompute": {
+                        "type": "string"
+                    },
                     "warehouse": {
                         "type": "string"
                     },
@@ -9422,6 +9425,21 @@
                     },
                     "httpPath": {
                         "type": "string"
+                    },
+                    "compute": {
+                        "items": {
+                            "properties": {
+                                "httpPath": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["httpPath", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": ["type", "database", "serverHostName", "httpPath"],
@@ -12825,6 +12843,9 @@
                     },
                     "targetDatabase": {
                         "$ref": "#/components/schemas/SupportedDbtAdapter"
+                    },
+                    "databricksCompute": {
+                        "type": "string"
                     },
                     "ymlPath": {
                         "type": "string"
