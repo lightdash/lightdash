@@ -143,8 +143,12 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
             background-color: white;
         }
     }
+    th.sticky-column {
+        background: white !important;
+    }
+
     .last-sticky-column {
-        border-right: 2px solid darkgray;
+        border-right: 1.4px solid rgb(189, 189, 189);
     }
 `;
 
