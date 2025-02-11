@@ -329,6 +329,7 @@ const MultipleCustomMetricModalContent = ({
                             <Prism
                                 language="yaml"
                                 trim={false}
+                                noCopy={previewCode === ''}
                                 // all lines are additions, no need to highlight
                             >
                                 {previewCode}
