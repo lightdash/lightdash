@@ -300,7 +300,7 @@ export type EChartSeries = {
     symbolSize?: number;
 };
 
-const getFormattedValue = (
+export const getFormattedValue = (
     value: any,
     key: string,
     itemsMap: ItemsMap,
