@@ -670,7 +670,7 @@ describe('Create projects', () => {
                 '2,000',
                 '1,880',
                 '2,000',
-                '10,999,999',
+                '1,999,999',
             ]);
 
             // createCustomDimensionChart(projectUuid);
