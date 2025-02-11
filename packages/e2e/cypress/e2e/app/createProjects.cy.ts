@@ -667,9 +667,9 @@ describe('Create projects', () => {
             testTimeIntervalsResults(projectUuid, snowflakeRowValues);
             testPercentile(projectUuid, [
                 '2020-08-12',
-                '1,999',
+                '2,000',
                 '1,719.5',
-                '1,999',
+                '2,000',
                 '10,999,999',
             ]);
 
