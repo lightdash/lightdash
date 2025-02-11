@@ -280,30 +280,28 @@ export default class App {
             this.lightdashConfig.security.crossOriginResourceSharingPolicy
                 .allowedDomains.length > 0
         ) {
+            const allowedOrigins: Array<string | RegExp> = [
+                this.lightdashConfig.siteUrl,
+            ];
+
+            for (const allowedDomain of this.lightdashConfig.security
+                .crossOriginResourceSharingPolicy.allowedDomains) {
+                if (
+                    allowedDomain.startsWith('/') &&
+                    allowedDomain.endsWith('/')
+                ) {
+                    allowedOrigins.push(new RegExp(allowedDomain.slice(1, -1)));
+                } else {
+                    allowedOrigins.push(allowedDomain);
+                }
+            }
+
             expressApp.use(
                 cors({
                     methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
                     allowedHeaders: '*',
                     credentials: false,
-                    origin: (origin, callback) => {
-                        const allowedOrigins = [
-                            this.lightdashConfig.siteUrl,
-                            ...this.lightdashConfig.security
-                                .crossOriginResourceSharingPolicy
-                                .allowedDomains,
-                        ];
-
-                        if (!origin || allowedOrigins.includes(origin)) {
-                            callback(null, true);
-                        } else {
-                            callback(
-                                new Error(
-                                    `The CORS policy for this site does not allow access from the specified Origin: ${origin}`,
-                                ),
-                                false,
-                            );
-                        }
-                    },
+                    origin: allowedOrigins,
                 }),
             );
         }
