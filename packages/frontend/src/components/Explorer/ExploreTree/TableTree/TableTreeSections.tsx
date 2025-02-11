@@ -12,7 +12,6 @@ import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
-import useHealth from '../../../../hooks/health/useHealth';
 import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
@@ -105,11 +104,9 @@ const TableTreeSections: FC<Props> = ({
     const hasCustomMetrics = additionalMetrics.length > 0;
     const hasCustomDimensions = customDimensions && customDimensions.length > 0;
 
-    const health = useHealth();
     const { data: project } = useProject(projectUuid);
 
-    const isGithubIntegrationEnabled =
-        health?.data?.hasGithub &&
+    const isGithubProject =
         project?.dbtConnection.type === DbtProjectType.GITHUB;
     const { data: gitIntegration } = useGitIntegration(projectUuid);
     const isCustomSqlEnabled = useFeatureFlagEnabled(
@@ -323,7 +320,7 @@ const TableTreeSections: FC<Props> = ({
                     groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                     isGithubIntegrationEnabled={
-                        isGithubIntegrationEnabled && isCustomSqlEnabled
+                        isGithubProject && isCustomSqlEnabled
                     }
                     gitIntegration={gitIntegration}
                 >

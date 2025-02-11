@@ -113,8 +113,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const { isGithubIntegrationEnabled, gitIntegration } =
-        useTableTreeContext();
+    const { isGithubIntegrationEnabled } = useTableTreeContext();
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -225,12 +224,12 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 position="top"
                                 withArrow
                                 withinPortal
-                                disabled={gitIntegration?.enabled}
+                                disabled={isGithubIntegrationEnabled}
                             >
                                 <Menu.Item
                                     key="custommetric"
                                     component="button"
-                                    disabled={!gitIntegration?.enabled}
+                                    disabled={!isGithubIntegrationEnabled}
                                     icon={<MantineIcon icon={IconCode} />}
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
