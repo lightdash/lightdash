@@ -152,7 +152,15 @@ models:
           metrics:
             fulfillment_rate:
               type: average
-              format: "#,##0%"
+              format: percent
+              round: 1
+              sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+              show_underlying_values:
+                - amount
+                - customers.first_name
+            fulfillment_rate_with_format_expression:
+              type: average
+              format: "#,##0.0%"
               sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
               show_underlying_values:
                 - amount
