@@ -237,7 +237,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     ) => {
                                         e.stopPropagation();
                                         toggleAdditionalMetricWriteBackModal({
-                                            item,
+                                            items: [item],
                                         });
                                     }}
                                 >

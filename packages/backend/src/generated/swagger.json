@@ -6813,29 +6813,8 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "FileChanges": {
-                "properties": {
-                    "diff": {
-                        "type": "string"
-                    },
-                    "yml": {
-                        "type": "string"
-                    },
-                    "file": {
-                        "type": "string"
-                    }
-                },
-                "required": ["diff", "yml", "file"],
-                "type": "object"
-            },
             "PullRequestCreated": {
                 "properties": {
-                    "files": {
-                        "items": {
-                            "$ref": "#/components/schemas/FileChanges"
-                        },
-                        "type": "array"
-                    },
                     "prUrl": {
                         "type": "string"
                     },
@@ -12606,6 +12585,49 @@
                     }
                 },
                 "required": ["enabled"],
+                "type": "object"
+            },
+            "DiffChange": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["added", "removed"]
+                    }
+                },
+                "required": ["value", "type"],
+                "type": "object"
+            },
+            "FileChanges": {
+                "properties": {
+                    "diff": {
+                        "items": {
+                            "$ref": "#/components/schemas/DiffChange"
+                        },
+                        "type": "array"
+                    },
+                    "yml": {
+                        "type": "string"
+                    },
+                    "file": {
+                        "type": "string"
+                    }
+                },
+                "required": ["diff", "yml", "file"],
+                "type": "object"
+            },
+            "PreviewPullRequest": {
+                "properties": {
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/FileChanges"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["files"],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -20759,6 +20781,79 @@
                                     "properties": {
                                         "results": {
                                             "$ref": "#/components/schemas/PullRequestCreated"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "quoteChar": {
+                                        "type": "string",
+                                        "enum": ["\"", "'"]
+                                    },
+                                    "customMetrics": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AdditionalMetric"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["customMetrics"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration/preview/custom-metrics": {
+            "post": {
+                "operationId": "PreviewPullRequestForCustomMetrics",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/PreviewPullRequest"
                                         },
                                         "status": {
                                             "type": "string",
