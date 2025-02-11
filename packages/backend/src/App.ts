@@ -271,6 +271,43 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Cross-Origin Resource Sharing policy (CORS)
+        // WARNING: this middleware should be mounted before the helmet middleware
+        // (ideally at the top of the middleware stack)
+        if (
+            this.lightdashConfig.security.crossOriginResourceSharingPolicy
+                .enabled &&
+            this.lightdashConfig.security.crossOriginResourceSharingPolicy
+                .allowedDomains.length > 0
+        ) {
+            expressApp.use(
+                cors({
+                    methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
+                    allowedHeaders: '*',
+                    credentials: false,
+                    origin: (origin, callback) => {
+                        const allowedOrigins = [
+                            this.lightdashConfig.siteUrl,
+                            ...this.lightdashConfig.security
+                                .crossOriginResourceSharingPolicy
+                                .allowedDomains,
+                        ];
+
+                        if (!origin || allowedOrigins.includes(origin)) {
+                            callback(null, true);
+                        } else {
+                            callback(
+                                new Error(
+                                    `The CORS policy for this site does not allow access from the specified Origin: ${origin}`,
+                                ),
+                                false,
+                            );
+                        }
+                    },
+                }),
+            );
+        }
+
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
@@ -396,40 +433,6 @@ export default class App {
                 },
             }),
         );
-
-        // Cross-Origin Resource Sharing policy (CORS)
-        if (
-            this.lightdashConfig.security.crossOriginResourceSharingPolicy
-                .enabled &&
-            this.lightdashConfig.security.crossOriginResourceSharingPolicy
-                .allowedDomains.length > 0
-        ) {
-            expressApp.use(
-                cors({
-                    origin: (origin, callback) => {
-                        if (
-                            !origin ||
-                            [
-                                this.lightdashConfig.siteUrl,
-                                ...this.lightdashConfig.security
-                                    .crossOriginResourceSharingPolicy
-                                    .allowedDomains,
-                            ].includes(origin)
-                        ) {
-                            callback(null, true);
-                        } else {
-                            callback(
-                                new Error(
-                                    `The CORS policy for this site does not allow access from the specified Origin: ${origin}`,
-                                ),
-                                false,
-                            );
-                        }
-                    },
-                    credentials: false,
-                }),
-            );
-        }
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
