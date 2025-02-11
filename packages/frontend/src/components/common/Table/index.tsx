@@ -1,3 +1,4 @@
+import { useMantineTheme } from '@mantine/core';
 import { type ComponentProps, type FC } from 'react';
 import {
     ExploreEmptyQueryState,
@@ -35,6 +36,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     'data-testid': dataTestId,
     ...rest
 }) => {
+    const theme = useMantineTheme();
     const LoadingState = loadingState || ExploreLoadingState;
     const IdleState = idleState || ExploreIdleState;
     const EmptyState = emptyState || ExploreEmptyQueryState;
@@ -48,6 +50,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                 $shouldExpand={$shouldExpand}
                 $padding={$padding}
                 data-testid={dataTestId}
+                $tableFont={theme.other.tableFont}
             >
                 <ScrollableTable
                     minimal={minimal}

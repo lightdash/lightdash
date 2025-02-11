@@ -20,6 +20,10 @@ type Props = {
     projectUuid: string;
     token: Promise<string> | string;
     instanceUrl: string;
+    styles?: {
+        backgroundColor?: string;
+        fontFamily?: string;
+    };
 };
 
 const persistInstanceUrl = (instanceUrl: string) => {
@@ -29,7 +33,7 @@ const persistInstanceUrl = (instanceUrl: string) => {
     );
 };
 
-const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
+const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid, styles }) => {
     const [tokenString, setTokenString] = useState<string | null>(null);
 
     useEffect(() => {
@@ -50,7 +54,12 @@ const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
 
     return (
         <ReactQueryProvider>
-            <MantineProvider>
+            <MantineProvider
+                themeOverride={{
+                    fontFamily: styles?.fontFamily,
+                    other: { tableFont: styles?.fontFamily },
+                }}
+            >
                 <AppProvider>
                     <FullscreenProvider enabled={false}>
                         <ThirdPartyServicesProvider enabled={false}>
@@ -71,6 +80,8 @@ const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
                                                                     'relative',
                                                                 overflow:
                                                                     'auto',
+                                                                backgroundColor:
+                                                                    styles?.backgroundColor,
                                                             }}
                                                         >
                                                             <EmbedDashboard
