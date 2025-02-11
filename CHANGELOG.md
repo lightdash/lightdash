@@ -1,3 +1,10 @@
+## [0.1484.10](https://github.com/lightdash/lightdash/compare/0.1484.9...0.1484.10) (2025-02-11)
+
+
+### Bug Fixes
+
+* cors allowed headers ([#13611](https://github.com/lightdash/lightdash/issues/13611)) ([b74f779](https://github.com/lightdash/lightdash/commit/b74f779eb37219f10ae34c3d1f11ce7e2eaafd7f))
+
 ## [0.1484.9](https://github.com/lightdash/lightdash/compare/0.1484.8...0.1484.9) (2025-02-10)
 
 
