@@ -44,7 +44,7 @@ import {
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
-import { requestNewAccessToken } from 'passport-oauth2-refresh';
+import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
@@ -1515,7 +1515,7 @@ export class UserService extends BaseService {
         refreshToken: string,
     ): Promise<string> {
         return new Promise((resolve, reject) => {
-            requestNewAccessToken(
+            refresh.requestNewAccessToken(
                 'google',
                 refreshToken,
                 (err: AnyType, accessToken: string, _refreshToken, result) => {
