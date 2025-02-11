@@ -11,6 +11,7 @@ import {
     type FC,
 } from 'react';
 import useEchartsCartesianConfig, {
+    getFormattedValue,
     isLineSeriesOption,
 } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -91,7 +92,7 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const { chartRef, isLoading, onSeriesContextMenu } =
+    const { chartRef, isLoading, onSeriesContextMenu, itemsMap } =
         useVisualizationContext();
 
     const [selectedLegends, setSelectedLegends] = useState({});
@@ -187,13 +188,22 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                                                 : '';
 
                                         const axisValue = param.value[dim];
+                                        const formattedValue = itemsMap
+                                            ? getFormattedValue(
+                                                  axisValue,
+                                                  dim,
+                                                  itemsMap,
+                                                  true,
+                                              )
+                                            : axisValue;
+
                                         return (
                                             eChartsOptions.tooltip
                                                 .formatter as any
                                         )([
                                             {
                                                 ...param,
-                                                axisValueLabel: axisValue,
+                                                axisValueLabel: formattedValue,
                                             },
                                         ]);
                                     }
@@ -217,7 +227,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                 }, 100);
             }
         },
-        [chartRef, eChartsOptions?.tooltip.formatter],
+        [chartRef, eChartsOptions?.tooltip.formatter, itemsMap],
     );
 
     const handleOnMouseOut = useCallback(() => {

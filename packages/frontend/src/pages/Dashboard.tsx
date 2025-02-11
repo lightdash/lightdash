@@ -38,6 +38,7 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import useFullscreen from '../providers/Fullscreen/useFullscreen';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
@@ -98,7 +99,11 @@ const Dashboard: FC = () => {
     }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
-    const { isFullscreen, toggleFullscreen } = useApp();
+    const {
+        enabled: isFullScreenFeatureEnabled,
+        isFullscreen,
+        toggleFullscreen,
+    } = useFullscreen();
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
@@ -292,6 +297,8 @@ const Dashboard: FC = () => {
     ]);
 
     const handleToggleFullscreen = useCallback(async () => {
+        if (!isFullScreenFeatureEnabled) return;
+
         const willBeFullscreen = !isFullscreen;
 
         if (document.fullscreenElement && !willBeFullscreen) {
@@ -305,9 +312,11 @@ const Dashboard: FC = () => {
         }
 
         toggleFullscreen();
-    }, [isFullscreen, toggleFullscreen]);
+    }, [isFullScreenFeatureEnabled, isFullscreen, toggleFullscreen]);
 
     useEffect(() => {
+        if (!isFullScreenFeatureEnabled) return;
+
         const onFullscreenChange = () => {
             if (isFullscreen && !document.fullscreenElement) {
                 toggleFullscreen(false);
@@ -584,6 +593,7 @@ const Dashboard: FC = () => {
                         isPinned={isPinned}
                         activeTabUuid={activeTab?.uuid}
                         dashboardTabs={dashboardTabs}
+                        isFullScreenFeatureEnabled={isFullScreenFeatureEnabled}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||

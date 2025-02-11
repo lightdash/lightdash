@@ -4,7 +4,6 @@ import {
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
-import { ORGANIZATION_ADMIN } from '@lightdash/common/dist/authorization/organizationMemberAbility.mock';
 import { VERSION } from '../version';
 import {
     getFloatArrayFromEnvironmentVariable,

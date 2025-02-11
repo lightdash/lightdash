@@ -7,6 +7,7 @@ import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import ExportSelector from '../../ExportSelector';
 import {
@@ -16,7 +17,6 @@ import {
     isTableVisualizationConfig,
 } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import { Can } from '../Authorization';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,

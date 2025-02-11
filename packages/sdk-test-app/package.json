@@ -1,0 +1,22 @@
+{
+    "name": "@lightdash/sdk-test-app",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "start": "vite serve",
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "dependencies": {
+        "@lightdash/sdk": "workspace:*",
+        "react": "18.0.0",
+        "react-dom": "18.0.0"
+    },
+    "devDependencies": {
+        "@types/react": "18.0.0",
+        "@types/react-dom": "18.0.0",
+        "@vitejs/plugin-react": "^4.3.4",
+        "vite": "^6.0.5"
+    }
+}

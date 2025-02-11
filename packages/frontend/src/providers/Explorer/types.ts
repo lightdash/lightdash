@@ -255,7 +255,8 @@ export interface ExplorerReduceState {
         };
         additionalMetricWriteBack: {
             isOpen: boolean;
-            item?: AdditionalMetric;
+            items?: AdditionalMetric[];
+            multiple?: boolean;
         };
         customDimension: {
             isOpen: boolean;

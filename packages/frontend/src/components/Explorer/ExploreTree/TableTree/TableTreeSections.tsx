@@ -7,8 +7,15 @@ import {
     type CompiledTable,
     type CustomDimension,
 } from '@lightdash/common';
-import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
-import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Center,
+    Group,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconAlertTriangle, IconCode, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
@@ -58,6 +65,14 @@ const TableTreeSections: FC<Props> = ({
     );
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
+    );
+    const toggleAdditionalMetricWriteBackModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricWriteBackModal,
+    );
+
+    const allAdditionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
 
     const dimensions = useMemo(() => {
@@ -289,26 +304,40 @@ const TableTreeSections: FC<Props> = ({
                 getSearchResults(customMetrics, searchQuery).size === 0
             ) ? (
                 <Group position="apart" mt="sm" mb="xs" pr="sm">
-                    <Text fw={600} color="yellow.9">
-                        Custom metrics
-                    </Text>
+                    <Group>
+                        <Text fw={600} color="yellow.9">
+                            Custom metrics
+                        </Text>
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
+                            tooltipProps={{
+                                label: (
+                                    <>
+                                        Add custom metrics by hovering over the
+                                        dimension of your choice & selecting the
+                                        three-dot Action Menu.{' '}
+                                        <Text component="span" fw={600}>
+                                            Click to view docs.
+                                        </Text>
+                                    </>
+                                ),
+                                multiline: true,
+                            }}
+                        />
+                    </Group>
 
-                    <DocumentationHelpButton
-                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
-                        tooltipProps={{
-                            label: (
-                                <>
-                                    Add custom metrics by hovering over the
-                                    dimension of your choice & selecting the
-                                    three-dot Action Menu.{' '}
-                                    <Text component="span" fw={600}>
-                                        Click to view docs.
-                                    </Text>
-                                </>
-                            ),
-                            multiline: true,
-                        }}
-                    />
+                    <Tooltip label="Write back custom metrics">
+                        <ActionIcon
+                            onClick={() => {
+                                toggleAdditionalMetricWriteBackModal({
+                                    items: allAdditionalMetrics || [],
+                                    multiple: true,
+                                });
+                            }}
+                        >
+                            <MantineIcon icon={IconCode} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
             ) : null}
 

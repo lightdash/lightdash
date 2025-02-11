@@ -15,6 +15,7 @@ import { useParams } from 'react-router';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -24,7 +25,6 @@ import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';
-import { Can } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
 
 export const SeriesContextMenu: FC<{

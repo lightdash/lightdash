@@ -3,7 +3,10 @@
     "compilerOptions": {
         "composite": true,
         "target": "es5",
-        "lib": ["es5", "dom"],
+        "lib": [
+            "es5",
+            "dom"
+        ],
         "types": [
             "cypress",
             "@testing-library/cypress",
@@ -14,7 +17,9 @@
         "esModuleInterop": true,
         "resolveJsonModule": true,
     },
-    "include": ["**/*.ts"],
+    "include": [
+        "**/*.ts"
+    ],
     "references": [
         {
             "path": "../common"
