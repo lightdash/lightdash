@@ -1,3 +1,10 @@
+# [0.1489.0](https://github.com/lightdash/lightdash/compare/0.1488.0...0.1489.0) (2025-02-11)
+
+
+### Features
+
+* support ECMA-376 formatting ([#13597](https://github.com/lightdash/lightdash/issues/13597)) ([36a503d](https://github.com/lightdash/lightdash/commit/36a503d3a365f36ec2d9508a9cbe26521068697f))
+
 # [0.1488.0](https://github.com/lightdash/lightdash/compare/0.1487.0...0.1488.0) (2025-02-11)
 
 
