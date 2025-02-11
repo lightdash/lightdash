@@ -21,7 +21,6 @@ import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateRes
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -36,6 +35,7 @@ import DashboardCreateModal from '../components/common/modal/DashboardCreateModa
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContent } from '../hooks/useContent';
 import { useSpace } from '../hooks/useSpaces';
+import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 
 const Space: FC = () => {

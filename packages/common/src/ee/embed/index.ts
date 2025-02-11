@@ -63,6 +63,7 @@ export const EmbedJwtSchema = z
         content: z
             .object({
                 type: z.literal('dashboard'),
+                projectUuid: z.string().optional(),
                 dashboardUuid: z.string(),
                 isPreview: z.boolean().optional(),
             })
@@ -80,6 +81,7 @@ export type EmbedJwt = z.infer<typeof EmbedJwtSchema>;
 export type CreateEmbedJwt = {
     content: {
         type: 'dashboard';
+        projectUuid?: string;
         dashboardUuid: string;
         isPreview?: boolean;
         dashboardFiltersInteractivity?: {

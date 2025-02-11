@@ -1,0 +1,32 @@
+{
+    "name": "@lightdash/sdk",
+    "version": "1.0.0",
+    "type": "module",
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/sdk.cjs",
+    "module": "./dist/sdk.js",
+    "types": "./dist/sdk.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/sdk.js",
+            "require": "./dist/sdk.cjs"
+        }
+    },
+    "scripts": {
+        "build": "vite build"
+    },
+    "peerDependencies": {
+        "react": ">=18.0.0 && <=19.0.0",
+        "react-dom": ">=18.0.0 && <=19.0.0"
+    },
+    "devDependencies": {
+        "@lightdash/frontend": "workspace:*",
+        "@types/react": "19.0.0",
+        "@types/react-dom": "19.0.0",
+        "@vitejs/plugin-react": "^4.3.4",
+        "vite": "^6.0.5",
+        "vite-plugin-dts": "^4.5.0"
+    }
+}

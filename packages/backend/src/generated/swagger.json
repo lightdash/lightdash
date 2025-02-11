@@ -776,6 +776,9 @@
                             "dashboardUuid": {
                                 "type": "string"
                             },
+                            "projectUuid": {
+                                "type": "string"
+                            },
                             "type": {
                                 "type": "string",
                                 "enum": ["dashboard"],

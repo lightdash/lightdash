@@ -1,11 +1,26 @@
 {
-    "name": "frontend",
-    "version": "0.1484.8",
+    "name": "@lightdash/frontend",
+    "version": "0.1486.0",
     "private": true,
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/frontend.js",
+    "module": "./dist/frontend.mjs",
+    "types": "./dist/frontend.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/frontend.mjs",
+            "require": "./dist/frontend.js"
+        },
+        "./style.css": "./dist/frontend.css"
+    },
     "scripts": {
-        "dev": "vite",
         "typecheck": "tsc --project tsconfig.build.json --noEmit",
+        "dev": "vite",
+        "dev-lib": "vite build --watch --mode lib",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
+        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --mode lib",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
@@ -15,7 +30,7 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
-        "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles=__mocks__"
+        "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='(.*/__mocks__/.*|src/sdk/*)'"
     },
     "peerDependencies": {
         "react": "19.0.0",
@@ -57,8 +72,8 @@
         "@tiptap/react": "^2.2.4",
         "@tiptap/starter-kit": "^2.2.4",
         "@tiptap/suggestion": "^2.2.4",
-        "@uiw/react-md-editor": "^4.0.5",
         "@uiw/react-markdown-preview": "^5.0.6",
+        "@uiw/react-md-editor": "^4.0.5",
         "@xyflow/react": "^12.3.5",
         "ace-builds": "^1.4.14",
         "canvas-confetti": "^1.6.0",
@@ -143,11 +158,12 @@
         "nock": "^13.5.1",
         "react-test-renderer": "^19.0.0",
         "ts-unused-exports": "^9.0.4",
-        "vite": "^6.0.9",
-        "vite-plugin-compression2": "^1.3.0",
+        "vite": "^6.1.0",
+        "vite-plugin-compression2": "^1.3.3",
+        "vite-plugin-dts": "^4.5.0",
         "vite-plugin-monaco-editor": "^1.1.0",
-        "vite-plugin-svgr": "^4.2.0",
-        "vite-tsconfig-paths": "^4.2.2",
+        "vite-plugin-svgr": "^4.3.0",
+        "vite-tsconfig-paths": "^4.3.2",
         "vitest": "^2.1.9"
     }
 }
