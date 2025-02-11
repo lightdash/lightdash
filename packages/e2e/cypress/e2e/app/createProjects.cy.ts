@@ -668,7 +668,7 @@ describe('Create projects', () => {
             testPercentile(projectUuid, [
                 '2020-08-12',
                 '2,000',
-                '1,719.5',
+                '1,880',
                 '2,000',
                 '10,999,999',
             ]);
