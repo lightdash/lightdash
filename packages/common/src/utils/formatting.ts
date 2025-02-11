@@ -443,10 +443,21 @@ export function hasValidFormatExpression<
 }
 
 export function formatValueWithExpression(expression: string, value: unknown) {
-    const sanitizedValue =
-        typeof value === 'bigint' || value instanceof BigInt
-            ? Number(value)
-            : value;
+    let sanitizedValue = value;
+
+    if (typeof value === 'bigint') {
+        if (
+            value <= Number.MAX_SAFE_INTEGER &&
+            value >= Number.MIN_SAFE_INTEGER
+        ) {
+            sanitizedValue = Number(value);
+        } else {
+            throw new Error(
+                "Can't format value as BigInt is out of safe integer range",
+            );
+        }
+    }
+
     if (isDateFormat(expression)) {
         if (!isMomentInput(sanitizedValue)) {
             return 'NaT';
