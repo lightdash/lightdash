@@ -1,4 +1,4 @@
-import { isField } from '../types/field';
+import { CustomFormatType, isField, NumberSeparator } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import {
     compareMetricAndCustomMetric,
@@ -113,6 +113,27 @@ describe('compareMetricAndCustomMetric', () => {
             expect(result.isSuggestedMatch).toEqual(false);
         },
     );
+
+    test('should return exact match when comparing format expression with format object', async () => {
+        const result = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                formatOptions: {
+                    type: CustomFormatType.CURRENCY,
+                    currency: 'JPY',
+                    round: 3,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                },
+            },
+            metric: {
+                ...metric,
+                format: '[$¥]#,##0.000',
+            },
+        });
+        expect(result.isExactMatch).toEqual(true);
+        expect(result.isSuggestedMatch).toEqual(true);
+    });
+
     test('should return exact match with multiple filters', async () => {
         const result = compareMetricAndCustomMetric({
             customMetric: {

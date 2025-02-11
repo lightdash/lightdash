@@ -296,7 +296,9 @@ Affected charts:
             );
 
         // Github's path cannot start with a slash
-        const fileName = `${path.replace(/^\//, '')}/${explore.ymlPath}`;
+        const fileName = GitIntegrationService.removeExtraSlashes(
+            `${path}/${explore.ymlPath}`,
+        );
         const { content: fileContent, sha: fileSha } = await getFileContent({
             fileName,
             owner,

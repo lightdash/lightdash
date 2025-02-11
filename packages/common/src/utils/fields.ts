@@ -17,6 +17,7 @@ import {
     type ReplaceableFieldMatchMap,
 } from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
+import { getFormatExpression } from './formatting';
 import { getItemId } from './item';
 
 // Helper function to get a list of all dimensions in an explore
@@ -116,18 +117,13 @@ export function compareMetricAndCustomMetric({
             requiredForSuggestion: true,
         },
         formatMatch: {
-            // NOTE: We don't support format matching yet. Only match if both are undefined/null
             isMatch:
-                !metric.formatOptions &&
-                !metric.format &&
-                (!customMetric.formatOptions ||
-                    customMetric.formatOptions.type === 'default') &&
-                !customMetric.format,
+                getFormatExpression(metric) ===
+                getFormatExpression(customMetric),
             requiredForSuggestion: true,
         },
         percentileMatch: {
-            // NOTE: We don't support percentile matching yet. Only match if both are undefined/null
-            isMatch: !metric.percentile && !customMetric.percentile,
+            isMatch: metric.percentile === customMetric.percentile,
             requiredForSuggestion: true,
         },
         filtersMatch: {

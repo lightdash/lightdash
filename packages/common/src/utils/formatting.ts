@@ -26,6 +26,7 @@ import {
     type CustomFormat,
     type Dimension,
     type Field,
+    type Item,
     type TableCalculation,
 } from '../types/field';
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
@@ -441,6 +442,148 @@ export function hasValidFormatExpression<
         !isFormat(item.format) &&
         isValidFormat(item.format)
     );
+}
+
+const customFormatConversionFnMap: Record<
+    string,
+    (formatExpression: string, format: CustomFormat) => string
+> = {
+    separator: (formatExpression, format) => {
+        if (
+            !format.separator ||
+            format.separator !== NumberSeparator.NO_SEPARATOR_PERIOD
+        ) {
+            // Add thousands separator by default
+            // Note: we don't support specific separators characters. This depends on the locale which we don't support as we format values in the server atm.
+            return `#,##0`;
+        }
+        return formatExpression;
+    },
+    currency: (formatExpression, format) => {
+        if (format.currency) {
+            const mockAmount = 1;
+            const mockCurrencyValue = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: format.currency,
+            }).format(mockAmount);
+            // get the currency symbol/prefix + replace NBSP char
+            const currencySymbolPrefix = mockCurrencyValue
+                .substring(0, mockCurrencyValue.indexOf(mockAmount.toString()))
+                .replace(/\u00A0/, ' ');
+            return `[$${currencySymbolPrefix}]${formatExpression}`;
+        }
+        return formatExpression;
+    },
+    prefix: (formatExpression, format) => {
+        if (format.prefix) {
+            return `"${format.prefix}"${formatExpression}`;
+        }
+        return formatExpression;
+    },
+    round: (formatExpression, format) => {
+        let round = 2;
+        if (format.round !== undefined) {
+            round = format.round;
+        } else if (
+            format.type === CustomFormatType.CURRENCY &&
+            format.currency
+        ) {
+            const mockCurrencyValue = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: format.currency,
+            }).format(1);
+            // find how many round decimals the currency has
+            round = mockCurrencyValue.includes('.')
+                ? mockCurrencyValue.split('.')[1].length
+                : 0;
+        } else if (format.type === CustomFormatType.NUMBER) {
+            round = 3; // Note: I believe this was a bug in the old implementation, but we'll keep it for now
+        }
+        if (round > 0) {
+            return `${formatExpression}.${'0'.repeat(round)}`;
+        }
+        return formatExpression;
+    },
+    compact: (formatExpression, format) => {
+        if (format.compact) {
+            const compactConfig = findCompactConfig(format.compact);
+            if (compactConfig) {
+                return `${formatExpression}${','.repeat(
+                    compactConfig.orderOfMagnitude / 3,
+                )}"${compactConfig.suffix}"`;
+            }
+        }
+        return formatExpression;
+    },
+    percentage: (formatExpression) => `${formatExpression}%`,
+    suffix: (formatExpression, format) => {
+        if (format.suffix) {
+            return `${formatExpression}"${format.suffix}"`;
+        }
+        return formatExpression;
+    },
+};
+
+export function convertCustomFormatToFormatExpression(
+    format: CustomFormat,
+): string | null {
+    // ECMA-376 format expression
+    let defaultFormatExpression: string | null = null;
+    let conversions: Array<string> = [];
+    switch (format.type) {
+        case CustomFormatType.DEFAULT: {
+            // No format expression needed
+            break;
+        }
+        case CustomFormatType.CURRENCY: {
+            defaultFormatExpression = '0';
+            conversions = ['separator', 'currency', 'round', 'compact'];
+            break;
+        }
+        case CustomFormatType.PERCENT: {
+            defaultFormatExpression = '0';
+            conversions = ['separator', 'round', 'percentage'];
+            break;
+        }
+        case CustomFormatType.NUMBER: {
+            defaultFormatExpression = `0`;
+            conversions = ['separator', 'prefix', 'round', 'compact', 'suffix'];
+            break;
+        }
+        case CustomFormatType.ID:
+        case CustomFormatType.DATE:
+        case CustomFormatType.TIMESTAMP: {
+            // No implementation yet
+            break;
+        }
+        default: {
+            return assertUnreachable(
+                format.type,
+                `Cannot recognise ${format.type} format type`,
+            );
+        }
+    }
+    if (defaultFormatExpression === null) {
+        return defaultFormatExpression;
+    }
+    // Apply conversions
+    return conversions.reduce<string>(
+        (expression, fnKey) =>
+            customFormatConversionFnMap[fnKey](expression, format),
+        defaultFormatExpression,
+    );
+}
+
+export function getFormatExpression(
+    item: Item | AdditionalMetric,
+): string | undefined {
+    if (hasValidFormatExpression(item)) {
+        return item.format;
+    }
+    const customFormat = getCustomFormat(item);
+    return customFormat
+        ? convertCustomFormatToFormatExpression(customFormat) || undefined
+        : undefined;
 }
 
 export function formatValueWithExpression(expression: string, value: unknown) {
