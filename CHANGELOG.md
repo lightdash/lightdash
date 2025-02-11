@@ -1,3 +1,10 @@
+# [0.1488.0](https://github.com/lightdash/lightdash/compare/0.1487.0...0.1488.0) (2025-02-11)
+
+
+### Features
+
+* display sql & type on metric hover ([#13625](https://github.com/lightdash/lightdash/issues/13625)) ([8a3fd73](https://github.com/lightdash/lightdash/commit/8a3fd73566cd51870301895a774d8eb93c6a9c94))
+
 # [0.1487.0](https://github.com/lightdash/lightdash/compare/0.1486.1...0.1487.0) (2025-02-11)
 
 
