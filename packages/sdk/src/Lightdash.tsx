@@ -16,9 +16,30 @@ import {
 import { FC, PropsWithChildren, useEffect, useState } from 'react';
 
 type Props = {
-    projectUuid: string;
-    token: Promise<string> | string;
     instanceUrl: string;
+    token: Promise<string> | string;
+};
+
+const decodeJWT = (token: string) => {
+    const splits = token.split('.');
+    if (splits.length !== 3) {
+        throw new Error('Invalid JWT token');
+    }
+
+    const [header, payload, signature] = splits;
+
+    const decodedHeader = JSON.parse(
+        atob(header).replace(/-/g, '+').replace(/_/g, '/'),
+    );
+    const decodedPayload = JSON.parse(
+        atob(payload).replace(/-/g, '+').replace(/_/g, '/'),
+    );
+
+    return {
+        header: decodedHeader,
+        payload: decodedPayload,
+        signature: signature,
+    };
 };
 
 const persistInstanceUrl = (instanceUrl: string) => {
@@ -54,28 +75,49 @@ const SdkProviders: FC<PropsWithChildren> = ({ children }) => {
     );
 };
 
-const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
-    const [tokenString, setTokenString] = useState<string | null>(null);
+const Dashboard: FC<Props> = ({ token: tokenOrTokenPromise, instanceUrl }) => {
+    const [token, setToken] = useState<string | null>(null);
+    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+
+    const handleDecodeToken = (token: string) => {
+        const { payload } = decodeJWT(token);
+
+        if (
+            payload &&
+            'content' in payload &&
+            'projectUuid' in payload.content
+        ) {
+            setToken(token);
+            setProjectUuid(payload.content.projectUuid);
+        } else {
+            throw new Error('Error decoding token');
+        }
+    };
 
     useEffect(() => {
         persistInstanceUrl(instanceUrl);
 
-        if (typeof token === 'string') {
-            setTokenString(token);
+        if (typeof tokenOrTokenPromise === 'string') {
+            handleDecodeToken(tokenOrTokenPromise);
         } else {
-            token.then((t) => {
-                setTokenString(t);
-            });
+            tokenOrTokenPromise
+                .then((token) => {
+                    handleDecodeToken(token);
+                })
+                .catch((error) => {
+                    console.error(error);
+                    throw new Error('Error retrieving token');
+                });
         }
-    }, [instanceUrl, token]);
+    }, [instanceUrl, tokenOrTokenPromise]);
 
-    if (!tokenString) {
+    if (!token || !projectUuid) {
         return null;
     }
 
     return (
         <SdkProviders>
-            <EmbedProvider embedToken={tokenString}>
+            <EmbedProvider embedToken={token}>
                 <div
                     style={{
                         width: '100%',
