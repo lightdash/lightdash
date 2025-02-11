@@ -244,7 +244,12 @@ const DashboardHeader = ({
                         <Popover.Dropdown maw={500}>
                             <Stack spacing="xs">
                                 {dashboard.description && (
-                                    <Text fz="xs" color="gray.7" fw={500}>
+                                    <Text
+                                        fz="xs"
+                                        color="gray.7"
+                                        fw={500}
+                                        style={{ whiteSpace: 'pre-line' }}
+                                    >
                                         {dashboard.description}
                                     </Text>
                                 )}
