@@ -138,7 +138,6 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
         position: sticky !important;
         left: 1px;
         z-index: 1;
-        background-color: white !important;
         word-break: break-word;
         :hover {
             white-space: normal;
