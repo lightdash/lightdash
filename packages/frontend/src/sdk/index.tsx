@@ -8,7 +8,6 @@ import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from '../providers/Ability/AbilityProvider';
-import ActiveJobProvider from '../providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../providers/App/AppProvider';
 import FullscreenProvider from '../providers/Fullscreen/FullscreenProvider';
 import MantineProvider from '../providers/MantineProvider';
@@ -21,7 +20,6 @@ const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
 
 export {
     AbilityProvider,
-    ActiveJobProvider,
     AppProvider,
     ChartColorMappingContextProvider,
     EmbedDashboard,
