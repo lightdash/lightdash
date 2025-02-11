@@ -22,10 +22,11 @@ export const TableScrollableWrapper = styled.div`
 interface TableContainerProps {
     $shouldExpand?: boolean;
     $padding?: number;
+    $tableFont?: string;
 }
 
 export const TableContainer = styled.div<
-    TableContainerProps & { children: ReactNode; $tableFont: string }
+    TableContainerProps & { children: ReactNode }
 >`
     display: flex;
     flex-direction: column;
