@@ -74,7 +74,6 @@ function App() {
                         <Lightdash.Dashboard
                             instanceUrl="http://localhost:3000/"
                             token=""
-                            projectUuid=""
                         />
                     </div>
 
