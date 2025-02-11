@@ -4,6 +4,7 @@ import moment, { type MomentInput } from 'moment';
 import {
     format as formatWithExpression,
     isDateFormat,
+    isTextFormat,
     isValidFormat,
 } from 'numfmt';
 import {
@@ -458,6 +459,7 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         }
     }
 
+    // format date
     if (isDateFormat(expression)) {
         if (!isMomentInput(sanitizedValue)) {
             return 'NaT';
@@ -468,7 +470,13 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         );
     }
 
-    return formatWithExpression(expression, sanitizedValue);
+    // format text
+    if (isTextFormat(expression)) {
+        return formatWithExpression(expression, sanitizedValue);
+    }
+
+    // format number
+    return formatWithExpression(expression, Number(sanitizedValue));
 }
 
 export function formatItemValue(
