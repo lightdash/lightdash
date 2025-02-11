@@ -1,3 +1,16 @@
+# [0.1487.0](https://github.com/lightdash/lightdash/compare/0.1486.1...0.1487.0) (2025-02-11)
+
+
+### Bug Fixes
+
+* allow devs to download ([#13609](https://github.com/lightdash/lightdash/issues/13609)) ([a8f44ac](https://github.com/lightdash/lightdash/commit/a8f44ac81f95fb45afc89396ad5134938b33915a))
+* multiline descriptions ([#13616](https://github.com/lightdash/lightdash/issues/13616)) ([8bb1d86](https://github.com/lightdash/lightdash/commit/8bb1d861a62bf5b225af9612bc1f3a07748d76ee))
+
+
+### Features
+
+* multiple custom metric modal ([#13599](https://github.com/lightdash/lightdash/issues/13599)) ([4975bbd](https://github.com/lightdash/lightdash/commit/4975bbd916b3bec133ea40b5165100d4684fbe44))
+
 ## [0.1486.1](https://github.com/lightdash/lightdash/compare/0.1486.0...0.1486.1) (2025-02-11)
 
 
