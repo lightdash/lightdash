@@ -1,3 +1,10 @@
+## [0.1486.1](https://github.com/lightdash/lightdash/compare/0.1486.0...0.1486.1) (2025-02-11)
+
+
+### Bug Fixes
+
+* use getCatalog to get columns information when all arguments of get fields are available ([#13617](https://github.com/lightdash/lightdash/issues/13617)) ([e942681](https://github.com/lightdash/lightdash/commit/e942681896cc5fba2d1ee1d9196919258291d6a9))
+
 # [0.1486.0](https://github.com/lightdash/lightdash/compare/0.1485.1...0.1486.0) (2025-02-11)
 
 
