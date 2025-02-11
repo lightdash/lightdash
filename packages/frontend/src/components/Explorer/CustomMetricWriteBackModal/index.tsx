@@ -22,22 +22,19 @@ import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
 import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
 
 const SingleCustomMetricModalContent = ({
-    isOpen,
     handleClose,
-    data,
-    isLoading,
     item,
     projectUuid,
-    writeBackCustomMetrics,
 }: {
-    isOpen: boolean;
     handleClose: () => void;
-    data: any;
-    isLoading: boolean;
     projectUuid: string;
     item: AdditionalMetric;
-    writeBackCustomMetrics: (items: AdditionalMetric[]) => void;
 }) => {
+    const {
+        mutate: writeBackCustomMetrics,
+        data,
+        isLoading,
+    } = useWriteBackCustomMetrics(projectUuid!);
     const {
         mutate: previewWriteBackCustomMetrics,
         data: previewData,
@@ -55,7 +52,7 @@ const SingleCustomMetricModalContent = ({
         <Modal
             size="lg"
             onClick={(e) => e.stopPropagation()}
-            opened={isOpen}
+            opened={true}
             onClose={handleClose}
             title={
                 <Group spacing="xs">
@@ -196,22 +193,19 @@ const SingleCustomMetricModalContent = ({
 };
 
 const MultipleCustomMetricModalContent = ({
-    isOpen,
     handleClose,
-    data,
-    isLoading,
     items,
-    writeBackCustomMetrics,
     projectUuid,
 }: {
-    isOpen: boolean;
     handleClose: () => void;
-    data: any;
-    isLoading: boolean;
     projectUuid: string;
     items: AdditionalMetric[];
-    writeBackCustomMetrics: (items: AdditionalMetric[]) => void;
 }) => {
+    const {
+        mutate: writeBackCustomMetrics,
+        data,
+        isLoading,
+    } = useWriteBackCustomMetrics(projectUuid!);
     const {
         mutate: previewWriteBackCustomMetrics,
         data: previewData,
@@ -248,7 +242,7 @@ const MultipleCustomMetricModalContent = ({
         <Modal
             size="xl"
             onClick={(e) => e.stopPropagation()}
-            opened={isOpen}
+            opened={true}
             onClose={handleClose}
             title={
                 <Group spacing="xs">
@@ -396,7 +390,7 @@ const MultipleCustomMetricModalContent = ({
 };
 
 export const CustomMetricWriteBackModal = () => {
-    const { isOpen, items, multiple } = useExplorerContext(
+    const { items, multiple } = useExplorerContext(
         (context) => context.state.modals.additionalMetricWriteBack,
     );
     const { projectUuid } = useParams<{
@@ -407,41 +401,30 @@ export const CustomMetricWriteBackModal = () => {
         (context) => context.actions.toggleAdditionalMetricWriteBackModal,
     );
 
-    const {
-        mutate: writeBackCustomMetrics,
-        data,
-        isLoading,
-        reset,
-    } = useWriteBackCustomMetrics(projectUuid!);
-
     const handleClose = useCallback(() => {
         toggleModal();
-        reset();
-    }, [toggleModal, reset]);
+    }, [toggleModal]);
 
     if (items && !multiple && items.length === 1) {
         return (
             <SingleCustomMetricModalContent
-                isOpen={isOpen}
                 handleClose={handleClose}
-                data={data}
-                isLoading={isLoading}
                 item={items[0]}
                 projectUuid={projectUuid!}
-                writeBackCustomMetrics={writeBackCustomMetrics}
             />
         );
     } else if (multiple === true) {
         return (
             <MultipleCustomMetricModalContent
-                isOpen={isOpen}
                 handleClose={handleClose}
-                data={data}
                 projectUuid={projectUuid!}
-                isLoading={isLoading}
                 items={items || []}
-                writeBackCustomMetrics={writeBackCustomMetrics}
             />
+        );
+    } else {
+        console.error(
+            `Invalid custom metric modal arguments multiple="${multiple}": `,
+            items,
         );
     }
 };
