@@ -506,19 +506,6 @@ export class ProjectService extends BaseService {
             return snowflakeVirtualWarehouse || snowflakeCredentials.warehouse;
         };
 
-        const getDatabricksHttpPath = (
-            databricksCredentials: CreateDatabricksCredentials,
-        ): string => {
-            if (databricksCredentials.compute) {
-                return (
-                    databricksCredentials.compute.find(
-                        (compute) => compute.name === databricksCompute,
-                    )?.httpPath ?? databricksCredentials.httpPath
-                );
-            }
-            return databricksCredentials.httpPath;
-        };
-
         const credsType = warehouseSshCredentials.type;
         let credentialsWithOverrides: CreateWarehouseCredentials;
 
@@ -530,6 +517,19 @@ export class ProjectService extends BaseService {
                 };
                 break;
             case WarehouseTypes.DATABRICKS:
+                const getDatabricksHttpPath = (
+                    databricksCredentials: CreateDatabricksCredentials,
+                ): string => {
+                    if (databricksCredentials.compute) {
+                        return (
+                            databricksCredentials.compute.find(
+                                (compute) => compute.name === databricksCompute,
+                            )?.httpPath ?? databricksCredentials.httpPath
+                        );
+                    }
+                    return databricksCredentials.httpPath;
+                };
+
                 credentialsWithOverrides = {
                     ...warehouseSshCredentials,
                     httpPath: getDatabricksHttpPath(warehouseSshCredentials),
