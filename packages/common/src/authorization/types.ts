@@ -50,6 +50,7 @@ type Subject =
     | 'PersonalAccessToken'
     | 'MetricsTree'
     | 'SpotlightTableConfig'
+    | 'ContentAsCode'
     | 'all';
 
 export type PossibleAbilities = [
