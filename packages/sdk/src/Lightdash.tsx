@@ -33,16 +33,16 @@ const Dashboard: FC<Props> = ({ token, instanceUrl, projectUuid }) => {
     const [tokenString, setTokenString] = useState<string | null>(null);
 
     useEffect(() => {
+        persistInstanceUrl(instanceUrl);
+
         if (typeof token === 'string') {
-            persistInstanceUrl(instanceUrl);
             setTokenString(token);
         } else {
             token.then((t) => {
-                persistInstanceUrl(instanceUrl);
                 setTokenString(t);
             });
         }
-    }, [token]);
+    }, [instanceUrl, token]);
 
     if (!tokenString) {
         return null;
