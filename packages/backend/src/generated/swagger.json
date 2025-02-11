@@ -1759,7 +1759,14 @@
                         "format": "double"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "groupLabel": {
                         "type": "string",
@@ -2149,7 +2156,14 @@
                         "$ref": "#/components/schemas/CompactOrAlias"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "table": {
                         "type": "string"
@@ -3607,7 +3621,14 @@
                         "format": "double"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "groupLabel": {
                         "type": "string",
@@ -3736,7 +3757,14 @@
                         "format": "double"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "groupLabel": {
                         "type": "string",
@@ -4170,7 +4198,14 @@
                         "format": "double"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "groupLabel": {
                         "type": "string",
@@ -4252,7 +4287,14 @@
                         "format": "double"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "groupLabel": {
                         "type": "string",
@@ -12036,7 +12078,14 @@
                         "format": "double"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
                     },
                     "groupLabel": {
                         "type": "string",
@@ -14674,7 +14723,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1484.6",
+        "version": "0.1484.8",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

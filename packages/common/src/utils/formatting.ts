@@ -2,6 +2,12 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment';
 import {
+    format as formatWithExpression,
+    isDateFormat,
+    isTextFormat,
+    isValidFormat,
+} from 'numfmt';
+import {
     CustomFormatType,
     DimensionType,
     Format,
@@ -11,6 +17,8 @@ import {
     findCompactConfig,
     isCustomSqlDimension,
     isDimension,
+    isField,
+    isFormat,
     isMetric,
     isTableCalculation,
     type CompactOrAlias,
@@ -240,7 +248,7 @@ export function getCustomFormatFromLegacy({
     compact,
     round,
 }: {
-    format?: Format;
+    format?: Format | string;
     compact?: CompactOrAlias;
     round?: number;
 }): CustomFormat {
@@ -418,6 +426,59 @@ export function applyCustomFormat(
     }
 }
 
+export function hasValidFormatExpression<
+    T extends
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | Dimension,
+>(item: T | undefined): item is T & { format: string } {
+    // filter out legacy format that might be valid expressions. eg: usd
+    return (
+        isField(item) &&
+        !!item.format &&
+        !isFormat(item.format) &&
+        isValidFormat(item.format)
+    );
+}
+
+export function formatValueWithExpression(expression: string, value: unknown) {
+    let sanitizedValue = value;
+
+    if (typeof value === 'bigint') {
+        if (
+            value <= Number.MAX_SAFE_INTEGER &&
+            value >= Number.MIN_SAFE_INTEGER
+        ) {
+            sanitizedValue = Number(value);
+        } else {
+            throw new Error(
+                "Can't format value as BigInt is out of safe integer range",
+            );
+        }
+    }
+
+    // format date
+    if (isDateFormat(expression)) {
+        if (!isMomentInput(sanitizedValue)) {
+            return 'NaT';
+        }
+        return formatWithExpression(
+            expression,
+            moment(sanitizedValue).toDate(),
+        );
+    }
+
+    // format text
+    if (isTextFormat(expression)) {
+        return formatWithExpression(expression, sanitizedValue);
+    }
+
+    // format number
+    return formatWithExpression(expression, Number(sanitizedValue));
+}
+
 export function formatItemValue(
     item:
         | Field
@@ -431,8 +492,11 @@ export function formatItemValue(
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-
     if (item) {
+        if (hasValidFormatExpression(item)) {
+            return formatValueWithExpression(item.format, value);
+        }
+
         const customFormat = getCustomFormat(item);
 
         if (isCustomSqlDimension(item) || 'type' in item) {
