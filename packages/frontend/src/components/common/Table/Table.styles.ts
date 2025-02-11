@@ -25,14 +25,14 @@ interface TableContainerProps {
 }
 
 export const TableContainer = styled.div<
-    TableContainerProps & { children: ReactNode }
+    TableContainerProps & { children: ReactNode; $tableFont: string }
 >`
     display: flex;
     flex-direction: column;
     min-width: 100%;
     overflow: hidden;
 
-    font-family: 'Inter', sans-serif;
+    font-family: ${({ $tableFont }) => $tableFont ?? 'Inter, sans-serif'};
     font-feature-settings: 'tnum';
 
     padding: ${({ $padding = 0 }) => `${$padding}px`};
@@ -211,6 +211,7 @@ export const Td = styled.td<{
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    box-sizing: border-box;
     height: ${ROW_HEIGHT_PX}px;
 
     ${({ $isLargeText, $isSelected, $isMinimal }) =>
