@@ -3,7 +3,7 @@
 
 import { MemoryRouter } from 'react-router';
 
-import EmbedDashboard from '../ee/pages/EmbedDashboard';
+import EmbedDashboard, { type SdkFilter } from '../ee/pages/EmbedDashboard';
 import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -32,4 +32,5 @@ export {
     ReactQueryProvider,
     ThirdPartyServicesProvider,
     TrackingProvider,
+    type SdkFilter,
 };

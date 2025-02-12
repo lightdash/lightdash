@@ -12,6 +12,7 @@ import {
     ReactQueryProvider,
     ThirdPartyServicesProvider,
     TrackingProvider,
+    type SdkFilter,
 } from '@lightdash/frontend';
 import { FC, PropsWithChildren, useEffect, useState } from 'react';
 
@@ -22,6 +23,7 @@ type Props = {
         backgroundColor?: string;
         fontFamily?: string;
     };
+    filters?: SdkFilter[];
 };
 
 const decodeJWT = (token: string) => {
@@ -92,6 +94,7 @@ const Dashboard: FC<Props> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
+    filters,
 }) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -144,7 +147,10 @@ const Dashboard: FC<Props> = ({
                         backgroundColor: styles?.backgroundColor,
                     }}
                 >
-                    <EmbedDashboard projectUuid={projectUuid} />
+                    <EmbedDashboard
+                        projectUuid={projectUuid}
+                        filters={filters}
+                    />
                 </div>
             </EmbedProvider>
         </SdkProviders>
