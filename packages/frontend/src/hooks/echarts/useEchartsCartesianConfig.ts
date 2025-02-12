@@ -1,11 +1,8 @@
 import {
-    CartesianSeriesType,
-    DimensionType,
-    MetricType,
-    TableCalculationType,
-    TimeFrames,
     applyCustomFormat,
     assertUnreachable,
+    CartesianSeriesType,
+    DimensionType,
     formatItemValue,
     formatValueWithExpression,
     friendlyName,
@@ -27,7 +24,10 @@ import {
     isPivotReferenceWithValues,
     isTableCalculation,
     isTimeInterval,
+    MetricType,
+    TableCalculationType,
     timeFrameConfigs,
+    TimeFrames,
     type ApiQueryResults,
     type CartesianChart,
     type CustomDimension,
@@ -39,6 +39,7 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
+import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
 import {
     type DefaultLabelFormatterCallbackParams,
@@ -1574,6 +1575,8 @@ const useEchartsCartesianConfig = (
         minimal,
     } = useVisualizationContext();
 
+    const theme = useMantineTheme();
+
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
@@ -1910,6 +1913,9 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
+            textStyle: {
+                fontFamily: theme?.fontFamily,
+            },
             // We assign colors per series, so we specify an empty list here.
             color: [],
         }),
@@ -1925,6 +1931,7 @@ const useEchartsCartesianConfig = (
             series,
             sortedResults,
             tooltip,
+            theme.fontFamily,
         ],
     );
 
