@@ -1,3 +1,10 @@
+## [0.1491.1](https://github.com/lightdash/lightdash/compare/0.1491.0...0.1491.1) (2025-02-12)
+
+
+### Bug Fixes
+
+* add slash to lightdash URL when not present ([#13628](https://github.com/lightdash/lightdash/issues/13628)) ([dbf7dce](https://github.com/lightdash/lightdash/commit/dbf7dce7c1b7b9f3aa41732f93118449f315e566))
+
 # [0.1491.0](https://github.com/lightdash/lightdash/compare/0.1490.0...0.1491.0) (2025-02-12)
 
 
