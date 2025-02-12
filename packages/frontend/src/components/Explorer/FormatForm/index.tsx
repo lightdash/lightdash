@@ -4,6 +4,7 @@ import {
     CustomFormatType,
     NumberSeparator,
     applyCustomFormat,
+    convertCustomFormatToFormatExpression,
     currencies,
     type CustomFormat,
 } from '@lightdash/common';
@@ -93,14 +94,20 @@ export const FormatForm: FC<Props> = ({
                 />
 
                 {formatType !== CustomFormatType.DEFAULT && (
-                    <Text ml="md" mt={30} color="gray.6">
+                    <Text ml="md" mt={30} w={200} color="gray.6">
                         {'Looks like: '}
                         {applyCustomFormat(
                             CustomFormatType.PERCENT === formatType
-                                ? '0.75'
-                                : '1234.56',
+                                ? '0.754321'
+                                : '1234.56789',
                             format,
                         )}
+                    </Text>
+                )}
+                {formatType !== CustomFormatType.DEFAULT && (
+                    <Text ml="md" mt={30} w={200} color="gray.6">
+                        {'Format: '}
+                        {convertCustomFormatToFormatExpression(format)}
                     </Text>
                 )}
             </Flex>

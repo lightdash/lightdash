@@ -5,43 +5,11 @@ import {
     type DbtModelColumn,
     type DbtModelNode,
 } from '../types/dbt';
-import {
-    CustomFormatType,
-    Format,
-    friendlyName,
-    type CustomFormat,
-} from '../types/field';
+import { friendlyName } from '../types/field';
 import { convertMetricFilterToDbt } from '../types/filterGrammarConversion';
 import { type AdditionalMetric } from '../types/metricQuery';
+import { getFormatExpression } from './formatting';
 
-function convertFormatOptionsToFormat(
-    formatOptions?: CustomFormat,
-): Format | undefined {
-    if (formatOptions?.type === CustomFormatType.PERCENT) {
-        return Format.PERCENT;
-    }
-    if (formatOptions?.type === CustomFormatType.ID) {
-        return Format.PERCENT;
-    }
-    if (
-        formatOptions?.type === CustomFormatType.CURRENCY &&
-        formatOptions?.currency
-    ) {
-        switch (formatOptions.currency) {
-            case 'USD':
-                return Format.USD;
-            case 'GBP':
-                return Format.GBP;
-            case 'EUR':
-                return Format.EUR;
-            default:
-                break;
-        }
-    }
-    return undefined;
-}
-
-// Note that we do not support all the formatting configuration in YML yet
 export function convertCustomMetricToDbt(
     field: AdditionalMetric,
 ): DbtColumnLightdashMetric {
@@ -50,10 +18,7 @@ export function convertCustomMetricToDbt(
         label: field.label || friendlyName(field.name),
         description: field.description,
         type: field.type,
-        round: field.round || field.formatOptions?.round,
-        format:
-            field.format || convertFormatOptionsToFormat(field.formatOptions),
-        compact: field.compact || field.formatOptions?.compact,
+        format: getFormatExpression(field),
         percentile: field.percentile,
         filters,
     };
