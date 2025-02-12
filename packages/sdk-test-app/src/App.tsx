@@ -31,7 +31,7 @@ function App() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fafafa',
+        backgroundColor: 'aliceblue',
     };
 
     // Info box style with bluish text and a light blue background
@@ -74,6 +74,10 @@ function App() {
                         <Lightdash.Dashboard
                             instanceUrl="http://localhost:3000/"
                             token=""
+                            styles={{
+                                backgroundColor: 'transparent',
+                                fontFamily: 'Comic Sans MS',
+                            }}
                         />
                     </div>
 

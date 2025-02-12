@@ -3,6 +3,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
     ChartAsCode,
+    ChartSummary,
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
@@ -262,7 +263,16 @@ export class CoderService extends BaseService {
             : [];
     }
 
-    private async filterPrivateContent<T extends DashboardDAO | SavedChartDAO>(
+    private async filterPrivateContent<
+        T extends
+            | DashboardDAO
+            | SavedChartDAO
+            | (ChartSummary & { updatedAt: Date })
+            | Pick<
+                  DashboardDAO,
+                  'uuid' | 'name' | 'spaceUuid' | 'description' | 'slug'
+              >,
+    >(
         user: SessionUser,
         project: Project,
         content: T[],
@@ -345,14 +355,24 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
         });
+        const spaceUuids = dashboardSummaries.map((chart) => chart.spaceUuid);
+        // get all spaces to map  spaceSlug
+        const spaces = await this.spaceModel.find({ spaceUuids });
 
+        const dashboardSummariesWithAccess = await this.filterPrivateContent(
+            user,
+            project,
+            dashboardSummaries,
+            spaces,
+        );
         const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
         const offsetIndex = offset || 0;
         const newOffset = Math.min(
             offsetIndex + maxResults,
-            dashboardSummaries.length,
+            dashboardSummariesWithAccess.length,
         );
-        const limitedDashboardSummaries = dashboardSummaries.slice(
+
+        const limitedDashboardSummaries = dashboardSummariesWithAccess.slice(
             offsetIndex,
             newOffset,
         );
@@ -370,9 +390,6 @@ export class CoderService extends BaseService {
                 )}`,
             );
         }
-        // get all spaces to map  spaceSlug
-        const spaceUuids = dashboards.map((dashboard) => dashboard.spaceUuid);
-        const spaces = await this.spaceModel.find({ spaceUuids });
 
         const dashboardsWithAccess = await this.filterPrivateContent(
             user,
@@ -386,7 +403,7 @@ export class CoderService extends BaseService {
                 CoderService.transformDashboard(dashboard, spaces),
             ),
             missingIds,
-            total: dashboardsWithAccess.length,
+            total: dashboardSummariesWithAccess.length,
             offset: newOffset,
         };
     }
@@ -440,23 +457,30 @@ export class CoderService extends BaseService {
 
         // Apply offset and limit to chart summaries
         const offsetIndex = offset || 0;
+        const spaceUuids = chartSummaries.map((chart) => chart.spaceUuid);
+        // get all spaces to map  spaceSlug
+        const spaces = await this.spaceModel.find({ spaceUuids });
+        const chartsSummariesWithAccess = await this.filterPrivateContent(
+            user,
+            project,
+            chartSummaries,
+            spaces,
+        );
         const newOffset = Math.min(
             offsetIndex + maxResults,
-            chartSummaries.length,
+            chartsSummariesWithAccess.length,
         );
-        const limitedChartSummaries = chartSummaries.slice(
+        const limitedChartSummaries = chartsSummariesWithAccess.slice(
             offsetIndex,
             newOffset,
         );
+
         const chartPromises = limitedChartSummaries.map((chart) =>
             this.savedChartModel.get(chart.uuid),
         );
         const charts = await Promise.all(chartPromises);
         const missingIds = CoderService.getMissingIds(chartIds, charts);
 
-        // get all spaces to map  spaceSlug
-        const spaceUuids = charts.map((chart) => chart.spaceUuid);
-        const spaces = await this.spaceModel.find({ spaceUuids });
         // get all spaces to map  dashboardSlug
         const dashboardUuids = charts.reduce<string[]>((acc, chart) => {
             if (chart.dashboardUuid) {
@@ -467,18 +491,13 @@ export class CoderService extends BaseService {
         const dashboards = await this.dashboardModel.getSlugsForUuids(
             dashboardUuids,
         );
-        const chartsWithAccess = await this.filterPrivateContent(
-            user,
-            project,
-            charts,
-            spaces,
-        );
+
         return {
-            charts: chartsWithAccess.map((chart) =>
+            charts: charts.map((chart) =>
                 CoderService.transformChart(chart, spaces, dashboards),
             ),
             missingIds,
-            total: chartsWithAccess.length,
+            total: chartsSummariesWithAccess.length,
             offset: newOffset,
         };
     }

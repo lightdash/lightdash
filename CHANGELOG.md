@@ -1,3 +1,59 @@
+## [0.1492.1](https://github.com/lightdash/lightdash/compare/0.1492.0...0.1492.1) (2025-02-12)
+
+
+### Bug Fixes
+
+* error toast layout ([#13644](https://github.com/lightdash/lightdash/issues/13644)) ([4257e19](https://github.com/lightdash/lightdash/commit/4257e19fb55bfc8ab7390b05120510b34370ea03))
+
+# [0.1492.0](https://github.com/lightdash/lightdash/compare/0.1491.4...0.1492.0) (2025-02-12)
+
+
+### Features
+
+* projects with github PAT can write back without installing github integration ([#13624](https://github.com/lightdash/lightdash/issues/13624)) ([dce75c9](https://github.com/lightdash/lightdash/commit/dce75c9faa55cdc589a299965ee2d2eeeaac4479))
+
+## [0.1491.4](https://github.com/lightdash/lightdash/compare/0.1491.3...0.1491.4) (2025-02-12)
+
+
+### Bug Fixes
+
+* cast font family to string ([#13646](https://github.com/lightdash/lightdash/issues/13646)) ([84ee80b](https://github.com/lightdash/lightdash/commit/84ee80bf9dc5aa2f979f8aa98fd0517080fa40c6))
+
+## [0.1491.3](https://github.com/lightdash/lightdash/compare/0.1491.2...0.1491.3) (2025-02-12)
+
+
+### Bug Fixes
+
+* **frontend:** Do not open boolean filter input by default when disabled or value already set ([#13606](https://github.com/lightdash/lightdash/issues/13606)) ([f5d7363](https://github.com/lightdash/lightdash/commit/f5d73631299fde7f5ee8ea2c3e8c3f0092aaba4a))
+
+## [0.1491.2](https://github.com/lightdash/lightdash/compare/0.1491.1...0.1491.2) (2025-02-12)
+
+
+### Bug Fixes
+
+* format series values ([#13643](https://github.com/lightdash/lightdash/issues/13643)) ([6ae7327](https://github.com/lightdash/lightdash/commit/6ae7327f22a026c883403b10fa8121ea98ab6df1))
+
+## [0.1491.1](https://github.com/lightdash/lightdash/compare/0.1491.0...0.1491.1) (2025-02-12)
+
+
+### Bug Fixes
+
+* add slash to lightdash URL when not present ([#13628](https://github.com/lightdash/lightdash/issues/13628)) ([dbf7dce](https://github.com/lightdash/lightdash/commit/dbf7dce7c1b7b9f3aa41732f93118449f315e566))
+
+# [0.1491.0](https://github.com/lightdash/lightdash/compare/0.1490.0...0.1491.0) (2025-02-12)
+
+
+### Features
+
+* enable overriding fonts and bg in sdk ([#13627](https://github.com/lightdash/lightdash/issues/13627)) ([4fd39a0](https://github.com/lightdash/lightdash/commit/4fd39a094e2c60ac3945d1cd76361475793ab3d3))
+
+# [0.1490.0](https://github.com/lightdash/lightdash/compare/0.1489.0...0.1490.0) (2025-02-12)
+
+
+### Features
+
+* write custom metric to dbt with format expression ([#13629](https://github.com/lightdash/lightdash/issues/13629)) ([2dfe169](https://github.com/lightdash/lightdash/commit/2dfe169768cb0de528cffccc817e08dbd42abd8f))
+
 # [0.1489.0](https://github.com/lightdash/lightdash/compare/0.1488.0...0.1489.0) (2025-02-11)
 
 
