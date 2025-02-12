@@ -1,3 +1,11 @@
+## [0.1492.2](https://github.com/lightdash/lightdash/compare/0.1492.1...0.1492.2) (2025-02-12)
+
+
+### Bug Fixes
+
+* change diff and resize modal ([#13634](https://github.com/lightdash/lightdash/issues/13634)) ([3a984bc](https://github.com/lightdash/lightdash/commit/3a984bc40b43e597a729c8ae2b79cf2487b0dc46))
+* content as code offset ([#13652](https://github.com/lightdash/lightdash/issues/13652)) ([b5d645e](https://github.com/lightdash/lightdash/commit/b5d645e96c70e663ee5984ae1fe39330a9ee6020))
+
 ## [0.1492.1](https://github.com/lightdash/lightdash/compare/0.1492.0...0.1492.1) (2025-02-12)
 
 
