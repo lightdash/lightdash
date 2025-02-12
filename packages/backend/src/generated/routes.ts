@@ -726,6 +726,78 @@ const models: TsoaRoute.Models = {
         enums: ['some', 'all', 'none'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CommonEmbedJwtContent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                canExportPagePdf: { dataType: 'boolean' },
+                canDateZoom: { dataType: 'boolean' },
+                canExportImages: { dataType: 'boolean' },
+                canExportCsv: { dataType: 'boolean' },
+                dashboardFiltersInteractivity: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        allowedFilters: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        enabled: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'FilterInteractivityValues' },
+                                { dataType: 'boolean' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+                isPreview: { dataType: 'boolean' },
+                projectUuid: { dataType: 'string' },
+                type: {
+                    dataType: 'enum',
+                    enums: ['dashboard'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedJwtContentDashboardUuid: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonEmbedJwtContent' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedJwtContentDashboardSlug: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonEmbedJwtContent' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardSlug: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateEmbedJwt: {
         dataType: 'refAlias',
         type: {
@@ -745,38 +817,11 @@ const models: TsoaRoute.Models = {
                     additionalProperties: { dataType: 'string' },
                 },
                 content: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        canExportPagePdf: { dataType: 'boolean' },
-                        canDateZoom: { dataType: 'boolean' },
-                        canExportImages: { dataType: 'boolean' },
-                        canExportCsv: { dataType: 'boolean' },
-                        dashboardFiltersInteractivity: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                allowedFilters: {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                },
-                                enabled: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { ref: 'FilterInteractivityValues' },
-                                        { dataType: 'boolean' },
-                                    ],
-                                    required: true,
-                                },
-                            },
-                        },
-                        isPreview: { dataType: 'boolean' },
-                        dashboardUuid: { dataType: 'string', required: true },
-                        projectUuid: { dataType: 'string' },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['dashboard'],
-                            required: true,
-                        },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'EmbedJwtContentDashboardUuid' },
+                        { ref: 'EmbedJwtContentDashboardSlug' },
+                    ],
                     required: true,
                 },
             },
