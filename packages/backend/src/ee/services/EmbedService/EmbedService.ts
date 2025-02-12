@@ -24,6 +24,7 @@ import {
     IntrinsicUserAttributes,
     MetricQuery,
     NotExistsError,
+    NotFoundError,
     ParameterError,
     QueryExecutionContext,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -303,12 +304,20 @@ export class EmbedService extends BaseService {
         projectUuid: string,
     ) {
         if (isDashboardSlugContent(decodedToken.content)) {
-            const dashboard = await this.dashboardModel.find({
-                projectUuid,
-                slug: decodedToken.content.dashboardSlug,
-            });
+            const dashboard = (
+                await this.dashboardModel.find({
+                    projectUuid,
+                    slug: decodedToken.content.dashboardSlug,
+                })
+            )[0];
 
-            return dashboard[0]?.uuid;
+            if (!dashboard) {
+                throw new NotFoundError(
+                    `Dashboard ${decodedToken.content.dashboardSlug} not found`,
+                );
+            }
+
+            return dashboard.uuid;
         }
 
         return decodedToken.content.dashboardUuid;

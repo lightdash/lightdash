@@ -1,6 +1,7 @@
 import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
+    isDashboardUuidContent,
     type CreateEmbedJwt,
 } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
@@ -190,7 +191,9 @@ const getCodeSnippet = (
         .replace('{{expiresIn}}', data.expiresIn || '1 hour')
         .replace(
             '{{dashboardUuid}}',
-            data.content.dashboardUuid || '{{your dashboard uuid}}',
+            isDashboardUuidContent(data.content)
+                ? data.content.dashboardUuid
+                : '{{your dashboard uuid}}',
         )
         .replace(
             '{{userAttributes}}',
