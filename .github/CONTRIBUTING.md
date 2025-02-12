@@ -319,9 +319,15 @@ brew services start postgresql@14
 # export PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
 git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd ..
 
-# 5 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
-brew tap dbt-labs/dbt
-brew install dbt-postgres@1.5.4
+# 5 Install dbt using pip
+# Detailed installation guide available here: https://docs.getdbt.com/docs/core/pip-install
+# Create python virtual env
+python3 -m venv env-lightdash # or your preferred env name
+# Activate the env
+# You can deactivate python virtual env by running `deactivate` later
+source env-lightdash/bin/activate
+
+python -m pip install dbt-postgres==1.4.9
 
 # 6 Clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
