@@ -288,6 +288,7 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 -   node >= v18.x (20 is preferred)
+-   python >= 3.3
 -   pnpm
 -   postgres >= 12
 -   dbt 1.4.x or 1.5.x
