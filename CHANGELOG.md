@@ -1,3 +1,10 @@
+## [0.1492.1](https://github.com/lightdash/lightdash/compare/0.1492.0...0.1492.1) (2025-02-12)
+
+
+### Bug Fixes
+
+* error toast layout ([#13644](https://github.com/lightdash/lightdash/issues/13644)) ([4257e19](https://github.com/lightdash/lightdash/commit/4257e19fb55bfc8ab7390b05120510b34370ea03))
+
 # [0.1492.0](https://github.com/lightdash/lightdash/compare/0.1491.4...0.1492.0) (2025-02-12)
 
 
