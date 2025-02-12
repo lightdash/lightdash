@@ -63,7 +63,10 @@ const SdkProviders: FC<
             <MantineProvider
                 themeOverride={{
                     fontFamily: styles?.fontFamily,
-                    other: { tableFont: styles?.fontFamily },
+                    other: {
+                        tableFont: styles?.fontFamily,
+                        chartFont: styles?.fontFamily,
+                    },
                 }}
             >
                 <AppProvider>

@@ -1915,7 +1915,7 @@ const useEchartsCartesianConfig = (
                 ),
             },
             textStyle: {
-                fontFamily: theme?.fontFamily as string | undefined,
+                fontFamily: theme?.other.chartFont as string | undefined,
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],
@@ -1932,7 +1932,7 @@ const useEchartsCartesianConfig = (
             series,
             sortedResults,
             tooltip,
-            theme.fontFamily,
+            theme?.other?.chartFont,
         ],
     );
 
