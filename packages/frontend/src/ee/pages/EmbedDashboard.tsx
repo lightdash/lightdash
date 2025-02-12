@@ -346,10 +346,6 @@ const EmbedDashboard: FC<EmbedDashboardProps> = ({ filters }) => {
         (c) => c.allFilterableFieldsMap,
     );
 
-    console.log('filters', filters);
-
-    console.log('allFilterableFieldsMap', allFilterableFieldsMap);
-
     const sdkDashboardFilters = useMemo(() => {
         const dimensionFilters = filters
             ?.map((filter) => {
@@ -361,9 +357,9 @@ const EmbedDashboard: FC<EmbedDashboardProps> = ({ filters }) => {
                 const field = allFilterableFieldsMap[fieldId];
 
                 if (!field) {
+                    console.warn(`Field ${filter.field} not found`, filter);
                     console.warn(
-                        `Field ${filter.field} not found`,
-                        filter,
+                        `Here are all the fields:`,
                         allFilterableFieldsMap,
                     );
                     return null;
@@ -396,8 +392,6 @@ const EmbedDashboard: FC<EmbedDashboardProps> = ({ filters }) => {
             tableCalculations: [],
         };
     }, [filters, allFilterableFieldsMap]);
-
-    console.log('sdkDashboardFilters', sdkDashboardFilters);
 
     useEffect(() => {
         if (sdkDashboardFilters) {
