@@ -2,6 +2,12 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment';
 import {
+    format as formatWithExpression,
+    isDateFormat,
+    isTextFormat,
+    isValidFormat,
+} from 'numfmt';
+import {
     CustomFormatType,
     DimensionType,
     Format,
@@ -11,6 +17,8 @@ import {
     findCompactConfig,
     isCustomSqlDimension,
     isDimension,
+    isField,
+    isFormat,
     isMetric,
     isTableCalculation,
     type CompactOrAlias,
@@ -18,6 +26,7 @@ import {
     type CustomFormat,
     type Dimension,
     type Field,
+    type Item,
     type TableCalculation,
 } from '../types/field';
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
@@ -240,7 +249,7 @@ export function getCustomFormatFromLegacy({
     compact,
     round,
 }: {
-    format?: Format;
+    format?: Format | string;
     compact?: CompactOrAlias;
     round?: number;
 }): CustomFormat {
@@ -418,6 +427,206 @@ export function applyCustomFormat(
     }
 }
 
+export function hasValidFormatExpression<
+    T extends
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | Dimension,
+>(item: T | undefined): item is T & { format: string } {
+    // filter out legacy format that might be valid expressions. eg: usd
+    return (
+        isField(item) &&
+        !!item.format &&
+        !isFormat(item.format) &&
+        isValidFormat(item.format)
+    );
+}
+
+const customFormatConversionFnMap: Record<
+    string,
+    (formatExpression: string, format: CustomFormat) => string
+> = {
+    separator: (formatExpression, format) => {
+        if (
+            !format.separator ||
+            format.separator !== NumberSeparator.NO_SEPARATOR_PERIOD
+        ) {
+            // Add thousands separator by default
+            // Note: we don't support specific separators characters. This depends on the locale which we don't support as we format values in the server atm.
+            return `#,##0`;
+        }
+        return formatExpression;
+    },
+    currency: (formatExpression, format) => {
+        if (format.currency) {
+            const mockAmount = 1;
+            const mockCurrencyValue = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: format.currency,
+            }).format(mockAmount);
+            // get the currency symbol/prefix + replace NBSP char
+            const currencySymbolPrefix = mockCurrencyValue
+                .substring(0, mockCurrencyValue.indexOf(mockAmount.toString()))
+                .replace(/\u00A0/, ' ');
+            return `[$${currencySymbolPrefix}]${formatExpression}`;
+        }
+        return formatExpression;
+    },
+    prefix: (formatExpression, format) => {
+        if (format.prefix) {
+            return `"${format.prefix}"${formatExpression}`;
+        }
+        return formatExpression;
+    },
+    round: (formatExpression, format) => {
+        let round = 2;
+        if (format.round !== undefined) {
+            round = format.round;
+        } else if (
+            format.type === CustomFormatType.CURRENCY &&
+            format.currency
+        ) {
+            const mockCurrencyValue = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: format.currency,
+            }).format(1);
+            // find how many round decimals the currency has
+            round = mockCurrencyValue.includes('.')
+                ? mockCurrencyValue.split('.')[1].length
+                : 0;
+        } else if (format.type === CustomFormatType.NUMBER) {
+            round = 3; // Note: I believe this was a bug in the old implementation, but we'll keep it for now
+        }
+        if (round > 0) {
+            return `${formatExpression}.${'0'.repeat(round)}`;
+        }
+        return formatExpression;
+    },
+    compact: (formatExpression, format) => {
+        if (format.compact) {
+            const compactConfig = findCompactConfig(format.compact);
+            if (compactConfig) {
+                return `${formatExpression}${','.repeat(
+                    compactConfig.orderOfMagnitude / 3,
+                )}"${compactConfig.suffix}"`;
+            }
+        }
+        return formatExpression;
+    },
+    percentage: (formatExpression) => `${formatExpression}%`,
+    suffix: (formatExpression, format) => {
+        if (format.suffix) {
+            return `${formatExpression}"${format.suffix}"`;
+        }
+        return formatExpression;
+    },
+};
+
+export function convertCustomFormatToFormatExpression(
+    format: CustomFormat,
+): string | null {
+    // ECMA-376 format expression
+    let defaultFormatExpression: string | null = null;
+    let conversions: Array<string> = [];
+    switch (format.type) {
+        case CustomFormatType.DEFAULT: {
+            // No format expression needed
+            break;
+        }
+        case CustomFormatType.CURRENCY: {
+            defaultFormatExpression = '0';
+            conversions = ['separator', 'currency', 'round', 'compact'];
+            break;
+        }
+        case CustomFormatType.PERCENT: {
+            defaultFormatExpression = '0';
+            conversions = ['separator', 'round', 'percentage'];
+            break;
+        }
+        case CustomFormatType.NUMBER: {
+            defaultFormatExpression = `0`;
+            conversions = ['separator', 'prefix', 'round', 'compact', 'suffix'];
+            break;
+        }
+        case CustomFormatType.ID:
+        case CustomFormatType.DATE:
+        case CustomFormatType.TIMESTAMP: {
+            // No implementation yet
+            break;
+        }
+        default: {
+            return assertUnreachable(
+                format.type,
+                `Cannot recognise ${format.type} format type`,
+            );
+        }
+    }
+    if (defaultFormatExpression === null) {
+        return defaultFormatExpression;
+    }
+    // Apply conversions
+    return conversions.reduce<string>(
+        (expression, fnKey) =>
+            customFormatConversionFnMap[fnKey](expression, format),
+        defaultFormatExpression,
+    );
+}
+
+export function getFormatExpression(
+    item: Item | AdditionalMetric,
+): string | undefined {
+    if (hasValidFormatExpression(item)) {
+        return item.format;
+    }
+    const customFormat = getCustomFormat(item);
+    return customFormat
+        ? convertCustomFormatToFormatExpression(customFormat) || undefined
+        : undefined;
+}
+
+export function formatValueWithExpression(expression: string, value: unknown) {
+    try {
+        let sanitizedValue = value;
+
+        if (typeof value === 'bigint') {
+            if (
+                value <= Number.MAX_SAFE_INTEGER &&
+                value >= Number.MIN_SAFE_INTEGER
+            ) {
+                sanitizedValue = Number(value);
+            } else {
+                throw new Error(
+                    "Can't format value as BigInt is out of safe integer range",
+                );
+            }
+        }
+
+        // format date
+        if (isDateFormat(expression)) {
+            if (!isMomentInput(sanitizedValue)) {
+                return 'NaT';
+            }
+            return formatWithExpression(
+                expression,
+                moment(sanitizedValue).toDate(),
+            );
+        }
+
+        // format text
+        if (isTextFormat(expression)) {
+            return formatWithExpression(expression, sanitizedValue);
+        }
+
+        // format number
+        return formatWithExpression(expression, Number(sanitizedValue));
+    } catch (e) {
+        console.log('Error formatting value with expression', e);
+        return `${value}`;
+    }
+}
+
 export function formatItemValue(
     item:
         | Field
@@ -431,8 +640,11 @@ export function formatItemValue(
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-
     if (item) {
+        if (hasValidFormatExpression(item)) {
+            return formatValueWithExpression(item.format, value);
+        }
+
         const customFormat = getCustomFormat(item);
 
         if (isCustomSqlDimension(item) || 'type' in item) {

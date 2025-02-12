@@ -1,3 +1,79 @@
+## [0.1491.4](https://github.com/lightdash/lightdash/compare/0.1491.3...0.1491.4) (2025-02-12)
+
+
+### Bug Fixes
+
+* cast font family to string ([#13646](https://github.com/lightdash/lightdash/issues/13646)) ([84ee80b](https://github.com/lightdash/lightdash/commit/84ee80bf9dc5aa2f979f8aa98fd0517080fa40c6))
+
+## [0.1491.3](https://github.com/lightdash/lightdash/compare/0.1491.2...0.1491.3) (2025-02-12)
+
+
+### Bug Fixes
+
+* **frontend:** Do not open boolean filter input by default when disabled or value already set ([#13606](https://github.com/lightdash/lightdash/issues/13606)) ([f5d7363](https://github.com/lightdash/lightdash/commit/f5d73631299fde7f5ee8ea2c3e8c3f0092aaba4a))
+
+## [0.1491.2](https://github.com/lightdash/lightdash/compare/0.1491.1...0.1491.2) (2025-02-12)
+
+
+### Bug Fixes
+
+* format series values ([#13643](https://github.com/lightdash/lightdash/issues/13643)) ([6ae7327](https://github.com/lightdash/lightdash/commit/6ae7327f22a026c883403b10fa8121ea98ab6df1))
+
+## [0.1491.1](https://github.com/lightdash/lightdash/compare/0.1491.0...0.1491.1) (2025-02-12)
+
+
+### Bug Fixes
+
+* add slash to lightdash URL when not present ([#13628](https://github.com/lightdash/lightdash/issues/13628)) ([dbf7dce](https://github.com/lightdash/lightdash/commit/dbf7dce7c1b7b9f3aa41732f93118449f315e566))
+
+# [0.1491.0](https://github.com/lightdash/lightdash/compare/0.1490.0...0.1491.0) (2025-02-12)
+
+
+### Features
+
+* enable overriding fonts and bg in sdk ([#13627](https://github.com/lightdash/lightdash/issues/13627)) ([4fd39a0](https://github.com/lightdash/lightdash/commit/4fd39a094e2c60ac3945d1cd76361475793ab3d3))
+
+# [0.1490.0](https://github.com/lightdash/lightdash/compare/0.1489.0...0.1490.0) (2025-02-12)
+
+
+### Features
+
+* write custom metric to dbt with format expression ([#13629](https://github.com/lightdash/lightdash/issues/13629)) ([2dfe169](https://github.com/lightdash/lightdash/commit/2dfe169768cb0de528cffccc817e08dbd42abd8f))
+
+# [0.1489.0](https://github.com/lightdash/lightdash/compare/0.1488.0...0.1489.0) (2025-02-11)
+
+
+### Features
+
+* support ECMA-376 formatting ([#13597](https://github.com/lightdash/lightdash/issues/13597)) ([36a503d](https://github.com/lightdash/lightdash/commit/36a503d3a365f36ec2d9508a9cbe26521068697f))
+
+# [0.1488.0](https://github.com/lightdash/lightdash/compare/0.1487.0...0.1488.0) (2025-02-11)
+
+
+### Features
+
+* display sql & type on metric hover ([#13625](https://github.com/lightdash/lightdash/issues/13625)) ([8a3fd73](https://github.com/lightdash/lightdash/commit/8a3fd73566cd51870301895a774d8eb93c6a9c94))
+
+# [0.1487.0](https://github.com/lightdash/lightdash/compare/0.1486.1...0.1487.0) (2025-02-11)
+
+
+### Bug Fixes
+
+* allow devs to download ([#13609](https://github.com/lightdash/lightdash/issues/13609)) ([a8f44ac](https://github.com/lightdash/lightdash/commit/a8f44ac81f95fb45afc89396ad5134938b33915a))
+* multiline descriptions ([#13616](https://github.com/lightdash/lightdash/issues/13616)) ([8bb1d86](https://github.com/lightdash/lightdash/commit/8bb1d861a62bf5b225af9612bc1f3a07748d76ee))
+
+
+### Features
+
+* multiple custom metric modal ([#13599](https://github.com/lightdash/lightdash/issues/13599)) ([4975bbd](https://github.com/lightdash/lightdash/commit/4975bbd916b3bec133ea40b5165100d4684fbe44))
+
+## [0.1486.1](https://github.com/lightdash/lightdash/compare/0.1486.0...0.1486.1) (2025-02-11)
+
+
+### Bug Fixes
+
+* use getCatalog to get columns information when all arguments of get fields are available ([#13617](https://github.com/lightdash/lightdash/issues/13617)) ([e942681](https://github.com/lightdash/lightdash/commit/e942681896cc5fba2d1ee1d9196919258291d6a9))
+
 # [0.1486.0](https://github.com/lightdash/lightdash/compare/0.1485.1...0.1486.0) (2025-02-11)
 
 

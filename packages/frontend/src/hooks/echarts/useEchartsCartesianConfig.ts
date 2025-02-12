@@ -1,12 +1,10 @@
 import {
-    CartesianSeriesType,
-    DimensionType,
-    MetricType,
-    TableCalculationType,
-    TimeFrames,
     applyCustomFormat,
     assertUnreachable,
+    CartesianSeriesType,
+    DimensionType,
     formatItemValue,
+    formatValueWithExpression,
     friendlyName,
     getAxisName,
     getCustomFormatFromLegacy,
@@ -16,6 +14,7 @@ import {
     getResultValueArray,
     hasFormatting,
     hashFieldReference,
+    hasValidFormatExpression,
     isCompleteLayout,
     isCustomBinDimension,
     isCustomDimension,
@@ -26,17 +25,22 @@ import {
     isPivotReferenceWithValues,
     isTableCalculation,
     isTimeInterval,
+    MetricType,
+    TableCalculationType,
     timeFrameConfigs,
+    TimeFrames,
     type ApiQueryResults,
     type CartesianChart,
     type CustomDimension,
     type Field,
+    type Item,
     type ItemsMap,
     type PivotReference,
     type ResultRow,
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
+import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
 import {
     type DefaultLabelFormatterCallbackParams,
@@ -581,6 +585,27 @@ type GetPivotSeriesArg = {
     pivotReference: Required<PivotReference>;
 };
 
+const seriesValueFormatter = (item: Item, value: unknown) => {
+    if (hasValidFormatExpression(item)) {
+        return formatValueWithExpression(item.format, value);
+    }
+
+    if (isCustomDimension(item)) {
+        return value;
+    }
+    if (isTableCalculation(item)) {
+        return formatItemValue(item, value);
+    } else {
+        const defaultFormatOptions = getCustomFormatFromLegacy({
+            format: item.format,
+            round: item.round,
+            compact: item.compact,
+        });
+        const formatOptions = isMetric(item) ? item.formatOptions : undefined;
+        return applyCustomFormat(value, formatOptions || defaultFormatOptions);
+    }
+};
+
 const getPivotSeries = ({
     series,
     pivotReference,
@@ -641,30 +666,8 @@ const getPivotSeries = ({
                     itemsMap[series.encode.yRef.field] && {
                         formatter: (value: any) => {
                             const field = itemsMap[series.encode.yRef.field];
-
-                            if (isCustomDimension(field)) {
-                                return value;
-                            }
-                            if (isTableCalculation(field)) {
-                                return formatItemValue(
-                                    field,
-                                    value?.value?.[yFieldHash],
-                                );
-                            } else {
-                                const defaultFormatOptions =
-                                    getCustomFormatFromLegacy({
-                                        format: field.format,
-                                        round: field.round,
-                                        compact: field.compact,
-                                    });
-                                const formatOptions = isMetric(field)
-                                    ? field.formatOptions
-                                    : undefined;
-                                return applyCustomFormat(
-                                    value?.value?.[yFieldHash],
-                                    formatOptions || defaultFormatOptions,
-                                );
-                            }
+                            const rawValue = value?.value?.[yFieldHash];
+                            return seriesValueFormatter(field, rawValue);
                         },
                     }),
             },
@@ -750,29 +753,8 @@ const getSimpleSeries = ({
                 itemsMap[yFieldHash] && {
                     formatter: (value: any) => {
                         const field = itemsMap[yFieldHash];
-                        if (isCustomDimension(field)) {
-                            return value;
-                        }
-                        if (isTableCalculation(field)) {
-                            return formatItemValue(
-                                field,
-                                value?.value?.[yFieldHash],
-                            );
-                        } else {
-                            const defaultFormatOptions =
-                                getCustomFormatFromLegacy({
-                                    format: field.format,
-                                    round: field.round,
-                                    compact: field.compact,
-                                });
-                            const formatOptions = isMetric(field)
-                                ? field.formatOptions
-                                : undefined;
-                            return applyCustomFormat(
-                                value?.value?.[yFieldHash],
-                                formatOptions || defaultFormatOptions,
-                            );
-                        }
+                        const rawValue = value?.value?.[yFieldHash];
+                        return seriesValueFormatter(field, rawValue);
                     },
                 }),
         },
@@ -945,8 +927,12 @@ const getEchartAxes = ({
         rotate?: number;
         defaultNameGap?: number;
     }) => {
-        const hasFormattingConfig = hasFormatting(axisItem);
-
+        const isTimestamp =
+            isField(axisItem) &&
+            (axisItem.type === DimensionType.DATE ||
+                axisItem.type === DimensionType.TIMESTAMP);
+        // Only apply axis formatting if the axis is NOT a date or timestamp
+        const hasFormattingConfig = !isTimestamp && hasFormatting(axisItem);
         const axisMinInterval =
             isDimension(axisItem) &&
             axisItem.timeInterval &&
@@ -1590,6 +1576,8 @@ const useEchartsCartesianConfig = (
         minimal,
     } = useVisualizationContext();
 
+    const theme = useMantineTheme();
+
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
@@ -1926,6 +1914,9 @@ const useEchartsCartesianConfig = (
                     validCartesianConfig?.eChartsConfig.grid,
                 ),
             },
+            textStyle: {
+                fontFamily: theme?.fontFamily as string | undefined,
+            },
             // We assign colors per series, so we specify an empty list here.
             color: [],
         }),
@@ -1941,6 +1932,7 @@ const useEchartsCartesianConfig = (
             series,
             sortedResults,
             tooltip,
+            theme.fontFamily,
         ],
     );
 

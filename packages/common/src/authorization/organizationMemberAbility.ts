@@ -252,6 +252,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'SpotlightTableConfig', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });

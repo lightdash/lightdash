@@ -1293,7 +1293,7 @@ const ExplorerProvider: FC<
     );
 
     const toggleAdditionalMetricWriteBackModal = useCallback(
-        (args?: { item?: AdditionalMetric }) => {
+        (args?: { items?: AdditionalMetric[]; multiple?: boolean }) => {
             dispatch({
                 type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
                 payload: args,

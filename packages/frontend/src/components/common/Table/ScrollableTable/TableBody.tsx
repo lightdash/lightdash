@@ -80,6 +80,14 @@ const TableRow: FC<TableRowProps> = ({
                         getColorFromRange,
                     });
 
+                // Frozen/locked rows should have a white background, unless there is a conditional formatting color
+                let backgroundColor: string | undefined;
+                if (conditionalFormattingColor) {
+                    backgroundColor = conditionalFormattingColor;
+                } else if (meta?.frozen) {
+                    backgroundColor = 'white';
+                }
+
                 const tooltipContent = getConditionalFormattingDescription(
                     field,
                     conditionalFormattingConfig,
@@ -101,7 +109,7 @@ const TableRow: FC<TableRowProps> = ({
                         minimal={minimal}
                         key={cell.id}
                         style={meta?.style}
-                        backgroundColor={conditionalFormattingColor}
+                        backgroundColor={backgroundColor}
                         fontColor={fontColor}
                         className={meta?.className}
                         index={index}
