@@ -222,9 +222,6 @@ importers:
       csv-stringify:
         specifier: ^6.2.4
         version: 6.5.1
-      diff:
-        specifier: ^7.0.0
-        version: 7.0.0
       duckdb-async:
         specifier: ^0.10.2
         version: 0.10.2(encoding@0.1.13)
@@ -828,6 +825,9 @@ importers:
       immer:
         specifier: ^10.1.1
         version: 10.1.1
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.0
       jspdf:
         specifier: ^2.5.1
         version: 2.5.1
@@ -967,6 +967,9 @@ importers:
       '@types/isomorphic-fetch':
         specifier: ^0.0.39
         version: 0.0.39
+      '@types/js-yaml':
+        specifier: ^4.0.1
+        version: 4.0.9
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.14.202
@@ -6100,10 +6103,6 @@ packages:
 
   diff@4.0.2:
     resolution: {integrity: sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==}
-    engines: {node: '>=0.3.1'}
-
-  diff@7.0.0:
-    resolution: {integrity: sha512-PJWHUb1RFevKCwaFA9RlG5tCd+FO5iRh9A8HEtkmBH2Li03iJriB6m6JIN4rGz3K3JLawI7/veA1xzRKP6ISBw==}
     engines: {node: '>=0.3.1'}
 
   dir-glob@3.0.1:
@@ -18551,8 +18550,6 @@ snapshots:
   diff-sequences@29.6.3: {}
 
   diff@4.0.2: {}
-
-  diff@7.0.0: {}
 
   dir-glob@3.0.1:
     dependencies:

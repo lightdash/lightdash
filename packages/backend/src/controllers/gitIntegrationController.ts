@@ -2,7 +2,6 @@ import {
     AdditionalMetric,
     ApiErrorPayload,
     GitIntegrationConfiguration,
-    PreviewPullRequest,
     PullRequestCreated,
 } from '@lightdash/common';
 import {
@@ -75,37 +74,6 @@ export class GitIntegrationController extends BaseController {
             results: await this.services
                 .getGitIntegrationService()
                 .createPullRequestForCustomMetrics(
-                    req.user!,
-                    projectUuid,
-                    body.customMetrics,
-                    body.quoteChar || '"',
-                ),
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post('/preview/custom-metrics')
-    @OperationId('PreviewPullRequestForCustomMetrics')
-    async PreviewPullRequestForCustomMetrics(
-        @Path() projectUuid: string,
-        @Body()
-        body: {
-            customMetrics: AdditionalMetric[];
-            quoteChar?: `"` | `'`; // to be used in the yml dump options
-        },
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: PreviewPullRequest }> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getGitIntegrationService()
-                .previewPullRequestForCustomMetrics(
                     req.user!,
                     projectUuid,
                     body.customMetrics,
