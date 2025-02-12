@@ -1,3 +1,10 @@
+## [0.1492.4](https://github.com/lightdash/lightdash/compare/0.1492.3...0.1492.4) (2025-02-12)
+
+
+### Bug Fixes
+
+* week num values ([#13623](https://github.com/lightdash/lightdash/issues/13623)) ([6af799f](https://github.com/lightdash/lightdash/commit/6af799f772a1940e52103435f20ca46dd45ac890))
+
 ## [0.1492.3](https://github.com/lightdash/lightdash/compare/0.1492.2...0.1492.3) (2025-02-12)
 
 
