@@ -3,6 +3,7 @@
 
 import { MemoryRouter } from 'react-router';
 
+import { FilterOperator } from '@lightdash/common';
 import EmbedDashboard, { type SdkFilter } from '../ee/pages/EmbedDashboard';
 import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
@@ -25,6 +26,7 @@ export {
     EmbedDashboard,
     EmbedProvider,
     ErrorBoundary,
+    FilterOperator,
     FullscreenProvider,
     LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     MantineProvider,
