@@ -1111,7 +1111,7 @@ export type GithubInstallEvent = BaseTrack & {
 };
 
 export type WriteBackEvent = BaseTrack & {
-    event: 'write_back.created';
+    event: 'write_back.created' | 'write_back.previewed';
     userId: string;
     properties: {
         name: string;
