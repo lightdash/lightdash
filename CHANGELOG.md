@@ -1,3 +1,10 @@
+## [0.1491.2](https://github.com/lightdash/lightdash/compare/0.1491.1...0.1491.2) (2025-02-12)
+
+
+### Bug Fixes
+
+* format series values ([#13643](https://github.com/lightdash/lightdash/issues/13643)) ([6ae7327](https://github.com/lightdash/lightdash/commit/6ae7327f22a026c883403b10fa8121ea98ab6df1))
+
 ## [0.1491.1](https://github.com/lightdash/lightdash/compare/0.1491.0...0.1491.1) (2025-02-12)
 
 
