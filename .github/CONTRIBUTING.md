@@ -309,13 +309,15 @@ nvm install v20.8.0
 nvm alias default v20.8.0
 
 # 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
-
-# pgvector is an extension for postgres we use in Lightdash, it needs to be installed separately 
-# More info about this extension and a detailed installation guide available here: https://github.com/pgvector/pgvector
-# on Linux, you can install `postgresql-14-pgvector`, available on apt
-git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd .. 
 brew install postgresql@14
 brew services start postgresql@14
+
+# pgvector is an extension for postgres we use in Lightdash, it needs to be installed separately
+# More info about this extension and a detailed installation guide available here: https://github.com/pgvector/pgvector
+# on Linux, you can install `postgresql-14-pgvector`, available on apt
+# You might need to point pgvector to a correct postgres instance if you have multiple versions installed
+# export PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd ..
 
 # 5 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
 brew tap dbt-labs/dbt
