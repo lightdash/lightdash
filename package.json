@@ -109,8 +109,9 @@
         "danger-local-lint": "danger -b main -f",
         "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present",
         "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
-        "clean-build": "./scripts/clean-builds.sh",
-        "clean": "pnpm clean-build && pnpm clean-node-modules"
+        "clean-build-cache": "./scripts/clean-build-cache.sh",
+        "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
+        "clean-and-build": "pnpm clean && pnpm build"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
