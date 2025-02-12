@@ -61,9 +61,9 @@ type GithubProps = {
     owner: string;
     repo: string;
     branch: string;
-    token: string;
     path: string;
-    installationId: string;
+    token: string; // Either a bot token from InstallationId or a personal access token from the project
+    installationId?: string; // For github requests using the installation id as a bot
     mainBranch: string;
     quoteChar: `"` | `'`;
 };
@@ -169,7 +169,6 @@ export class GitIntegrationService extends BaseService {
         repo,
         mainBranch,
         token,
-        installationId,
         branch,
     }: {
         branch: string;
@@ -177,7 +176,6 @@ export class GitIntegrationService extends BaseService {
         repo: string;
         mainBranch: string;
         token: string;
-        installationId: string;
     }) {
         const { sha: commitSha } = await getLastCommit({
             owner,
@@ -194,7 +192,7 @@ export class GitIntegrationService extends BaseService {
             owner,
             repo,
             sha: commitSha,
-            installationId,
+            token,
         });
         Logger.debug(
             `Successfully created branch ${branch} in ${owner}/${repo}`,
@@ -490,79 +488,6 @@ Affected charts:
         return newToken;
     }
 
-    async createPullRequestForChartFields(
-        user: SessionUser,
-        projectUuid: string,
-        chartUuid: string,
-    ): Promise<PullRequestCreated> {
-        const chartDao = await this.savedChartModel.get(chartUuid);
-        const space = await this.spaceModel.getSpaceSummary(chartDao.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            chartDao.spaceUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('SavedChart', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const customMetrics = chartDao.metricQuery.additionalMetrics;
-        if (customMetrics === undefined || customMetrics.length === 0)
-            throw new Error('Missing custom metrics');
-
-        const { owner, repo, branch, path } = await this.getProjectRepo(
-            projectUuid,
-        );
-        const token = await this.getOrUpdateToken(user.organizationUuid!);
-
-        const installationId = await this.getInstallationId(user);
-        const branchName = `add-custom-metrics-${Date.now()}`;
-
-        await GitIntegrationService.createBranch({
-            branch: branchName,
-            owner,
-            repo,
-            mainBranch: branch,
-            token,
-            installationId,
-        });
-
-        await this.updateFileForCustomMetrics({
-            owner,
-            customMetrics,
-            repo,
-            path,
-            projectUuid,
-            branch,
-            token,
-        });
-
-        const chart = {
-            ...chartDao,
-            isPrivate: space.isPrivate,
-            access,
-        };
-
-        return this.getPullRequestDetails({
-            user,
-            customMetrics: customMetrics || [],
-            owner,
-            repo,
-            mainBranch: branch,
-            branchName,
-            chart,
-            projectUuid,
-        });
-    }
-
     /*
     Gets all the information needed to create a branch and a pull request
     - owner: The owner of the repository
@@ -570,7 +495,8 @@ Affected charts:
     - branch: A unique generated branch name (eg: lightdash-johndoe-1234)
     - mainBranch: The original branch of the project (eg: main)
     - path: The path to the project (eg: lightdash/dbt)
-    - installationId: The installation id of the user
+    - token: The token to use for the Git requests, it can be either an installation token (Github integration) or a personal access token (project settings)
+    - installationId: Optional, The installation id of the user
     - quoteChar: The quote character to use when replacing YML content ("" or "'")
     */
     private async getGithubProps(
@@ -581,9 +507,22 @@ Affected charts:
         const { owner, repo, branch, path } = await this.getProjectRepo(
             projectUuid,
         );
-        const installationId = await this.getInstallationId(user);
+        let token: string = '';
+        let installationId: string | undefined;
+        try {
+            installationId = await this.getInstallationId(user); // This should throw an error if there is no github installation
+            token = await this.getOrUpdateToken(user.organizationUuid!);
+        } catch {
+            const project = await this.projectModel.getWithSensitiveFields(
+                projectUuid,
+            );
+            if (project.dbtConnection.type === DbtProjectType.GITHUB) {
+                token = project.dbtConnection.personal_access_token;
+            } else {
+                throw new ParameterError('No github project found');
+            }
+        }
 
-        const token = await this.getOrUpdateToken(user.organizationUuid!);
         const userName = `${snakeCaseName(
             user.firstName[0] || '',
         )}${snakeCaseName(user.lastName)}`;
@@ -677,6 +616,7 @@ Affected charts:
         ) {
             throw new ForbiddenError();
         }
+
         const githubProps = await this.getGithubProps(
             user,
             projectUuid,
