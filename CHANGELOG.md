@@ -1,3 +1,10 @@
+# [0.1494.0](https://github.com/lightdash/lightdash/compare/0.1493.1...0.1494.0) (2025-02-12)
+
+
+### Features
+
+* reference dashboard via slug in embed ([#13645](https://github.com/lightdash/lightdash/issues/13645)) ([33848ca](https://github.com/lightdash/lightdash/commit/33848cad8844c7970feda80acd9084cf3c30dac8))
+
 ## [0.1493.1](https://github.com/lightdash/lightdash/compare/0.1493.0...0.1493.1) (2025-02-12)
 
 
