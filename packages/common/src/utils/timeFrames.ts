@@ -149,21 +149,11 @@ const bigqueryConfig: WarehouseConfig = {
 const snowflakeConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
-    getSqlForDatePart: (
-        timeFrame: TimeFrames,
-        originalSql: string,
-        _,
-        startOfWeek,
-    ) => {
+    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
 
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
-        }
-
-        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
-            const intervalDiff = `${startOfWeek} days`;
-            return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
         }
 
         return `DATE_PART('${datePart}', ${originalSql})`;
