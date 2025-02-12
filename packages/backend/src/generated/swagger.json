@@ -711,6 +711,89 @@
                 "enum": ["some", "all", "none"],
                 "type": "string"
             },
+            "CommonEmbedJwtContent": {
+                "properties": {
+                    "canExportPagePdf": {
+                        "type": "boolean"
+                    },
+                    "canDateZoom": {
+                        "type": "boolean"
+                    },
+                    "canExportImages": {
+                        "type": "boolean"
+                    },
+                    "canExportCsv": {
+                        "type": "boolean"
+                    },
+                    "dashboardFiltersInteractivity": {
+                        "properties": {
+                            "allowedFilters": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "enabled": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/FilterInteractivityValues"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["enabled"],
+                        "type": "object"
+                    },
+                    "isPreview": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["dashboard"],
+                        "nullable": false
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "EmbedJwtContentDashboardUuid": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonEmbedJwtContent"
+                    },
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dashboardUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "EmbedJwtContentDashboardSlug": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonEmbedJwtContent"
+                    },
+                    {
+                        "properties": {
+                            "dashboardSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dashboardSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
             "CreateEmbedJwt": {
                 "properties": {
                     "expiresIn": {
@@ -735,58 +818,14 @@
                         "type": "object"
                     },
                     "content": {
-                        "properties": {
-                            "canExportPagePdf": {
-                                "type": "boolean"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentDashboardUuid"
                             },
-                            "canDateZoom": {
-                                "type": "boolean"
-                            },
-                            "canExportImages": {
-                                "type": "boolean"
-                            },
-                            "canExportCsv": {
-                                "type": "boolean"
-                            },
-                            "dashboardFiltersInteractivity": {
-                                "properties": {
-                                    "allowedFilters": {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "enabled": {
-                                        "anyOf": [
-                                            {
-                                                "$ref": "#/components/schemas/FilterInteractivityValues"
-                                            },
-                                            {
-                                                "type": "boolean"
-                                            }
-                                        ]
-                                    }
-                                },
-                                "required": ["enabled"],
-                                "type": "object"
-                            },
-                            "isPreview": {
-                                "type": "boolean"
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "projectUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentDashboardSlug"
                             }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
+                        ]
                     }
                 },
                 "required": ["content"],
@@ -3970,6 +4009,9 @@
                         "type": "string"
                     },
                     "ymlPath": {
+                        "type": "string"
+                    },
+                    "databricksCompute": {
                         "type": "string"
                     },
                     "warehouse": {
@@ -9422,6 +9464,21 @@
                     },
                     "httpPath": {
                         "type": "string"
+                    },
+                    "compute": {
+                        "items": {
+                            "properties": {
+                                "httpPath": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["httpPath", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": ["type", "database", "serverHostName", "httpPath"],
@@ -12826,6 +12883,9 @@
                     "targetDatabase": {
                         "$ref": "#/components/schemas/SupportedDbtAdapter"
                     },
+                    "databricksCompute": {
+                        "type": "string"
+                    },
                     "ymlPath": {
                         "type": "string"
                     },
@@ -14680,7 +14740,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1489.0",
+        "version": "0.1492.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
