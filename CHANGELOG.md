@@ -1,3 +1,10 @@
+## [0.1491.3](https://github.com/lightdash/lightdash/compare/0.1491.2...0.1491.3) (2025-02-12)
+
+
+### Bug Fixes
+
+* **frontend:** Do not open boolean filter input by default when disabled or value already set ([#13606](https://github.com/lightdash/lightdash/issues/13606)) ([f5d7363](https://github.com/lightdash/lightdash/commit/f5d73631299fde7f5ee8ea2c3e8c3f0092aaba4a))
+
 ## [0.1491.2](https://github.com/lightdash/lightdash/compare/0.1491.1...0.1491.2) (2025-02-12)
 
 
