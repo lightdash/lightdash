@@ -80,6 +80,16 @@ const MinimalDashboard: FC = () => {
         return undefined;
     }, [schedulerTabs]);
 
+    useEffect(() => {
+        if (selectedTabs) {
+            setActiveTab(
+                dashboard?.tabs.find((tab) =>
+                    selectedTabs.includes(tab.uuid),
+                ) ?? null,
+            );
+        }
+    }, [selectedTabs, dashboard?.tabs]);
+
     const generateTabUrl = useCallback(
         (tabId: string) =>
             `/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tabId}`,
