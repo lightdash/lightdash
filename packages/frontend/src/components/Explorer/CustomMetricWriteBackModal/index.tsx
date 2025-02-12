@@ -21,6 +21,60 @@ import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
 import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
 
+const CreatedPullRequestModalContent = ({
+    onClose,
+    data,
+}: {
+    onClose: () => void;
+    data: { prUrl: string };
+}) => {
+    return (
+        <Modal
+            size="xl"
+            onClick={(e) => e.stopPropagation()}
+            opened={true}
+            onClose={onClose}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon
+                        icon={IconBrandGithub}
+                        size="lg"
+                        color="gray.7"
+                    />
+                    <Text fw={500}>Write back to dbt</Text>
+                </Group>
+            }
+            styles={(theme) => ({
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            })}
+        >
+            <Stack p="md">
+                <Text>
+                    Your pull request{' '}
+                    <Anchor href={data.prUrl} target="_blank" span fw={700}>
+                        #{data.prUrl.split('/').pop()}
+                    </Anchor>{' '}
+                    was successfully created on Github.
+                    <Text pt="md">
+                        Once it is merged, refresh your dbt connection to see
+                        your updated metrics.
+                    </Text>
+                </Text>
+            </Stack>
+            <Group position="right" w="100%" p="md">
+                <Button
+                    color="gray.7"
+                    onClick={onClose}
+                    variant="outline"
+                    size="xs"
+                >
+                    Close
+                </Button>
+            </Group>
+        </Modal>
+    );
+};
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -47,6 +101,13 @@ const SingleCustomMetricModalContent = ({
             previewWriteBackCustomMetrics([item]);
         }
     }, [item, previewWriteBackCustomMetrics]);
+
+    if (data) {
+        // Return a simple confirmation modal with the PR URL
+        return (
+            <CreatedPullRequestModalContent data={data} onClose={handleClose} />
+        );
+    }
 
     return (
         <Modal
@@ -83,110 +144,73 @@ const SingleCustomMetricModalContent = ({
             })}
         >
             <Stack p="md">
-                {data ? (
-                    <>
-                        <Text>
-                            Your pull request{' '}
-                            <Anchor
-                                href={data.prUrl}
-                                target="_blank"
-                                span
-                                fw={700}
-                            >
-                                #{data.prUrl.split('/').pop()}
-                            </Anchor>{' '}
-                            was successfully created on Github.
-                            <Text pt="md">
-                                Once it is merged, refresh your dbt connection
-                                to see your updated metrics.
-                            </Text>
-                        </Text>
-                    </>
-                ) : (
-                    <>
-                        <Text>
-                            Create a pull request in your dbt project's GitHub
-                            repository for the following metric:
-                        </Text>
-                        <List spacing="xs" pl="xs">
-                            <List.Item fz="xs" ff="monospace">
-                                {item.label}
-                            </List.Item>
-                        </List>
-                        <CollapsableCard
-                            isOpen={showDiff}
-                            title={'Show metrics code'}
-                            onToggle={() => setShowDiff(!showDiff)}
-                        >
-                            {previewLoading ? (
-                                <Loader size="lg" color="gray" mt="xs" />
-                            ) : (
-                                <Stack ml={36}>
-                                    {previewData?.files?.map((file) => (
-                                        <>
-                                            <Group>
-                                                <Text>File:</Text>
-                                                <Text fw={600} key={file.file}>
-                                                    {file.file}
-                                                </Text>
-                                            </Group>
-                                            {file.diff.map((diff) => (
-                                                <Prism
-                                                    language="yaml"
-                                                    withLineNumbers
-                                                    trim={false}
-                                                    key={diff.value}
-                                                    // all lines are additions, no need to highlight
-                                                >
-                                                    {diff.value}
-                                                </Prism>
-                                            ))}
-                                        </>
+                <Text>
+                    Create a pull request in your dbt project's GitHub
+                    repository for the following metric:
+                </Text>
+                <List spacing="xs" pl="xs">
+                    <List.Item fz="xs" ff="monospace">
+                        {item.label}
+                    </List.Item>
+                </List>
+                <CollapsableCard
+                    isOpen={showDiff}
+                    title={'Show metrics code'}
+                    onToggle={() => setShowDiff(!showDiff)}
+                >
+                    {previewLoading ? (
+                        <Loader size="lg" color="gray" mt="xs" />
+                    ) : (
+                        <Stack ml={36}>
+                            {previewData?.files?.map((file) => (
+                                <>
+                                    <Group>
+                                        <Text>File:</Text>
+                                        <Text fw={600} key={file.file}>
+                                            {file.file}
+                                        </Text>
+                                    </Group>
+                                    {file.diff.map((diff) => (
+                                        <Prism
+                                            language="yaml"
+                                            withLineNumbers
+                                            trim={false}
+                                            key={diff.value}
+                                            // all lines are additions, no need to highlight
+                                        >
+                                            {diff.value}
+                                        </Prism>
                                     ))}
-                                </Stack>
-                            )}
-                        </CollapsableCard>
-                    </>
-                )}
+                                </>
+                            ))}
+                        </Stack>
+                    )}
+                </CollapsableCard>
             </Stack>
 
             <Group position="right" w="100%" p="md">
-                {data ? (
-                    <Button
-                        color="gray.7"
-                        onClick={handleClose}
-                        variant="outline"
-                        disabled={isLoading}
-                        size="xs"
-                    >
-                        Close
-                    </Button>
-                ) : (
-                    <>
-                        <Button
-                            color="gray.7"
-                            onClick={handleClose}
-                            variant="outline"
-                            disabled={isLoading}
-                            size="xs"
-                        >
-                            Cancel
-                        </Button>
+                <Button
+                    color="gray.7"
+                    onClick={handleClose}
+                    variant="outline"
+                    disabled={isLoading}
+                    size="xs"
+                >
+                    Cancel
+                </Button>
 
-                        <Button
-                            disabled={isLoading}
-                            size="xs"
-                            onClick={() => {
-                                if (!item) return;
-                                writeBackCustomMetrics([item]);
-                            }}
-                        >
-                            {isLoading
-                                ? 'Creating pull request...'
-                                : 'Open Pull Request'}
-                        </Button>
-                    </>
-                )}
+                <Button
+                    disabled={isLoading}
+                    size="xs"
+                    onClick={() => {
+                        if (!item) return;
+                        writeBackCustomMetrics([item]);
+                    }}
+                >
+                    {isLoading
+                        ? 'Creating pull request...'
+                        : 'Open Pull Request'}
+                </Button>
             </Group>
         </Modal>
     );
@@ -238,6 +262,14 @@ const MultipleCustomMetricModalContent = ({
             .map((line) => line.replace(minIndentation, ''))
             .join('\n');
     }, [selectedItems, previewData]);
+
+    if (data) {
+        // Return a simple confirmation modal with the PR URL
+        return (
+            <CreatedPullRequestModalContent data={data} onClose={handleClose} />
+        );
+    }
+
     return (
         <Modal
             size="xl"
@@ -270,6 +302,7 @@ const MultipleCustomMetricModalContent = ({
                 Create a pull request in your dbt project's GitHub repository
                 for the following metrics
             </Text>
+
             <Stack p="md">
                 <Group grow align="flex-start">
                     <Text>
@@ -338,53 +371,38 @@ const MultipleCustomMetricModalContent = ({
                     </Stack>
                 </Group>
             </Stack>
-            <Group position="right" w="100%" p="md">
-                {data ? (
-                    <Button
-                        color="gray.7"
-                        onClick={handleClose}
-                        variant="outline"
-                        disabled={isLoading}
-                        size="xs"
-                    >
-                        Close
-                    </Button>
-                ) : (
-                    <>
-                        <Button
-                            color="gray.7"
-                            onClick={handleClose}
-                            variant="outline"
-                            disabled={isLoading}
-                            size="xs"
-                        >
-                            Cancel
-                        </Button>
 
-                        <Tooltip
-                            label="Select metrics to open a pull request"
-                            disabled={selectedItems.length > 0}
+            <Group position="right" w="100%" p="md">
+                <Button
+                    color="gray.7"
+                    onClick={handleClose}
+                    variant="outline"
+                    disabled={isLoading}
+                    size="xs"
+                >
+                    Cancel
+                </Button>
+
+                <Tooltip
+                    label="Select metrics to open a pull request"
+                    disabled={selectedItems.length > 0}
+                >
+                    <div>
+                        {' '}
+                        <Button
+                            disabled={isLoading || selectedItems.length === 0}
+                            size="xs"
+                            onClick={() => {
+                                if (!items) return;
+                                writeBackCustomMetrics(items);
+                            }}
                         >
-                            <div>
-                                {' '}
-                                <Button
-                                    disabled={
-                                        isLoading || selectedItems.length === 0
-                                    }
-                                    size="xs"
-                                    onClick={() => {
-                                        if (!items) return;
-                                        writeBackCustomMetrics(items);
-                                    }}
-                                >
-                                    {isLoading
-                                        ? 'Creating pull request...'
-                                        : 'Open Pull Request'}
-                                </Button>
-                            </div>
-                        </Tooltip>
-                    </>
-                )}
+                            {isLoading
+                                ? 'Creating pull request...'
+                                : 'Open Pull Request'}
+                        </Button>
+                    </div>
+                </Tooltip>
             </Group>
         </Modal>
     );
