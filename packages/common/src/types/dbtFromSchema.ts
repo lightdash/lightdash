@@ -405,6 +405,7 @@ export interface CompiledModelNode {
         };
         [k: string]: unknown;
         snowflake_warehouse?: string;
+        databricks_compute?: string;
     };
     tags?: string[];
     refs?: string[][];

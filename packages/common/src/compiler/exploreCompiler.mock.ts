@@ -106,6 +106,7 @@ export const exploreBase: Explore = {
     warehouse: undefined,
     sqlPath: undefined,
     ymlPath: undefined,
+    databricksCompute: undefined,
 };
 
 export const exploreOneEmptyTable: UncompiledExplore = {
@@ -1491,6 +1492,7 @@ export const exploreWithMetricNumberCompiled: Explore = {
     ymlPath: exploreWithMetricNumber.ymlPath,
     sqlPath: exploreWithMetricNumber.sqlPath,
     groupLabel: exploreWithMetricNumber.groupLabel,
+    databricksCompute: exploreWithMetricNumber.databricksCompute,
     spotlight: {
         visibility: 'show',
         categories: [],

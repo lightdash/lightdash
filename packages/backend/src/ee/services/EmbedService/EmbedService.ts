@@ -589,6 +589,10 @@ export class EmbedService extends BaseService {
             await this.projectService._getWarehouseClient(
                 projectUuid,
                 credentials,
+                {
+                    snowflakeVirtualWarehouse: explore.warehouse,
+                    databricksCompute: explore.databricksCompute,
+                },
             );
         const orgUserAttributes = await this.userAttributesModel.find({
             organizationUuid,

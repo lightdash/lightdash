@@ -1,10 +1,22 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
-import React, { type FC } from 'react';
-import { useFormContext } from 'react-hook-form';
+import {
+    ActionIcon,
+    Anchor,
+    Button,
+    Group,
+    PasswordInput,
+    Stack,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { type FC } from 'react';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
+import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
 import { useProjectFormContext } from '../useProjectFormContext';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
@@ -50,7 +62,15 @@ const DatabricksForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
-    const { register } = useFormContext();
+    const { register, control } = useFormContext();
+    const {
+        fields: computeFields,
+        append,
+        remove,
+    } = useFieldArray({
+        control,
+        name: 'warehouse.compute',
+    });
 
     return (
         <>
@@ -141,7 +161,89 @@ const DatabricksForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
-                    <StartOfWeekSelect disabled={disabled} />
+                    <Stack>
+                        <StartOfWeekSelect disabled={disabled} />
+                        <Stack spacing="xs">
+                            <Stack spacing={0}>
+                                <Text fw={500}>Compute Resources</Text>
+                                <Text c="dimmed" size="xs">
+                                    Configure compute resources to use in your
+                                    models
+                                </Text>
+                            </Stack>
+                            <FormSection name="compute">
+                                <Stack>
+                                    {computeFields.map((field, index) => (
+                                        <Group
+                                            key={field.id}
+                                            noWrap
+                                            spacing="xs"
+                                        >
+                                            <TextInput
+                                                style={{
+                                                    flexGrow: 1,
+                                                }}
+                                                size="xs"
+                                                {...register(
+                                                    `warehouse.compute.${index}.name`,
+                                                )}
+                                                placeholder="Compute Name"
+                                                required
+                                            />
+                                            <TextInput
+                                                style={{
+                                                    flexGrow: 1,
+                                                }}
+                                                size="xs"
+                                                {...register(
+                                                    `warehouse.compute.${index}.httpPath`,
+                                                )}
+                                                placeholder="HTTP Path"
+                                                required
+                                            />
+                                            <Tooltip
+                                                variant="xs"
+                                                label="Remove compute"
+                                            >
+                                                <ActionIcon
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        remove(index)
+                                                    }
+                                                    style={{
+                                                        flexGrow: 0,
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
+                                    ))}
+                                    <Button
+                                        variant="default"
+                                        size="xs"
+                                        sx={(theme) => ({
+                                            alignSelf: 'flex-end',
+                                            boxShadow: theme.shadows.subtle,
+                                        })}
+                                        leftIcon={
+                                            <MantineIcon icon={IconPlus} />
+                                        }
+                                        onClick={() =>
+                                            append({
+                                                name: '',
+                                                httpPath: '',
+                                            })
+                                        }
+                                    >
+                                        Add compute
+                                    </Button>
+                                </Stack>
+                            </FormSection>
+                        </Stack>
+                    </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
                     Advanced configuration options
