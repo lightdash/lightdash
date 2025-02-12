@@ -1,3 +1,10 @@
+# [0.1493.0](https://github.com/lightdash/lightdash/compare/0.1492.4...0.1493.0) (2025-02-12)
+
+
+### Features
+
+* react sdk filters ([#13649](https://github.com/lightdash/lightdash/issues/13649)) ([3c62c94](https://github.com/lightdash/lightdash/commit/3c62c94572c267be2e1c61d3996f79c32b0c6320))
+
 ## [0.1492.4](https://github.com/lightdash/lightdash/compare/0.1492.3...0.1492.4) (2025-02-12)
 
 
