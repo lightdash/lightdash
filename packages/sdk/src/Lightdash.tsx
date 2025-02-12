@@ -12,12 +12,18 @@ import {
     ReactQueryProvider,
     ThirdPartyServicesProvider,
     TrackingProvider,
+    type SdkFilter,
 } from '@lightdash/frontend';
 import { FC, PropsWithChildren, useEffect, useState } from 'react';
 
 type Props = {
     instanceUrl: string;
     token: Promise<string> | string;
+    styles?: {
+        backgroundColor?: string;
+        fontFamily?: string;
+    };
+    filters?: SdkFilter[];
 };
 
 const decodeJWT = (token: string) => {
@@ -39,16 +45,32 @@ const decodeJWT = (token: string) => {
 };
 
 const persistInstanceUrl = (instanceUrl: string) => {
+    if (!instanceUrl.endsWith('/')) {
+        instanceUrl = `${instanceUrl}/`;
+    }
+
     localStorage.setItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
         instanceUrl,
     );
 };
 
-const SdkProviders: FC<PropsWithChildren> = ({ children }) => {
+const SdkProviders: FC<
+    PropsWithChildren<{
+        styles?: { backgroundColor?: string; fontFamily?: string };
+    }>
+> = ({ children, styles }) => {
     return (
         <ReactQueryProvider>
-            <MantineProvider>
+            <MantineProvider
+                themeOverride={{
+                    fontFamily: styles?.fontFamily,
+                    other: {
+                        tableFont: styles?.fontFamily,
+                        chartFont: styles?.fontFamily,
+                    },
+                }}
+            >
                 <AppProvider>
                     <FullscreenProvider enabled={false}>
                         <ThirdPartyServicesProvider enabled={false}>
@@ -71,7 +93,12 @@ const SdkProviders: FC<PropsWithChildren> = ({ children }) => {
     );
 };
 
-const Dashboard: FC<Props> = ({ token: tokenOrTokenPromise, instanceUrl }) => {
+const Dashboard: FC<Props> = ({
+    token: tokenOrTokenPromise,
+    instanceUrl,
+    styles,
+    filters,
+}) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
 
@@ -112,7 +139,7 @@ const Dashboard: FC<Props> = ({ token: tokenOrTokenPromise, instanceUrl }) => {
     }
 
     return (
-        <SdkProviders>
+        <SdkProviders styles={styles}>
             <EmbedProvider embedToken={token}>
                 <div
                     style={{
@@ -120,9 +147,13 @@ const Dashboard: FC<Props> = ({ token: tokenOrTokenPromise, instanceUrl }) => {
                         height: '100%',
                         position: 'relative',
                         overflow: 'auto',
+                        backgroundColor: styles?.backgroundColor,
                     }}
                 >
-                    <EmbedDashboard projectUuid={projectUuid} />
+                    <EmbedDashboard
+                        projectUuid={projectUuid}
+                        filters={filters}
+                    />
                 </div>
             </EmbedProvider>
         </SdkProviders>

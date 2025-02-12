@@ -1,6 +1,8 @@
 import {
     AlreadyExistsError,
+    ForbiddenError,
     getErrorMessage,
+    LightdashError,
     NotFoundError,
     ParameterError,
     UnexpectedGitError,
@@ -46,6 +48,7 @@ export const getOctokitRestForUser = (authToken: string) => {
         headers,
     };
 };
+
 export const getOctokitRestForApp = (installationId: string) => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
@@ -58,6 +61,21 @@ export const getOctokitRestForApp = (installationId: string) => {
             installationId,
         },
     });
+};
+
+/** Wrapper to get the right octokit client for the authentication provided
+ * If available, use the installation id as a bot
+ * otherwise use the token as a user
+ * The token can be generated using the installation id
+ */
+export const getOctokit = (installationId?: string, token?: string) => {
+    if (installationId) {
+        return {
+            octokit: getOctokitRestForApp(installationId),
+            headers: undefined,
+        };
+    }
+    return getOctokitRestForUser(token!);
 };
 
 export const getOrRefreshToken = async (
@@ -86,6 +104,7 @@ export const getOrRefreshToken = async (
         refreshToken: auth.data.refresh_token,
     };
 };
+
 export const getLastCommit = async ({
     owner,
     repo,
@@ -95,15 +114,14 @@ export const getLastCommit = async ({
     owner: string;
     repo: string;
     branch: string;
-    token: string; // TODO use installationId instead, to act as a bot
+    token: string;
 }) => {
-    const response = await new OctokitRest().rest.repos.listCommits({
+    const { octokit, headers } = getOctokitRestForUser(token);
+    const response = await octokit.rest.repos.listCommits({
         owner,
         repo,
         ref: branch,
-        headers: {
-            authorization: `Bearer ${token}`,
-        },
+        headers,
     });
 
     return response.data[0];
@@ -158,23 +176,28 @@ export const createBranch = async ({
     repo,
     sha,
     branch,
-    installationId,
+    token,
 }: {
     owner: string;
     repo: string;
     sha: string;
     branch: string;
-    installationId: string;
+    token: string;
 }) => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
-    const response = await octokit.rest.git.createRef({
-        owner,
-        repo,
-        ref: `refs/heads/${branch}`,
-        sha,
-    });
-    return response;
+    try {
+        const response = await octokit.rest.git.createRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branch}`,
+            sha,
+            headers,
+        });
+        return response;
+    } catch (error) {
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
 };
 
 export const updateFile = async ({
@@ -226,7 +249,7 @@ export const createFile = async ({
     content,
     branch,
     message,
-    installationId,
+    token,
 }: {
     owner: string;
     repo: string;
@@ -234,9 +257,9 @@ export const createFile = async ({
     content: string;
     branch: string;
     message: string;
-    installationId: string;
+    token: string;
 }) => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
     const response = await octokit.rest.repos.createOrUpdateFileContents({
         owner,
@@ -245,6 +268,7 @@ export const createFile = async ({
         message,
         content: Buffer.from(content, 'utf-8').toString('base64'),
         branch,
+        headers,
     });
     return response;
 };
@@ -257,6 +281,7 @@ export const createPullRequest = async ({
     head,
     base,
     installationId,
+    token,
 }: {
     owner: string;
     repo: string;
@@ -264,9 +289,10 @@ export const createPullRequest = async ({
     body: string;
     head: string;
     base: string;
-    installationId: string;
+    installationId?: string;
+    token?: string;
 }) => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokit(installationId, token);
 
     const response = await octokit.rest.pulls.create({
         owner,
@@ -275,6 +301,7 @@ export const createPullRequest = async ({
         body,
         head,
         base,
+        headers,
     });
 
     return response.data;
@@ -284,16 +311,16 @@ export const checkFileDoesNotExist = async ({
     owner,
     repo,
     path,
-    installationId,
+    token,
     branch,
 }: {
     owner: string;
     repo: string;
     path: string;
-    installationId: string;
+    token: string;
     branch: string;
 }): Promise<boolean> => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
         await octokit.rest.repos.getContent({
@@ -301,6 +328,7 @@ export const checkFileDoesNotExist = async ({
             repo,
             path,
             branch,
+            headers,
         });
         throw new AlreadyExistsError(`File "${path}" already exists in Github`);
     } catch (error) {

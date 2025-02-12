@@ -23,6 +23,8 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
 
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
+            const currentValue = rule.values?.[0]?.toString() ?? null;
+
             return (
                 <Select
                     w="100%"
@@ -32,13 +34,13 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
                     onDropdownClose={popoverProps?.onClose}
                     disabled={disabled}
                     autoFocus={true}
-                    initiallyOpened={true}
+                    initiallyOpened={currentValue === null && !disabled}
                     placeholder={placeholder}
                     data={[
                         { value: 'true', label: 'True' },
                         { value: 'false', label: 'False' },
                     ]}
-                    value={rule.values?.[0]?.toString() ?? null}
+                    value={currentValue}
                     onChange={(value) =>
                         onChange({
                             ...rule,
