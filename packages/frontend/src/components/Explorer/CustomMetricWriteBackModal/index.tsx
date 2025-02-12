@@ -1,4 +1,7 @@
-import { type AdditionalMetric } from '@lightdash/common';
+import {
+    type AdditionalMetric,
+    type PreviewPullRequest,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -6,6 +9,7 @@ import {
     Group,
     List,
     Loader,
+    type MantineColor,
     Modal,
     Stack,
     Text,
@@ -21,6 +25,63 @@ import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
 import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
 
+type Highlight = Record<
+    string,
+    {
+        color: MantineColor;
+        label?: string;
+    }
+>;
+
+const getDiffCode = (
+    preview: PreviewPullRequest,
+): { previewCode: string; highlightLines: Highlight } => {
+    const allDiffs = preview.files.map((file) => file.diff).flat();
+
+    const allLines = allDiffs.map((diff) => diff.value.split('\n')).flat();
+
+    const minIndentation: string = allLines.reduce<string>((acc, line) => {
+        if (line.trim() === '') return acc;
+        const indent = line.match(/^\s*/)?.[0] || '';
+
+        return indent.length < acc.length ? indent : acc;
+    }, allLines[0].match(/^\s*/)?.[0] || '');
+
+    const result = allDiffs.reduce<{
+        code: string;
+        highlight: Highlight;
+        lineCount: number;
+    }>(
+        (acc, diff) => {
+            const diffLines = diff.value
+                .split('\n')
+                .filter((line) => line.trim() !== '') // Remove empty lines
+                .map((line) => line.replace(minIndentation, ''));
+            acc.code += `${diffLines.join('\n')}\n`;
+            for (let i = 0; i < diffLines.length; i++) {
+                acc.highlight[acc.lineCount + i + 1] =
+                    diff.type === 'added'
+                        ? {
+                              color: 'green',
+                              label: 'Added',
+                          }
+                        : {
+                              color: 'red',
+                              label: 'Removed',
+                          };
+            }
+            acc.lineCount += diffLines.length;
+
+            return acc;
+        },
+        { code: '', highlight: {}, lineCount: 0 },
+    );
+
+    return {
+        previewCode: result.code,
+        highlightLines: result.highlight,
+    };
+};
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -47,6 +108,12 @@ const SingleCustomMetricModalContent = ({
             previewWriteBackCustomMetrics([item]);
         }
     }, [item, previewWriteBackCustomMetrics]);
+
+    const { previewCode, highlightLines } = useMemo(() => {
+        if (!previewData) return { previewCode: '', highlightLines: {} };
+
+        return getDiffCode(previewData);
+    }, [previewData]);
 
     return (
         <Modal
@@ -122,27 +189,24 @@ const SingleCustomMetricModalContent = ({
                                 <Loader size="lg" color="gray" mt="xs" />
                             ) : (
                                 <Stack ml={36}>
-                                    {previewData?.files?.map((file) => (
-                                        <>
-                                            <Group>
-                                                <Text>File:</Text>
-                                                <Text fw={600} key={file.file}>
-                                                    {file.file}
-                                                </Text>
-                                            </Group>
-                                            {file.diff.map((diff) => (
-                                                <Prism
-                                                    language="yaml"
-                                                    withLineNumbers
-                                                    trim={false}
-                                                    key={diff.value}
-                                                    // all lines are additions, no need to highlight
-                                                >
-                                                    {diff.value}
-                                                </Prism>
-                                            ))}
-                                        </>
-                                    ))}
+                                    <Group>
+                                        <Text>File:</Text>
+                                        <Text fw={600}>
+                                            {
+                                                // This should only return 1 file, for 1 custom metric
+                                                previewData?.files
+                                                    .map((file) => file.file)
+                                                    .join(', ')
+                                            }
+                                        </Text>
+                                    </Group>
+                                    <Prism
+                                        language="yaml"
+                                        trim={false}
+                                        highlightLines={highlightLines}
+                                    >
+                                        {previewCode}
+                                    </Prism>
                                 </Stack>
                             )}
                         </CollapsableCard>
@@ -221,22 +285,11 @@ const MultipleCustomMetricModalContent = ({
         }
     }, [items, selectedItems, previewWriteBackCustomMetrics]);
 
-    const previewCode = useMemo(() => {
-        if (!previewData || selectedItems.length === 0) return '';
+    const { previewCode, highlightLines } = useMemo(() => {
+        if (!previewData || selectedItems.length === 0)
+            return { previewCode: '', highlightLines: {} };
 
-        const allLines = previewData.files
-            .flatMap((file) => file.diff.map((diff) => diff.value.split('\n')))
-            .flat();
-
-        const minIndentation: string = allLines.reduce<string>((acc, line) => {
-            if (line.trim() === '') return acc;
-            const indent = line.match(/^\s*/)?.[0] || '';
-
-            return indent.length < acc.length ? indent : acc;
-        }, allLines[0].match(/^\s*/)?.[0] || '');
-        return allLines
-            .map((line) => line.replace(minIndentation, ''))
-            .join('\n');
+        return getDiffCode(previewData);
     }, [selectedItems, previewData]);
     return (
         <Modal
@@ -255,7 +308,7 @@ const MultipleCustomMetricModalContent = ({
                 </Group>
             }
             styles={() => ({
-                body: { padding: 0, height: '400px' },
+                body: { padding: 0, height: '435px' },
             })}
         >
             <Text
@@ -271,70 +324,89 @@ const MultipleCustomMetricModalContent = ({
                 for the following metrics
             </Text>
             <Stack p="md">
-                <Group grow align="flex-start">
-                    <Text>
-                        Available metrics ({selectedItems.length} selected)
-                    </Text>
-                    <Text>Metric YAML to be created:</Text>
-                </Group>
+                <Group align="flex-start" h="305px">
+                    <Stack w="30%" h="100%">
+                        <Text>
+                            Available metrics ({selectedItems.length} selected)
+                        </Text>
 
-                <Group grow align="flex-start" h="235px">
-                    <Stack
-                        h="100%"
-                        p="sm"
-                        sx={{
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '4px',
-                            overflowY: 'auto',
-                            flex: 0.5,
-                        }}
-                    >
-                        {items.map((item) => (
-                            <Group key={item.name}>
-                                <Checkbox
-                                    size="xs"
-                                    checked={selectedItems.includes(item.name)}
-                                    onChange={(e) =>
-                                        setSelectedItems(
-                                            e.target.checked
-                                                ? [...selectedItems, item.name]
-                                                : selectedItems.filter(
-                                                      (name) =>
-                                                          name !== item.name,
-                                                  ),
-                                        )
-                                    }
-                                />
-                                <Text>{item.label}</Text>
-                            </Group>
-                        ))}
+                        <Stack
+                            h="100%"
+                            p="sm"
+                            sx={{
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '4px',
+                                overflowY: 'auto',
+                            }}
+                        >
+                            {items.map((item) => (
+                                <Tooltip
+                                    label={item.label}
+                                    key={item.name}
+                                    position="right"
+                                >
+                                    <Group
+                                        noWrap
+                                        key={item.name}
+                                        onClick={() =>
+                                            setSelectedItems(
+                                                !selectedItems.includes(
+                                                    item.name,
+                                                )
+                                                    ? [
+                                                          ...selectedItems,
+                                                          item.name,
+                                                      ]
+                                                    : selectedItems.filter(
+                                                          (name) =>
+                                                              name !==
+                                                              item.name,
+                                                      ),
+                                            )
+                                        }
+                                        sx={{ cursor: 'pointer' }}
+                                    >
+                                        <Checkbox
+                                            size="xs"
+                                            checked={selectedItems.includes(
+                                                item.name,
+                                            )}
+                                        />
+                                        <Text truncate="end">{item.label}</Text>
+                                    </Group>
+                                </Tooltip>
+                            ))}
+                        </Stack>
                     </Stack>
-                    <Stack
-                        h="100%"
-                        sx={{
-                            overflowY: 'auto',
-                            flex: 0.5,
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '4px',
-                        }}
-                    >
-                        {previewLoading ? (
-                            <Loader
-                                size="lg"
-                                color="gray"
-                                mt="xs"
-                                style={{ margin: 'auto' }}
-                            />
-                        ) : (
-                            <Prism
-                                language="yaml"
-                                trim={false}
-                                noCopy={previewCode === ''}
-                                // all lines are additions, no need to highlight
-                            >
-                                {previewCode}
-                            </Prism>
-                        )}
+                    <Stack w="calc(70% - 18px)" h="100%">
+                        <Text>Metric YAML to be created:</Text>
+
+                        <Stack
+                            h="100%"
+                            sx={{
+                                overflowY: 'auto',
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '4px',
+                            }}
+                        >
+                            {previewLoading ? (
+                                <Loader
+                                    size="lg"
+                                    color="gray"
+                                    mt="xs"
+                                    style={{ margin: 'auto' }}
+                                />
+                            ) : (
+                                <Prism
+                                    language="yaml"
+                                    trim={false}
+                                    noCopy={previewCode === ''}
+                                    highlightLines={highlightLines}
+                                >
+                                    {previewCode}
+                                </Prism>
+                            )}
+                        </Stack>
                     </Stack>
                 </Group>
             </Stack>
