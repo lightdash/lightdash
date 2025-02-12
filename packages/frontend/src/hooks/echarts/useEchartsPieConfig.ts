@@ -164,7 +164,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
         return {
             textStyle: {
-                fontFamily: theme?.fontFamily as string | undefined,
+                fontFamily: theme?.other?.chartFont as string | undefined,
             },
             legend: {
                 show: showLegend,
@@ -208,7 +208,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         isInDashboard,
         minimal,
         pieSeriesOption,
-        theme?.fontFamily,
+        theme?.other?.chartFont,
     ]);
 
     if (!itemsMap) return;

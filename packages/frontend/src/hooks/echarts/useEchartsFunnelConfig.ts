@@ -157,7 +157,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
 
         return {
             textStyle: {
-                fontFamily: theme?.fontFamily as string | undefined,
+                fontFamily: theme?.other.chartFont as string | undefined,
             },
             tooltip: {
                 trigger: 'item',
@@ -186,7 +186,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         funnelSeriesOptions,
         seriesData,
         isInDashboard,
-        theme?.fontFamily,
+        theme?.other?.chartFont,
     ]);
 
     if (!itemsMap) return;
