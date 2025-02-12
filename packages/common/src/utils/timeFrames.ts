@@ -100,6 +100,7 @@ const bigqueryConfig: WarehouseConfig = {
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
+        _,
         startOfWeek,
     ) => {
         const bigqueryTimeFrameExpressions: Record<TimeFrames, string | null> =
