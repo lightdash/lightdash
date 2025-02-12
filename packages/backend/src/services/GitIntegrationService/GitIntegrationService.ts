@@ -5,9 +5,7 @@ import {
     ApiGithubDbtWritePreview,
     DbtModelNode,
     DbtProjectType,
-    DiffChange,
     DimensionType,
-    FileChanges,
     findAndUpdateModelNodes,
     ForbiddenError,
     friendlyName,
@@ -16,7 +14,6 @@ import {
     lightdashDbtYamlSchema,
     ParameterError,
     ParseError,
-    PreviewPullRequest,
     PullRequestCreated,
     QueryExecutionContext,
     SavedChart,
@@ -26,7 +23,6 @@ import {
     VizColumn,
 } from '@lightdash/common';
 import Ajv from 'ajv';
-import { diffLines } from 'diff';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -251,23 +247,6 @@ Affected charts:
         };
     }
 
-    static generateDiff(
-        original: string,
-        updated: string,
-    ): FileChanges['diff'] {
-        const diff = diffLines(original, updated);
-
-        return diff.reduce<DiffChange[]>((acc, part) => {
-            if (part.added) {
-                acc.push({ type: 'added', value: part.value });
-            }
-            if (part.removed) {
-                acc.push({ type: 'removed', value: part.value });
-            }
-            return acc;
-        }, []);
-    }
-
     private async getYamlForTable({
         owner,
         repo,
@@ -313,78 +292,6 @@ Affected charts:
             throw new Error(`Models not found ${yamlSchema}`);
 
         return { yamlSchema, fileName, fileContent, fileSha };
-    }
-
-    async previewDiffForCustomMetrics({
-        owner,
-        repo,
-        path,
-        projectUuid,
-        customMetrics,
-        token,
-        branch,
-        quoteChar = `'`,
-    }: {
-        owner: string;
-        repo: string;
-        path: string;
-        projectUuid: string;
-        customMetrics: AdditionalMetric[] | undefined;
-        branch: string;
-        token: string;
-        quoteChar?: `"` | `'`;
-    }): Promise<FileChanges[]> {
-        if (customMetrics === undefined || customMetrics?.length === 0)
-            throw new Error('No custom metrics found');
-        const tables = [
-            ...new Set(customMetrics.map((metric) => metric.table)),
-        ];
-
-        const updatedFiles = await tables.reduce<Promise<FileChanges[]>>(
-            async (accPromise, table) => {
-                const acc = await accPromise;
-                const customMetricsForTable = customMetrics.filter(
-                    (metric) => metric.table === table,
-                );
-
-                const { yamlSchema, fileName, fileContent } =
-                    await this.getYamlForTable({
-                        table,
-                        path,
-                        owner,
-                        repo,
-                        branch,
-                        token,
-                        projectUuid,
-                    });
-
-                const updatedModels = findAndUpdateModelNodes(
-                    yamlSchema.models!,
-                    customMetricsForTable,
-                );
-
-                const updatedYml = yaml.dump(
-                    { ...yamlSchema, models: updatedModels },
-                    {
-                        quotingType: quoteChar,
-                    },
-                );
-                const diff: DiffChange[] = GitIntegrationService.generateDiff(
-                    fileContent,
-                    updatedYml,
-                );
-
-                const changes = {
-                    file: fileName,
-                    yml: updatedYml,
-                    diff,
-                };
-                return [...acc, changes];
-            },
-            Promise.resolve([]),
-        );
-
-        return updatedFiles;
     }
 
     async updateFileForCustomMetrics({
@@ -598,61 +505,6 @@ Affected charts:
             quoteChar,
         };
         return githubProps;
-    }
-
-    async previewPullRequestForCustomMetrics(
-        user: SessionUser,
-        projectUuid: string,
-        customMetrics: AdditionalMetric[],
-        quoteChar: `"` | `'`,
-    ): Promise<PreviewPullRequest> {
-        if (customMetrics.length === 0)
-            throw new ParseError('Missing custom metrics');
-
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const githubProps = await this.getGithubProps(
-            user,
-            projectUuid,
-            quoteChar,
-        );
-
-        await GitIntegrationService.createBranch(githubProps);
-        const updatedFiles = await this.previewDiffForCustomMetrics({
-            ...githubProps,
-            customMetrics,
-            projectUuid,
-            quoteChar,
-        });
-
-        const customMetricInfo =
-            customMetrics.length === 1
-                ? `\`${customMetrics[0].name}\` custom metric`
-                : `${customMetrics.length} custom metrics`;
-
-        this.analytics.track({
-            event: 'write_back.previewed',
-            userId: user.userUuid,
-            properties: {
-                name: customMetricInfo,
-                projectId: projectUuid,
-                organizationId: user.organizationUuid!,
-                context: QueryExecutionContext.EXPLORE,
-                customMetricsCount: customMetrics.length,
-            },
-        });
-        return {
-            files: updatedFiles,
-        };
     }
 
     async createPullRequestForCustomMetrics(

@@ -1,6 +1,6 @@
 import {
+    convertCustomMetricToDbt,
     type AdditionalMetric,
-    type PreviewPullRequest,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -8,8 +8,6 @@ import {
     Checkbox,
     Group,
     List,
-    Loader,
-    type MantineColor,
     Modal,
     Stack,
     Text,
@@ -17,71 +15,14 @@ import {
 } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as yaml from 'js-yaml';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
-import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
 
-type Highlight = Record<
-    string,
-    {
-        color: MantineColor;
-        label?: string;
-    }
->;
-
-const getDiffCode = (
-    preview: PreviewPullRequest,
-): { previewCode: string; highlightLines: Highlight } => {
-    const allDiffs = preview.files.map((file) => file.diff).flat();
-
-    const allLines = allDiffs.map((diff) => diff.value.split('\n')).flat();
-
-    const minIndentation: string = allLines.reduce<string>((acc, line) => {
-        if (line.trim() === '') return acc;
-        const indent = line.match(/^\s*/)?.[0] || '';
-
-        return indent.length < acc.length ? indent : acc;
-    }, allLines[0].match(/^\s*/)?.[0] || '');
-
-    const result = allDiffs.reduce<{
-        code: string;
-        highlight: Highlight;
-        lineCount: number;
-    }>(
-        (acc, diff) => {
-            const diffLines = diff.value
-                .split('\n')
-                .filter((line) => line.trim() !== '') // Remove empty lines
-                .map((line) => line.replace(minIndentation, ''));
-            acc.code += `${diffLines.join('\n')}\n`;
-            for (let i = 0; i < diffLines.length; i++) {
-                acc.highlight[acc.lineCount + i + 1] =
-                    diff.type === 'added'
-                        ? {
-                              color: 'green',
-                              label: 'Added',
-                          }
-                        : {
-                              color: 'red',
-                              label: 'Removed',
-                          };
-            }
-            acc.lineCount += diffLines.length;
-
-            return acc;
-        },
-        { code: '', highlight: {}, lineCount: 0 },
-    );
-
-    return {
-        previewCode: result.code,
-        highlightLines: result.highlight,
-    };
-};
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -96,25 +37,11 @@ const SingleCustomMetricModalContent = ({
         data,
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
-    const {
-        mutate: previewWriteBackCustomMetrics,
-        data: previewData,
-        isLoading: previewLoading,
-    } = usePreviewWriteBackCustomMetrics(projectUuid!);
-    const [showDiff, setShowDiff] = useState(false);
+    const [showDiff, setShowDiff] = useState(true);
 
-    useEffect(() => {
-        if (item) {
-            previewWriteBackCustomMetrics([item]);
-        }
-    }, [item, previewWriteBackCustomMetrics]);
-
-    const { previewCode, highlightLines } = useMemo(() => {
-        if (!previewData) return { previewCode: '', highlightLines: {} };
-
-        return getDiffCode(previewData);
-    }, [previewData]);
-
+    const previewCode = useMemo(() => {
+        return yaml.dump({ [item.name]: convertCustomMetricToDbt(item) });
+    }, [item]);
     return (
         <Modal
             size="lg"
@@ -185,30 +112,11 @@ const SingleCustomMetricModalContent = ({
                             title={'Show metrics code'}
                             onToggle={() => setShowDiff(!showDiff)}
                         >
-                            {previewLoading ? (
-                                <Loader size="lg" color="gray" mt="xs" />
-                            ) : (
-                                <Stack ml={36}>
-                                    <Group>
-                                        <Text>File:</Text>
-                                        <Text fw={600}>
-                                            {
-                                                // This should only return 1 file, for 1 custom metric
-                                                previewData?.files
-                                                    .map((file) => file.file)
-                                                    .join(', ')
-                                            }
-                                        </Text>
-                                    </Group>
-                                    <Prism
-                                        language="yaml"
-                                        trim={false}
-                                        highlightLines={highlightLines}
-                                    >
-                                        {previewCode}
-                                    </Prism>
-                                </Stack>
-                            )}
+                            <Stack ml={36}>
+                                <Prism language="yaml" trim={false}>
+                                    {previewCode}
+                                </Prism>
+                            </Stack>
                         </CollapsableCard>
                     </>
                 )}
@@ -270,27 +178,21 @@ const MultipleCustomMetricModalContent = ({
         data,
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
-    const {
-        mutate: previewWriteBackCustomMetrics,
-        data: previewData,
-        isLoading: previewLoading,
-    } = usePreviewWriteBackCustomMetrics(projectUuid!);
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
-    useEffect(() => {
-        if (selectedItems.length > 0) {
-            previewWriteBackCustomMetrics(
-                items.filter((item) => selectedItems.includes(item.name)),
-            );
-        }
-    }, [items, selectedItems, previewWriteBackCustomMetrics]);
 
-    const { previewCode, highlightLines } = useMemo(() => {
-        if (!previewData || selectedItems.length === 0)
-            return { previewCode: '', highlightLines: {} };
+    const previewCode = useMemo(() => {
+        if (selectedItems.length === 0) return '';
 
-        return getDiffCode(previewData);
-    }, [selectedItems, previewData]);
+        const selectedMetrics = items.filter((item) =>
+            selectedItems.includes(item.name),
+        );
+        return yaml.dump(
+            selectedMetrics.map((item) => ({
+                [item.name]: convertCustomMetricToDbt(item),
+            })),
+        );
+    }, [items, selectedItems]);
     return (
         <Modal
             size="xl"
@@ -389,23 +291,13 @@ const MultipleCustomMetricModalContent = ({
                                 borderRadius: '4px',
                             }}
                         >
-                            {previewLoading ? (
-                                <Loader
-                                    size="lg"
-                                    color="gray"
-                                    mt="xs"
-                                    style={{ margin: 'auto' }}
-                                />
-                            ) : (
-                                <Prism
-                                    language="yaml"
-                                    trim={false}
-                                    noCopy={previewCode === ''}
-                                    highlightLines={highlightLines}
-                                >
-                                    {previewCode}
-                                </Prism>
-                            )}
+                            <Prism
+                                language="yaml"
+                                trim={false}
+                                noCopy={previewCode === ''}
+                            >
+                                {previewCode}
+                            </Prism>
                         </Stack>
                     </Stack>
                 </Group>
