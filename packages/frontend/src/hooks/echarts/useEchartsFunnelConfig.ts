@@ -157,7 +157,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
 
         return {
             textStyle: {
-                fontFamily: theme?.fontFamily,
+                fontFamily: theme?.fontFamily as string | undefined,
             },
             tooltip: {
                 trigger: 'item',
