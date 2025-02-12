@@ -146,6 +146,7 @@ const bigqueryConfig: WarehouseConfig = {
     },
 };
 
+// Snowflake handles start of week by setting a session variable (WEEK_START)
 const snowflakeConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
