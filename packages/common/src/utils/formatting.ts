@@ -587,39 +587,44 @@ export function getFormatExpression(
 }
 
 export function formatValueWithExpression(expression: string, value: unknown) {
-    let sanitizedValue = value;
+    try {
+        let sanitizedValue = value;
 
-    if (typeof value === 'bigint') {
-        if (
-            value <= Number.MAX_SAFE_INTEGER &&
-            value >= Number.MIN_SAFE_INTEGER
-        ) {
-            sanitizedValue = Number(value);
-        } else {
-            throw new Error(
-                "Can't format value as BigInt is out of safe integer range",
+        if (typeof value === 'bigint') {
+            if (
+                value <= Number.MAX_SAFE_INTEGER &&
+                value >= Number.MIN_SAFE_INTEGER
+            ) {
+                sanitizedValue = Number(value);
+            } else {
+                throw new Error(
+                    "Can't format value as BigInt is out of safe integer range",
+                );
+            }
+        }
+
+        // format date
+        if (isDateFormat(expression)) {
+            if (!isMomentInput(sanitizedValue)) {
+                return 'NaT';
+            }
+            return formatWithExpression(
+                expression,
+                moment(sanitizedValue).toDate(),
             );
         }
-    }
 
-    // format date
-    if (isDateFormat(expression)) {
-        if (!isMomentInput(sanitizedValue)) {
-            return 'NaT';
+        // format text
+        if (isTextFormat(expression)) {
+            return formatWithExpression(expression, sanitizedValue);
         }
-        return formatWithExpression(
-            expression,
-            moment(sanitizedValue).toDate(),
-        );
-    }
 
-    // format text
-    if (isTextFormat(expression)) {
-        return formatWithExpression(expression, sanitizedValue);
+        // format number
+        return formatWithExpression(expression, Number(sanitizedValue));
+    } catch (e) {
+        console.log('Error formatting value with expression', e);
+        return `${value}`;
     }
-
-    // format number
-    return formatWithExpression(expression, Number(sanitizedValue));
 }
 
 export function formatItemValue(
