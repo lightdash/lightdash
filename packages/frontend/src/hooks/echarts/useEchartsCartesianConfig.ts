@@ -14,6 +14,7 @@ import {
     getResultValueArray,
     hasFormatting,
     hashFieldReference,
+    hasValidFormatExpression,
     isCompleteLayout,
     isCustomBinDimension,
     isCustomDimension,
@@ -585,7 +586,7 @@ type GetPivotSeriesArg = {
 };
 
 const seriesValueFormatter = (item: Item, value: unknown) => {
-    if (isField(item) && item.format) {
+    if (hasValidFormatExpression(item)) {
         return formatValueWithExpression(item.format, value);
     }
 
