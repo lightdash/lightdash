@@ -98,9 +98,7 @@
         "fix-format": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli fix-format",
         "test": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli test",
         "dev": "pnpm -r --stream --parallel -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend run dev",
-        "clean": "./scripts/clean-repo.sh",
         "build": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend build",
-        "clean-build": "pnpm clean && pnpm install && pnpm build",
         "build-published-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli build",
         "release-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli release",
         "start": "pnpm run backend-start",
@@ -109,7 +107,10 @@
         "generate-api": "pnpm run common-build && pnpm -F backend generate-api && pnpm -F backend formatter --write ./src/generated",
         "generate-api-dev": "pnpm run common-build && pnpm -F backend generate-api-dev",
         "danger-local-lint": "danger -b main -f",
-        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present"
+        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present",
+        "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
+        "clean-build": "./scripts/clean-builds.sh",
+        "clean": "pnpm clean-build && pnpm clean-node-modules"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

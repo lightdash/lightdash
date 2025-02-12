@@ -10,8 +10,9 @@ import { defineConfig } from 'vitest/config';
 
 const dirnamePath = dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig(({ mode }) => {
-    const isLib = mode === 'lib';
+export default defineConfig(({ command }) => {
+    const isLib = process.env.VITE_LIB === 'true';
+    const isBuild = command === 'build';
 
     return {
         publicDir: isLib ? false : 'public',
@@ -19,13 +20,20 @@ export default defineConfig(({ mode }) => {
             __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
         },
         plugins: [
-            tsconfigPaths(),
             svgrPlugin(),
             reactPlugin(),
             compression({
                 include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
                 filename: '[path][base].gzip',
             }),
+
+            ...(isBuild
+                ? []
+                : [
+                      tsconfigPaths({
+                          configNames: ['tsconfig.vite-dev.json'],
+                      }),
+                  ]),
 
             ...(isLib
                 ? [
@@ -42,6 +50,9 @@ export default defineConfig(({ mode }) => {
         ],
         css: {
             transformer: 'lightningcss',
+        },
+        optimizeDeps: {
+            exclude: ['@lightdash/common'],
         },
         build: {
             outDir: isLib ? 'dist' : 'build',

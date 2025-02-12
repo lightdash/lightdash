@@ -16,11 +16,10 @@
         "./style.css": "./dist/frontend.css"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.build.json --noEmit",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
-        "dev-lib": "vite build --watch --mode lib",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
-        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --mode lib",
+        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 VITE_LIB=true vite build",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
