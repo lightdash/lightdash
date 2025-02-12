@@ -43,6 +43,10 @@ const decodeJWT = (token: string) => {
 };
 
 const persistInstanceUrl = (instanceUrl: string) => {
+    if (!instanceUrl.endsWith('/')) {
+        instanceUrl = `${instanceUrl}/`;
+    }
+
     localStorage.setItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
         instanceUrl,
