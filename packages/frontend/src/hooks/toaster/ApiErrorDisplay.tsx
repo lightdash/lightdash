@@ -17,9 +17,10 @@ const ApiErrorDisplay = ({ apiError }: { apiError: ApiErrorDetail }) => {
             <Text mb={0} weight="bold">
                 Contact support with the following information:
             </Text>
-            <Group spacing="xxs">
+            <Group spacing="xxs" align="flex-start">
                 <Text mb={0} weight="bold">
                     Error ID: {apiError.sentryEventId || 'n/a'}
+                    <br />
                     Trace ID: {apiError.sentryTraceId || 'n/a'}
                 </Text>
                 <CopyButton
