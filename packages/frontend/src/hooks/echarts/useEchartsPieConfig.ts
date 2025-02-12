@@ -164,7 +164,7 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
 
         return {
             textStyle: {
-                fontFamily: theme?.fontFamily,
+                fontFamily: theme?.fontFamily as string | undefined,
             },
             legend: {
                 show: showLegend,
