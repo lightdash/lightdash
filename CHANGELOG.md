@@ -1,3 +1,24 @@
+## [0.1497.1](https://github.com/lightdash/lightdash/compare/0.1497.0...0.1497.1) (2025-02-13)
+
+
+### Bug Fixes
+
+* disable write back on error ([#13665](https://github.com/lightdash/lightdash/issues/13665)) ([713c8b1](https://github.com/lightdash/lightdash/commit/713c8b1889a3fa2c4e1501700ed3e7c8142fa7af))
+
+# [0.1497.0](https://github.com/lightdash/lightdash/compare/0.1496.3...0.1497.0) (2025-02-13)
+
+
+### Features
+
+* apply user attributes to sql from ([#13663](https://github.com/lightdash/lightdash/issues/13663)) ([bd8aa00](https://github.com/lightdash/lightdash/commit/bd8aa007189a744d00b51de00ef7a432c91d6c18))
+
+## [0.1496.3](https://github.com/lightdash/lightdash/compare/0.1496.2...0.1496.3) (2025-02-13)
+
+
+### Bug Fixes
+
+* disable custom metric write back if not github ([#13672](https://github.com/lightdash/lightdash/issues/13672)) ([ec51ad9](https://github.com/lightdash/lightdash/commit/ec51ad9a12f16fe436650ff29335c1ae7bd6769e))
+
 ## [0.1496.2](https://github.com/lightdash/lightdash/compare/0.1496.1...0.1496.2) (2025-02-13)
 
 

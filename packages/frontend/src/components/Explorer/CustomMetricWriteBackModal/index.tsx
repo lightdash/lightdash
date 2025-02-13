@@ -1,6 +1,8 @@
 import {
     convertCustomMetricToDbt,
     DbtProjectType,
+    getErrorMessage,
+    NotImplementedError,
     type AdditionalMetric,
 } from '@lightdash/common';
 import {
@@ -88,6 +90,17 @@ const CreatedPullRequestModalContent = ({
     );
 };
 
+const parseError = (error: unknown): string => {
+    const errorName = error instanceof Error ? error.name : 'unknown error';
+    return `Error: ${
+        error instanceof NotImplementedError
+            ? `unsupported metric definition`
+            : errorName
+    }
+
+${getErrorMessage(error)}`;
+};
+
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -103,11 +116,21 @@ const SingleCustomMetricModalContent = ({
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
     const [showDiff, setShowDiff] = useState(true);
+    const [error, setError] = useState<string | undefined>();
 
     const isGithubProject = useIsGithubProject(projectUuid);
 
     const previewCode = useMemo(() => {
-        return yaml.dump({ [item.name]: convertCustomMetricToDbt(item) });
+        try {
+            const code = yaml.dump({
+                [item.name]: convertCustomMetricToDbt(item),
+            });
+            setError(undefined);
+            return code;
+        } catch (e) {
+            setError(parseError(e));
+            return '';
+        }
     }, [item]);
 
     if (data) {
@@ -168,7 +191,7 @@ const SingleCustomMetricModalContent = ({
                 >
                     <Stack ml={36}>
                         <Prism language="yaml" withLineNumbers trim={false}>
-                            {previewCode}
+                            {error || previewCode}
                         </Prism>
                     </Stack>
                 </CollapsableCard>
@@ -185,10 +208,17 @@ const SingleCustomMetricModalContent = ({
                     Cancel
                 </Button>
 
-                <Tooltip label={PR_DISABLED_MESSAGE} disabled={isGithubProject}>
+                <Tooltip
+                    label={
+                        error
+                            ? 'Unsupported metric definition'
+                            : PR_DISABLED_MESSAGE
+                    }
+                    disabled={isGithubProject && !error}
+                >
                     <div>
                         <Button
-                            disabled={isLoading || !isGithubProject}
+                            disabled={isLoading || !isGithubProject || !!error}
                             size="xs"
                             onClick={() => {
                                 if (!item) return;
@@ -224,18 +254,25 @@ const MultipleCustomMetricModalContent = ({
     const isGithubProject = useIsGithubProject(projectUuid);
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
+    const [error, setError] = useState<string | undefined>();
 
     const previewCode = useMemo(() => {
         if (selectedItems.length === 0) return '';
-
-        const selectedMetrics = items.filter((item) =>
-            selectedItems.includes(item.name),
-        );
-        return yaml.dump(
-            selectedMetrics.map((item) => ({
-                [item.name]: convertCustomMetricToDbt(item),
-            })),
-        );
+        try {
+            const selectedMetrics = items.filter((item) =>
+                selectedItems.includes(item.name),
+            );
+            const code = yaml.dump(
+                selectedMetrics.map((item) => ({
+                    [item.name]: convertCustomMetricToDbt(item),
+                })),
+            );
+            setError(undefined);
+            return code;
+        } catch (e) {
+            setError(parseError(e));
+            return '';
+        }
     }, [items, selectedItems]);
 
     if (data) {
@@ -349,7 +386,7 @@ const MultipleCustomMetricModalContent = ({
                                 trim={false}
                                 noCopy={previewCode === ''}
                             >
-                                {previewCode}
+                                {error || previewCode}
                             </Prism>
                         </Stack>
                     </Stack>
@@ -369,11 +406,15 @@ const MultipleCustomMetricModalContent = ({
 
                 <Tooltip
                     label={
-                        !isGithubProject
+                        error
+                            ? `Unsupported metric definition`
+                            : !isGithubProject
                             ? PR_DISABLED_MESSAGE
                             : 'Select metrics to open a pull request'
                     }
-                    disabled={isGithubProject && selectedItems.length > 0}
+                    disabled={
+                        isGithubProject && selectedItems.length > 0 && !error
+                    }
                 >
                     <div>
                         {' '}
@@ -381,7 +422,8 @@ const MultipleCustomMetricModalContent = ({
                             disabled={
                                 isLoading ||
                                 selectedItems.length === 0 ||
-                                !isGithubProject
+                                !isGithubProject ||
+                                !!error
                             }
                             size="xs"
                             onClick={() => {

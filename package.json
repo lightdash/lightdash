@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1496.2",
+    "version": "0.1497.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -98,9 +98,7 @@
         "fix-format": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli fix-format",
         "test": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli test",
         "dev": "pnpm -r --stream --parallel -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend run dev",
-        "clean": "./scripts/clean-repo.sh",
         "build": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend build",
-        "clean-build": "pnpm clean && pnpm install && pnpm build",
         "build-published-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli build",
         "release-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli release",
         "start": "pnpm run backend-start",
@@ -109,7 +107,11 @@
         "generate-api": "pnpm run common-build && pnpm -F backend generate-api && pnpm -F backend formatter --write ./src/generated",
         "generate-api-dev": "pnpm run common-build && pnpm -F backend generate-api-dev",
         "danger-local-lint": "danger -b main -f",
-        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present"
+        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present",
+        "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
+        "clean-build-cache": "./scripts/clean-build-cache.sh",
+        "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
+        "clean-and-build": "pnpm clean && pnpm build"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
