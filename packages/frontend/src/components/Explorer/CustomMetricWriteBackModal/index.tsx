@@ -2,6 +2,7 @@ import {
     convertCustomMetricToDbt,
     getErrorMessage,
     NotImplementedError,
+    UnexpectedServerError,
     type AdditionalMetric,
 } from '@lightdash/common';
 import {
@@ -79,6 +80,17 @@ const CreatedPullRequestModalContent = ({
         </Modal>
     );
 };
+
+const parseError = (error: unknown): string => {
+    const errorName = error instanceof Error ? error.name : 'unknown error';
+    return `Error: ${
+        error instanceof NotImplementedError
+            ? `unsupported metric definition`
+            : errorName
+    }
+
+${getErrorMessage(error)}`;
+};
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -104,13 +116,7 @@ const SingleCustomMetricModalContent = ({
             setError(undefined);
             return code;
         } catch (e) {
-            if (e instanceof NotImplementedError) {
-                setError(`Error: unsupported metric definition
-
-${getErrorMessage(e)}`);
-                return '';
-            }
-            setError(getErrorMessage(e));
+            setError(parseError(e));
             return '';
         }
     }, [item]);
@@ -243,15 +249,11 @@ const MultipleCustomMetricModalContent = ({
                 })),
             );
             setError(undefined);
+            throw new UnexpectedServerError('something went wrong');
+
             return code;
         } catch (e) {
-            if (e instanceof NotImplementedError) {
-                setError(`Error: unsupported metric definition
-
-${getErrorMessage(e)}`);
-                return '';
-            }
-            setError(getErrorMessage(e));
+            setError(parseError(e));
             return '';
         }
     }, [items, selectedItems]);
