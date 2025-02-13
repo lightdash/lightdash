@@ -7,6 +7,7 @@ function useEmbed(): EmbedContext {
 
     if (context === undefined) {
         return {
+            isEmbedded: false,
             embedToken: undefined,
             filters: undefined,
             projectUuid: undefined,

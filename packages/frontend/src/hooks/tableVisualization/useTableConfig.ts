@@ -27,6 +27,7 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateTotal } from '../useCalculateTotal';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -45,9 +46,10 @@ const useTableConfig = (
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
 ) => {
+    const { isEmbedded } = useEmbed();
+
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
-        !window.location.pathname.startsWith('/embed/') &&
-            !!tableChartConfig?.showColumnCalculation,
+        !isEmbedded && !!tableChartConfig?.showColumnCalculation,
     );
 
     const [showRowCalculation, setShowRowCalculation] = useState<boolean>(
