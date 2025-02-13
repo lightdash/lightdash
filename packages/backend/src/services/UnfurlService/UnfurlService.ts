@@ -723,10 +723,7 @@ export class UnfurlService extends BaseService {
                         await page.setViewportSize(bigNumberViewport);
                     } else {
                         const fullPageSize = await fullPage?.boundingBox();
-                        this.logger.info(
-                            `Full page size: ${fullPageSize?.height}`,
-                        );
-                        this.logger.info(`Viewport height: ${viewport.height}`);
+
                         await page.setViewportSize({
                             width: gridWidth ?? viewport.width,
                             height: fullPageSize?.height
