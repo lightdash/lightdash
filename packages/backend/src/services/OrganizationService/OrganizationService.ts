@@ -345,6 +345,34 @@ export class OrganizationService extends BaseService {
         return member;
     }
 
+    async getMemberByEmail(
+        user: SessionUser,
+        email: string,
+    ): Promise<OrganizationMemberProfile> {
+        const { organizationUuid } = user;
+        if (
+            organizationUuid === undefined ||
+            user.ability.cannot('view', 'OrganizationMemberProfile')
+        ) {
+            throw new ForbiddenError();
+        }
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByEmail(
+                organizationUuid,
+                email,
+            );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', member),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return member;
+    }
+
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,
