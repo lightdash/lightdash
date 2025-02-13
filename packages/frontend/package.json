@@ -16,11 +16,10 @@
         "./style.css": "./dist/frontend.css"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.build.json --noEmit",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
-        "dev-lib": "vite build --watch --mode lib",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
-        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --mode lib",
+        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 VITE_LIB=true vite build",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
@@ -165,7 +164,6 @@
         "vite-plugin-dts": "^4.5.0",
         "vite-plugin-monaco-editor": "^1.1.0",
         "vite-plugin-svgr": "^4.3.0",
-        "vite-tsconfig-paths": "^4.3.2",
-        "vitest": "^2.1.9"
+        "vitest": "^3.0.5"
     }
 }

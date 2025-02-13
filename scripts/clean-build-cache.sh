@@ -1,13 +1,8 @@
 #!/bin/bash
 
 rm -rf packages/*/tsconfig*.tsbuildinfo
-
-# Remove node_modules directories
-rm -rf node_modules
-rm -rf packages/*/node_modules
-
 # Remove build/dist directories
 rm -rf packages/*/build
 rm -rf packages/*/dist
 
-echo "Repository cleaned"
+echo "🧼 cleaned \"build\", \"dist\" and \"tsbuildinfo\" files"
