@@ -145,7 +145,10 @@ export function compareMetricAndCustomMetric({
                         let settingsMatch =
                             isDateFilterRule(customFilter) ===
                             isDateFilterRule(filter);
-                        if (isDateFilterRule(customFilter)) {
+                        if (
+                            isDateFilterRule(customFilter) &&
+                            isDateFilterRule(filter)
+                        ) {
                             const metricSettings =
                                 filter.settings as DateFilterSettings;
                             const customMetricSettings =
