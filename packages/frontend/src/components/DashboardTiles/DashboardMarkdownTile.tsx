@@ -62,6 +62,7 @@ const MarkdownTile: FC<Props> = (props) => {
                 }}
             >
                 <MarkdownPreview
+                    className="markdown-tile"
                     source={content}
                     rehypePlugins={[
                         [rehypeExternalLinks, { target: '_blank' }],
