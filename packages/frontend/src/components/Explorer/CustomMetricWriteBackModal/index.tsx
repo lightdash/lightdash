@@ -355,7 +355,7 @@ const MultipleCustomMetricModalContent = ({
 };
 
 export const CustomMetricWriteBackModal = () => {
-    const { items, multiple } = useExplorerContext(
+    const { items, multiple, isOpen } = useExplorerContext(
         (context) => context.state.modals.additionalMetricWriteBack,
     );
     const { projectUuid } = useParams<{
@@ -369,6 +369,10 @@ export const CustomMetricWriteBackModal = () => {
     const handleClose = useCallback(() => {
         toggleModal();
     }, [toggleModal]);
+
+    if (!isOpen) {
+        return null;
+    }
 
     if (items && !multiple && items.length === 1) {
         return (
