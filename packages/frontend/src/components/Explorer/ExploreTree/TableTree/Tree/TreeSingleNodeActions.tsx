@@ -245,6 +245,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                                 organizationId:
                                                 user.data
                                                     .organizationUuid,
+                                                customMetricsCount: 1,
                                             },
                                         });
                                     }

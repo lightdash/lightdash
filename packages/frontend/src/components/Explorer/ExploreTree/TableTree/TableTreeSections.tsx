@@ -339,7 +339,10 @@ const TableTreeSections: FC<Props> = ({
                                                 userId: user.data.userUuid,
                                                 projectId: projectUuid,
                                                 organizationId:
-                                                user.data.organizationUuid,
+                                                    user.data.organizationUuid,
+                                                customMetricsCount:
+                                                    allAdditionalMetrics?.length ||
+                                                    0,
                                             },
                                         });
                                     }

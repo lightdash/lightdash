@@ -63,6 +63,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [, startTransition] = useTransition();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const chartUuid = useExplorerContext(
+        (context) => context.state.savedChart?.uuid,
+    );
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -116,11 +119,21 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         userId: user.data.userUuid,
                         projectId: projectUuid,
                         organizationId: user.data.organizationUuid,
+                        chartId: chartUuid,
+                        customMetricIds: Object.keys(fieldsToReplace),
                     },
                 });
             }
         }
-    }, [explore, additionalMetrics, replaceFields, track, user, projectUuid]);
+    }, [
+        explore,
+        additionalMetrics,
+        replaceFields,
+        track,
+        user,
+        projectUuid,
+        chartUuid,
+    ]);
 
     const canManageVirtualViews = user.data?.ability?.can(
         'manage',
