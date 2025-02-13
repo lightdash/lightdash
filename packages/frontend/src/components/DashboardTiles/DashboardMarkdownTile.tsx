@@ -1,10 +1,10 @@
 import { type DashboardMarkdownTile } from '@lightdash/common';
-import MDEditor from '@uiw/react-md-editor';
+import { Text } from '@mantine/core';
+import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useMemo, useState, type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { MarkdownWrapper } from './DashboardMarkdownTile.styles';
 import TileBase from './TileBase/index';
 
 type Props = Pick<
@@ -50,14 +50,24 @@ const MarkdownTile: FC<Props> = (props) => {
             extraHeaderElement={tileHasComments ? undefined : dashboardComments}
             {...props}
         >
-            <MarkdownWrapper className="non-draggable">
-                <MDEditor.Markdown
+            <Text
+                className="non-draggable"
+                component="div"
+                sx={{
+                    flex: 1,
+                    overflow: 'auto',
+                    '.wmde-markdown': {
+                        fontSize: '14px',
+                    },
+                }}
+            >
+                <MarkdownPreview
                     source={content}
                     rehypePlugins={[
                         [rehypeExternalLinks, { target: '_blank' }],
                     ]}
                 />
-            </MarkdownWrapper>
+            </Text>
         </TileBase>
     );
 };
