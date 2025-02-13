@@ -56,8 +56,8 @@ describe('Custom dimensions', () => {
             'random number',
         );
         cy.get('#ace-editor').type(`random() + 1`);
-        cy.get(`.mantine-Select-input[value='string']`).click();
-        cy.contains('number').click();
+        cy.get(`.mantine-Select-input[value='String']`).click();
+        cy.contains('Number').click();
         cy.findByText('Create').click();
 
         // Select metric
@@ -127,8 +127,8 @@ describe('Custom dimensions', () => {
         cy.get('#ace-editor').type(`(\${orders.amount}) / 10`, {
             parseSpecialCharSequences: false,
         });
-        cy.get(`.mantine-Select-input[value='string']`).click();
-        cy.contains('number').click();
+        cy.get(`.mantine-Select-input[value='String']`).click();
+        cy.contains('Number').click();
         cy.findByText('Create').click();
 
         // Create custom metric
