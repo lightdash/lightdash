@@ -140,7 +140,11 @@ const Dashboard: FC<Props> = ({
 
     return (
         <SdkProviders styles={styles}>
-            <EmbedProvider embedToken={token}>
+            <EmbedProvider
+                embedToken={token}
+                projectUuid={projectUuid}
+                filters={filters}
+            >
                 <div
                     style={{
                         width: '100%',
@@ -150,10 +154,7 @@ const Dashboard: FC<Props> = ({
                         backgroundColor: styles?.backgroundColor,
                     }}
                 >
-                    <EmbedDashboard
-                        projectUuid={projectUuid}
-                        filters={filters}
-                    />
+                    <EmbedDashboard />
                 </div>
             </EmbedProvider>
         </SdkProviders>

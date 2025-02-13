@@ -3,8 +3,7 @@
 
 import { MemoryRouter } from 'react-router';
 
-import { FilterOperator } from '@lightdash/common';
-import EmbedDashboard, { type SdkFilter } from '../ee/pages/EmbedDashboard';
+import EmbedDashboard from '../ee/pages/EmbedDashboard';
 import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -16,6 +15,8 @@ import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
 
+import { type SdkFilter } from '../ee/features/embed/EmbedDashboard/types';
+
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 
@@ -26,7 +27,6 @@ export {
     EmbedDashboard,
     EmbedProvider,
     ErrorBoundary,
-    FilterOperator,
     FullscreenProvider,
     LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     MantineProvider,

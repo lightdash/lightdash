@@ -1,18 +1,25 @@
 import { type FC } from 'react';
-import AppProviderContext from './context';
+import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
+import EmbedProviderContext from './context';
 
 type Props = {
     embedToken?: string;
+    filters?: SdkFilter[];
+    projectUuid?: string;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
     embedToken = window.location.hash.replace('#', ''),
+    filters,
+    projectUuid,
 }) => {
     return (
-        <AppProviderContext.Provider value={{ embedToken }}>
+        <EmbedProviderContext.Provider
+            value={{ embedToken, filters, projectUuid }}
+        >
             {children}
-        </AppProviderContext.Provider>
+        </EmbedProviderContext.Provider>
     );
 };
 
