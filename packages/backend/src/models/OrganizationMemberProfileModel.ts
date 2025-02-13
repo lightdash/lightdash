@@ -400,6 +400,10 @@ export class OrganizationMemberProfileModel {
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
 
+        if (!dbMember) {
+            throw new NotFoundError('No matching member found in organization');
+        }
+
         const usersHaveAuthenticationRows =
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: [userUuid],
@@ -411,10 +415,6 @@ export class OrganizationMemberProfileModel {
                 dbMember,
                 usersHaveAuthenticationRows[0]?.has_authentication,
             );
-
-        if (!member) {
-            throw new NotFoundError('No matching member found in organization');
-        }
 
         return member;
     }
@@ -431,6 +431,10 @@ export class OrganizationMemberProfileModel {
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
 
+        if (!dbMember) {
+            throw new NotFoundError('No matching member found in organization');
+        }
+
         const usersHaveAuthenticationRows =
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: [dbMember.user_uuid],
@@ -442,10 +446,6 @@ export class OrganizationMemberProfileModel {
                 dbMember,
                 usersHaveAuthenticationRows[0]?.has_authentication,
             );
-
-        if (!member) {
-            throw new NotFoundError('No matching member found in organization');
-        }
 
         return member;
     }
