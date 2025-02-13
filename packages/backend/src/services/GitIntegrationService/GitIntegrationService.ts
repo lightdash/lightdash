@@ -493,7 +493,8 @@ Affected charts:
             body: `Created by Lightdash, this pull request adds ${customMetricInfo} to the dbt model.
 
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
-            `,
+
+> ⚠️ **Note: Do not change the \`label\` or \`id\` of your metrics in this pull request.** Your custom metric(s) _will not be replaced_ with YAML metrics if you change the \`label\` or \`id\` of the metrics in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom metrics with YAML metrics.`,
             head: githubProps.branch,
             base: githubProps.mainBranch,
         });
