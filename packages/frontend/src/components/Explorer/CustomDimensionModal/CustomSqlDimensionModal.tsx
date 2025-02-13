@@ -1,12 +1,16 @@
 import {
+    capitalize,
+    convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
+    getAllReferences,
     getItemId,
     snakeCaseName,
     type CustomSqlDimension,
 } from '@lightdash/common';
 import {
     Button,
+    Group,
     Modal,
     ScrollArea,
     Select,
@@ -17,11 +21,13 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconSql } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import MantineIcon from '../../common/MantineIcon';
 
 type FormValues = {
     customDimensionLabel: string;
@@ -36,7 +42,7 @@ export const CustomSqlDimensionModal: FC<{
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
     const theme = useMantineTheme();
-    const { showToastSuccess } = useToaster();
+    const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
@@ -102,28 +108,59 @@ export const CustomSqlDimensionModal: FC<{
         const sanitizedId = generateCustomSqlDimensionId(
             values.customDimensionLabel,
         );
-        let customDim: CustomSqlDimension = {
-            id: sanitizedId,
-            name: values.customDimensionLabel,
-            table,
-            type: CustomDimensionType.SQL,
-            sql: values.sql,
-            dimensionType: values.dimensionType,
-        };
-        if (isEditing && item) {
-            editCustomDimension({ ...customDim, id: item.id }, item.id);
-            showToastSuccess({
-                title: 'Custom dimension edited successfully',
+
+        try {
+            if (!values.sql) {
+                throw new Error('SQL is required');
+            }
+            // Validate all references in SQL
+            const fieldIds = getAllReferences(values.sql).map((ref) => {
+                try {
+                    return convertFieldRefToFieldId(ref);
+                } catch (error) {
+                    return null;
+                }
             });
-        } else {
-            addCustomDimension(customDim);
-            showToastSuccess({
-                title: 'Custom dimension added successfully',
+
+            if (fieldIds.some((id) => id === null)) {
+                throw new Error(
+                    'Invalid field references in SQL. References must be of the format "table.field", e.g "orders.id"',
+                );
+            }
+
+            // Only proceed if all conversions succeeded
+            let customDim: CustomSqlDimension = {
+                id: sanitizedId,
+                name: values.customDimensionLabel,
+                table,
+                type: CustomDimensionType.SQL,
+                sql: values.sql,
+                dimensionType: values.dimensionType,
+            };
+
+            if (isEditing && item) {
+                editCustomDimension({ ...customDim, id: item.id }, item.id);
+                showToastSuccess({
+                    title: 'Custom dimension edited successfully',
+                });
+            } else {
+                addCustomDimension(customDim);
+                showToastSuccess({
+                    title: 'Custom dimension added successfully',
+                });
+            }
+
+            form.reset();
+            toggleModal();
+        } catch (error) {
+            showToastError({
+                title: 'Error creating custom dimension',
+                subtitle:
+                    error instanceof Error
+                        ? error.message
+                        : 'Invalid field reference in SQL or dimension name',
             });
         }
-
-        form.reset();
-        toggleModal();
     });
 
     return (
@@ -137,26 +174,48 @@ export const CustomSqlDimensionModal: FC<{
             }}
             title={
                 <>
-                    <Title order={4}>
-                        {isEditing ? 'Edit' : 'Create'} Custom Dimension
-                        {item ? (
-                            <Text span fw={400}>
-                                {' '}
-                                - {item.name}
-                            </Text>
-                        ) : null}
-                    </Title>
+                    <Group spacing="xs">
+                        <MantineIcon icon={IconSql} size="lg" color="gray.7" />
+                        <Title order={4}>
+                            {isEditing ? 'Edit' : 'Create'} Custom Dimension
+                            {item ? (
+                                <Text span fw={400}>
+                                    {' '}
+                                    - {item.name}
+                                </Text>
+                            ) : null}
+                        </Title>
+                    </Group>
                 </>
             }
+            styles={{
+                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
+                body: { padding: 0 },
+            }}
         >
             <form onSubmit={handleOnSubmit}>
-                <Stack>
-                    <TextInput
-                        label="Label"
-                        required
-                        placeholder="Enter custom dimension label"
-                        {...form.getInputProps('customDimensionLabel')}
-                    />
+                <Stack p="md" pb="xs" spacing="xs">
+                    <Group position="apart">
+                        <TextInput
+                            label="Label"
+                            required
+                            placeholder="Enter custom dimension label"
+                            style={{ flex: 1 }}
+                            {...form.getInputProps('customDimensionLabel')}
+                        />
+                        <Select
+                            sx={{
+                                alignSelf: 'flex-start',
+                            }}
+                            withinPortal={true}
+                            label="Dimension Type"
+                            data={Object.values(DimensionType).map((type) => ({
+                                value: type,
+                                label: capitalize(type),
+                            }))}
+                            {...form.getInputProps('dimensionType')}
+                        />
+                    </Group>
                     <ScrollArea h={'150px'}>
                         <SqlEditor
                             mode="sql"
@@ -178,15 +237,12 @@ export const CustomSqlDimensionModal: FC<{
                             {...form.getInputProps('sql')}
                         />
                     </ScrollArea>
-                    <Select
-                        withinPortal={true}
-                        label="Return type"
-                        data={Object.values(DimensionType)}
-                        {...form.getInputProps('dimensionType')}
-                    />
-                    <Button ml="auto" type="submit">
-                        {isEditing ? 'Save changes' : 'Create'}
-                    </Button>
+
+                    <Group>
+                        <Button ml="auto" type="submit">
+                            {isEditing ? 'Save changes' : 'Create'}
+                        </Button>
+                    </Group>
                 </Stack>
             </form>
         </Modal>
