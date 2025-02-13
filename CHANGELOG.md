@@ -1,3 +1,10 @@
+## [0.1495.1](https://github.com/lightdash/lightdash/compare/0.1495.0...0.1495.1) (2025-02-13)
+
+
+### Bug Fixes
+
+* unify confirmation modal write back ([#13630](https://github.com/lightdash/lightdash/issues/13630)) ([54cac74](https://github.com/lightdash/lightdash/commit/54cac74c7966cc80bbc18d6cd0a15ac42c604303))
+
 # [0.1495.0](https://github.com/lightdash/lightdash/compare/0.1494.0...0.1495.0) (2025-02-12)
 
 
