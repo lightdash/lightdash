@@ -1,5 +1,6 @@
 import {
     convertCustomMetricToDbt,
+    DbtProjectType,
     type AdditionalMetric,
 } from '@lightdash/common';
 import {
@@ -18,10 +19,19 @@ import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
+import { useProject } from '../../../hooks/useProject';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
+
+const useIsGithubProject = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    return project?.dbtConnection.type === DbtProjectType.GITHUB;
+};
+
+const PR_DISABLED_MESSAGE =
+    'Pull requests can only be opened for GitHub connected projects';
 
 const CreatedPullRequestModalContent = ({
     onClose,
@@ -77,6 +87,7 @@ const CreatedPullRequestModalContent = ({
         </Modal>
     );
 };
+
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -92,6 +103,8 @@ const SingleCustomMetricModalContent = ({
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
     const [showDiff, setShowDiff] = useState(true);
+
+    const isGithubProject = useIsGithubProject(projectUuid);
 
     const previewCode = useMemo(() => {
         return yaml.dump({ [item.name]: convertCustomMetricToDbt(item) });
@@ -172,18 +185,22 @@ const SingleCustomMetricModalContent = ({
                     Cancel
                 </Button>
 
-                <Button
-                    disabled={isLoading}
-                    size="xs"
-                    onClick={() => {
-                        if (!item) return;
-                        writeBackCustomMetrics([item]);
-                    }}
-                >
-                    {isLoading
-                        ? 'Creating pull request...'
-                        : 'Open Pull Request'}
-                </Button>
+                <Tooltip label={PR_DISABLED_MESSAGE} disabled={isGithubProject}>
+                    <div>
+                        <Button
+                            disabled={isLoading || !isGithubProject}
+                            size="xs"
+                            onClick={() => {
+                                if (!item) return;
+                                writeBackCustomMetrics([item]);
+                            }}
+                        >
+                            {isLoading
+                                ? 'Creating pull request...'
+                                : 'Open Pull Request'}
+                        </Button>
+                    </div>
+                </Tooltip>
             </Group>
         </Modal>
     );
@@ -202,7 +219,9 @@ const MultipleCustomMetricModalContent = ({
         mutate: writeBackCustomMetrics,
         data,
         isLoading,
-    } = useWriteBackCustomMetrics(projectUuid!);
+    } = useWriteBackCustomMetrics(projectUuid);
+
+    const isGithubProject = useIsGithubProject(projectUuid);
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
@@ -225,6 +244,7 @@ const MultipleCustomMetricModalContent = ({
             <CreatedPullRequestModalContent data={data} onClose={handleClose} />
         );
     }
+
     return (
         <Modal
             size="xl"
@@ -348,13 +368,21 @@ const MultipleCustomMetricModalContent = ({
                 </Button>
 
                 <Tooltip
-                    label="Select metrics to open a pull request"
-                    disabled={selectedItems.length > 0}
+                    label={
+                        !isGithubProject
+                            ? PR_DISABLED_MESSAGE
+                            : 'Select metrics to open a pull request'
+                    }
+                    disabled={isGithubProject && selectedItems.length > 0}
                 >
                     <div>
                         {' '}
                         <Button
-                            disabled={isLoading || selectedItems.length === 0}
+                            disabled={
+                                isLoading ||
+                                selectedItems.length === 0 ||
+                                !isGithubProject
+                            }
                             size="xs"
                             onClick={() => {
                                 if (!items) return;
