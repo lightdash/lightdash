@@ -1,3 +1,10 @@
+# [0.1496.0](https://github.com/lightdash/lightdash/compare/0.1495.1...0.1496.0) (2025-02-13)
+
+
+### Features
+
+* **backend:** Update message in Pull Request for write back to say don't change stuff ([#13660](https://github.com/lightdash/lightdash/issues/13660)) ([8acac60](https://github.com/lightdash/lightdash/commit/8acac601d738bdac4f2ff57f8e190a7ceede4c26))
+
 ## [0.1495.1](https://github.com/lightdash/lightdash/compare/0.1495.0...0.1495.1) (2025-02-13)
 
 
