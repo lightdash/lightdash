@@ -1,3 +1,10 @@
+## [0.1496.1](https://github.com/lightdash/lightdash/compare/0.1496.0...0.1496.1) (2025-02-13)
+
+
+### Bug Fixes
+
+* sdk markdown styles ([#13664](https://github.com/lightdash/lightdash/issues/13664)) ([fda6182](https://github.com/lightdash/lightdash/commit/fda6182a3836e80d30c902c877a2bb2258b3c4c8))
+
 # [0.1496.0](https://github.com/lightdash/lightdash/compare/0.1495.1...0.1496.0) (2025-02-13)
 
 
