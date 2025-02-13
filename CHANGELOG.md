@@ -1,3 +1,16 @@
+# [0.1499.0](https://github.com/lightdash/lightdash/compare/0.1498.0...0.1499.0) (2025-02-13)
+
+
+### Bug Fixes
+
+* assert filter type ([#13679](https://github.com/lightdash/lightdash/issues/13679)) ([9c0ea65](https://github.com/lightdash/lightdash/commit/9c0ea652ba71e05fb94bd88b475a5affa75d2254))
+* wait for markdown tiles before screenshot ([#13676](https://github.com/lightdash/lightdash/issues/13676)) ([0e7315c](https://github.com/lightdash/lightdash/commit/0e7315c94ba1b6cbfc8bb3cc19d902ff3fab6663))
+
+
+### Features
+
+* allow duplicating markdown tiles ([#13678](https://github.com/lightdash/lightdash/issues/13678)) ([bd750cd](https://github.com/lightdash/lightdash/commit/bd750cd4cfb5e3b8e30ca5cecbf6dd7111df4198))
+
 # [0.1498.0](https://github.com/lightdash/lightdash/compare/0.1497.1...0.1498.0) (2025-02-13)
 
 
