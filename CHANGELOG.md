@@ -1,3 +1,10 @@
+## [0.1496.2](https://github.com/lightdash/lightdash/compare/0.1496.1...0.1496.2) (2025-02-13)
+
+
+### Bug Fixes
+
+* **frontend:** conditionally render custom metric write back modal to avoid renderind `undefined` and errors in console ([#13661](https://github.com/lightdash/lightdash/issues/13661)) ([a484b9e](https://github.com/lightdash/lightdash/commit/a484b9e20a7bae4ef12c4ff97a6d957db731c40d))
+
 ## [0.1496.1](https://github.com/lightdash/lightdash/compare/0.1496.0...0.1496.1) (2025-02-13)
 
 
