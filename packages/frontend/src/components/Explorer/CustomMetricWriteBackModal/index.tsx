@@ -32,8 +32,9 @@ const useIsGithubProject = (projectUuid: string) => {
     return project?.dbtConnection.type === DbtProjectType.GITHUB;
 };
 
-const PR_DISABLED_MESSAGE =
+const prDisabledMessage =
     'Pull requests can only be opened for GitHub connected projects';
+const unsupportedMetricDefinitionError = 'Unsupported metric definition';
 
 const CreatedPullRequestModalContent = ({
     onClose,
@@ -211,8 +212,8 @@ const SingleCustomMetricModalContent = ({
                 <Tooltip
                     label={
                         error
-                            ? 'Unsupported metric definition'
-                            : PR_DISABLED_MESSAGE
+                            ? unsupportedMetricDefinitionError
+                            : prDisabledMessage
                     }
                     disabled={isGithubProject && !error}
                 >
@@ -407,9 +408,9 @@ const MultipleCustomMetricModalContent = ({
                 <Tooltip
                     label={
                         error
-                            ? `Unsupported metric definition`
+                            ? unsupportedMetricDefinitionError
                             : !isGithubProject
-                            ? PR_DISABLED_MESSAGE
+                            ? prDisabledMessage
                             : 'Select metrics to open a pull request'
                     }
                     disabled={
@@ -417,7 +418,6 @@ const MultipleCustomMetricModalContent = ({
                     }
                 >
                     <div>
-                        {' '}
                         <Button
                             disabled={
                                 isLoading ||
