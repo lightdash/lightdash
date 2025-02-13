@@ -4,11 +4,15 @@ import { type EmbedContext } from './types';
 
 function useEmbed(): EmbedContext {
     const context = useContext(EmbedProviderContext);
+
     if (context === undefined) {
         return {
             embedToken: undefined,
+            filters: undefined,
+            projectUuid: undefined,
         };
     }
+
     return context;
 }
 
