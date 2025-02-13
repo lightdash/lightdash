@@ -365,6 +365,18 @@ type MetricsCatalogTreesCanvasModeClickedEvent = {
     };
 };
 
+type WriteBackEvent = {
+    name:
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_HEADER_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED
+        | EventName.CUSTOM_FIELDS_REPLACEMENT_APPLIED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -395,7 +407,8 @@ export type EventData =
     | LandingRunQueryClickedEvent
     | MetricsCatalogTreesEdgeCreatedEvent
     | MetricsCatalogTreesEdgeRemovedEvent
-    | MetricsCatalogTreesCanvasModeClickedEvent;
+    | MetricsCatalogTreesCanvasModeClickedEvent
+    | WriteBackEvent;
 
 export type IdentifyData = {
     id: string;

@@ -29,6 +29,8 @@ import {
 import { useExplore } from '../../../hooks/useExplore';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
@@ -53,6 +55,8 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const { track } = useTracking();
+    const { user } = useApp();
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
         useState(false);
@@ -88,7 +92,12 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { data: explore, status } = useExplore(activeTableName);
 
     useEffect(() => {
-        if (explore && additionalMetrics) {
+        if (
+            projectUuid &&
+            user.data?.organizationUuid &&
+            explore &&
+            additionalMetrics
+        ) {
             const replaceableFieldsMap = findReplaceableCustomMetrics({
                 metrics: getMetrics(explore),
                 customMetrics: additionalMetrics,
@@ -101,11 +110,18 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 replaceFields({
                     customMetrics: fieldsToReplace,
                 });
+                track({
+                    name: EventName.CUSTOM_FIELDS_REPLACEMENT_APPLIED,
+                    properties: {
+                        userId: user.data.userUuid,
+                        projectId: projectUuid,
+                        organizationId: user.data.organizationUuid,
+                    },
+                });
             }
         }
-    }, [explore, additionalMetrics, replaceFields]);
+    }, [explore, additionalMetrics, replaceFields, track, user, projectUuid]);
 
-    const { user } = useApp();
     const canManageVirtualViews = user.data?.ability?.can(
         'manage',
         subject('VirtualView', {

@@ -141,4 +141,9 @@ export enum EventName {
     METRICS_CATALOG_TREES_EDGE_CREATED = 'metrics_catalog_trees_edge.created',
     METRICS_CATALOG_TREES_EDGE_REMOVED = 'metrics_catalog_trees_edge.removed',
     METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED = 'metrics_catalog_trees_canvas_mode.clicked',
+
+    // Write back to dbt
+    WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED = 'write_back_from_custom_metric.clicked',
+    WRITE_BACK_FROM_CUSTOM_METRIC_HEADER_CLICKED = 'write_back_from_custom_metric_header.clicked',
+    CUSTOM_FIELDS_REPLACEMENT_APPLIED = 'custom_fields_replacement.applied',
 }
