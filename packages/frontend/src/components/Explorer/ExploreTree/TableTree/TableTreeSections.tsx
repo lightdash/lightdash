@@ -322,7 +322,7 @@ const TableTreeSections: FC<Props> = ({
                             }}
                         />
                     </Group>
-                    {isGithubProject && isCustomSqlEnabled && (
+                    {isCustomSqlEnabled && (
                         <Tooltip label="Write back custom metrics">
                             <ActionIcon
                                 onClick={() => {

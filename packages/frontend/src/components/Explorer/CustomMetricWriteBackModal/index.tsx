@@ -1,5 +1,6 @@
 import {
     convertCustomMetricToDbt,
+    DbtProjectType,
     getErrorMessage,
     NotImplementedError,
     type AdditionalMetric,
@@ -20,10 +21,20 @@ import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
+import { useProject } from '../../../hooks/useProject';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
+
+const useIsGithubProject = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    return project?.dbtConnection.type === DbtProjectType.GITHUB;
+};
+
+const prDisabledMessage =
+    'Pull requests can only be opened for GitHub connected projects';
+const unsupportedMetricDefinitionError = 'Unsupported metric definition';
 
 const CreatedPullRequestModalContent = ({
     onClose,
@@ -90,6 +101,7 @@ const parseError = (error: unknown): string => {
 
 ${getErrorMessage(error)}`;
 };
+
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -106,6 +118,8 @@ const SingleCustomMetricModalContent = ({
     } = useWriteBackCustomMetrics(projectUuid!);
     const [showDiff, setShowDiff] = useState(true);
     const [error, setError] = useState<string | undefined>();
+
+    const isGithubProject = useIsGithubProject(projectUuid);
 
     const previewCode = useMemo(() => {
         try {
@@ -126,6 +140,14 @@ const SingleCustomMetricModalContent = ({
             <CreatedPullRequestModalContent data={data} onClose={handleClose} />
         );
     }
+
+    const disableErrorTooltip = isGithubProject && !error;
+
+    const errorTooltipLabel = error
+        ? unsupportedMetricDefinitionError
+        : prDisabledMessage;
+
+    const buttonDisabled = isLoading || !disableErrorTooltip;
 
     return (
         <Modal
@@ -194,13 +216,14 @@ const SingleCustomMetricModalContent = ({
                 >
                     Cancel
                 </Button>
+
                 <Tooltip
-                    label={'Unsupported metric definition'}
-                    disabled={!error}
+                    label={errorTooltipLabel}
+                    disabled={disableErrorTooltip}
                 >
                     <div>
                         <Button
-                            disabled={isLoading || !!error}
+                            disabled={buttonDisabled}
                             size="xs"
                             onClick={() => {
                                 if (!item) return;
@@ -231,7 +254,9 @@ const MultipleCustomMetricModalContent = ({
         mutate: writeBackCustomMetrics,
         data,
         isLoading,
-    } = useWriteBackCustomMetrics(projectUuid!);
+    } = useWriteBackCustomMetrics(projectUuid);
+
+    const isGithubProject = useIsGithubProject(projectUuid);
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
     const [error, setError] = useState<string | undefined>();
@@ -261,6 +286,18 @@ const MultipleCustomMetricModalContent = ({
             <CreatedPullRequestModalContent data={data} onClose={handleClose} />
         );
     }
+
+    const disableErrorTooltip =
+        isGithubProject && selectedItems.length > 0 && !error;
+
+    const errorTooltipLabel = error
+        ? unsupportedMetricDefinitionError
+        : !isGithubProject
+        ? prDisabledMessage
+        : 'Select metrics to open a pull request';
+
+    const buttonDisabled = isLoading || !disableErrorTooltip;
+
     return (
         <Modal
             size="xl"
@@ -384,21 +421,12 @@ const MultipleCustomMetricModalContent = ({
                 </Button>
 
                 <Tooltip
-                    label={
-                        error
-                            ? `Unsupported metric definition`
-                            : 'Select metrics to open a pull request'
-                    }
-                    disabled={selectedItems.length > 0 && !error}
+                    label={errorTooltipLabel}
+                    disabled={disableErrorTooltip}
                 >
                     <div>
-                        {' '}
                         <Button
-                            disabled={
-                                isLoading ||
-                                selectedItems.length === 0 ||
-                                !!error
-                            }
+                            disabled={buttonDisabled}
                             size="xs"
                             onClick={() => {
                                 if (!items) return;
