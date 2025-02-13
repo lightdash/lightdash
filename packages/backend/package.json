@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1489.0",
+    "version": "0.1495.0",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -72,7 +72,6 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
-        "diff": "^7.0.0",
         "duckdb-async": "^0.10.2",
         "echarts": "^5.5.0",
         "execa": "^5.0.0",

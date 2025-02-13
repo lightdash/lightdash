@@ -5,11 +5,11 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
+import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
 >[number] & {
@@ -22,6 +22,8 @@ export type PieSeriesDataPoint = NonNullable<
 const useEchartsPieConfig = (isInDashboard: boolean) => {
     const { visualizationConfig, itemsMap, getGroupColor, minimal } =
         useVisualizationContext();
+
+    const theme = useMantineTheme();
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -161,6 +163,9 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         } = chartConfig;
 
         return {
+            textStyle: {
+                fontFamily: theme?.other?.chartFont as string | undefined,
+            },
             legend: {
                 show: showLegend,
                 orient: legendPosition,
@@ -198,7 +203,13 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),
         };
-    }, [chartConfig, isInDashboard, minimal, pieSeriesOption]);
+    }, [
+        chartConfig,
+        isInDashboard,
+        minimal,
+        pieSeriesOption,
+        theme?.other?.chartFont,
+    ]);
 
     if (!itemsMap) return;
     if (!eChartsOption || !pieSeriesOption) return;

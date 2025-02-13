@@ -1,14 +1,17 @@
 import {
+    assertUnreachable,
     DashboardTileTypes,
     FilterInteractivityValues,
-    assertUnreachable,
     getFilterInteractivityValue,
+    getItemId,
     isFilterInteractivityEnabled,
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
     type DashboardFilterInteractivityOptions,
+    type DashboardFilterRule,
     type DashboardFilters,
+    type FilterOperator,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Flex, Tooltip } from '@mantine/core';
@@ -25,6 +28,7 @@ import React, {
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
+import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../api';
 import ActiveFilters from '../../components/DashboardFilter/ActiveFilters';
 import {
@@ -329,8 +333,71 @@ const DashboardHeader: FC<{
     );
 };
 
-const EmbedDashboard: FC = () => {
+type EmbedDashboardProps = {
+    filters?: SdkFilter[];
+};
+
+const EmbedDashboard: FC<EmbedDashboardProps> = ({ filters }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+
+    const sdkDashboardFilters = useMemo(() => {
+        const dimensionFilters = filters
+            ?.map((filter) => {
+                const fieldId = getItemId({
+                    table: filter.model,
+                    name: filter.field,
+                });
+
+                const field = allFilterableFieldsMap[fieldId];
+
+                if (!field) {
+                    console.warn(`Field ${filter.field} not found`, filter);
+                    console.warn(
+                        `Here are all the fields:`,
+                        allFilterableFieldsMap,
+                    );
+                    return null;
+                }
+
+                const dashboardFilter: DashboardFilterRule = {
+                    id: uuidv4(),
+                    label: filter.field,
+                    target: {
+                        fieldId,
+                        tableName: filter.model,
+                    },
+                    operator: filter.operator,
+                    values: Array.isArray(filter.value)
+                        ? filter.value
+                        : [filter.value],
+                    tileTargets: {},
+                };
+                return dashboardFilter;
+            })
+            .filter((filter) => filter !== null);
+
+        if (!dimensionFilters) {
+            return undefined;
+        }
+
+        return {
+            dimensions: dimensionFilters,
+            metrics: [],
+            tableCalculations: [],
+        };
+    }, [filters, allFilterableFieldsMap]);
+
+    useEffect(() => {
+        if (sdkDashboardFilters) {
+            setDashboardFilters(sdkDashboardFilters);
+        }
+    }, [sdkDashboardFilters, setDashboardFilters]);
 
     const { embedToken } = useEmbed();
 
@@ -342,6 +409,7 @@ const EmbedDashboard: FC = () => {
         projectUuid,
         embedToken,
     );
+
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {
         if (dashboard) {
@@ -486,12 +554,21 @@ const EmbedDashboard: FC = () => {
     );
 };
 
+export type SdkFilter = {
+    model: string;
+    field: string;
+    operator: FilterOperator;
+    value: unknown | unknown[];
+};
+
 type Props = {
     projectUuid?: string;
+    filters?: SdkFilter[];
 };
 
 const EmbedDashboardPage: FC<Props> = ({
     projectUuid: projectUuidFromProps,
+    filters,
 }) => {
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid: string;
@@ -513,7 +590,7 @@ const EmbedDashboardPage: FC<Props> = ({
 
     return (
         <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
-            <EmbedDashboard />
+            <EmbedDashboard filters={filters} />
         </DashboardProvider>
     );
 };

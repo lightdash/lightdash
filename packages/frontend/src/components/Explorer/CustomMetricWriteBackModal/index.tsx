@@ -1,11 +1,13 @@
-import { type AdditionalMetric } from '@lightdash/common';
+import {
+    convertCustomMetricToDbt,
+    type AdditionalMetric,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
     Checkbox,
     Group,
     List,
-    Loader,
     Modal,
     Stack,
     Text,
@@ -13,13 +15,13 @@ import {
 } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as yaml from 'js-yaml';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
-import { usePreviewWriteBackCustomMetrics } from './hooks/usePreviewCustomMetricWriteBack';
 
 const CreatedPullRequestModalContent = ({
     onClose,
@@ -89,18 +91,11 @@ const SingleCustomMetricModalContent = ({
         data,
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
-    const {
-        mutate: previewWriteBackCustomMetrics,
-        data: previewData,
-        isLoading: previewLoading,
-    } = usePreviewWriteBackCustomMetrics(projectUuid!);
-    const [showDiff, setShowDiff] = useState(false);
+    const [showDiff, setShowDiff] = useState(true);
 
-    useEffect(() => {
-        if (item) {
-            previewWriteBackCustomMetrics([item]);
-        }
-    }, [item, previewWriteBackCustomMetrics]);
+    const previewCode = useMemo(() => {
+        return yaml.dump({ [item.name]: convertCustomMetricToDbt(item) });
+    }, [item]);
 
     if (data) {
         // Return a simple confirmation modal with the PR URL
@@ -158,33 +153,11 @@ const SingleCustomMetricModalContent = ({
                     title={'Show metrics code'}
                     onToggle={() => setShowDiff(!showDiff)}
                 >
-                    {previewLoading ? (
-                        <Loader size="lg" color="gray" mt="xs" />
-                    ) : (
-                        <Stack ml={36}>
-                            {previewData?.files?.map((file) => (
-                                <>
-                                    <Group>
-                                        <Text>File:</Text>
-                                        <Text fw={600} key={file.file}>
-                                            {file.file}
-                                        </Text>
-                                    </Group>
-                                    {file.diff.map((diff) => (
-                                        <Prism
-                                            language="yaml"
-                                            withLineNumbers
-                                            trim={false}
-                                            key={diff.value}
-                                            // all lines are additions, no need to highlight
-                                        >
-                                            {diff.value}
-                                        </Prism>
-                                    ))}
-                                </>
-                            ))}
-                        </Stack>
-                    )}
+                    <Stack ml={36}>
+                        <Prism language="yaml" withLineNumbers trim={false}>
+                            {previewCode}
+                        </Prism>
+                    </Stack>
                 </CollapsableCard>
             </Stack>
 
@@ -230,38 +203,21 @@ const MultipleCustomMetricModalContent = ({
         data,
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
-    const {
-        mutate: previewWriteBackCustomMetrics,
-        data: previewData,
-        isLoading: previewLoading,
-    } = usePreviewWriteBackCustomMetrics(projectUuid!);
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
-    useEffect(() => {
-        if (selectedItems.length > 0) {
-            previewWriteBackCustomMetrics(
-                items.filter((item) => selectedItems.includes(item.name)),
-            );
-        }
-    }, [items, selectedItems, previewWriteBackCustomMetrics]);
 
     const previewCode = useMemo(() => {
-        if (!previewData || selectedItems.length === 0) return '';
+        if (selectedItems.length === 0) return '';
 
-        const allLines = previewData.files
-            .flatMap((file) => file.diff.map((diff) => diff.value.split('\n')))
-            .flat();
-
-        const minIndentation: string = allLines.reduce<string>((acc, line) => {
-            if (line.trim() === '') return acc;
-            const indent = line.match(/^\s*/)?.[0] || '';
-
-            return indent.length < acc.length ? indent : acc;
-        }, allLines[0].match(/^\s*/)?.[0] || '');
-        return allLines
-            .map((line) => line.replace(minIndentation, ''))
-            .join('\n');
-    }, [selectedItems, previewData]);
+        const selectedMetrics = items.filter((item) =>
+            selectedItems.includes(item.name),
+        );
+        return yaml.dump(
+            selectedMetrics.map((item) => ({
+                [item.name]: convertCustomMetricToDbt(item),
+            })),
+        );
+    }, [items, selectedItems]);
 
     if (data) {
         // Return a simple confirmation modal with the PR URL
@@ -269,7 +225,6 @@ const MultipleCustomMetricModalContent = ({
             <CreatedPullRequestModalContent data={data} onClose={handleClose} />
         );
     }
-
     return (
         <Modal
             size="xl"
@@ -287,7 +242,7 @@ const MultipleCustomMetricModalContent = ({
                 </Group>
             }
             styles={() => ({
-                body: { padding: 0, height: '400px' },
+                body: { padding: 0, height: '435px' },
             })}
         >
             <Text
@@ -304,70 +259,79 @@ const MultipleCustomMetricModalContent = ({
             </Text>
 
             <Stack p="md">
-                <Group grow align="flex-start">
-                    <Text>
-                        Available metrics ({selectedItems.length} selected)
-                    </Text>
-                    <Text>Metric YAML to be created:</Text>
-                </Group>
+                <Group align="flex-start" h="305px">
+                    <Stack w="30%" h="100%">
+                        <Text>
+                            Available metrics ({selectedItems.length} selected)
+                        </Text>
 
-                <Group grow align="flex-start" h="235px">
-                    <Stack
-                        h="100%"
-                        p="sm"
-                        sx={{
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '4px',
-                            overflowY: 'auto',
-                            flex: 0.5,
-                        }}
-                    >
-                        {items.map((item) => (
-                            <Group key={item.name}>
-                                <Checkbox
-                                    size="xs"
-                                    checked={selectedItems.includes(item.name)}
-                                    onChange={(e) =>
-                                        setSelectedItems(
-                                            e.target.checked
-                                                ? [...selectedItems, item.name]
-                                                : selectedItems.filter(
-                                                      (name) =>
-                                                          name !== item.name,
-                                                  ),
-                                        )
-                                    }
-                                />
-                                <Text>{item.label}</Text>
-                            </Group>
-                        ))}
+                        <Stack
+                            h="100%"
+                            p="sm"
+                            sx={{
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '4px',
+                                overflowY: 'auto',
+                            }}
+                        >
+                            {items.map((item) => (
+                                <Tooltip
+                                    label={item.label}
+                                    key={item.name}
+                                    position="right"
+                                >
+                                    <Group
+                                        noWrap
+                                        key={item.name}
+                                        onClick={() =>
+                                            setSelectedItems(
+                                                !selectedItems.includes(
+                                                    item.name,
+                                                )
+                                                    ? [
+                                                          ...selectedItems,
+                                                          item.name,
+                                                      ]
+                                                    : selectedItems.filter(
+                                                          (name) =>
+                                                              name !==
+                                                              item.name,
+                                                      ),
+                                            )
+                                        }
+                                        sx={{ cursor: 'pointer' }}
+                                    >
+                                        <Checkbox
+                                            size="xs"
+                                            checked={selectedItems.includes(
+                                                item.name,
+                                            )}
+                                        />
+                                        <Text truncate="end">{item.label}</Text>
+                                    </Group>
+                                </Tooltip>
+                            ))}
+                        </Stack>
                     </Stack>
-                    <Stack
-                        h="100%"
-                        sx={{
-                            overflowY: 'auto',
-                            flex: 0.5,
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '4px',
-                        }}
-                    >
-                        {previewLoading ? (
-                            <Loader
-                                size="lg"
-                                color="gray"
-                                mt="xs"
-                                style={{ margin: 'auto' }}
-                            />
-                        ) : (
+                    <Stack w="calc(70% - 18px)" h="100%">
+                        <Text>Metric YAML to be created:</Text>
+
+                        <Stack
+                            h="100%"
+                            sx={{
+                                overflowY: 'auto',
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '4px',
+                            }}
+                        >
                             <Prism
                                 language="yaml"
                                 trim={false}
                                 noCopy={previewCode === ''}
-                                // all lines are additions, no need to highlight
                             >
                                 {previewCode}
                             </Prism>
-                        )}
+                        </Stack>
                     </Stack>
                 </Group>
             </Stack>

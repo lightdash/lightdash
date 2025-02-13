@@ -142,7 +142,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 // @ts-ignore
                                 placeholder={placeholder}
                                 autoFocus={true}
-                                defaultOpened={true}
                                 popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]

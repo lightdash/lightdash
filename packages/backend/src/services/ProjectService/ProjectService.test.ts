@@ -59,7 +59,7 @@ import {
 
 jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => ({
-        connect: jest.fn(() => ({})),
+        connect: jest.fn(() => warehouseClientMock.credentials),
         disconnect: jest.fn(),
     })),
 }));
@@ -339,6 +339,12 @@ describe('ProjectService', () => {
     describe('searchFieldUniqueValues', () => {
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
+
+        beforeEach(() => {
+            // Clear the warehouse clients cache
+            service.warehouseClients = {};
+        });
+
         afterEach(() => {
             jest.clearAllMocks();
         });

@@ -253,7 +253,7 @@ export const useTableCellStyles = createStyles<
                 textAlign: 'left',
                 whiteSpace: 'nowrap',
 
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: theme.other.tableFont ?? "'Inter', sans-serif",
                 fontFeatureSettings: '"tnum"',
                 fontWeight: cellType === CellType.Head ? 500 : 400,
                 fontSize: 13,

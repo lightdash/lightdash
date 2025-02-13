@@ -700,6 +700,7 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseClient);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
+
         try {
             return exploreCompiler.compileExplore({
                 name: model.name,
@@ -720,6 +721,7 @@ export const convertExplores = async (
                 tables: tableLookup,
                 targetDatabase: adapterType,
                 warehouse: model.config?.snowflake_warehouse,
+                databricksCompute: model.config?.databricks_compute,
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
                 spotlightConfig: lightdashProjectConfig.spotlight,

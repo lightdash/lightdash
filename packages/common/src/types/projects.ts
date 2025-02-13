@@ -79,6 +79,10 @@ export type CreateDatabricksCredentials = {
     personalAccessToken: string;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    compute?: Array<{
+        name: string;
+        httpPath: string;
+    }>;
 };
 export type DatabricksCredentials = Omit<
     CreateDatabricksCredentials,

@@ -12,9 +12,11 @@ import {
 import { TimeFrames } from '../types/timeFrames';
 import {
     applyCustomFormat,
+    convertCustomFormatToFormatExpression,
     currencies,
     formatItemValue,
     formatNumberValue,
+    formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
 } from './formatting';
@@ -1305,6 +1307,120 @@ describe('Formatting', () => {
         test('should return false for non-dates-strings-moment-dayjs types', () => {
             expect(isMomentInput(undefined)).toBe(false);
             expect(isMomentInput(null)).toBe(false);
+        });
+    });
+
+    describe('convertCustomFormatToFormatExpression', () => {
+        test('should convert format object to expression', () => {
+            const customFormats: CustomFormat[] = [
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.JPY, // test JPY because it has no decimal
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.DKK, // test DKK because it has prefix instead of symbol
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    round: 0, // test with no round
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    round: 4, // test with extra round
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    compact: Compact.THOUSANDS, // test with compact
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    separator: NumberSeparator.COMMA_PERIOD, // test with separator
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD, // test with no separator
+                },
+                {
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    // test with multiple options
+                    compact: Compact.THOUSANDS,
+                    round: 3,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                },
+                {
+                    type: CustomFormatType.PERCENT,
+                },
+                {
+                    type: CustomFormatType.PERCENT,
+                    round: 0, // test with no round
+                },
+                {
+                    type: CustomFormatType.PERCENT,
+                    round: 3, // test with round
+                },
+                {
+                    type: CustomFormatType.PERCENT,
+                    separator: NumberSeparator.COMMA_PERIOD, // test with separator
+                },
+                {
+                    type: CustomFormatType.NUMBER,
+                },
+                {
+                    type: CustomFormatType.NUMBER,
+                    round: 0, // test with no round
+                },
+                {
+                    type: CustomFormatType.NUMBER,
+                    round: 3, // test with round
+                },
+                {
+                    type: CustomFormatType.NUMBER,
+                    prefix: 'prefix', // test with prefix
+                },
+                {
+                    type: CustomFormatType.NUMBER,
+                    suffix: 'suffix', // test with suffix
+                },
+                {
+                    type: CustomFormatType.NUMBER,
+                    // test with multiple options
+                    prefix: 'prefix',
+                    compact: Compact.THOUSANDS,
+                    round: 3,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                    suffix: 'suffix',
+                },
+            ];
+            customFormats.forEach((format) => {
+                const value = 12345.1235;
+                const formatExpression =
+                    convertCustomFormatToFormatExpression(format);
+                // Check if the format expression was generated
+                expect(formatExpression).not.toBe(null);
+
+                const formattedValueWithCustomFormat = applyCustomFormat(
+                    value,
+                    format,
+                );
+                const formattedValueWithFormatExpression =
+                    formatValueWithExpression(formatExpression!, value);
+
+                // Check if the formatted value is the same
+                expect(formattedValueWithFormatExpression).toEqual(
+                    formattedValueWithCustomFormat,
+                );
+            });
         });
     });
 });

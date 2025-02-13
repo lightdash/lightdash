@@ -66,7 +66,6 @@ import { type DashboardFilters } from './types/filter';
 import {
     type GitIntegrationConfiguration,
     type GitRepo,
-    type PreviewPullRequest,
     type PullRequestCreated,
 } from './types/gitIntegration';
 import {
@@ -695,7 +694,6 @@ type ApiResults =
     | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
-    | PreviewPullRequest
     | GitIntegrationConfiguration
     | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
