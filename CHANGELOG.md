@@ -1,3 +1,10 @@
+# [0.1498.0](https://github.com/lightdash/lightdash/compare/0.1497.1...0.1498.0) (2025-02-13)
+
+
+### Features
+
+* **frontend:** Make dbt write back YAML generator work even if you're not connected to GitHub ([#13675](https://github.com/lightdash/lightdash/issues/13675)) ([49b0f67](https://github.com/lightdash/lightdash/commit/49b0f67540d325f56a13f5b46d97680f38235bd5))
+
 ## [0.1497.1](https://github.com/lightdash/lightdash/compare/0.1497.0...0.1497.1) (2025-02-13)
 
 
