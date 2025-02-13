@@ -1,5 +1,7 @@
 import {
     convertCustomMetricToDbt,
+    getErrorMessage,
+    NotImplementedError,
     type AdditionalMetric,
 } from '@lightdash/common';
 import {
@@ -77,6 +79,17 @@ const CreatedPullRequestModalContent = ({
         </Modal>
     );
 };
+
+const parseError = (error: unknown): string => {
+    const errorName = error instanceof Error ? error.name : 'unknown error';
+    return `Error: ${
+        error instanceof NotImplementedError
+            ? `unsupported metric definition`
+            : errorName
+    }
+
+${getErrorMessage(error)}`;
+};
 const SingleCustomMetricModalContent = ({
     handleClose,
     item,
@@ -92,9 +105,19 @@ const SingleCustomMetricModalContent = ({
         isLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
     const [showDiff, setShowDiff] = useState(true);
+    const [error, setError] = useState<string | undefined>();
 
     const previewCode = useMemo(() => {
-        return yaml.dump({ [item.name]: convertCustomMetricToDbt(item) });
+        try {
+            const code = yaml.dump({
+                [item.name]: convertCustomMetricToDbt(item),
+            });
+            setError(undefined);
+            return code;
+        } catch (e) {
+            setError(parseError(e));
+            return '';
+        }
     }, [item]);
 
     if (data) {
@@ -155,7 +178,7 @@ const SingleCustomMetricModalContent = ({
                 >
                     <Stack ml={36}>
                         <Prism language="yaml" withLineNumbers trim={false}>
-                            {previewCode}
+                            {error || previewCode}
                         </Prism>
                     </Stack>
                 </CollapsableCard>
@@ -171,19 +194,25 @@ const SingleCustomMetricModalContent = ({
                 >
                     Cancel
                 </Button>
-
-                <Button
-                    disabled={isLoading}
-                    size="xs"
-                    onClick={() => {
-                        if (!item) return;
-                        writeBackCustomMetrics([item]);
-                    }}
+                <Tooltip
+                    label={'Unsupported metric definition'}
+                    disabled={!error}
                 >
-                    {isLoading
-                        ? 'Creating pull request...'
-                        : 'Open Pull Request'}
-                </Button>
+                    <div>
+                        <Button
+                            disabled={isLoading || !!error}
+                            size="xs"
+                            onClick={() => {
+                                if (!item) return;
+                                writeBackCustomMetrics([item]);
+                            }}
+                        >
+                            {isLoading
+                                ? 'Creating pull request...'
+                                : 'Open Pull Request'}
+                        </Button>
+                    </div>
+                </Tooltip>
             </Group>
         </Modal>
     );
@@ -205,18 +234,25 @@ const MultipleCustomMetricModalContent = ({
     } = useWriteBackCustomMetrics(projectUuid!);
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
+    const [error, setError] = useState<string | undefined>();
 
     const previewCode = useMemo(() => {
         if (selectedItems.length === 0) return '';
-
-        const selectedMetrics = items.filter((item) =>
-            selectedItems.includes(item.name),
-        );
-        return yaml.dump(
-            selectedMetrics.map((item) => ({
-                [item.name]: convertCustomMetricToDbt(item),
-            })),
-        );
+        try {
+            const selectedMetrics = items.filter((item) =>
+                selectedItems.includes(item.name),
+            );
+            const code = yaml.dump(
+                selectedMetrics.map((item) => ({
+                    [item.name]: convertCustomMetricToDbt(item),
+                })),
+            );
+            setError(undefined);
+            return code;
+        } catch (e) {
+            setError(parseError(e));
+            return '';
+        }
     }, [items, selectedItems]);
 
     if (data) {
@@ -329,7 +365,7 @@ const MultipleCustomMetricModalContent = ({
                                 trim={false}
                                 noCopy={previewCode === ''}
                             >
-                                {previewCode}
+                                {error || previewCode}
                             </Prism>
                         </Stack>
                     </Stack>
@@ -348,13 +384,21 @@ const MultipleCustomMetricModalContent = ({
                 </Button>
 
                 <Tooltip
-                    label="Select metrics to open a pull request"
-                    disabled={selectedItems.length > 0}
+                    label={
+                        error
+                            ? `Unsupported metric definition`
+                            : 'Select metrics to open a pull request'
+                    }
+                    disabled={selectedItems.length > 0 && !error}
                 >
                     <div>
                         {' '}
                         <Button
-                            disabled={isLoading || selectedItems.length === 0}
+                            disabled={
+                                isLoading ||
+                                selectedItems.length === 0 ||
+                                !!error
+                            }
                             size="xs"
                             onClick={() => {
                                 if (!items) return;
