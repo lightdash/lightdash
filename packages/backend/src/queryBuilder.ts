@@ -141,17 +141,30 @@ const getMetricFromId = (
     return metric;
 };
 
+const getWrapChars = (wrapChar: string): [string, string] => {
+    switch (wrapChar) {
+        case '(':
+        case ')':
+            return ['(', ')'];
+        case '':
+            return ['', ''];
+        default:
+            return ['', ''];
+    }
+};
+
 const replaceAttributes = (
     regex: RegExp,
-    sqlFilter: string,
+    sql: string,
     userAttributes: Record<string, string | string[]>,
-    stringQuoteChar: string,
-    filter: string,
+    quoteChar: string | '',
+    wrapChar: string | '',
 ): string => {
-    const sqlAttributes = sqlFilter.match(regex);
+    const sqlAttributes = sql.match(regex);
+    const [leftWrap, rightWrap] = getWrapChars(wrapChar);
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {
-        return sqlFilter;
+        return sql;
     }
 
     const replacedUserAttributesSql = sqlAttributes.reduce<string>(
@@ -161,12 +174,12 @@ const replaceAttributes = (
 
             if (attributeValues === undefined) {
                 throw new ForbiddenError(
-                    `Missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
+                    `Missing user attribute "${attribute}": "${sql}"`,
                 );
             }
             if (attributeValues.length === 0) {
                 throw new ForbiddenError(
-                    `Invalid or missing user attribute "${attribute}" on ${filter}: "${sqlFilter}"`,
+                    `Invalid or missing user attribute "${attribute}": "${sql}"`,
                 );
             }
 
@@ -174,26 +187,26 @@ const replaceAttributes = (
                 ? attributeValues
                       .map(
                           (attributeValue) =>
-                              `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
+                              `${quoteChar}${attributeValue}${quoteChar}`,
                       )
                       .join(', ')
-                : `${stringQuoteChar}${attributeValues}${stringQuoteChar}`;
+                : `${quoteChar}${attributeValues}${quoteChar}`;
 
             return acc.replace(sqlAttribute, valueString);
         },
-        sqlFilter,
+        sql,
     );
 
     // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
-    return `(${replacedUserAttributesSql})`;
+    return `${leftWrap}${replacedUserAttributesSql}${rightWrap}`;
 };
 
 export const replaceUserAttributes = (
-    sqlFilter: string,
+    sql: string,
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAttributes: UserAttributeValueMap,
-    stringQuoteChar: string = "'",
-    filter: string = 'sql_filter',
+    quoteChar: string,
+    wrapChar: string,
 ): string => {
     const userAttributeRegex =
         /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
@@ -203,10 +216,10 @@ export const replaceUserAttributes = (
     // Replace user attributes in the SQL filter
     const replacedSqlFilter = replaceAttributes(
         userAttributeRegex,
-        sqlFilter,
+        sql,
         userAttributes,
-        stringQuoteChar,
-        filter,
+        quoteChar,
+        wrapChar,
     );
 
     // Replace intrinsic user attributes in the SQL filter
@@ -214,10 +227,37 @@ export const replaceUserAttributes = (
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
         intrinsicUserAttributes,
-        stringQuoteChar,
-        filter,
+        quoteChar,
+        wrapChar,
     );
 };
+
+export const replaceUserAttributesAsStrings = (
+    sql: string,
+    intrinsicUserAttributes: IntrinsicUserAttributes,
+    userAtttributes: UserAttributeValueMap,
+    warehouseClient: WarehouseClient,
+) =>
+    replaceUserAttributes(
+        sql,
+        intrinsicUserAttributes,
+        userAtttributes,
+        warehouseClient.getStringQuoteChar(),
+        '(',
+    );
+
+const replaceUserAttributesRaw = (
+    sql: string,
+    intrinsicUserAttributes: IntrinsicUserAttributes,
+    userAtttributes: UserAttributeValueMap,
+) =>
+    replaceUserAttributes(
+        sql,
+        intrinsicUserAttributes,
+        userAtttributes,
+        '',
+        '',
+    );
 
 export const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
@@ -473,12 +513,14 @@ export const getCustomBinDimensionSql = ({
     warehouseClient,
     explore,
     customDimensions,
+    intrinsicUserAttributes,
     userAttributes = {},
     sorts = [],
 }: {
     warehouseClient: WarehouseClient;
     explore: Explore;
     customDimensions: CustomBinDimension[] | undefined;
+    intrinsicUserAttributes: IntrinsicUserAttributes;
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
 }):
@@ -507,8 +549,11 @@ export const getCustomBinDimensionSql = ({
                     adapterType,
                     startOfWeek,
                 );
-                const baseTable =
-                    explore.tables[customDimension.table].sqlTable;
+                const baseTable = replaceUserAttributesRaw(
+                    explore.tables[customDimension.table].sqlTable,
+                    intrinsicUserAttributes,
+                    userAttributes,
+                );
                 const cte = ` ${getCteReference(customDimension)} AS (
                     SELECT
                         FLOOR(MIN(${dimension.compiledSql})) AS min_id,
@@ -856,8 +901,11 @@ export const buildQuery = ({
         additionalMetrics,
         compiledCustomDimensions,
     } = compiledMetricQuery;
-
-    const baseTable = explore.tables[explore.baseTable].sqlTable;
+    const baseTable = replaceUserAttributesRaw(
+        explore.tables[explore.baseTable].sqlTable,
+        intrinsicUserAttributes,
+        userAttributes,
+    );
     const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
@@ -894,6 +942,7 @@ export const buildQuery = ({
         explore,
         customDimensions:
             selectedCustomDimensions?.filter(isCustomBinDimension),
+        intrinsicUserAttributes,
         userAttributes,
         sorts,
     });
@@ -1004,16 +1053,19 @@ export const buildQuery = ({
     const sqlJoins = explore.joinedTables
         .filter((join) => joinedTables.has(join.table) || join.always)
         .map((join) => {
-            const joinTable = explore.tables[join.table].sqlTable;
+            const joinTable = replaceUserAttributesRaw(
+                explore.tables[join.table].sqlTable,
+                intrinsicUserAttributes,
+                userAttributes,
+            );
             const joinType = getJoinType(join.type);
 
             const alias = join.table;
-            const parsedSqlOn = replaceUserAttributes(
+            const parsedSqlOn = replaceUserAttributesAsStrings(
                 join.compiledSqlOn,
                 intrinsicUserAttributes,
                 userAttributes,
-                stringQuoteChar,
-                'sql_on',
+                warehouseClient,
             );
             return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
         })
@@ -1235,11 +1287,11 @@ export const buildQuery = ({
 
     const tableSqlWhereWithReplacedAttributes = tableCompiledSqlWhere
         ? [
-              replaceUserAttributes(
+              replaceUserAttributesAsStrings(
                   tableCompiledSqlWhere,
                   intrinsicUserAttributes,
                   userAttributes,
-                  stringQuoteChar,
+                  warehouseClient,
               ),
           ]
         : [];

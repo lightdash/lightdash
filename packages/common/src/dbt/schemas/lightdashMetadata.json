@@ -296,6 +296,9 @@
                 "sql_filter": {
                     "type": "string"
                 },
+                "sql_from": {
+                    "type": "string"
+                },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
                 }

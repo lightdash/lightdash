@@ -78,6 +78,7 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
+    sql_from?: string; // overrides dbt model relation_name
     required_filters?: { [key: string]: AnyType }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
