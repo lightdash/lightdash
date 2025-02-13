@@ -552,12 +552,13 @@ export const convertTable = (
         });
     }
 
+    const sqlTable = model.meta.sql_from || model.relation_name;
     return {
         name: model.name,
         label: tableLabel,
         database: model.database,
         schema: model.schema,
-        sqlTable: model.relation_name,
+        sqlTable,
         description: model.description || `${model.name} table`,
         dimensions,
         metrics: allMetrics,

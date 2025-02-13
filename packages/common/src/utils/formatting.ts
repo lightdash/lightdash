@@ -622,7 +622,7 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         // format number
         return formatWithExpression(expression, Number(sanitizedValue));
     } catch (e) {
-        console.log('Error formatting value with expression', e);
+        console.error('Error formatting value with expression', e);
         return `${value}`;
     }
 }

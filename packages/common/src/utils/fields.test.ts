@@ -272,5 +272,26 @@ describe('compareMetricAndCustomMetric', () => {
         });
         expect(result5.isExactMatch).toEqual(false);
         expect(result5.isSuggestedMatch).toEqual(false);
+
+        // Different filter types (one time filter, one not)
+        const result6 = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                filters: [
+                    metricFilterRule({
+                        operator: FilterOperator.IN_THE_PAST,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                        },
+                    }),
+                ],
+            },
+            metric: {
+                ...metric,
+                filters: [metricFilterRule()],
+            },
+        });
+        expect(result6.isExactMatch).toEqual(false);
+        expect(result6.isSuggestedMatch).toEqual(false);
     });
 });

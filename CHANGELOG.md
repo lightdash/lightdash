@@ -1,3 +1,72 @@
+# [0.1499.0](https://github.com/lightdash/lightdash/compare/0.1498.0...0.1499.0) (2025-02-13)
+
+
+### Bug Fixes
+
+* assert filter type ([#13679](https://github.com/lightdash/lightdash/issues/13679)) ([9c0ea65](https://github.com/lightdash/lightdash/commit/9c0ea652ba71e05fb94bd88b475a5affa75d2254))
+* wait for markdown tiles before screenshot ([#13676](https://github.com/lightdash/lightdash/issues/13676)) ([0e7315c](https://github.com/lightdash/lightdash/commit/0e7315c94ba1b6cbfc8bb3cc19d902ff3fab6663))
+
+
+### Features
+
+* allow duplicating markdown tiles ([#13678](https://github.com/lightdash/lightdash/issues/13678)) ([bd750cd](https://github.com/lightdash/lightdash/commit/bd750cd4cfb5e3b8e30ca5cecbf6dd7111df4198))
+
+# [0.1498.0](https://github.com/lightdash/lightdash/compare/0.1497.1...0.1498.0) (2025-02-13)
+
+
+### Features
+
+* **frontend:** Make dbt write back YAML generator work even if you're not connected to GitHub ([#13675](https://github.com/lightdash/lightdash/issues/13675)) ([49b0f67](https://github.com/lightdash/lightdash/commit/49b0f67540d325f56a13f5b46d97680f38235bd5))
+
+## [0.1497.1](https://github.com/lightdash/lightdash/compare/0.1497.0...0.1497.1) (2025-02-13)
+
+
+### Bug Fixes
+
+* disable write back on error ([#13665](https://github.com/lightdash/lightdash/issues/13665)) ([713c8b1](https://github.com/lightdash/lightdash/commit/713c8b1889a3fa2c4e1501700ed3e7c8142fa7af))
+
+# [0.1497.0](https://github.com/lightdash/lightdash/compare/0.1496.3...0.1497.0) (2025-02-13)
+
+
+### Features
+
+* apply user attributes to sql from ([#13663](https://github.com/lightdash/lightdash/issues/13663)) ([bd8aa00](https://github.com/lightdash/lightdash/commit/bd8aa007189a744d00b51de00ef7a432c91d6c18))
+
+## [0.1496.3](https://github.com/lightdash/lightdash/compare/0.1496.2...0.1496.3) (2025-02-13)
+
+
+### Bug Fixes
+
+* disable custom metric write back if not github ([#13672](https://github.com/lightdash/lightdash/issues/13672)) ([ec51ad9](https://github.com/lightdash/lightdash/commit/ec51ad9a12f16fe436650ff29335c1ae7bd6769e))
+
+## [0.1496.2](https://github.com/lightdash/lightdash/compare/0.1496.1...0.1496.2) (2025-02-13)
+
+
+### Bug Fixes
+
+* **frontend:** conditionally render custom metric write back modal to avoid renderind `undefined` and errors in console ([#13661](https://github.com/lightdash/lightdash/issues/13661)) ([a484b9e](https://github.com/lightdash/lightdash/commit/a484b9e20a7bae4ef12c4ff97a6d957db731c40d))
+
+## [0.1496.1](https://github.com/lightdash/lightdash/compare/0.1496.0...0.1496.1) (2025-02-13)
+
+
+### Bug Fixes
+
+* sdk markdown styles ([#13664](https://github.com/lightdash/lightdash/issues/13664)) ([fda6182](https://github.com/lightdash/lightdash/commit/fda6182a3836e80d30c902c877a2bb2258b3c4c8))
+
+# [0.1496.0](https://github.com/lightdash/lightdash/compare/0.1495.1...0.1496.0) (2025-02-13)
+
+
+### Features
+
+* **backend:** Update message in Pull Request for write back to say don't change stuff ([#13660](https://github.com/lightdash/lightdash/issues/13660)) ([8acac60](https://github.com/lightdash/lightdash/commit/8acac601d738bdac4f2ff57f8e190a7ceede4c26))
+
+## [0.1495.1](https://github.com/lightdash/lightdash/compare/0.1495.0...0.1495.1) (2025-02-13)
+
+
+### Bug Fixes
+
+* unify confirmation modal write back ([#13630](https://github.com/lightdash/lightdash/issues/13630)) ([54cac74](https://github.com/lightdash/lightdash/commit/54cac74c7966cc80bbc18d6cd0a15ac42c604303))
+
 # [0.1495.0](https://github.com/lightdash/lightdash/compare/0.1494.0...0.1495.0) (2025-02-12)
 
 

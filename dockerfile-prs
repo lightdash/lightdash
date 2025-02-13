@@ -5,7 +5,7 @@ FROM node:20-bookworm-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest 
+RUN npm i -g corepack@latest
 RUN corepack enable pnpm
 RUN corepack prepare pnpm@9.15.5 --activate
 RUN pnpm config set store-dir /pnpm/store
@@ -126,6 +126,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 
 # Build common
 COPY packages/common/tsconfig.json ./packages/common/
+COPY packages/common/tsconfig.build.json ./packages/common/
+COPY packages/common/tsconfig.esm.json ./packages/common/
+COPY packages/common/tsconfig.cjs.json ./packages/common/
+COPY packages/common/tsconfig.types.json ./packages/common/
 COPY packages/common/src/ ./packages/common/src/
 RUN pnpm -F @lightdash/common build
 
@@ -160,7 +164,7 @@ FROM node:20-bookworm-slim as prod
 
 ENV NODE_ENV production
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest 
+RUN npm i -g corepack@latest
 RUN corepack enable pnpm
 RUN corepack prepare pnpm@9.15.5 --activate
 RUN pnpm config set store-dir /pnpm/store

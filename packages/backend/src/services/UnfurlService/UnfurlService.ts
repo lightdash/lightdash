@@ -671,6 +671,15 @@ export class UnfurlService extends BaseService {
                     }
 
                     if (lightdashPage === LightdashPage.DASHBOARD) {
+                        // Wait for markdown tiles specifically
+                        const markdownTiles = await page
+                            .locator('.markdown-tile')
+                            .all();
+                        await Promise.all(
+                            markdownTiles.map((tile) =>
+                                tile.waitFor({ state: 'attached' }),
+                            ),
+                        );
                         const loadingChartOverlays = await page
                             .locator('.loading_chart_overlay')
                             .all();
@@ -708,12 +717,13 @@ export class UnfurlService extends BaseService {
                         finalSelector = '.react-grid-layout';
                     }
 
-                    const fullPage = await page.$(finalSelector);
+                    const fullPage = await page.locator(finalSelector);
 
                     if (chartType === ChartType.BIG_NUMBER) {
                         await page.setViewportSize(bigNumberViewport);
                     } else {
                         const fullPageSize = await fullPage?.boundingBox();
+
                         await page.setViewportSize({
                             width: gridWidth ?? viewport.width,
                             height: fullPageSize?.height

@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    FeatureFlags,
     MetricType,
     friendlyName,
     getItemId,
@@ -26,12 +27,12 @@ import {
 import { useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilters } from '../../../../../hooks/useFilters';
 import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
-import { useTableTreeContext } from './useTableTree';
 
 const getCustomMetricType = (type: DimensionType): MetricType[] => {
     switch (type) {
@@ -113,7 +114,9 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const { isGithubIntegrationEnabled } = useTableTreeContext();
+    const isCustomSqlEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -216,34 +219,25 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Duplicate custom metric
                         </Menu.Item>
-                        {isGithubIntegrationEnabled && (
-                            <Tooltip
-                                label={
-                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
-                                }
-                                position="top"
-                                withArrow
-                                withinPortal
-                                disabled={isGithubIntegrationEnabled}
+
+                        {isCustomSqlEnabled && (
+                            <Menu.Item
+                                key="custommetric"
+                                component="button"
+                                icon={<MantineIcon icon={IconCode} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    toggleAdditionalMetricWriteBackModal({
+                                        items: [item],
+                                    });
+                                }}
                             >
-                                <Menu.Item
-                                    key="custommetric"
-                                    component="button"
-                                    disabled={!isGithubIntegrationEnabled}
-                                    icon={<MantineIcon icon={IconCode} />}
-                                    onClick={(
-                                        e: React.MouseEvent<HTMLButtonElement>,
-                                    ) => {
-                                        e.stopPropagation();
-                                        toggleAdditionalMetricWriteBackModal({
-                                            items: [item],
-                                        });
-                                    }}
-                                >
-                                    Write back to dbt
-                                </Menu.Item>
-                            </Tooltip>
+                                Write back to dbt
+                            </Menu.Item>
                         )}
+
                         <Menu.Item
                             color="red"
                             key="custommetric"

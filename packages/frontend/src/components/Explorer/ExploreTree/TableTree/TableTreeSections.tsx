@@ -322,19 +322,20 @@ const TableTreeSections: FC<Props> = ({
                             }}
                         />
                     </Group>
-
-                    <Tooltip label="Write back custom metrics">
-                        <ActionIcon
-                            onClick={() => {
-                                toggleAdditionalMetricWriteBackModal({
-                                    items: allAdditionalMetrics || [],
-                                    multiple: true,
-                                });
-                            }}
-                        >
-                            <MantineIcon icon={IconCode} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {isCustomSqlEnabled && (
+                        <Tooltip label="Write back custom metrics">
+                            <ActionIcon
+                                onClick={() => {
+                                    toggleAdditionalMetricWriteBackModal({
+                                        items: allAdditionalMetrics || [],
+                                        multiple: true,
+                                    });
+                                }}
+                            >
+                                <MantineIcon icon={IconCode} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </Group>
             ) : null}
 

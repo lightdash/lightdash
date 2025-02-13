@@ -199,6 +199,7 @@ describe('Lightdash API', () => {
             `/org/projects`,
             `/org/users`,
             `/org/onboardingStatus`,
+            `/org/users/email/demo@lightdash.com`,
         ];
         // Note:  `/org/projects` endpoint fails with 413 if we don't give conten-type:json headers
         endpoints.forEach((endpoint) => {
@@ -208,6 +209,21 @@ describe('Lightdash API', () => {
             }).then((resp) => {
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
+            });
+        });
+    });
+
+    it('Should get not found response (404) from GET organizationRouter endpoints', () => {
+        const endpoints = [`/org/users/email/another@lightdash.com`];
+        // Note:  `/org/projects` endpoint fails with 413 if we don't give conten-type:json headers
+        endpoints.forEach((endpoint) => {
+            cy.request({
+                url: `${apiUrl}${endpoint}`,
+                headers: { 'Content-type': 'application/json' },
+                failOnStatusCode: false,
+            }).then((resp) => {
+                expect(resp.status).to.eq(404);
+                expect(resp.body).to.have.property('status', 'error');
             });
         });
     });
