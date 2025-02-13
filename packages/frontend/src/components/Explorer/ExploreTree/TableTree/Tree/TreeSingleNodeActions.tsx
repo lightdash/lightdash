@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    FeatureFlags,
     MetricType,
     friendlyName,
     getItemId,
@@ -26,6 +27,7 @@ import {
 import { useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilters } from '../../../../../hooks/useFilters';
 import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -111,6 +113,10 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
+
+    const isCustomSqlEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -214,21 +220,23 @@ const TreeSingleNodeActions: FC<Props> = ({
                             Duplicate custom metric
                         </Menu.Item>
 
-                        <Menu.Item
-                            key="custommetric"
-                            component="button"
-                            icon={<MantineIcon icon={IconCode} />}
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.stopPropagation();
-                                toggleAdditionalMetricWriteBackModal({
-                                    items: [item],
-                                });
-                            }}
-                        >
-                            Write back to dbt
-                        </Menu.Item>
+                        {isCustomSqlEnabled && (
+                            <Menu.Item
+                                key="custommetric"
+                                component="button"
+                                icon={<MantineIcon icon={IconCode} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    toggleAdditionalMetricWriteBackModal({
+                                        items: [item],
+                                    });
+                                }}
+                            >
+                                Write back to dbt
+                            </Menu.Item>
+                        )}
 
                         <Menu.Item
                             color="red"
