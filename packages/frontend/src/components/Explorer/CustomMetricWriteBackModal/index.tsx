@@ -141,6 +141,14 @@ const SingleCustomMetricModalContent = ({
         );
     }
 
+    const disableErrorTooltip = isGithubProject && !error;
+
+    const errorTooltipLabel = error
+        ? unsupportedMetricDefinitionError
+        : prDisabledMessage;
+
+    const buttonDisabled = isLoading || !disableErrorTooltip;
+
     return (
         <Modal
             size="lg"
@@ -210,16 +218,12 @@ const SingleCustomMetricModalContent = ({
                 </Button>
 
                 <Tooltip
-                    label={
-                        error
-                            ? unsupportedMetricDefinitionError
-                            : prDisabledMessage
-                    }
-                    disabled={isGithubProject && !error}
+                    label={errorTooltipLabel}
+                    disabled={disableErrorTooltip}
                 >
                     <div>
                         <Button
-                            disabled={isLoading || !isGithubProject || !!error}
+                            disabled={buttonDisabled}
                             size="xs"
                             onClick={() => {
                                 if (!item) return;
@@ -282,6 +286,17 @@ const MultipleCustomMetricModalContent = ({
             <CreatedPullRequestModalContent data={data} onClose={handleClose} />
         );
     }
+
+    const disableErrorTooltip =
+        isGithubProject && selectedItems.length > 0 && !error;
+
+    const errorTooltipLabel = error
+        ? unsupportedMetricDefinitionError
+        : !isGithubProject
+        ? prDisabledMessage
+        : 'Select metrics to open a pull request';
+
+    const buttonDisabled = isLoading || !disableErrorTooltip;
 
     return (
         <Modal
@@ -406,25 +421,12 @@ const MultipleCustomMetricModalContent = ({
                 </Button>
 
                 <Tooltip
-                    label={
-                        error
-                            ? unsupportedMetricDefinitionError
-                            : !isGithubProject
-                            ? prDisabledMessage
-                            : 'Select metrics to open a pull request'
-                    }
-                    disabled={
-                        isGithubProject && selectedItems.length > 0 && !error
-                    }
+                    label={errorTooltipLabel}
+                    disabled={disableErrorTooltip}
                 >
                     <div>
                         <Button
-                            disabled={
-                                isLoading ||
-                                selectedItems.length === 0 ||
-                                !isGithubProject ||
-                                !!error
-                            }
+                            disabled={buttonDisabled}
                             size="xs"
                             onClick={() => {
                                 if (!items) return;
