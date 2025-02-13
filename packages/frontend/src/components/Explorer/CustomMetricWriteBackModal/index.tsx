@@ -2,7 +2,6 @@ import {
     convertCustomMetricToDbt,
     getErrorMessage,
     NotImplementedError,
-    UnexpectedServerError,
     type AdditionalMetric,
 } from '@lightdash/common';
 import {
@@ -249,8 +248,6 @@ const MultipleCustomMetricModalContent = ({
                 })),
             );
             setError(undefined);
-            throw new UnexpectedServerError('something went wrong');
-
             return code;
         } catch (e) {
             setError(parseError(e));
