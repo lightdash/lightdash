@@ -72,14 +72,13 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             },
                         })}
                     >
-                        You are connected to GitHub, click{' '}
+                        You are connected to GitHub.{' '}
                         <Anchor
                             href={'/generalSettings/integrations'}
                             target="_blank"
                         >
-                            here
+                            Click here to use another account
                         </Anchor>{' '}
-                        to use another account
                     </Text>
                     {repos && repos.length > 0 && (
                         <Group spacing="xs">
@@ -182,10 +181,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
     disabled,
 }) => {
-    const { savedProject } = useProjectFormContext();
     const { register } = useFormContext();
-    const requireSecrets: boolean =
-        savedProject?.dbtConnection.type !== DbtProjectType.GITHUB;
+    const requireSecrets = true;
 
     return (
         <>
