@@ -1,9 +1,8 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
 import {
-    Center,
+    Container,
     Flex,
     Group,
-    Stack,
     Text,
     Tooltip,
     useMantineTheme,
@@ -63,6 +62,17 @@ const calculateFontSize = (
     return fontSize;
 };
 
+const calculateLineClamp = (
+    boundHeight: number,
+    lineHeight: number = 1,
+    constant: number = 30,
+) => {
+    const calculatedLineClamp = Math.floor(
+        boundHeight / (lineHeight * constant),
+    );
+    return calculatedLineClamp;
+};
+
 const BigNumberText: FC<TextProps> = forwardRef<HTMLDivElement, TextProps>(
     ({ children, ...textProps }, ref) => {
         return (
@@ -98,46 +108,50 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     const [setRef, observerElementSize] = useResizeObserver();
 
-    const { valueFontSize, labelFontSize, comparisonFontSize } = useMemo(() => {
-        const boundWidth = clamp(
-            observerElementSize?.width || 0,
-            BOX_MIN_WIDTH,
-            BOX_MAX_WIDTH,
-        );
+    const { valueFontSize, labelFontSize, comparisonFontSize, lineClampRows } =
+        useMemo(() => {
+            const boundWidth = clamp(
+                observerElementSize?.width || 0,
+                BOX_MIN_WIDTH,
+                BOX_MAX_WIDTH,
+            );
 
-        const boundHeight = clamp(
-            observerElementSize?.height || 0,
-            BOX_MIN_HEIGHT,
-            BOX_MAX_HEIGHT,
-        );
+            const boundHeight = clamp(
+                observerElementSize?.height || 0,
+                BOX_MIN_HEIGHT,
+                BOX_MAX_HEIGHT,
+            );
 
-        const valueSize = calculateFontSize(
-            VALUE_SIZE_MIN,
-            VALUE_SIZE_MAX,
-            boundWidth,
-            boundHeight,
-        );
+            const valueSize = calculateFontSize(
+                VALUE_SIZE_MIN,
+                VALUE_SIZE_MAX,
+                boundWidth,
+                boundHeight,
+            );
 
-        const labelSize = calculateFontSize(
-            LABEL_SIZE_MIN,
-            LABEL_SIZE_MAX,
-            boundWidth,
-            boundHeight,
-        );
+            const labelSize = calculateFontSize(
+                LABEL_SIZE_MIN,
+                LABEL_SIZE_MAX,
+                boundWidth,
+                boundHeight,
+            );
 
-        const comparisonValueSize = calculateFontSize(
-            COMPARISON_VALUE_SIZE_MIN,
-            COMPARISON_VALUE_SIZE_MAX,
-            boundWidth,
-            boundHeight,
-        );
+            const comparisonValueSize = calculateFontSize(
+                COMPARISON_VALUE_SIZE_MIN,
+                COMPARISON_VALUE_SIZE_MAX,
+                boundWidth,
+                boundHeight,
+            );
 
-        return {
-            valueFontSize: valueSize,
-            labelFontSize: labelSize,
-            comparisonFontSize: comparisonValueSize,
-        };
-    }, [observerElementSize]);
+            const lineClamp = calculateLineClamp(boundHeight);
+
+            return {
+                valueFontSize: valueSize,
+                labelFontSize: labelSize,
+                comparisonFontSize: comparisonValueSize,
+                lineClampRows: lineClamp,
+            };
+        }, [observerElementSize]);
 
     const comparisonValueColor = useMemo(() => {
         if (!isBigNumber) return undefined;
@@ -182,18 +196,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <Center
+        <Container
             w="100%"
             h="100%"
-            component={Stack}
-            spacing={0}
             pb={isDashboard && isTitleHidden ? 0 : TILE_HEADER_HEIGHT}
             ref={(elem) => {
                 setRef(elem);
             }}
             {...wrapperProps}
         >
-            <Flex style={{ flexShrink: 1 }}>
+            <Flex justify="center" style={{ flexShrink: 1 }}>
                 {minimal || isSqlRunner ? (
                     <BigNumberText fz={valueFontSize}>
                         {bigNumber}
@@ -211,8 +223,20 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             </Flex>
 
             {showBigNumberLabel ? (
-                <Flex style={{ flexShrink: 1 }}>
-                    <BigNumberText fz={labelFontSize}>
+                <Flex
+                    style={{
+                        flexShrink: 1,
+                    }}
+                >
+                    <BigNumberText
+                        fz={labelFontSize}
+                        style={{
+                            display: '-webkit-box',
+                            WebkitBoxOrient: 'vertical',
+                            WebkitLineClamp: lineClampRows,
+                            overflow: 'hidden',
+                        }}
+                    >
                         {bigNumberLabel || defaultLabel}
                     </BigNumberText>
                 </Flex>
@@ -262,7 +286,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     ) : null}
                 </Flex>
             ) : null}
-        </Center>
+        </Container>
     ) : (
         <EmptyChart />
     );
