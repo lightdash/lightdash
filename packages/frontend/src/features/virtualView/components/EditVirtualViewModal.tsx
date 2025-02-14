@@ -21,7 +21,7 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     explore: Explore;
 };
 
-const SqlRunnerNewPage = lazy(() => import('../../../pages/SqlRunnerNew'));
+const SqlRunnerNewPage = lazy(() => import('../../../pages/SqlRunner'));
 
 export const EditVirtualViewModal: FC<Props> = ({
     opened,

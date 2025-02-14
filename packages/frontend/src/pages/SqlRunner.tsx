@@ -40,7 +40,7 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import useSearchParams from '../hooks/useSearchParams';
 
-const SqlRunnerNew = ({
+const SqlRunner = ({
     isEditMode,
     virtualViewState,
 }: {
@@ -223,7 +223,7 @@ const SqlRunnerNewPage = ({
 }) => {
     return (
         <Provider store={store}>
-            <SqlRunnerNew
+            <SqlRunner
                 isEditMode={isEditMode}
                 virtualViewState={virtualViewState}
             />

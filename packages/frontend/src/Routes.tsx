@@ -36,7 +36,7 @@ import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
-import SqlRunnerNew from './pages/SqlRunnerNew';
+import SqlRunner from './pages/SqlRunner';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
@@ -225,7 +225,7 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
         children: [
             {
                 path: '/projects/:projectUuid/sql-runner',
-                element: <SqlRunnerNew />,
+                element: <SqlRunner />,
             },
             {
                 path: '/projects/:projectUuid/sql-runner/:slug',
@@ -233,7 +233,7 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
             },
             {
                 path: '/projects/:projectUuid/sql-runner:slug/edit',
-                element: <SqlRunnerNew isEditMode />,
+                element: <SqlRunner isEditMode />,
             },
         ],
     },
