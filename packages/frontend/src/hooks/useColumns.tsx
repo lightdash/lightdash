@@ -51,16 +51,6 @@ export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
 ) => <span>{info.getValue()?.value.formatted || '-'}</span>;
 
-export const getRawValueCell = (
-    info: CellContext<ResultRow, { value: ResultValue }>,
-) => {
-    let raw = info.getValue()?.value.raw;
-    if (raw === null) return '∅';
-    if (raw === undefined) return '-';
-    if (raw instanceof Date) return <span>{raw.toISOString()}</span>;
-    return <span>{`${raw}`}</span>;
-};
-
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
     const formatted = formatRowValueFromWarehouse(value);

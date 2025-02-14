@@ -36,7 +36,6 @@ import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
-import SqlRunner from './pages/SqlRunner';
 import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
@@ -215,17 +214,6 @@ const DASHBOARD_ROUTES: RouteObject[] = [
 ];
 
 const SQL_RUNNER_ROUTES: RouteObject[] = [
-    {
-        path: '/projects/:projectUuid/sqlRunner', // Legacy route
-        element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SQL_RUNNER}>
-                    <SqlRunner />
-                </TrackPage>
-            </>
-        ),
-    },
     {
         path: '/projects/:projectUuid/sql-runner',
         element: (
