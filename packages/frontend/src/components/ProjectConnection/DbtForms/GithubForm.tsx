@@ -181,8 +181,10 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
     disabled,
 }) => {
+    const { savedProject } = useProjectFormContext();
     const { register } = useFormContext();
-    const requireSecrets = true;
+    const requireSecrets: boolean =
+        savedProject?.dbtConnection.type !== DbtProjectType.GITHUB;
 
     return (
         <>
