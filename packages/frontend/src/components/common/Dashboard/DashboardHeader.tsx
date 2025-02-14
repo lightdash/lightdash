@@ -29,6 +29,7 @@ import {
     IconFolderPlus,
     IconFolders,
     IconInfoCircle,
+    IconKey,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -59,6 +60,7 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
 import {
+    InfoContainer,
     PageActionsContainer,
     PageTitleAndDetailsContainer,
 } from '../PageHeader';
@@ -67,6 +69,7 @@ import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
+import TextCopy from '../TextCopy';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import ShareLinkButton from './ShareLinkButton';
@@ -265,6 +268,16 @@ const DashboardHeader = ({
                                     views={dashboard.views}
                                     firstViewedAt={dashboard.firstViewedAt}
                                 />
+
+                                <InfoContainer>
+                                    <MantineIcon icon={IconKey} />
+                                    Slug:
+                                    <TextCopy
+                                        variant="code"
+                                        text={dashboard.slug}
+                                        tooltipLabel="Copy slug"
+                                    />
+                                </InfoContainer>
 
                                 {dashboard.spaceName && (
                                     <SpaceAndDashboardInfo
