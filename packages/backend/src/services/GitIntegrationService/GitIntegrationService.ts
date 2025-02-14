@@ -9,6 +9,7 @@ import {
     findAndUpdateModelNodes,
     ForbiddenError,
     friendlyName,
+    getErrorMessage,
     GitIntegrationConfiguration,
     isUserWithOrg,
     lightdashDbtYamlSchema,
@@ -25,7 +26,10 @@ import {
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    WriteBackEvent,
+} from '../../analytics/LightdashAnalytics';
 import {
     checkFileDoesNotExist,
     createBranch,
@@ -487,36 +491,51 @@ Affected charts:
             customMetrics.length === 1
                 ? `\`${customMetrics[0].name}\` custom metric`
                 : `${customMetrics.length} custom metrics`;
-        const pullRequest = await createPullRequest({
-            ...githubProps,
-            title: `Adds ${customMetricInfo}`,
-            body: `Created by Lightdash, this pull request adds ${customMetricInfo} to the dbt model.
+        const eventProperties: WriteBackEvent['properties'] = {
+            name: customMetricInfo,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid!,
+            context: QueryExecutionContext.EXPLORE,
+        };
+        try {
+            const pullRequest = await createPullRequest({
+                ...githubProps,
+                title: `Adds ${customMetricInfo}`,
+                body: `Created by Lightdash, this pull request adds ${customMetricInfo} to the dbt model.
 
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
 > ⚠️ **Note: Do not change the \`label\` or \`id\` of your metrics in this pull request.** Your custom metric(s) _will not be replaced_ with YAML metrics if you change the \`label\` or \`id\` of the metrics in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom metrics with YAML metrics.`,
-            head: githubProps.branch,
-            base: githubProps.mainBranch,
-        });
-        Logger.debug(
-            `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
-        );
+                head: githubProps.branch,
+                base: githubProps.mainBranch,
+            });
+            Logger.debug(
+                `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
+            );
 
-        this.analytics.track({
-            event: 'write_back.created',
-            userId: user.userUuid,
-            properties: {
-                name: customMetricInfo,
-                projectId: projectUuid,
-                organizationId: user.organizationUuid!,
-                context: QueryExecutionContext.EXPLORE,
-                customMetricsCount: customMetrics.length,
-            },
-        });
-        return {
-            prTitle: pullRequest.title,
-            prUrl: pullRequest.html_url,
-        };
+            this.analytics.track({
+                event: 'write_back.created',
+                userId: user.userUuid,
+                properties: {
+                    ...eventProperties,
+                    customMetricsCount: customMetrics.length,
+                },
+            });
+            return {
+                prTitle: pullRequest.title,
+                prUrl: pullRequest.html_url,
+            };
+        } catch (e) {
+            this.analytics.track({
+                event: 'write_back.error',
+                userId: user.userUuid,
+                properties: {
+                    ...eventProperties,
+                    error: getErrorMessage(e),
+                },
+            });
+            throw e;
+        }
     }
 
     private static removeExtraSlashes(str: string): string {
@@ -645,34 +664,47 @@ ${sql}
         Logger.debug(
             `Creating pull request from branch ${githubProps.branch} to ${githubProps.mainBranch} in ${githubProps.owner}/${githubProps.repo}`,
         );
-        const pullRequest = await createPullRequest({
-            ...githubProps,
-            title: `Creates \`${name}\` SQL and YML model`,
-            body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
+        const eventProperties: WriteBackEvent['properties'] = {
+            name,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid!,
+            context: QueryExecutionContext.SQL_RUNNER,
+        };
+        try {
+            const pullRequest = await createPullRequest({
+                ...githubProps,
+                title: `Creates \`${name}\` SQL and YML model`,
+                body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
 
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
-            head: githubProps.branch,
-            base: githubProps.mainBranch,
-        });
-        Logger.debug(
-            `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
-        );
+                head: githubProps.branch,
+                base: githubProps.mainBranch,
+            });
+            Logger.debug(
+                `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
+            );
 
-        this.analytics.track({
-            event: 'write_back.created',
-            userId: user.userUuid,
-            properties: {
-                name,
-                projectId: projectUuid,
-                organizationId: user.organizationUuid!,
-                context: QueryExecutionContext.SQL_RUNNER,
-            },
-        });
-        return {
-            prTitle: pullRequest.title,
-            prUrl: pullRequest.html_url,
-        };
+            this.analytics.track({
+                event: 'write_back.created',
+                userId: user.userUuid,
+                properties: eventProperties,
+            });
+            return {
+                prTitle: pullRequest.title,
+                prUrl: pullRequest.html_url,
+            };
+        } catch (e) {
+            this.analytics.track({
+                event: 'write_back.error',
+                userId: user.userUuid,
+                properties: {
+                    ...eventProperties,
+                    error: getErrorMessage(e),
+                },
+            });
+            throw e;
+        }
     }
 
     async writeBackPreview(

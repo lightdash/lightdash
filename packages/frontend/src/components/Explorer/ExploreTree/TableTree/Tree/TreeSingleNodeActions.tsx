@@ -25,10 +25,12 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilters } from '../../../../../hooks/useFilters';
+import useApp from '../../../../../providers/App/useApp';
 import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -82,6 +84,8 @@ const TreeSingleNodeActions: FC<Props> = ({
     hasDescription,
     onViewDescription,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
     const { showToastSuccess } = useToaster();
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -229,6 +233,22 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     e: React.MouseEvent<HTMLButtonElement>,
                                 ) => {
                                     e.stopPropagation();
+                                    if (
+                                        projectUuid &&
+                                        user.data?.organizationUuid
+                                    ) {
+                                        track({
+                                            name: EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED,
+                                            properties: {
+                                                userId: user.data.userUuid,
+                                                projectId: projectUuid,
+                                                organizationId:
+                                                user.data
+                                                    .organizationUuid,
+                                                customMetricsCount: 1,
+                                            },
+                                        });
+                                    }
                                     toggleAdditionalMetricWriteBackModal({
                                         items: [item],
                                     });

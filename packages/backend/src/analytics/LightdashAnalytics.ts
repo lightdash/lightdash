@@ -1122,6 +1122,18 @@ export type WriteBackEvent = BaseTrack & {
     };
 };
 
+export type WriteBackErrorEvent = BaseTrack & {
+    event: 'write_back.error';
+    userId: string;
+    properties: {
+        name: string;
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+        error: string;
+    };
+};
+
 type CreateTagEvent = BaseTrack & {
     event: 'category.created';
     userId: string;
@@ -1229,6 +1241,7 @@ type TypedEvent =
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent
+    | WriteBackErrorEvent
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
     | CategoriesAppliedEvent
