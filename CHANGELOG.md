@@ -1,3 +1,10 @@
+# [0.1501.0](https://github.com/lightdash/lightdash/compare/0.1500.0...0.1501.0) (2025-02-14)
+
+
+### Features
+
+* validate custom dimension sql before saving/updating ([#13683](https://github.com/lightdash/lightdash/issues/13683)) ([35ca351](https://github.com/lightdash/lightdash/commit/35ca35195a0ee144f613eccc00a7b950c610dc77))
+
 # [0.1500.0](https://github.com/lightdash/lightdash/compare/0.1499.0...0.1500.0) (2025-02-13)
 
 
