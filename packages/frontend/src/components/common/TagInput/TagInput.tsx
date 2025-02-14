@@ -461,7 +461,6 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
                 // @ts-ignore
                 autoComplete="off"
                 data-1p-ignore
-                data-autofocus
                 {...rest}
             />
         );

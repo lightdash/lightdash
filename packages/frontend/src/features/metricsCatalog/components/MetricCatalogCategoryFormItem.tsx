@@ -181,7 +181,6 @@ const EditPopover: FC<EditPopoverProps> = ({
 type Props = {
     category: CatalogItem['categories'][number];
     onClick?: () => void;
-    onFocus?: (e: React.FocusEvent<HTMLDivElement>) => void;
     onSubPopoverChange?: (isOpen: boolean) => void;
     canEdit: boolean;
 };
@@ -189,7 +188,6 @@ type Props = {
 export const MetricCatalogCategoryFormItem: FC<Props> = ({
     category,
     onClick,
-    onFocus,
     onSubPopoverChange,
     canEdit,
 }) => {
@@ -215,8 +213,6 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             tabIndex={0}
             role="button"
             onKeyDown={handleKeyDown}
-            onFocus={onFocus}
-            data-metrics-catalog-category-item
             sx={(theme) => ({
                 borderRadius: theme.radius.md,
                 outline: 'none',

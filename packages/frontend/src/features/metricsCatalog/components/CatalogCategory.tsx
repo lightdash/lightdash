@@ -23,12 +23,6 @@ export const CatalogCategory: FC<Props> = ({
 }) => {
     const { classes } = useCategoryStyles(category.color);
 
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if ((event.key === 'Backspace' || event.key === 'Delete') && onRemove) {
-            onRemove();
-        }
-    };
-
     return (
         <Badge
             key={category.name}
@@ -66,8 +60,6 @@ export const CatalogCategory: FC<Props> = ({
                     paddingRight: onRemove ? 2 : 8,
                 },
             })}
-            onKeyDown={handleKeyDown}
-            tabIndex={onRemove ? 0 : -1}
         >
             <Group spacing={1}>
                 {category.name}
@@ -77,7 +69,15 @@ export const CatalogCategory: FC<Props> = ({
                         color="gray"
                         size={14}
                         onClick={onRemove}
-                        tabIndex={-1}
+                        sx={(theme) => ({
+                            '&:focus': {
+                                backgroundColor: theme.fn.rgba(
+                                    theme.colors.gray[5],
+                                    0.35,
+                                ),
+                                outline: 'none',
+                            },
+                        })}
                     >
                         <MantineIcon
                             className={classes.removeIcon}
