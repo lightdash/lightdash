@@ -34,7 +34,7 @@ describe('User attributes sql_filter', () => {
 
         cy.contains(
             // eslint-disable-next-line no-template-curly-in-string
-            'Missing user attribute "customer_id" on sql_filter: "customer_id = ${ld.attr.customer_id}"',
+            'Missing user attribute "customer_id": "customer_id = ${ld.attr.customer_id}"',
         );
     });
 
