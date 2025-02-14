@@ -29,13 +29,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     ...rest
 }) => {
-    const {
-        isLoading,
-        columnOrder,
-        isSqlRunner,
-        itemsMap,
-        visualizationConfig,
-    } = useVisualizationContext();
+    const { isLoading, columnOrder, itemsMap, visualizationConfig } =
+        useVisualizationContext();
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
@@ -138,7 +133,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     return null;
                 }}
                 cellContextMenu={(props) => {
-                    if (isSqlRunner) return <>{props.children}</>;
                     if (minimal) {
                         return <MinimalCellContextMenu {...props} />;
                     }
