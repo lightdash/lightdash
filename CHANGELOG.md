@@ -1,3 +1,10 @@
+## [0.1502.1](https://github.com/lightdash/lightdash/compare/0.1502.0...0.1502.1) (2025-02-14)
+
+
+### Bug Fixes
+
+* user attribute error on e2e ([#13694](https://github.com/lightdash/lightdash/issues/13694)) ([9be2ba8](https://github.com/lightdash/lightdash/commit/9be2ba840fa3a6969d28c9d3c909d9b0bac7350a))
+
 # [0.1502.0](https://github.com/lightdash/lightdash/compare/0.1501.2...0.1502.0) (2025-02-14)
 
 
