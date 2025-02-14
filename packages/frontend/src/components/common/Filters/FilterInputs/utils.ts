@@ -124,6 +124,20 @@ const getValueAsString = (
                         rule.settings?.completed ? 'completed ' : ''
                     }${rule.settings?.unitOfTime}`;
                 case FilterOperator.IN_BETWEEN:
+                    if (
+                        isDimension(field) &&
+                        isMomentInput(firstValue) &&
+                        isMomentInput(secondValue) &&
+                        field.type === DimensionType.DATE
+                    ) {
+                        return `${formatDate(
+                            firstValue as MomentInput,
+                            field.timeInterval,
+                        )} and ${formatDate(
+                            secondValue as MomentInput,
+                            field.timeInterval,
+                        )}`;
+                    }
                     return `${getLocalTimeDisplay(
                         firstValue as MomentInput,
                         false,
