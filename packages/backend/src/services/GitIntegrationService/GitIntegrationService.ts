@@ -136,7 +136,6 @@ export class GitIntegrationService extends BaseService {
                 user.organizationUuid,
             );
         return {
-            installationId,
             enabled: !!installationId,
         };
     }
@@ -424,7 +423,10 @@ Affected charts:
                 projectUuid,
             );
             if (project.dbtConnection.type === DbtProjectType.GITHUB) {
-                token = project.dbtConnection.personal_access_token;
+                token = project.dbtConnection.personal_access_token || '';
+                if (!token) {
+                    throw new ParameterError('Invalid personal access token');
+                }
             } else {
                 throw new ParameterError('No github project found');
             }
