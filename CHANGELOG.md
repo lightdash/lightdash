@@ -1,3 +1,10 @@
+# [0.1502.0](https://github.com/lightdash/lightdash/compare/0.1501.2...0.1502.0) (2025-02-14)
+
+
+### Features
+
+* add way to copy slug from dashboard page ([#13691](https://github.com/lightdash/lightdash/issues/13691)) ([780e1bc](https://github.com/lightdash/lightdash/commit/780e1bc6f2978ff8065e239b9f99331ed80e639d))
+
 ## [0.1501.2](https://github.com/lightdash/lightdash/compare/0.1501.1...0.1501.2) (2025-02-14)
 
 
