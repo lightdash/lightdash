@@ -15,14 +15,14 @@ import React, { useCallback, useState } from 'react';
 
 import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import MantineIcon from '../MantineIcon';
+import { chartConfigs } from './chartConfigs';
 import {
     base64SvgToBase64Image,
     downloadImage,
     downloadJson,
     downloadPdf,
     DownloadType,
-} from './chartDownloadUtils';
-
+} from './chartDownloadUtils.';
 type DownloadOptions = {
     getChartInstance: () => EChartsInstance | undefined;
     unavailableOptions?: DownloadType[];
@@ -44,11 +44,8 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             return;
         }
 
+        const { svgBase64, width, height } = chartConfigs(chartInstance);
         try {
-            const svgBase64 = chartInstance.getDataURL();
-            const width = chartInstance.getWidth();
-            const height = chartInstance.getHeight();
-
             switch (type) {
                 case DownloadType.PDF:
                     downloadPdf(
@@ -99,8 +96,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         }
 
         try {
-            const svgBase64 = chartInstance.getDataURL();
-            const width = chartInstance.getWidth();
+            const { svgBase64, width } = chartConfigs(chartInstance);
             const base64Image = await base64SvgToBase64Image(
                 svgBase64,
                 width,
