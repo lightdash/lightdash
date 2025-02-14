@@ -1,3 +1,10 @@
+## [0.1501.2](https://github.com/lightdash/lightdash/compare/0.1501.1...0.1501.2) (2025-02-14)
+
+
+### Bug Fixes
+
+* batch insert when running validator ([#13692](https://github.com/lightdash/lightdash/issues/13692)) ([d3a1867](https://github.com/lightdash/lightdash/commit/d3a186739e9153a2e18c0e92fc8a224081c1872d))
+
 ## [0.1501.1](https://github.com/lightdash/lightdash/compare/0.1501.0...0.1501.1) (2025-02-14)
 
 
