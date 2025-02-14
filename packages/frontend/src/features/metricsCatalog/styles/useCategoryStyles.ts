@@ -20,6 +20,9 @@ export const useCategoryStyles = createStyles(
         const removeIconColor = isMantineColorKey
             ? theme.fn.darken(theme.colors[color][6], 0.4)
             : theme.fn.darken(color, 0.4);
+        const focusOutlineColor = isMantineColorKey
+            ? theme.colors[color][5]
+            : theme.fn.darken(color, 0.3);
 
         return {
             base: {
@@ -28,6 +31,13 @@ export const useCategoryStyles = createStyles(
                 color: textColor,
                 cursor: 'pointer',
                 boxShadow: '0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset',
+                outline: 'none',
+                '&:focus': {
+                    outline: `2px solid ${focusOutlineColor}`,
+                    outlineOffset: '2px',
+                    backgroundColor: hoverBackgroundColor,
+                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                },
             },
             removeIcon: {
                 color: removeIconColor,
