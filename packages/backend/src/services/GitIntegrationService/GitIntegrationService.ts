@@ -135,8 +135,8 @@ export class GitIntegrationService extends BaseService {
             await this.githubAppInstallationsModel.getInstallationId(
                 user.organizationUuid,
             );
-        // todo: check if installation has access to the project repository
         return {
+            installationId,
             enabled: !!installationId,
         };
     }

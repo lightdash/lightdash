@@ -64,6 +64,7 @@ import { type EmailStatusExpiring } from './types/email';
 import { type FieldValueSearchResult } from './types/fieldMatch';
 import { type DashboardFilters } from './types/filter';
 import {
+    type GithubConfig,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -702,6 +703,7 @@ type ApiResults =
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>
+    | GithubConfig
     | ApiCreateComment['results']
     | ApiGetComments['results']
     | ApiDeleteComment

@@ -8925,6 +8925,9 @@
                     "personal_access_token": {
                         "type": "string"
                     },
+                    "installation_id": {
+                        "type": "string"
+                    },
                     "repository": {
                         "type": "string"
                     },
@@ -8940,7 +8943,6 @@
                 },
                 "required": [
                     "type",
-                    "personal_access_token",
                     "repository",
                     "branch",
                     "project_sub_path"
@@ -12669,6 +12671,15 @@
                 ],
                 "type": "object"
             },
+            "GithubConfig": {
+                "properties": {
+                    "installationId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["installationId"],
+                "type": "object"
+            },
             "GitRepo": {
                 "properties": {
                     "ownerLogin": {
@@ -12686,11 +12697,14 @@
             },
             "GitIntegrationConfiguration": {
                 "properties": {
+                    "installationId": {
+                        "type": "string"
+                    },
                     "enabled": {
                         "type": "boolean"
                     }
                 },
-                "required": ["enabled"],
+                "required": ["installationId", "enabled"],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -14740,7 +14754,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1496.2",
+        "version": "0.1500.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20662,6 +20676,36 @@
                     }
                 },
                 "description": "Install the Lightdash GitHub App and link to an organization",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/github/config": {
+            "get": {
+                "operationId": "configurationGithubAppForOrganization",
+                "responses": {
+                    "200": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/GithubConfig"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
                 "security": [],
                 "parameters": []
             }

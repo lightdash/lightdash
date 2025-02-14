@@ -2,11 +2,7 @@ import {
     assertUnreachable,
     DbtProjectType,
     DbtProjectTypeLabels,
-    DbtVersionOptionLatest,
-    DefaultSupportedDbtVersion,
     FeatureFlags,
-    getLatestSupportDbtVersion,
-    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Anchor, Select, Stack, TextInput } from '@mantine/core';
@@ -176,30 +172,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                         />
                     )}
                 />
-                <Controller
-                    name="dbtVersion"
-                    defaultValue={DefaultSupportedDbtVersion}
-                    render={({ field }) => (
-                        <Select
-                            label="dbt version"
-                            data={[
-                                {
-                                    value: DbtVersionOptionLatest.LATEST,
-                                    label: `latest (${getLatestSupportDbtVersion()})`,
-                                },
-                                ...Object.values(SupportedDbtVersions)
-                                    .reverse()
-                                    .map((version) => ({
-                                        value: version,
-                                        label: version,
-                                    })),
-                            ]}
-                            value={field.value}
-                            onChange={field.onChange}
-                            disabled={disabled}
-                        />
-                    )}
-                />
+
                 {form}
                 {type !== DbtProjectType.NONE && (
                     <>
