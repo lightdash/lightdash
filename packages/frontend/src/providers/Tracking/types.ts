@@ -365,6 +365,29 @@ type MetricsCatalogTreesCanvasModeClickedEvent = {
     };
 };
 
+type WriteBackEvent = {
+    name:
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_HEADER_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        customMetricsCount: number;
+    };
+};
+
+type CustomMetricReplacementEvent = {
+    name: EventName.CUSTOM_FIELDS_REPLACEMENT_APPLIED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        chartId?: string;
+        customMetricIds: string[];
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -395,7 +418,9 @@ export type EventData =
     | LandingRunQueryClickedEvent
     | MetricsCatalogTreesEdgeCreatedEvent
     | MetricsCatalogTreesEdgeRemovedEvent
-    | MetricsCatalogTreesCanvasModeClickedEvent;
+    | MetricsCatalogTreesCanvasModeClickedEvent
+    | WriteBackEvent
+    | CustomMetricReplacementEvent;
 
 export type IdentifyData = {
     id: string;

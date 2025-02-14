@@ -1,3 +1,38 @@
+## [0.1502.1](https://github.com/lightdash/lightdash/compare/0.1502.0...0.1502.1) (2025-02-14)
+
+
+### Bug Fixes
+
+* user attribute error on e2e ([#13694](https://github.com/lightdash/lightdash/issues/13694)) ([9be2ba8](https://github.com/lightdash/lightdash/commit/9be2ba840fa3a6969d28c9d3c909d9b0bac7350a))
+
+# [0.1502.0](https://github.com/lightdash/lightdash/compare/0.1501.2...0.1502.0) (2025-02-14)
+
+
+### Features
+
+* add way to copy slug from dashboard page ([#13691](https://github.com/lightdash/lightdash/issues/13691)) ([780e1bc](https://github.com/lightdash/lightdash/commit/780e1bc6f2978ff8065e239b9f99331ed80e639d))
+
+## [0.1501.2](https://github.com/lightdash/lightdash/compare/0.1501.1...0.1501.2) (2025-02-14)
+
+
+### Bug Fixes
+
+* batch insert when running validator ([#13692](https://github.com/lightdash/lightdash/issues/13692)) ([d3a1867](https://github.com/lightdash/lightdash/commit/d3a186739e9153a2e18c0e92fc8a224081c1872d))
+
+## [0.1501.1](https://github.com/lightdash/lightdash/compare/0.1501.0...0.1501.1) (2025-02-14)
+
+
+### Bug Fixes
+
+* formatting in treesinglenodeactions ([#13693](https://github.com/lightdash/lightdash/issues/13693)) ([58c3f22](https://github.com/lightdash/lightdash/commit/58c3f22985b17d1ec1ad0b8c32813b518aefdfd8))
+
+# [0.1501.0](https://github.com/lightdash/lightdash/compare/0.1500.0...0.1501.0) (2025-02-14)
+
+
+### Features
+
+* validate custom dimension sql before saving/updating ([#13683](https://github.com/lightdash/lightdash/issues/13683)) ([35ca351](https://github.com/lightdash/lightdash/commit/35ca35195a0ee144f613eccc00a7b950c610dc77))
+
 # [0.1500.0](https://github.com/lightdash/lightdash/compare/0.1499.0...0.1500.0) (2025-02-13)
 
 

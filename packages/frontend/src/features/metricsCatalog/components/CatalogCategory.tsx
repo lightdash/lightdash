@@ -69,6 +69,15 @@ export const CatalogCategory: FC<Props> = ({
                         color="gray"
                         size={14}
                         onClick={onRemove}
+                        sx={(theme) => ({
+                            '&:focus': {
+                                backgroundColor: theme.fn.rgba(
+                                    theme.colors.gray[5],
+                                    0.35,
+                                ),
+                                outline: 'none',
+                            },
+                        })}
                     >
                         <MantineIcon
                             className={classes.removeIcon}
