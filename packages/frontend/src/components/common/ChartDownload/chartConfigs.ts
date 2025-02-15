@@ -1,4 +1,5 @@
-export const chartConfigs = (chartInstance: any) => {
+import { type EChartsInstance } from 'echarts-for-react';
+export const chartConfigs = (chartInstance: EChartsInstance) => {
     const isPieChat = chartInstance._chartsViews.some(
         (view: { constructor: { name: string } }) =>
             view.constructor.name === 'PieView2',
