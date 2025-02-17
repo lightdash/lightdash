@@ -396,6 +396,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/stajics"><img src="https://avatars.githubusercontent.com/u/17711182?v=4?s=100" width="100px;" alt="Srdjan Stajic"/><br /><sub><b>Srdjan Stajic</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=stajics" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/RANJITHp07"><img src="https://avatars.githubusercontent.com/u/107017062?v=4?s=100" width="100px;" alt="Ranjth P"/><br /><sub><b>Ranjth P</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=RANJITHp07" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://basitbalogun.vercel.app/"><img src="https://avatars.githubusercontent.com/u/68718781?v=4?s=100" width="100px;" alt="Basit Balogun"/><br /><sub><b>Basit Balogun</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Basit-Balogun10" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://twitter.com/notgiorgi"><img src="https://avatars.githubusercontent.com/u/12987425?v=4?s=100" width="100px;" alt="Giorgi Bagdavadze"/><br /><sub><b>Giorgi Bagdavadze</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=notgiorgi" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
