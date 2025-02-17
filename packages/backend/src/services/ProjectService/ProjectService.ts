@@ -2738,7 +2738,7 @@ export class ProjectService extends BaseService {
         }
     }
 
-    // reused on `projectService.searchFieldUniqueValues` and `embedService.searchFilterValues`
+    // Note: can't be private method as it is used in EE
     async _getFieldValuesMetricQuery({
         projectUuid,
         table,
