@@ -6,13 +6,15 @@ import {
     Button,
     Group,
     PasswordInput,
+    ScrollArea,
     Select,
     Stack,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
-import React, { useEffect, type FC } from 'react';
+import React, { useCallback, useEffect, type FC, type ReactNode } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';
@@ -50,6 +52,43 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     }, [config?.installationId, register]);
     const { showToastSuccess } = useToaster();
 
+    const DropdownComponentOverride = useCallback(
+        ({ children, ...props }: { children: ReactNode }) => (
+            <Stack w="100%" spacing={0}>
+                <ScrollArea {...props}>{children}</ScrollArea>
+
+                <Tooltip
+                    withinPortal
+                    position="left"
+                    label="Click here to open your Github installation page to add more repositories."
+                >
+                    <Text
+                        color="dimmed"
+                        size="xs"
+                        px="sm"
+                        p="xxs"
+                        sx={(theme) => ({
+                            cursor: 'pointer',
+                            borderTop: `1px solid ${theme.colors.gray[2]}`,
+                            '&:hover': {
+                                backgroundColor: theme.colors.gray[1],
+                            },
+                        })}
+                        onClick={() =>
+                            window.open(
+                                `https://github.com/settings/installations/${config?.installationId}`,
+                                '_blank',
+                            )
+                        }
+                    >
+                        Don't see your repository? Configure here
+                    </Text>
+                </Tooltip>
+            </Stack>
+        ),
+        [config?.installationId],
+    );
+
     return (
         <>
             {isValidGithubInstallation ? (
@@ -67,17 +106,13 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                         name={field.name}
                                         label={`Repository`}
                                         disabled={disabled}
-                                        data={[
-                                            ...repos.map((repo) => ({
-                                                value: repo.fullName,
-                                                label: repo.fullName,
-                                                group: 'Repositories',
-                                            })),
-                                            {
-                                                value: 'configure',
-                                                label: "Don't see your repository? Configure here",
-                                            },
-                                        ]}
+                                        data={repos.map((repo) => ({
+                                            value: repo.fullName,
+                                            label: repo.fullName,
+                                        }))}
+                                        dropdownComponent={
+                                            DropdownComponentOverride
+                                        }
                                         value={field.value}
                                         onChange={(value) => {
                                             if (value === 'configure') {
