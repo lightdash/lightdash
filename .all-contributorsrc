@@ -1577,6 +1577,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "notgiorgi",
+      "name": "Giorgi Bagdavadze",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12987425?v=4",
+      "profile": "http://twitter.com/notgiorgi",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
