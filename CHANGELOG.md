@@ -1,3 +1,10 @@
+# [0.1504.0](https://github.com/lightdash/lightdash/compare/0.1503.0...0.1504.0) (2025-02-17)
+
+
+### Features
+
+* remove legacy sql runner page ([#13695](https://github.com/lightdash/lightdash/issues/13695)) ([a882052](https://github.com/lightdash/lightdash/commit/a882052d876db1f45c261c0489a2b4ab1442358b))
+
 # [0.1503.0](https://github.com/lightdash/lightdash/compare/0.1502.1...0.1503.0) (2025-02-14)
 
 
