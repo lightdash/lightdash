@@ -57,7 +57,7 @@ export const HeaderCreate: FC = () => {
     const isGithubIntegrationEnabled =
         health?.data?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB;
-    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const { data: gitIntegration } = useGitIntegration();
 
     const isCreateVirtualViewModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.createVirtualViewModal.isOpen,
