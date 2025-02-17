@@ -319,6 +319,7 @@ export class ProjectController extends BaseController {
 
     /**
      * Run a raw sql query against the project's warehouse connection
+     * @deprecated Use /api/v1/projects/<project id>/sqlRunner/run instead
      * @param projectUuid The uuid of the project to run the query against
      * @param body The query to run
      * @param req express request
@@ -332,6 +333,7 @@ export class ProjectController extends BaseController {
     @Post('{projectUuid}/sqlQuery')
     @OperationId('RunSqlQuery')
     @Tags('Exploring')
+    @Deprecated()
     async runSqlQuery(
         @Path() projectUuid: string,
         @Body() body: { sql: string },

@@ -52,7 +52,6 @@ type Props = {
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
-    isSqlRunner?: boolean;
     pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
@@ -68,7 +67,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     resultsData,
     isLoading,
     columnOrder,
-    isSqlRunner,
     pivotTableMaxColumnLimit,
     chartConfig,
     onChartConfigChange,
@@ -257,7 +255,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         resultsData: lastValidResultsData,
         isLoading,
         columnOrder,
-        isSqlRunner: isSqlRunner ?? false,
         itemsMap,
         setStacking,
         setCartesianType,
@@ -276,7 +273,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     validPivotDimensions={validPivotDimensions}
-                    columnOrder={isSqlRunner ? [] : defaultColumnOrder}
+                    columnOrder={defaultColumnOrder}
                     initialChartConfig={chartConfig.config}
                     stacking={stacking}
                     cartesianType={cartesianType}
