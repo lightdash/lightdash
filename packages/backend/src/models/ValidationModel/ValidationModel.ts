@@ -45,7 +45,8 @@ export class ValidationModel {
         jobId?: string,
     ): Promise<void> {
         if (validations.length > 0) {
-            await this.database(ValidationTableName).insert(
+            await this.database.batchInsert(
+                ValidationTableName,
                 validations.map((validation) => ({
                     project_uuid: validation.projectUuid,
                     error: validation.error,
