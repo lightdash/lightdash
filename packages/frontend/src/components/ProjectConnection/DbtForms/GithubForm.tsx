@@ -60,6 +60,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 <Tooltip
                     withinPortal
                     position="left"
+                    width={300}
+                    multiline
                     label="Click here to open your Github installation page to add more repositories."
                 >
                     <Text
@@ -81,7 +83,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             )
                         }
                     >
-                        Don't see your repository? Configure here
+                        Don't see your repository?{' '}
+                        <Anchor>Configure here</Anchor>
                     </Text>
                 </Tooltip>
             </Stack>
@@ -274,12 +277,26 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                <Group spacing="xs">
+                <Group spacing="sm">
                     <Controller
                         name="dbt.authorization_method"
                         defaultValue="installation_id"
                         render={({ field }) => (
                             <Select
+                                description={
+                                    githubConfig?.enabled ? (
+                                        <Text>
+                                            You are connected to GitHub.{' '}
+                                            <Anchor
+                                                href="/generalSettings/integrations"
+                                                target="_blank"
+                                            >
+                                                Click here to use another
+                                                account
+                                            </Anchor>
+                                        </Text>
+                                    ) : undefined
+                                }
                                 w={githubConfig?.enabled ? '90%' : '100%'}
                                 name={field.name}
                                 label="Authorization method"
@@ -300,18 +317,10 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         )}
                     />
                     {githubConfig?.enabled && (
-                        <Tooltip label="You are connected to GitHub. Click here to use another account">
-                            <ActionIcon
-                                mt="20px"
-                                onClick={() =>
-                                    window.open(
-                                        '/generalSettings/integrations',
-                                        '_blank',
-                                    )
-                                }
-                            >
+                        <Tooltip label="You are connected to GitHub">
+                            <Group mt="40px">
                                 <MantineIcon icon={IconCheck} color="green" />
-                            </ActionIcon>
+                            </Group>
                         </Tooltip>
                     )}
                 </Group>
