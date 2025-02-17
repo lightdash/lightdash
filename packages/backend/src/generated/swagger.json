@@ -2040,7 +2040,8 @@
                     "number",
                     "id",
                     "date",
-                    "timestamp"
+                    "timestamp",
+                    "custom"
                 ],
                 "type": "string"
             },
@@ -2080,6 +2081,9 @@
                     },
                     "timeInterval": {
                         "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "custom": {
+                        "type": "string"
                     }
                 },
                 "required": ["type"],
@@ -8922,6 +8926,10 @@
                     "selector": {
                         "type": "string"
                     },
+                    "authorization_method": {
+                        "type": "string",
+                        "enum": ["personal_access_token", "installation_id"]
+                    },
                     "personal_access_token": {
                         "type": "string"
                     },
@@ -8943,6 +8951,7 @@
                 },
                 "required": [
                     "type",
+                    "authorization_method",
                     "repository",
                     "branch",
                     "project_sub_path"
@@ -14745,7 +14754,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1503.0",
+        "version": "0.1505.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17946,6 +17955,7 @@
                 },
                 "description": "Run a raw sql query against the project's warehouse connection",
                 "tags": ["Exploring", "Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {

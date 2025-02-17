@@ -177,6 +177,7 @@ export interface CustomFormat {
     prefix?: string | undefined;
     suffix?: string | undefined;
     timeInterval?: TimeFrames;
+    custom?: string | undefined;
 }
 
 export enum CustomFormatType {
@@ -187,6 +188,7 @@ export enum CustomFormatType {
     ID = 'id',
     DATE = 'date',
     TIMESTAMP = 'timestamp',
+    CUSTOM = 'custom',
 }
 
 export enum TableCalculationType {
