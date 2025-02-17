@@ -197,43 +197,43 @@ export const findAndUpdateModelYaml = async ({
         const docsNames = Object.values(docs).map((doc) => doc.name);
         const existingModel = match.doc.models[match.modelIndex];
         const existingColumns = existingModel.columns || [];
-        const existingColumnsUpdatedPromise = existingColumns?.map(
-            async (column) => {
-                const hasDoc = docsNames.includes(column.name);
-                const newDescription = hasDoc
-                    ? `{{doc('${column.name}')}}`
-                    : '';
-                const existingDescription = column.description;
-                const existingDimensionType = column.meta?.dimension?.type;
-                const dimensionType =
-                    existingDimensionType ||
-                    (table[column.name] as DimensionType | undefined);
-                let { meta } = column;
-                if (includeMeta && dimensionType) {
-                    meta = {
-                        ...(meta || {}),
-                        dimension: {
-                            ...(meta?.dimension || {}),
-                            type: dimensionType,
-                        },
-                    };
-                }
-                return {
-                    ...column,
-                    name: column.name,
-                    description: await askOverwriteDescription(
-                        column.name,
-                        existingDescription,
-                        newDescription,
-                        assumeYes,
-                    ),
-                    ...(meta !== undefined ? { meta } : {}),
+
+        const existingColumnsUpdated = [];
+        for (const column of existingColumns) {
+            const hasDoc = docsNames.includes(column.name);
+            const newDescription = hasDoc ? `{{doc('${column.name}')}}` : '';
+            const existingDescription = column.description;
+            const existingDimensionType = column.meta?.dimension?.type;
+            const dimensionType =
+                existingDimensionType ||
+                (table[column.name] as DimensionType | undefined);
+            let { meta } = column;
+            if (includeMeta && dimensionType) {
+                meta = {
+                    ...(meta || {}),
+                    dimension: {
+                        ...(meta?.dimension || {}),
+                        type: dimensionType,
+                    },
                 };
-            },
-        );
-        const existingColumnsUpdated = await Promise.all(
-            existingColumnsUpdatedPromise,
-        );
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const description = await askOverwriteDescription(
+                column.name,
+                existingDescription,
+                newDescription,
+                assumeYes,
+            );
+
+            existingColumnsUpdated.push({
+                ...column,
+                name: column.name,
+                description,
+                ...(meta !== undefined ? { meta } : {}),
+            });
+        }
+
         const existingColumnNames = existingColumns.map((c) => c.name);
         const newColumns = generatedModel.columns.filter(
             (c) => !existingColumnNames.includes(c.name),
