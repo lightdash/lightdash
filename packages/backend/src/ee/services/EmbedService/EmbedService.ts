@@ -791,104 +791,6 @@ export class EmbedService extends BaseService {
         };
     }
 
-    // method to be moved to project service and reused on `projectService.searchFieldUniqueValues` and `embedService.searchFilterValues`
-    async _getFieldValuesMetricQuery({
-        projectUuid,
-        table,
-        initialFieldId,
-        search,
-        limit,
-        filters,
-    }: {
-        projectUuid: string;
-        table: string;
-        initialFieldId: string;
-        search: string;
-        limit: number;
-        filters: AndFilterGroup | undefined;
-    }) {
-        if (limit > this.lightdashConfig.query.maxLimit) {
-            throw new ParameterError(
-                `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
-            );
-        }
-
-        let explore = await this.projectModel.findExploreByTableName(
-            projectUuid,
-            table,
-        );
-        let fieldId = initialFieldId;
-        if (!explore) {
-            // fallback: find explore by join alias and replace fieldId
-            explore = await this.projectModel.findJoinAliasExplore(
-                projectUuid,
-                table,
-            );
-            if (explore && !isExploreError(explore)) {
-                fieldId = initialFieldId.replace(table, explore.baseTable);
-            }
-        }
-
-        if (!explore) {
-            throw new NotExistsError(`Explore ${table} does not exist`);
-        } else if (isExploreError(explore)) {
-            throw new NotExistsError(`Explore ${table} has errors`);
-        }
-
-        const field = findFieldByIdInExplore(explore, fieldId);
-
-        if (!field) {
-            throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
-        }
-
-        if (!isDimension(field)) {
-            throw new ParameterError(
-                `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
-            );
-        }
-        const autocompleteDimensionFilters: FilterGroupItem[] = [
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.INCLUDE,
-                values: [search],
-            },
-        ];
-        if (filters) {
-            const filtersCompatibleWithExplore = filters.and.filter(
-                (filter) =>
-                    isFilterRule(filter) &&
-                    findFieldByIdInExplore(
-                        explore as Explore,
-                        filter.target.fieldId,
-                    ),
-            );
-            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
-        }
-        const metricQuery: MetricQuery = {
-            exploreName: explore.name,
-            dimensions: [getItemId(field)],
-            metrics: [],
-            filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    and: autocompleteDimensionFilters,
-                },
-            },
-            tableCalculations: [],
-            sorts: [
-                {
-                    fieldId: getItemId(field),
-                    descending: false,
-                },
-            ],
-            limit,
-        };
-        return { metricQuery, explore, field };
-    }
-
     async searchFilterValues({
         embedToken,
         projectUuid,
@@ -926,7 +828,7 @@ export class EmbedService extends BaseService {
 
         const initialFieldId = filter.target.fieldId;
         const { metricQuery, explore, field } =
-            await this._getFieldValuesMetricQuery({
+            await this.projectService._getFieldValuesMetricQuery({
                 projectUuid,
                 table: filter.target.tableName,
                 initialFieldId,
