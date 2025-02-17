@@ -33,9 +33,30 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
             if (err) {
                 next(err);
             }
+
+            if (
+                lightdashConfig.siteUrl !==
+                lightdashConfig.headlessBrowser.internalLightdashHost
+            ) {
+                // Generate signed session cookie like express-session does
+                const signedCookie = `s:${req.session.id}.${createHmac(
+                    'sha256',
+                    lightdashConfig.lightdashSecret,
+                )
+                    .update(req.session.id)
+                    .digest('base64')
+                    .replace(/=+$/, '')}`;
+
+                // Set cookie in response headers
+                res.setHeader('Set-Cookie', [
+                    `connect.sid=${signedCookie}; Path=/; HttpOnly; SameSite=Lax; Domain=${req.hostname}; Secure`,
+                ]);
+            }
             res.json({
                 status: 'ok',
-                results: sessionUser,
+                results: {
+                    userUuid: sessionUser.userUuid,
+                },
             });
         });
     } catch (e) {

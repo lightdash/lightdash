@@ -955,9 +955,14 @@ export class UnfurlService extends BaseService {
         }
         const header = response.headers.get('set-cookie');
         if (header === null) {
-            const loginBody = await response.json();
+            const loginBody = (await response.json()) as {
+                status: string;
+                results: SessionUser;
+            };
             throw new AuthorizationError(
-                `Cannot sign in:\n${JSON.stringify(loginBody)}`,
+                `Cannot sign in user before taking screenshot:\n${
+                    'results' in loginBody ? loginBody.results?.userUuid : ''
+                }`,
             );
         }
         return header;
