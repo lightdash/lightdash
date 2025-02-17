@@ -2738,29 +2738,22 @@ export class ProjectService extends BaseService {
         }
     }
 
-    async searchFieldUniqueValues(
-        user: SessionUser,
-        projectUuid: string,
-        table: string,
-        initialFieldId: string,
-        search: string,
-        limit: number,
-        filters: AndFilterGroup | undefined,
-        forceRefresh: boolean = false,
-    ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
+    // reused on `projectService.searchFieldUniqueValues` and `embedService.searchFilterValues`
+    async _getFieldValuesMetricQuery({
+        projectUuid,
+        table,
+        initialFieldId,
+        search,
+        limit,
+        filters,
+    }: {
+        projectUuid: string;
+        table: string;
+        initialFieldId: string;
+        search: string;
+        limit: number;
+        filters: AndFilterGroup | undefined;
+    }) {
         if (limit > this.lightdashConfig.query.maxLimit) {
             throw new ParameterError(
                 `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
@@ -2840,6 +2833,41 @@ export class ProjectService extends BaseService {
             ],
             limit,
         };
+        return { metricQuery, explore, field };
+    }
+
+    async searchFieldUniqueValues(
+        user: SessionUser,
+        projectUuid: string,
+        table: string,
+        initialFieldId: string,
+        search: string,
+        limit: number,
+        filters: AndFilterGroup | undefined,
+        forceRefresh: boolean = false,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery, explore, field } =
+            await this._getFieldValuesMetricQuery({
+                projectUuid,
+                table,
+                initialFieldId,
+                search,
+                limit,
+                filters,
+            });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -2922,7 +2950,7 @@ export class ProjectService extends BaseService {
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                fieldId,
+                fieldId: getItemId(field),
                 searchCharCount: search.length,
                 resultsCount: rows.length,
                 searchLimit: limit,
