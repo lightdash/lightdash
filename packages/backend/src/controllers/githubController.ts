@@ -1,8 +1,7 @@
 import {
     ApiSuccessEmpty,
+    GitIntegrationConfiguration,
     GitRepo,
-    NotFoundError,
-    type GithubConfig,
 } from '@lightdash/common';
 import {
     Delete,
@@ -58,26 +57,22 @@ export class GithubInstallController extends BaseController {
     }
 
     @Middlewares([isAuthenticated, unauthorisedInDemo])
-    @SuccessResponse('200', 'Not found')
+    @SuccessResponse('200')
     @Get('/config')
     @OperationId('configurationGithubAppForOrganization')
     async configurationGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<{
         status: 'ok';
-        results: GithubConfig;
+        results: GitIntegrationConfiguration;
     }> {
-        const installationId = await this.services
-            .getGithubAppService()
-            .getInstallationId(req.user!);
+        const config = await this.services
+            .getGitIntegrationService()
+            .getConfiguration(req.user!);
 
-        if (!installationId) {
-            this.setStatus(404);
-            throw new NotFoundError('Installation id not found');
-        }
         return {
             status: 'ok',
-            results: { installationId },
+            results: config,
         };
     }
 

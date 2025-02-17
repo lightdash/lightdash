@@ -128,7 +128,6 @@ export class GitIntegrationService extends BaseService {
 
     async getConfiguration(
         user: SessionUser,
-        projectUuid: string,
     ): Promise<GitIntegrationConfiguration> {
         if (!isUserWithOrg(user)) {
             throw new UnexpectedServerError(
@@ -141,6 +140,7 @@ export class GitIntegrationService extends BaseService {
             );
         return {
             enabled: !!installationId,
+            installationId,
         };
     }
 

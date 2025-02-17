@@ -1,16 +1,11 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
-    ParameterError,
     SupportedDbtVersions,
     validateGithubToken,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import {
-    getInstallationToken,
-    getOctokitRestForApp,
-} from '../clients/github/Github';
 import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 

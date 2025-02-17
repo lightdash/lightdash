@@ -12671,13 +12671,16 @@
                 ],
                 "type": "object"
             },
-            "GithubConfig": {
+            "GitIntegrationConfiguration": {
                 "properties": {
                     "installationId": {
                         "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["installationId"],
+                "required": ["enabled"],
                 "type": "object"
             },
             "GitRepo": {
@@ -12693,18 +12696,6 @@
                     }
                 },
                 "required": ["ownerLogin", "fullName", "name"],
-                "type": "object"
-            },
-            "GitIntegrationConfiguration": {
-                "properties": {
-                    "installationId": {
-                        "type": "string"
-                    },
-                    "enabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["installationId", "enabled"],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -14754,7 +14745,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1500.0",
+        "version": "0.1503.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20685,13 +20676,13 @@
                 "operationId": "configurationGithubAppForOrganization",
                 "responses": {
                     "200": {
-                        "description": "Not found",
+                        "description": "",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "results": {
-                                            "$ref": "#/components/schemas/GithubConfig"
+                                            "$ref": "#/components/schemas/GitIntegrationConfiguration"
                                         },
                                         "status": {
                                             "type": "string",
@@ -20810,56 +20801,6 @@
                 },
                 "security": [],
                 "parameters": []
-            }
-        },
-        "/api/v1/projects/{projectUuid}/git-integration": {
-            "get": {
-                "operationId": "GetConfiguration",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/GitIntegrationConfiguration"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Git Integration"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-metrics": {

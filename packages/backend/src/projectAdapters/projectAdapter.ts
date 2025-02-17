@@ -73,9 +73,11 @@ export const projectAdapterFromConfig = async (
                 // TODO add selector to dbt cloud
             });
         case DbtProjectType.GITHUB:
-            const githubToken = config.installation_id
-                ? await getInstallationToken(config.installation_id)
-                : config.personal_access_token;
+            const githubToken =
+                config.installation_id &&
+                config.authorization_method === 'installation_id'
+                    ? await getInstallationToken(config.installation_id)
+                    : config.personal_access_token;
             return new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,

@@ -23,7 +23,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import {
-    useGithubInstallationId,
+    useGithubConfig,
     useGitHubRepositories,
 } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
@@ -34,7 +34,7 @@ const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 
 const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { register } = useFormContext();
-    const { data: config, refetch } = useGithubInstallationId();
+    const { data: config, refetch } = useGithubConfig();
     const {
         data: repos,
         isError,
@@ -42,7 +42,6 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     } = useGitHubRepositories();
     const isValidGithubInstallation =
         config?.installationId !== undefined && !isError;
-    const repository = useWatch({ name: 'dbt.repository' });
 
     useEffect(() => {
         if (config?.installationId) {
@@ -50,13 +49,6 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         }
     }, [config?.installationId, register]);
 
-    useEffect(() => {
-        if (repos && repos.length > 0) {
-            if (repository === undefined) {
-                register('dbt.repository', { value: repos[0].fullName });
-            }
-        }
-    }, [repos, register, repository]);
     return (
         <>
             {isValidGithubInstallation ? (
@@ -84,22 +76,19 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <Group spacing="xs">
                             <Controller
                                 name="dbt.repository"
+                                defaultValue={repos[0].fullName}
                                 render={({ field }) => (
                                     <Select
                                         searchable
                                         required
                                         w="90%"
                                         name={field.name}
-                                        label="Repository"
-                                        disabled={
-                                            disabled ||
-                                            !isValidGithubInstallation
-                                        }
+                                        label={`Repository`}
+                                        disabled={disabled}
                                         data={repos.map((repo) => ({
                                             value: repo.fullName,
                                             label: repo.fullName,
                                         }))}
-                                        defaultValue={repos[0].fullName}
                                         value={field.value}
                                         onChange={field.onChange}
                                     />
@@ -161,7 +150,10 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             const interval = setInterval(() => {
                                 refetch()
                                     .then((s) => {
-                                        if (s.status === 'success') {
+                                        if (
+                                            s.status === 'success' &&
+                                            s.data.installationId
+                                        ) {
                                             clearInterval(interval);
                                             void refetchRepos();
                                         }
@@ -250,8 +242,8 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         defaultValue:
             savedProject?.dbtConnection.type === DbtProjectType.GITHUB &&
             savedProject?.dbtConnection?.personal_access_token !== undefined
-                ? 'personal-access-token'
-                : 'oauth',
+                ? 'personal_access_token'
+                : 'installation_id',
     });
 
     return (
@@ -259,18 +251,18 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Stack style={{ marginTop: '8px' }}>
                 <Controller
                     name="dbt.authorization_method"
-                    defaultValue="oauth"
+                    defaultValue="installation_id"
                     render={({ field }) => (
                         <Select
                             name={field.name}
                             label="Authorization method"
                             data={[
                                 {
-                                    value: 'oauth',
+                                    value: 'installation_id',
                                     label: 'OAuth (recommended)',
                                 },
                                 {
-                                    value: 'personal-access-token',
+                                    value: 'personal_access_token',
                                     label: 'Personal Access Token',
                                 },
                             ]}
@@ -280,7 +272,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         />
                     )}
                 />
-                {authorizationMethod === 'oauth' ? (
+                {authorizationMethod === 'installation_id' ? (
                     <GithubLoginForm disabled={disabled} />
                 ) : (
                     <GithubPersonalAccessTokenForm disabled={disabled} />

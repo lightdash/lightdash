@@ -1,7 +1,7 @@
 import {
     type ApiError,
+    type GitIntegrationConfiguration,
     type GitRepo,
-    type GithubConfig,
 } from '@lightdash/common';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,16 +9,16 @@ import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
 const getGithubConfig = async () =>
-    lightdashApi<GithubConfig>({
+    lightdashApi<GitIntegrationConfiguration>({
         url: `/github/config`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGithubInstallationId = () => {
+export const useGithubConfig = () => {
     const { showToastApiError } = useToaster();
 
-    return useQuery<GithubConfig, ApiError>({
+    return useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['github_installation'],
         queryFn: () => getGithubConfig(),
         retry: false,
