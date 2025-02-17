@@ -8,13 +8,13 @@ import {
     PasswordInput,
     Select,
     Stack,
-    Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconRefresh } from '@tabler/icons-react';
+import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';
 import {
     hasNoWhiteSpaces,
@@ -48,30 +48,12 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             register('dbt.installation_id', { value: config?.installationId });
         }
     }, [config?.installationId, register]);
+    const { showToastSuccess } = useToaster();
 
     return (
         <>
             {isValidGithubInstallation ? (
                 <>
-                    {' '}
-                    <Text
-                        sx={(theme) => ({
-                            transition: 'color 0.3s ease',
-                            animation: 'fadeGreen 3s',
-                            '@keyframes fadeGreen': {
-                                '0%': { color: theme.colors.green[4] },
-                                '100%': { color: 'inherit' },
-                            },
-                        })}
-                    >
-                        You are connected to GitHub.{' '}
-                        <Anchor
-                            href={'/generalSettings/integrations'}
-                            target="_blank"
-                        >
-                            Click here to use another account
-                        </Anchor>{' '}
-                    </Text>
                     {repos && repos.length > 0 && (
                         <Group spacing="xs">
                             <Controller
@@ -85,12 +67,28 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                         name={field.name}
                                         label={`Repository`}
                                         disabled={disabled}
-                                        data={repos.map((repo) => ({
-                                            value: repo.fullName,
-                                            label: repo.fullName,
-                                        }))}
+                                        data={[
+                                            ...repos.map((repo) => ({
+                                                value: repo.fullName,
+                                                label: repo.fullName,
+                                                group: 'Repositories',
+                                            })),
+                                            {
+                                                value: 'configure',
+                                                label: "Don't see your repository? Configure here",
+                                            },
+                                        ]}
                                         value={field.value}
-                                        onChange={field.onChange}
+                                        onChange={(value) => {
+                                            if (value === 'configure') {
+                                                window.open(
+                                                    `https://github.com/settings/installations/${config?.installationId}`,
+                                                    '_blank',
+                                                );
+                                                return;
+                                            }
+                                            field.onChange(value);
+                                        }}
                                     />
                                 )}
                             />
@@ -107,19 +105,6 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 </ActionIcon>
                             </Tooltip>
                         </Group>
-                    )}
-                    {isValidGithubInstallation && (
-                        <Text>
-                            {' '}
-                            Don't see your repository?{' '}
-                            <Anchor
-                                href={`https://github.com/settings/installations/${config?.installationId}`}
-                                target="_blank"
-                            >
-                                {' '}
-                                Click here to configure your GitHub integration
-                            </Anchor>
-                        </Text>
                     )}
                 </>
             ) : (
@@ -154,6 +139,10 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                             s.status === 'success' &&
                                             s.data.installationId
                                         ) {
+                                            showToastSuccess({
+                                                title: 'Successfully connected to GitHub',
+                                            });
+
                                             clearInterval(interval);
                                             void refetchRepos();
                                         }
@@ -236,6 +225,7 @@ const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
 const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const { register } = useFormContext();
+    const { data: githubConfig } = useGithubConfig();
 
     const authorizationMethod: string = useWatch({
         name: 'dbt.authorization_method',
@@ -249,29 +239,47 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                <Controller
-                    name="dbt.authorization_method"
-                    defaultValue="installation_id"
-                    render={({ field }) => (
-                        <Select
-                            name={field.name}
-                            label="Authorization method"
-                            data={[
-                                {
-                                    value: 'installation_id',
-                                    label: 'OAuth (recommended)',
-                                },
-                                {
-                                    value: 'personal_access_token',
-                                    label: 'Personal Access Token',
-                                },
-                            ]}
-                            value={field.value}
-                            onChange={field.onChange}
-                            disabled={disabled}
-                        />
+                <Group spacing="xs">
+                    <Controller
+                        name="dbt.authorization_method"
+                        defaultValue="installation_id"
+                        render={({ field }) => (
+                            <Select
+                                w={githubConfig?.enabled ? '90%' : '100%'}
+                                name={field.name}
+                                label="Authorization method"
+                                data={[
+                                    {
+                                        value: 'installation_id',
+                                        label: 'OAuth (recommended)',
+                                    },
+                                    {
+                                        value: 'personal_access_token',
+                                        label: 'Personal Access Token',
+                                    },
+                                ]}
+                                value={field.value}
+                                onChange={field.onChange}
+                                disabled={disabled}
+                            />
+                        )}
+                    />
+                    {githubConfig?.enabled && (
+                        <Tooltip label="You are connected to GitHub. Click here to use another account">
+                            <ActionIcon
+                                mt="20px"
+                                onClick={() =>
+                                    window.open(
+                                        '/generalSettings/integrations',
+                                        '_blank',
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconCheck} color="green" />
+                            </ActionIcon>
+                        </Tooltip>
                     )}
-                />
+                </Group>
                 {authorizationMethod === 'installation_id' ? (
                     <GithubLoginForm disabled={disabled} />
                 ) : (
