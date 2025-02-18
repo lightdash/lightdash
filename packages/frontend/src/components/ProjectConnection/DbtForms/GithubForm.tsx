@@ -295,6 +295,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Controller
                         name="dbt.authorization_method"
                         defaultValue={
+                            // If installation is not valid, we still show personal_access_token on existing saved projects
                             isInstallationValid || savedProject === undefined
                                 ? 'installation_id'
                                 : 'personal_access_token'
