@@ -251,7 +251,6 @@ export class ValidationService extends BaseService {
                     const availableMetricIds =
                         exploreFields[tableName]?.metricIds || [];
 
-                    // Available _For_ chart?
                     const allItemIdsAvailableInChart = [
                         ...availableDimensionIds,
                         ...availableMetricIds,
@@ -365,21 +364,23 @@ export class ValidationService extends BaseService {
                         [],
                     );
 
-                    const customMetricFilterErrors = customMetricsFilters
-                        .flat()
-                        .reduce<CreateChartValidation[]>((acc, filter) => {
-                            const fieldId = convertFieldRefToFieldId(
-                                filter.target.fieldRef,
-                            );
-                            return containsFieldId({
-                                acc,
-                                fieldIds: allItemIdsAvailableInChart,
-                                fieldId,
-                                error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
-                                errorType: ValidationErrorType.Filter,
-                                fieldName: fieldId,
-                            });
-                        }, []);
+                    const customMetricFilterErrors =
+                        customMetricsFilters.reduce<CreateChartValidation[]>(
+                            (acc, filter) => {
+                                const fieldId = convertFieldRefToFieldId(
+                                    filter.target.fieldRef,
+                                );
+                                return containsFieldId({
+                                    acc,
+                                    fieldIds: allItemIdsAvailableInChart,
+                                    fieldId,
+                                    error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
+                                    errorType: ValidationErrorType.Filter,
+                                    fieldName: fieldId,
+                                });
+                            },
+                            [],
+                        );
 
                     const sortErrors = sorts.reduce<CreateChartValidation[]>(
                         (acc, field) =>

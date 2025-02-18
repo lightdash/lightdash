@@ -115,24 +115,22 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
 >[number] = {
     ...chartForValidation,
     customMetricsFilters: [
-        [
-            {
-                id: 'table_custom_metric',
-                target: {
-                    fieldRef: 'table.custom_metric_filter_dimension',
-                },
-                values: ['n'],
-                operator: ConditionalOperator.ENDS_WITH,
+        {
+            id: 'table_custom_metric',
+            target: {
+                fieldRef: 'table.custom_metric_filter_dimension',
             },
-            {
-                id: 'table_custom_metric',
-                target: {
-                    fieldRef: 'table.custom_metric_filter_dimension',
-                },
-                values: ['A'],
-                operator: ConditionalOperator.STARTS_WITH,
+            values: ['n'],
+            operator: ConditionalOperator.ENDS_WITH,
+        },
+        {
+            id: 'table_custom_metric',
+            target: {
+                fieldRef: 'table.custom_metric_filter_dimension',
             },
-        ],
+            values: ['A'],
+            operator: ConditionalOperator.STARTS_WITH,
+        },
     ],
 };
 

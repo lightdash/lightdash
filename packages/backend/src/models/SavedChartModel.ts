@@ -1124,7 +1124,7 @@ export class SavedChartModel {
             customBinDimensions: string[];
             customSqlDimensions: string[];
             sorts: string[];
-            customMetricsFilters: MetricFilterRule[][];
+            customMetricsFilters: MetricFilterRule[];
             dashboardUuid: string | undefined;
         }>
     > {
@@ -1251,9 +1251,12 @@ export class SavedChartModel {
         const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
             savedCharts,
         );
-        return savedCharts.filter(
-            (chart) => !chartsNotInTilesUuids.includes(chart.uuid),
-        );
+        return savedCharts
+            .map((chart) => ({
+                ...chart,
+                customMetricsFilters: chart.customMetricsFilters.flat(),
+            }))
+            .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid));
     }
 
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
