@@ -31,6 +31,8 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
         case SearchItemType.SQL_CHART:
         case SearchItemType.SEMANTIC_VIEWER_CHART:
             return 'blue.7';
+        case SearchItemType.DASHBOARD_TAB:
+            return 'violet.7';
         default:
             return assertUnreachable(
                 itemType,
@@ -62,6 +64,8 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             return IconTable;
         case SearchItemType.PAGE:
             return IconBrowser;
+        case SearchItemType.DASHBOARD_TAB:
+            return IconLayoutDashboard;
         default:
             return assertUnreachable(
                 item.type,

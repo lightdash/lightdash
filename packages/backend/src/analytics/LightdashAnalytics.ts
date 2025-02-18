@@ -613,6 +613,7 @@ type ProjectSearch = BaseTrack & {
         sqlChartsResultsCount: number;
         tablesResultsCount: number;
         fieldsResultsCount: number;
+        dashboardTabsResultsCount: number;
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {

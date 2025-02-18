@@ -46,6 +46,8 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconBrowser;
         case SearchItemType.SQL_CHART:
             return IconCodeCircle;
+        case SearchItemType.DASHBOARD_TAB:
+            return IconLayoutDashboard;
         default:
             return assertUnreachable(
                 itemType,
