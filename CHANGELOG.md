@@ -1,3 +1,10 @@
+# [0.1505.0](https://github.com/lightdash/lightdash/compare/0.1504.0...0.1505.0) (2025-02-18)
+
+
+### Features
+
+* GitHub login full flow ([#13701](https://github.com/lightdash/lightdash/issues/13701)) ([b106bce](https://github.com/lightdash/lightdash/commit/b106bce16e9f5a10e946cbea264bf1bf62691cc0))
+
 # [0.1504.0](https://github.com/lightdash/lightdash/compare/0.1503.0...0.1504.0) (2025-02-17)
 
 
