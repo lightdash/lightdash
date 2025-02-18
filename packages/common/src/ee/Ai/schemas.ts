@@ -87,6 +87,7 @@ const FilterRuleSchemaBase = z
         values: z
             .array(
                 z.union([
+                    z.null(),
                     z.string().describe('Use strings for date filters'),
                     z.number().describe('Do not use numbers for date filters'),
                 ]),
@@ -103,7 +104,7 @@ const UnitOfTimeFilterRuleSchema = FilterRuleSchemaBase.merge(
             'The operator to apply the filter',
         ),
         values: z
-            .array(z.string())
+            .array(z.union([z.null(), z.string()]))
             .describe('Ensure values are JavaScript Date-compatible strings.'),
         settings: z.object({
             completed: z
