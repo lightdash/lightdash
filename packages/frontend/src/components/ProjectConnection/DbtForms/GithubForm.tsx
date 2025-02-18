@@ -12,9 +12,10 @@ import {
     Text,
     TextInput,
     Tooltip,
+    type ScrollAreaProps,
 } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
-import React, { useCallback, useEffect, type FC, type ReactNode } from 'react';
+import React, { useEffect, type FC, type ReactNode } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';
@@ -34,6 +35,48 @@ import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
 
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 
+const DropdownComponentOverride = ({
+    children,
+    installationId,
+}: {
+    children: ReactNode;
+    installationId: string | undefined;
+}) => (
+    <Stack w="100%" spacing={0}>
+        <ScrollArea>{children}</ScrollArea>
+
+        <Tooltip
+            withinPortal
+            position="left"
+            width={300}
+            multiline
+            label="Click here to open your Github installation page to add more repositories."
+        >
+            <Text
+                color="dimmed"
+                size="xs"
+                px="sm"
+                p="xxs"
+                sx={(theme) => ({
+                    cursor: 'pointer',
+                    borderTop: `1px solid ${theme.colors.gray[2]}`,
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[1],
+                    },
+                })}
+                onClick={() =>
+                    window.open(
+                        `https://github.com/settings/installations/${installationId}`,
+                        '_blank',
+                    )
+                }
+            >
+                Don't see your repository? <Anchor>Configure here</Anchor>
+            </Text>
+        </Tooltip>
+    </Stack>
+);
+
 const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { register } = useFormContext();
     const { data: config, refetch } = useGithubConfig();
@@ -51,46 +94,6 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         }
     }, [config?.installationId, register]);
     const { showToastSuccess } = useToaster();
-
-    const DropdownComponentOverride = useCallback(
-        ({ children, ...props }: { children: ReactNode }) => (
-            <Stack w="100%" spacing={0}>
-                <ScrollArea {...props}>{children}</ScrollArea>
-
-                <Tooltip
-                    withinPortal
-                    position="left"
-                    width={300}
-                    multiline
-                    label="Click here to open your Github installation page to add more repositories."
-                >
-                    <Text
-                        color="dimmed"
-                        size="xs"
-                        px="sm"
-                        p="xxs"
-                        sx={(theme) => ({
-                            cursor: 'pointer',
-                            borderTop: `1px solid ${theme.colors.gray[2]}`,
-                            '&:hover': {
-                                backgroundColor: theme.colors.gray[1],
-                            },
-                        })}
-                        onClick={() =>
-                            window.open(
-                                `https://github.com/settings/installations/${config?.installationId}`,
-                                '_blank',
-                            )
-                        }
-                    >
-                        Don't see your repository?{' '}
-                        <Anchor>Configure here</Anchor>
-                    </Text>
-                </Tooltip>
-            </Stack>
-        ),
-        [config?.installationId],
-    );
 
     return (
         <>
@@ -113,9 +116,17 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                             value: repo.fullName,
                                             label: repo.fullName,
                                         }))}
-                                        dropdownComponent={
-                                            DropdownComponentOverride
-                                        }
+                                        dropdownComponent={({
+                                            children,
+                                        }: ScrollAreaProps) => (
+                                            <DropdownComponentOverride
+                                                installationId={
+                                                    config?.installationId
+                                                }
+                                            >
+                                                {children}
+                                            </DropdownComponentOverride>
+                                        )}
                                         value={field.value}
                                         onChange={(value) => {
                                             if (value === 'configure') {
@@ -283,7 +294,11 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 <Group spacing="sm">
                     <Controller
                         name="dbt.authorization_method"
-                        defaultValue="installation_id"
+                        defaultValue={
+                            isInstallationValid || savedProject === undefined
+                                ? 'installation_id'
+                                : 'personal_access_token'
+                        }
                         render={({ field }) => (
                             <Select
                                 description={
