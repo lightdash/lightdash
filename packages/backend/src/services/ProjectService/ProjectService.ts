@@ -2227,6 +2227,12 @@ export class ProjectService extends BaseService {
                                         tableCalculation.format?.type ===
                                         CustomFormatType.NUMBER,
                                 ).length,
+                            tableCalculationCustomFormatCount:
+                                metricQuery.tableCalculations.filter(
+                                    (tableCalculation) =>
+                                        tableCalculation.format?.type ===
+                                        CustomFormatType.CUSTOM,
+                                ).length,
                             additionalMetricsCount: (
                                 metricQuery.additionalMetrics || []
                             ).filter((metric) =>
@@ -2274,6 +2280,17 @@ export class ProjectService extends BaseService {
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
                                         CustomFormatType.NUMBER,
+                            ).length,
+                            additionalMetricsCustomFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getItemId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.CUSTOM,
                             ).length,
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
@@ -2738,29 +2755,22 @@ export class ProjectService extends BaseService {
         }
     }
 
-    async searchFieldUniqueValues(
-        user: SessionUser,
-        projectUuid: string,
-        table: string,
-        initialFieldId: string,
-        search: string,
-        limit: number,
-        filters: AndFilterGroup | undefined,
-        forceRefresh: boolean = false,
-    ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
+    // Note: can't be private method as it is used in EE
+    async _getFieldValuesMetricQuery({
+        projectUuid,
+        table,
+        initialFieldId,
+        search,
+        limit,
+        filters,
+    }: {
+        projectUuid: string;
+        table: string;
+        initialFieldId: string;
+        search: string;
+        limit: number;
+        filters: AndFilterGroup | undefined;
+    }) {
         if (limit > this.lightdashConfig.query.maxLimit) {
             throw new ParameterError(
                 `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
@@ -2840,6 +2850,41 @@ export class ProjectService extends BaseService {
             ],
             limit,
         };
+        return { metricQuery, explore, field };
+    }
+
+    async searchFieldUniqueValues(
+        user: SessionUser,
+        projectUuid: string,
+        table: string,
+        initialFieldId: string,
+        search: string,
+        limit: number,
+        filters: AndFilterGroup | undefined,
+        forceRefresh: boolean = false,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery, explore, field } =
+            await this._getFieldValuesMetricQuery({
+                projectUuid,
+                table,
+                initialFieldId,
+                search,
+                limit,
+                filters,
+            });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -2922,7 +2967,7 @@ export class ProjectService extends BaseService {
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                fieldId,
+                fieldId: getItemId(field),
                 searchCharCount: search.length,
                 resultsCount: rows.length,
                 searchLimit: limit,

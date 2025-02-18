@@ -1,3 +1,45 @@
+# [0.1506.0](https://github.com/lightdash/lightdash/compare/0.1505.3...0.1506.0) (2025-02-18)
+
+
+### Features
+
+* allow custom format metrics and table calculations in the UI ([#13725](https://github.com/lightdash/lightdash/issues/13725)) ([fe8361c](https://github.com/lightdash/lightdash/commit/fe8361c913861e1fab9b1d2f7c1ee3bbe1ce97a5))
+
+## [0.1505.3](https://github.com/lightdash/lightdash/compare/0.1505.2...0.1505.3) (2025-02-18)
+
+
+### Bug Fixes
+
+* GitHub login UI changes ([#13718](https://github.com/lightdash/lightdash/issues/13718)) ([931a7b0](https://github.com/lightdash/lightdash/commit/931a7b05a76da777a7cc185460542ead95e50213))
+
+## [0.1505.2](https://github.com/lightdash/lightdash/compare/0.1505.1...0.1505.2) (2025-02-18)
+
+
+### Bug Fixes
+
+* always force slug when creating chart or dashboard ([#13714](https://github.com/lightdash/lightdash/issues/13714)) ([7d3359b](https://github.com/lightdash/lightdash/commit/7d3359be7a9760b3841bbfee3e066a15d160789c))
+
+## [0.1505.1](https://github.com/lightdash/lightdash/compare/0.1505.0...0.1505.1) (2025-02-18)
+
+
+### Bug Fixes
+
+* process new lines in results ([#13703](https://github.com/lightdash/lightdash/issues/13703)) ([0a2bebb](https://github.com/lightdash/lightdash/commit/0a2bebb78646c3e3123a61c2931dff8230839277))
+
+# [0.1505.0](https://github.com/lightdash/lightdash/compare/0.1504.0...0.1505.0) (2025-02-18)
+
+
+### Features
+
+* GitHub login full flow ([#13701](https://github.com/lightdash/lightdash/issues/13701)) ([b106bce](https://github.com/lightdash/lightdash/commit/b106bce16e9f5a10e946cbea264bf1bf62691cc0))
+
+# [0.1504.0](https://github.com/lightdash/lightdash/compare/0.1503.0...0.1504.0) (2025-02-17)
+
+
+### Features
+
+* remove legacy sql runner page ([#13695](https://github.com/lightdash/lightdash/issues/13695)) ([a882052](https://github.com/lightdash/lightdash/commit/a882052d876db1f45c261c0489a2b4ab1442358b))
+
 # [0.1503.0](https://github.com/lightdash/lightdash/compare/0.1502.1...0.1503.0) (2025-02-14)
 
 

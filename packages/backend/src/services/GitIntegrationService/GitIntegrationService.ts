@@ -128,7 +128,6 @@ export class GitIntegrationService extends BaseService {
 
     async getConfiguration(
         user: SessionUser,
-        projectUuid: string,
     ): Promise<GitIntegrationConfiguration> {
         if (!isUserWithOrg(user)) {
             throw new UnexpectedServerError(
@@ -139,9 +138,9 @@ export class GitIntegrationService extends BaseService {
             await this.githubAppInstallationsModel.getInstallationId(
                 user.organizationUuid,
             );
-        // todo: check if installation has access to the project repository
         return {
             enabled: !!installationId,
+            installationId,
         };
     }
 
@@ -428,7 +427,10 @@ Affected charts:
                 projectUuid,
             );
             if (project.dbtConnection.type === DbtProjectType.GITHUB) {
-                token = project.dbtConnection.personal_access_token;
+                token = project.dbtConnection.personal_access_token || '';
+                if (!token) {
+                    throw new ParameterError('Invalid personal access token');
+                }
             } else {
                 throw new ParameterError('No github project found');
             }

@@ -7,6 +7,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import { useProjectFormContext } from '../useProjectFormContext';
+import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
 
 const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
@@ -80,6 +81,8 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 })}
                 disabled={disabled}
             />
+            <DbtVersionSelect disabled={disabled} />
+
             <TextInput
                 label="Branch"
                 description={

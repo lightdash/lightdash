@@ -48,4 +48,36 @@ const AuthPopupResult: FC = () => {
     );
 };
 
+/**
+ * Fixed version of AuthPopupResult that is used in Github authentication
+ */
+export const SuccessAuthPopupResult: FC = () => {
+    useMount(() => {
+        setTimeout(() => {
+            window.close();
+        }, 2000);
+    });
+
+    return (
+        <>
+            <title>Authentication - Lightdash</title>
+
+            <Stack>
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
+
+                <SuboptimalState
+                    title={'Thank you for authenticating'}
+                    description={'This window will close automatically'}
+                />
+            </Stack>
+        </>
+    );
+};
+
 export default AuthPopupResult;

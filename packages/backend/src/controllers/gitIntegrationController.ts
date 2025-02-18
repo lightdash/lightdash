@@ -29,23 +29,6 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Git Integration')
 export class GitIntegrationController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/')
-    @OperationId('GetConfiguration')
-    async GetConfiguration(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: GitIntegrationConfiguration }> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getGitIntegrationService()
-                .getConfiguration(req.user!, projectUuid),
-        };
-    }
-
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

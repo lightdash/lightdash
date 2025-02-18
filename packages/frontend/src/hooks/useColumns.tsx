@@ -20,7 +20,7 @@ import {
 import { Group, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import MantineIcon from '../components/common/MantineIcon';
 import {
@@ -47,19 +47,29 @@ export const getItemBgColor = (
     }
 };
 
+export const formatCellContent = (data?: { value: ResultValue }) => {
+    if (!data) return '-';
+
+    const { value } = data;
+
+    if (typeof value?.formatted === 'string') {
+        const lines = value?.formatted.split('\\n') ?? [];
+        return lines.length > 1
+            ? lines.map((line, index, array) => (
+                  <Fragment key={index}>
+                      {line}
+                      {index < array.length - 1 && <br />}
+                  </Fragment>
+              ))
+            : value?.formatted ?? value?.raw;
+    }
+
+    return value?.formatted ?? value?.raw;
+};
+
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
-) => <span>{info.getValue()?.value.formatted || '-'}</span>;
-
-export const getRawValueCell = (
-    info: CellContext<ResultRow, { value: ResultValue }>,
-) => {
-    let raw = info.getValue()?.value.raw;
-    if (raw === null) return '∅';
-    if (raw === undefined) return '-';
-    if (raw instanceof Date) return <span>{raw.toISOString()}</span>;
-    return <span>{`${raw}`}</span>;
-};
+) => <span>{formatCellContent(info.getValue())}</span>;
 
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();

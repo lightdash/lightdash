@@ -126,7 +126,7 @@ const TableTreeSections: FC<Props> = ({
 
     const isGithubProject =
         project?.dbtConnection.type === DbtProjectType.GITHUB;
-    const { data: gitIntegration } = useGitIntegration(projectUuid);
+    const { data: gitIntegration } = useGitIntegration();
     const isCustomSqlEnabled = useFeatureFlagEnabled(
         FeatureFlags.CustomSQLEnabled,
     );

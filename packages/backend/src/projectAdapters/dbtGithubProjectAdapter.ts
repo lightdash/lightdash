@@ -14,6 +14,7 @@ const DEFAULT_GITHUB_HOST_DOMAIN = 'github.com';
 type DbtGithubProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
     githubPersonalAccessToken: string;
+    githubInstallationId?: string;
     githubRepository: string;
     githubBranch: string;
     projectDirectorySubPath: string;
@@ -49,6 +50,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         if (!isValid) {
             throw new Error(error);
         }
+
         const remoteRepositoryUrl = `https://lightdash:${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
         }/${githubRepository}.git`;

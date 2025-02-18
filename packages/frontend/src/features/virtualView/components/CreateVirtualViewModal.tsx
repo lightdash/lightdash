@@ -51,7 +51,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     const { data: project } = useProject(projectUuid);
-    const { data: gitIntegration, isError } = useGitIntegration(projectUuid);
+    const { data: gitIntegration, isError } = useGitIntegration();
 
     const canWriteToDbtProject = !!(
         health.data?.hasGithub &&
