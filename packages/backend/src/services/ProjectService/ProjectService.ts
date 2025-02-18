@@ -580,8 +580,7 @@ export class ProjectService extends BaseService {
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
         );
-
-        await this.schedulerClient.indexCatalog({
+        return this.schedulerClient.indexCatalog({
             projectUuid,
             userUuid,
             prevCatalogItemsWithTags,
@@ -3294,7 +3293,7 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                await this.jobModel.tryJobStep(
+                const indexCatalogJobUuid = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
@@ -3327,7 +3326,7 @@ export class ProjectService extends BaseService {
                                 color: category.color ?? 'gray',
                             })),
                         );
-                        await this.saveExploresToCacheAndIndexCatalog(
+                        return this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
                             explores,
@@ -3337,6 +3336,9 @@ export class ProjectService extends BaseService {
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
+                    jobResults: {
+                        indexCatalogJobUuid,
+                    },
                 });
             } catch (e) {
                 await this.jobModel.update(job.jobUuid, {

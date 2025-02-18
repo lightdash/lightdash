@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { isCompileJob } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -22,8 +23,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import useActiveJob from '../../../providers/ActiveJob/useActiveJob';
 import useApp from '../../../providers/App/useApp';
 import { LearnMoreContent } from '../../../svgs/metricsCatalog';
+import { useIndexCatalogJob } from '../../catalog/hooks/useIndexCatalogJob';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
@@ -199,6 +202,17 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
 
+    // Track active compile job
+    const { activeJob } = useActiveJob();
+    // Track index catalog job
+    const { isFetching: isIndexingCatalog } = useIndexCatalogJob(
+        isCompileJob(activeJob)
+            ? activeJob.jobResults?.indexCatalogJobUuid
+            : undefined,
+        async () => {
+            setLastDbtRefreshAt(new Date());
+        },
+    );
     const isMetricUsageModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.chartUsageModal.isOpen,
     );
@@ -363,10 +377,6 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         [tableName, metricName, dispatch],
     );
 
-    const handleRefreshDbt = () => {
-        setLastDbtRefreshAt(new Date());
-    };
-
     const headerButtonStyles: ButtonProps['sx'] = {
         borderRadius: theme.radius.md,
         backgroundColor: '#FAFAFA',
@@ -424,23 +434,40 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     </Text>
                 </Box>
                 <Group spacing="xs">
-                    <RefreshDbtButton
-                        onClick={handleRefreshDbt}
-                        leftIcon={
-                            <MantineIcon
-                                size="sm"
-                                color="gray.7"
-                                icon={IconRefresh}
-                            />
-                        }
-                        buttonStyles={headerButtonStyles}
-                        defaultTextOverride={
-                            lastDbtRefreshAt
-                                ? `Last refreshed ${timeAgo}`
-                                : 'Refresh catalog'
-                        }
-                        refreshingTextOverride="Refreshing catalog"
-                    />
+                    {isIndexingCatalog ? (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftIcon={
+                                <MantineIcon
+                                    size="sm"
+                                    color="gray.7"
+                                    icon={IconRefresh}
+                                />
+                            }
+                            loading={true}
+                            sx={headerButtonStyles}
+                        >
+                            Refreshing catalog
+                        </Button>
+                    ) : (
+                        <RefreshDbtButton
+                            leftIcon={
+                                <MantineIcon
+                                    size="sm"
+                                    color="gray.7"
+                                    icon={IconRefresh}
+                                />
+                            }
+                            buttonStyles={headerButtonStyles}
+                            defaultTextOverride={
+                                lastDbtRefreshAt
+                                    ? `Last refreshed ${timeAgo}`
+                                    : 'Refresh catalog'
+                            }
+                            refreshingTextOverride="Refreshing catalog"
+                        />
+                    )}
                     <LearnMorePopover buttonStyles={headerButtonStyles} />
                 </Group>
             </Group>
