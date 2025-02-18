@@ -27,7 +27,6 @@ import {
     ValidationSourceType,
     ValidationTarget,
 } from '@lightdash/common';
-import { writeFileSync } from 'node:fs';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -254,8 +253,8 @@ export class ValidationService extends BaseService {
 
                     // Available _For_ chart?
                     const allItemIdsAvailableInChart = [
-                        ...availableDimensionIds, // Dimensions available in explores
-                        ...availableMetricIds, // Metrics available in explores
+                        ...availableDimensionIds,
+                        ...availableMetricIds,
                         ...tableCalculations,
                         ...customMetrics,
                         ...availableCustomDimensionIds,
@@ -614,7 +613,6 @@ export class ValidationService extends BaseService {
             [],
         );
 
-        // This is never true
         if (!existingFields) {
             this.logger.warn(
                 `No fields found for project validation ${projectUuid}`,
