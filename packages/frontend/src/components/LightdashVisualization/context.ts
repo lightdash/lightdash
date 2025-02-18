@@ -18,7 +18,6 @@ type VisualizationContext = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
-    isSqlRunner: boolean;
     itemsMap: ItemsMap | undefined;
     visualizationConfig: VisualizationConfig;
     // cartesian config related

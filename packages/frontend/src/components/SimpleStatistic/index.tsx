@@ -91,7 +91,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 }) => {
     const theme = useMantineTheme();
 
-    const { resultsData, isLoading, visualizationConfig, isSqlRunner } =
+    const { resultsData, isLoading, visualizationConfig } =
         useVisualizationContext();
 
     const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
@@ -194,7 +194,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             {...wrapperProps}
         >
             <Flex style={{ flexShrink: 1 }}>
-                {minimal || isSqlRunner ? (
+                {minimal ? (
                     <BigNumberText fz={valueFontSize}>
                         {bigNumber}
                     </BigNumberText>
