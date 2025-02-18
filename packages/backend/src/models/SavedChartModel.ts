@@ -1124,7 +1124,7 @@ export class SavedChartModel {
             customBinDimensions: string[];
             customSqlDimensions: string[];
             sorts: string[];
-            customMetricsFilters: MetricFilterRule[];
+            customMetricsFilters: MetricFilterRule[][];
             dashboardUuid: string | undefined;
         }>
     > {
