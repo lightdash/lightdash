@@ -48,7 +48,7 @@
         "@octokit/auth-app": "^6.0.3",
         "@octokit/auth-token": "^4.0.0",
         "@octokit/core": "^5.1.1",
-        "@octokit/request": "^8.1.6",
+        "@octokit/request": "^9.2.1",
         "@octokit/rest": "^20.0.2",
         "@rudderstack/rudder-sdk-node": "^2.0.6",
         "@sentry/node": "8.9.2",
