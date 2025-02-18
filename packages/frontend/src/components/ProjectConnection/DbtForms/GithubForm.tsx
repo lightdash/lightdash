@@ -274,6 +274,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 : 'installation_id',
     });
 
+    const isInstallationValid =
+        githubConfig?.enabled && authorizationMethod === 'installation_id';
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -284,7 +287,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         render={({ field }) => (
                             <Select
                                 description={
-                                    githubConfig?.enabled ? (
+                                    isInstallationValid ? (
                                         <Text>
                                             You are connected to GitHub.{' '}
                                             <Anchor
@@ -297,7 +300,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                         </Text>
                                     ) : undefined
                                 }
-                                w={githubConfig?.enabled ? '90%' : '100%'}
+                                w={isInstallationValid ? '90%' : '100%'}
                                 name={field.name}
                                 label="Authorization method"
                                 data={[
@@ -316,7 +319,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             />
                         )}
                     />
-                    {githubConfig?.enabled && (
+                    {isInstallationValid && (
                         <Tooltip label="You are connected to GitHub">
                             <Group mt="40px">
                                 <MantineIcon icon={IconCheck} color="green" />
