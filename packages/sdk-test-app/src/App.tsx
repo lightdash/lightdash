@@ -1,5 +1,6 @@
 import Lightdash from '@lightdash/sdk';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // NOTE: add an embed url here for persistence
 const EMBED_URL = '';
@@ -32,6 +33,15 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
 };
 
 function App() {
+    const { t, i18n } = useTranslation();
+
+    useEffect(() => {
+        console.log('---------------');
+        console.log(`translation object for ${i18n.language}`);
+        console.log(i18n.getResourceBundle(i18n.language, 'lightdash'));
+        console.log('---------------');
+    }, [i18n]);
+
     const [lightdashUrl, setLightdashUrl] = useState<string | null>(null);
     const [lightdashToken, setLightdashToken] = useState<string | null>(null);
     const [embedUrl, setEmbedUrl] = useState<string>(EMBED_URL);
@@ -101,6 +111,9 @@ function App() {
             <div style={containerStyle}>
                 <div style={contentStyle}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* here is the T function */}
+                        <h2>{t('nested.item')}</h2>
+
                         <h3>Invalid embed URL</h3>
                         <p>Enter a Lightdash embed URL</p>
 

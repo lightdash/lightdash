@@ -10,8 +10,12 @@
     },
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
+        "i18next": "^24.2.2",
+        "i18next-browser-languagedetector": "^8.0.3",
+        "i18next-locize-backend": "^7.0.3",
         "react": "18.0.0",
-        "react-dom": "18.0.0"
+        "react-dom": "18.0.0",
+        "react-i18next": "^15.4.1"
     },
     "devDependencies": {
         "@types/react": "18.0.0",
