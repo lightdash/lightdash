@@ -4,7 +4,7 @@ import {
     getErrorMessage,
     getObjectValue,
 } from '@lightdash/common';
-import { sign } from '@tinyhttp/cookie-signature';
+import { sign } from 'cookie-signature';
 import { createHmac } from 'crypto';
 import express from 'express';
 import playwright from 'playwright';
