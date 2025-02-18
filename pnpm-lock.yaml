@@ -174,6 +174,9 @@ importers:
       '@slack/web-api':
         specifier: ^6.12.1
         version: 6.13.0
+      '@tinyhttp/cookie-signature':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@tsoa/runtime':
         specifier: ^6.6.0
         version: 6.6.0
@@ -3676,6 +3679,10 @@ packages:
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
+
+  '@tinyhttp/cookie-signature@2.1.1':
+    resolution: {integrity: sha512-VDsSMY5OJfQJIAtUgeQYhqMPSZptehFSfvEEtxr+4nldPA8IImlp3QVcOVuK985g4AFR4Hl1sCbWCXoqBnVWnw==}
+    engines: {node: '>=12.20.0'}
 
   '@tiptap/core@2.2.4':
     resolution: {integrity: sha512-cRrI8IlLIhCE1hacBQzXIC8dsRvGq6a4lYWQK/BaHuZg21CG7szp3Vd8Ix+ra1f5v0xPOT+Hy+QFNQooRMKMCw==}
@@ -15627,6 +15634,8 @@ snapshots:
   '@testing-library/user-event@14.5.2(@testing-library/dom@10.4.0)':
     dependencies:
       '@testing-library/dom': 10.4.0
+
+  '@tinyhttp/cookie-signature@2.1.1': {}
 
   '@tiptap/core@2.2.4(@tiptap/pm@2.2.4)':
     dependencies:

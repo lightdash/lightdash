@@ -124,6 +124,7 @@
         "simple-git": "^3.16.0",
         "slackify-markdown": "^4.4.0",
         "sshpk": "^1.17.0",
+        "@tinyhttp/cookie-signature": "^2.1.1",
         "uuid": "^8.3.2",
         "winston": "^3.3.3",
         "zod": "^3.22.4",
