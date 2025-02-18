@@ -8925,6 +8925,9 @@
                     "personal_access_token": {
                         "type": "string"
                     },
+                    "installation_id": {
+                        "type": "string"
+                    },
                     "repository": {
                         "type": "string"
                     },
@@ -8940,7 +8943,6 @@
                 },
                 "required": [
                     "type",
-                    "personal_access_token",
                     "repository",
                     "branch",
                     "project_sub_path"
@@ -12669,6 +12671,18 @@
                 ],
                 "type": "object"
             },
+            "GitIntegrationConfiguration": {
+                "properties": {
+                    "installationId": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["enabled"],
+                "type": "object"
+            },
             "GitRepo": {
                 "properties": {
                     "ownerLogin": {
@@ -12682,15 +12696,6 @@
                     }
                 },
                 "required": ["ownerLogin", "fullName", "name"],
-                "type": "object"
-            },
-            "GitIntegrationConfiguration": {
-                "properties": {
-                    "enabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["enabled"],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -14740,7 +14745,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1496.2",
+        "version": "0.1503.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20666,6 +20671,36 @@
                 "parameters": []
             }
         },
+        "/api/v1/github/config": {
+            "get": {
+                "operationId": "configurationGithubAppForOrganization",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/GitIntegrationConfiguration"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/github/oauth/callback": {
             "get": {
                 "operationId": "githubOauthCallback",
@@ -20766,56 +20801,6 @@
                 },
                 "security": [],
                 "parameters": []
-            }
-        },
-        "/api/v1/projects/{projectUuid}/git-integration": {
-            "get": {
-                "operationId": "GetConfiguration",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/GitIntegrationConfiguration"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Git Integration"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-metrics": {

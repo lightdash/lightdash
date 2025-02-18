@@ -1,4 +1,8 @@
-import { ApiSuccessEmpty, GitRepo } from '@lightdash/common';
+import {
+    ApiSuccessEmpty,
+    GitIntegrationConfiguration,
+    GitRepo,
+} from '@lightdash/common';
 import {
     Delete,
     Get,
@@ -50,6 +54,26 @@ export class GithubInstallController extends BaseController {
 
         this.setStatus(302);
         this.setHeader('Location', context.installUrl);
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200')
+    @Get('/config')
+    @OperationId('configurationGithubAppForOrganization')
+    async configurationGithubAppForOrganization(
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: GitIntegrationConfiguration;
+    }> {
+        const config = await this.services
+            .getGitIntegrationService()
+            .getConfiguration(req.user!);
+
+        return {
+            status: 'ok',
+            results: config,
+        };
     }
 
     /**

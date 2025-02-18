@@ -2,17 +2,16 @@ import type { ApiError, GitIntegrationConfiguration } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
-const getGitIntegration = async (projectUuid: string) =>
+const getGitIntegration = async () =>
     lightdashApi<any>({
-        url: `/projects/${projectUuid}/git-integration`,
+        url: `/github/config`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGitIntegration = (projectUuid: string | undefined) =>
+export const useGitIntegration = () =>
     useQuery<GitIntegrationConfiguration, ApiError>({
-        queryKey: ['git-integration', projectUuid],
-        queryFn: () => getGitIntegration(projectUuid!),
-        enabled: !!projectUuid, // Don't fetch if is empty string
+        queryKey: ['git-integration'],
+        queryFn: () => getGitIntegration(),
         retry: false,
     });

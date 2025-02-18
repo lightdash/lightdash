@@ -1,5 +1,6 @@
 export type GitIntegrationConfiguration = {
     enabled: boolean;
+    installationId?: string;
 };
 
 export type PullRequestCreated = {

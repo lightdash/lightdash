@@ -199,6 +199,19 @@ export const createBranch = async ({
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
+export const getInstallationToken = async (
+    installationId: string,
+): Promise<string> => {
+    try {
+        const octokit = getOctokitRestForApp(installationId);
+        const response = await octokit.rest.apps.createInstallationAccessToken({
+            installation_id: parseInt(installationId, 10),
+        });
+        return response.data.token;
+    } catch (error) {
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
 
 export const updateFile = async ({
     owner,

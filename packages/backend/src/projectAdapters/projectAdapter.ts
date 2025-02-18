@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { getInstallationToken } from '../clients/github/Github';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
@@ -72,10 +73,15 @@ export const projectAdapterFromConfig = async (
                 // TODO add selector to dbt cloud
             });
         case DbtProjectType.GITHUB:
+            const githubToken =
+                config.installation_id &&
+                config.authorization_method === 'installation_id'
+                    ? await getInstallationToken(config.installation_id)
+                    : config.personal_access_token;
             return new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,
-                githubPersonalAccessToken: config.personal_access_token,
+                githubPersonalAccessToken: githubToken!,
                 githubRepository: config.repository,
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,

@@ -248,7 +248,9 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.GITHUB;
-    personal_access_token: string;
+    authorization_method: 'personal_access_token' | 'installation_id';
+    personal_access_token?: string;
+    installation_id?: string;
     repository: string;
     branch: string;
     project_sub_path: string;

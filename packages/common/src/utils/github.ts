@@ -1,5 +1,5 @@
 export const isGithubToken = (value: string) =>
-    !!value.match(/^(github_pat_|ghp_)/);
+    !!value.match(/^(github_pat_|ghp_|ghs_)/);
 
 export const validateGithubToken = (
     value: string,

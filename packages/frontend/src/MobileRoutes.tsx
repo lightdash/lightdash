@@ -36,7 +36,9 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
-import AuthPopupResult from './pages/AuthPopupResult';
+import AuthPopupResult, {
+    SuccessAuthPopupResult,
+} from './pages/AuthPopupResult';
 import Login from './pages/Login';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
@@ -199,6 +201,11 @@ const PUBLIC_ROUTES: RouteObject[] = [
     {
         path: '/no-mobile-page',
         element: <MobileView />,
+    },
+    {
+        // Autoclose popup after github installation
+        path: '/generalSettings/integrations',
+        element: <SuccessAuthPopupResult />,
     },
     ...routesNotSupportedInMobile.map((route) => ({
         path: route,
