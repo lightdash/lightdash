@@ -1,4 +1,4 @@
-import { type TimeFrames } from '@lightdash/common';
+import { type SearchItemType, type TimeFrames } from '@lightdash/common';
 import { type FormState } from 'react-hook-form';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
@@ -115,15 +115,7 @@ export type SetupStepClickedEvent = {
 export type SearchResultClickedEvent = {
     name: EventName.SEARCH_RESULT_CLICKED;
     properties: {
-        type:
-            | 'space'
-            | 'dashboard'
-            | 'saved_chart'
-            | 'table'
-            | 'field'
-            | 'sql_chart'
-            | 'semantic_viewer_chart'
-            | 'page';
+        type: SearchItemType;
         id: string;
     };
 };
