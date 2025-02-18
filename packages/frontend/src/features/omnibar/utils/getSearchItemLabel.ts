@@ -6,6 +6,8 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
             return 'Fields';
         case SearchItemType.DASHBOARD:
             return 'Dashboards';
+        case SearchItemType.DASHBOARD_TAB:
+            return 'Dashboard Tabs';
         case SearchItemType.CHART:
             return 'Charts';
         case SearchItemType.SPACE:
@@ -18,8 +20,7 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
             return 'SQL Charts';
         case SearchItemType.SEMANTIC_VIEWER_CHART:
             return 'Semantic Viewer Charts';
-        case SearchItemType.DASHBOARD_TAB:
-            return 'Dashboard Tabs';
+
         default:
             return assertUnreachable(
                 itemType,
@@ -34,6 +35,8 @@ export const getSearchItemErrorLabel = (itemType: SearchItemType) => {
             return 'field';
         case SearchItemType.DASHBOARD:
             return 'dashboard';
+        case SearchItemType.DASHBOARD_TAB:
+            return 'dashboard tab';
         case SearchItemType.CHART:
             return 'chart';
         case SearchItemType.SPACE:

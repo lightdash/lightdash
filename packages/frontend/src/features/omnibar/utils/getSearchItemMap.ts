@@ -36,11 +36,11 @@ export const getSearchItemMap = (
 
     const dashboardTabs = results.dashboardTabs.map<SearchItem>((item) => ({
         type: SearchItemType.DASHBOARD_TAB,
-        title: item.tabName,
+        title: item.name,
         description: `Dashboard: ${item.dashboardName}`,
         item: item,
         location: {
-            pathname: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}`,
+            pathname: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/tabs/${item.uuid}`,
         },
     }));
 

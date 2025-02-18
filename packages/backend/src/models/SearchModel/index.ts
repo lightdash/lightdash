@@ -225,9 +225,10 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .column<DashboardTabResult[]>(
-                { dashboardName: `${DashboardsTableName}.name` },
-                { tabName: `${DashboardTabsTableName}.name` },
+                { uuid: `${DashboardTabsTableName}.uuid` },
+                { name: `${DashboardTabsTableName}.name` },
                 { dashboardUuid: `${DashboardsTableName}.dashboard_uuid` },
+                { dashboardName: `${DashboardsTableName}.name` },
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)

@@ -9,6 +9,7 @@ import {
     IconBrowser,
     IconFolder,
     IconLayoutDashboard,
+    IconLayoutNavbarInactive,
     IconTable,
 } from '@tabler/icons-react';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
@@ -18,6 +19,7 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
     switch (itemType) {
         case SearchItemType.FIELD:
             return 'gray.7';
+        case SearchItemType.DASHBOARD_TAB:
         case SearchItemType.DASHBOARD:
             return 'green.8';
         case SearchItemType.CHART:
@@ -31,8 +33,6 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
         case SearchItemType.SQL_CHART:
         case SearchItemType.SEMANTIC_VIEWER_CHART:
             return 'blue.7';
-        case SearchItemType.DASHBOARD_TAB:
-            return 'violet.7';
         default:
             return assertUnreachable(
                 itemType,
@@ -65,7 +65,7 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
         case SearchItemType.PAGE:
             return IconBrowser;
         case SearchItemType.DASHBOARD_TAB:
-            return IconLayoutDashboard;
+            return IconLayoutNavbarInactive;
         default:
             return assertUnreachable(
                 item.type,

@@ -108,14 +108,14 @@ export type DashboardTabResult = {
 export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
+    | DashboardTabResult
     | SavedChartSearchResult
     | SqlChartSearchResult
     | SemanticViewerChartSearchResults
     | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
-    | PageResult
-    | DashboardTabResult;
+    | PageResult;
 
 export const isExploreSearchResult = (
     value: SearchResult,
@@ -157,6 +157,7 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
 
 export enum SearchItemType {
     DASHBOARD = 'dashboard',
+    DASHBOARD_TAB = 'dashboard_tab',
     CHART = 'saved_chart',
     SQL_CHART = 'sql_chart',
     SEMANTIC_VIEWER_CHART = 'semantic_viewer_chart',
@@ -164,7 +165,6 @@ export enum SearchItemType {
     TABLE = 'table',
     FIELD = 'field',
     PAGE = 'page',
-    DASHBOARD_TAB = 'dashboard_tab',
 }
 
 export function getSearchItemTypeFromResultKey(
