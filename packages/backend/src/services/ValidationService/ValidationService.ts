@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     CompiledField,
+    convertFieldRefToFieldId,
     CreateChartValidation,
     CreateDashboardValidation,
     CreateTableValidation,
@@ -26,6 +27,7 @@ import {
     ValidationSourceType,
     ValidationTarget,
 } from '@lightdash/common';
+import { writeFileSync } from 'node:fs';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -215,6 +217,7 @@ export class ValidationService extends BaseService {
         const charts = await this.savedChartModel.findChartsForValidation(
             projectUuid,
         );
+
         // Only validate charts that are using selected explores
         const results = charts
             .filter((c) => {
@@ -237,6 +240,7 @@ export class ValidationService extends BaseService {
                     customSqlDimensions,
                     customMetrics,
                     customMetricsBaseDimensions,
+                    customMetricsFilters,
                     tableCalculations,
                 }) => {
                     const availableDimensionIds =
@@ -248,9 +252,10 @@ export class ValidationService extends BaseService {
                     const availableMetricIds =
                         exploreFields[tableName]?.metricIds || [];
 
+                    // Available _For_ chart?
                     const allItemIdsAvailableInChart = [
-                        ...availableDimensionIds,
-                        ...availableMetricIds,
+                        ...availableDimensionIds, // Dimensions available in explores
+                        ...availableMetricIds, // Metrics available in explores
                         ...tableCalculations,
                         ...customMetrics,
                         ...availableCustomDimensionIds,
@@ -361,6 +366,22 @@ export class ValidationService extends BaseService {
                         [],
                     );
 
+                    const customMetricFilterErrors = customMetricsFilters
+                        .flat()
+                        .reduce<CreateChartValidation[]>((acc, filter) => {
+                            const fieldId = convertFieldRefToFieldId(
+                                filter.target.fieldRef,
+                            );
+                            return containsFieldId({
+                                acc,
+                                fieldIds: allItemIdsAvailableInChart,
+                                fieldId,
+                                error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
+                                errorType: ValidationErrorType.Filter,
+                                fieldName: fieldId,
+                            });
+                        }, []);
+
                     const sortErrors = sorts.reduce<CreateChartValidation[]>(
                         (acc, field) =>
                             containsFieldId({
@@ -380,6 +401,7 @@ export class ValidationService extends BaseService {
                         ...filterErrors,
                         ...sortErrors,
                         ...customMetricsErrors,
+                        ...customMetricFilterErrors,
                     ];
                 },
             );
@@ -592,6 +614,7 @@ export class ValidationService extends BaseService {
             [],
         );
 
+        // This is never true
         if (!existingFields) {
             this.logger.warn(
                 `No fields found for project validation ${projectUuid}`,
