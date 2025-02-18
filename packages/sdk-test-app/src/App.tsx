@@ -39,6 +39,7 @@ function App() {
         console.log('---------------');
         console.log(`translation object for ${i18n.language}`);
         console.log(i18n.getResourceBundle(i18n.language, 'lightdash'));
+        i18n.changeLanguage('ka');
         console.log('---------------');
     }, [i18n]);
 
@@ -104,46 +105,30 @@ function App() {
         setLightdashToken(lightdashToken);
     }, [embedUrl]);
 
-    console.log({ lightdashUrl, lightdashToken });
-
-    if (!lightdashUrl || !lightdashToken) {
-        return (
-            <div style={containerStyle}>
-                <div style={contentStyle}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        {/* here is the T function */}
-                        <h2>{t('nested.item')}</h2>
-
-                        <h3>Invalid embed URL</h3>
-                        <p>Enter a Lightdash embed URL</p>
-
-                        <EmbedUrlInput
-                            draftUrl={draftUrl}
-                            onDraftUrlChange={setDraftUrl}
-                            onSubmit={() => {
-                                console.log(draftUrl);
-                                setEmbedUrl(draftUrl);
-                            }}
-                            onClear={() => {
-                                setDraftUrl('');
-                                setEmbedUrl('');
-                            }}
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div style={containerStyle}>
             <div style={contentStyle}>
-                <header>
-                    <h1 style={{ color: '#333', margin: '0 0 10px' }}>
-                        Lightdash SDK
-                    </h1>
-                    <h4>Embed URL:</h4>
+                <div
+                    style={{
+                        justifyContent: 'flex-end',
+                        display: 'flex',
+                        gap: '8px',
+                    }}
+                >
+                    <button onClick={() => i18n.changeLanguage('en')}>
+                        🇬🇧
+                    </button>
+                    <button onClick={() => i18n.changeLanguage('ka')}>
+                        🇬🇪
+                    </button>
+                    <button onClick={() => i18n.changeLanguage('es')}>
+                        🇪🇸
+                    </button>
+                </div>
+                {!lightdashUrl && !lightdashToken ? (
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <h3>{t('Invalid embed URL')}</h3>
+                        <p>{t('Enter a Lightdash embed URL')}</p>
                         <EmbedUrlInput
                             draftUrl={draftUrl}
                             onDraftUrlChange={setDraftUrl}
@@ -157,64 +142,96 @@ function App() {
                             }}
                         />
                     </div>
-                    <h4>Current lightdash URL:</h4>
-                    <p style={inputDisplayStyle}>{lightdashUrl}</p>
-                    <h4>Current lightdash token:</h4>
-                    <p style={inputDisplayStyle}>{lightdashToken}</p>
-                </header>
+                ) : (
+                    <>
+                        <header>
+                            <h1 style={{ color: '#333', margin: '0 0 10px' }}>
+                                Lightdash SDK
+                            </h1>
+                            <h4>Embed URL:</h4>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                }}
+                            >
+                                <EmbedUrlInput
+                                    draftUrl={draftUrl}
+                                    onDraftUrlChange={setDraftUrl}
+                                    onSubmit={() => {
+                                        console.log(draftUrl);
+                                        setEmbedUrl(draftUrl);
+                                    }}
+                                    onClear={() => {
+                                        setDraftUrl('');
+                                        setEmbedUrl('');
+                                    }}
+                                />
+                            </div>
+                            <h4>Current lightdash URL:</h4>
+                            <p style={inputDisplayStyle}>{lightdashUrl}</p>
+                            <h4>Current lightdash token:</h4>
+                            <p style={inputDisplayStyle}>{lightdashToken}</p>
+                        </header>
 
-                <main>
-                    <h2 style={{ color: '#555', margin: '0 0 20px' }}>
-                        Dashboard component
-                    </h2>
-                    <p
-                        style={{
-                            fontSize: '1.1em',
-                            lineHeight: '1.6',
-                            color: '#666',
-                        }}
-                    >
-                        This is a demo page that includes a Lightdash dashboard
-                        component. The data is fetched from the Lightdash
-                        server, but this app is running locally.
-                    </p>
+                        <main>
+                            <h2 style={{ color: '#555', margin: '0 0 20px' }}>
+                                Dashboard component
+                            </h2>
+                            <p
+                                style={{
+                                    fontSize: '1.1em',
+                                    lineHeight: '1.6',
+                                    color: '#666',
+                                }}
+                            >
+                                This is a demo page that includes a Lightdash
+                                dashboard component. The data is fetched from
+                                the Lightdash server, but this app is running
+                                locally.
+                            </p>
 
-                    <div id="chart-container" style={chartContainerStyle}>
-                        <Lightdash.Dashboard
-                            instanceUrl={lightdashUrl}
-                            token={lightdashToken}
-                            styles={{
-                                backgroundColor: 'transparent',
-                                fontFamily: 'Comic Sans MS',
-                            }}
-                        />
-                    </div>
+                            <div
+                                id="chart-container"
+                                style={chartContainerStyle}
+                            >
+                                <Lightdash.Dashboard
+                                    instanceUrl={lightdashUrl}
+                                    token={lightdashToken}
+                                    styles={{
+                                        backgroundColor: 'transparent',
+                                        fontFamily: 'Comic Sans MS',
+                                    }}
+                                />
+                            </div>
 
-                    {/* Info box with bluish text */}
-                    <div style={infoBoxStyle}>
-                        <p>
-                            Additional Information: This chart is powered by
-                            Lightdash SDK.
-                        </p>
-                    </div>
-                    {/* TODO: decide how to handle http vs https so we can use the iframe */}
-                    {/* <h2 style={{ color: '#555', margin: '0 0 20px' }}>
+                            {/* Info box with bluish text */}
+                            <div style={infoBoxStyle}>
+                                <p>
+                                    Additional Information: This chart is
+                                    powered by Lightdash SDK.
+                                </p>
+                            </div>
+                            {/* TODO: decide how to handle http vs https so we can use the iframe */}
+                            {/* <h2 style={{ color: '#555', margin: '0 0 20px' }}>
                         Embedded dashboard
                     </h2>
                     <iframe src={embedUrl} width="100%" height="400px" /> */}
-                </main>
+                        </main>
 
-                <footer>
-                    <p
-                        style={{
-                            fontSize: '0.9em',
-                            color: '#999',
-                            margin: '20px 0 0',
-                        }}
-                    >
-                        &copy; 2025 Lightdash
-                    </p>
-                </footer>
+                        <footer>
+                            <p
+                                style={{
+                                    fontSize: '0.9em',
+                                    color: '#999',
+                                    margin: '20px 0 0',
+                                }}
+                            >
+                                &copy; 2025 Lightdash
+                            </p>
+                        </footer>
+                    </>
+                )}
             </div>
         </div>
     );
