@@ -4,6 +4,7 @@ import {
     getErrorMessage,
     getObjectValue,
 } from '@lightdash/common';
+import { sign } from '@tinyhttp/cookie-signature';
 import { createHmac } from 'crypto';
 import express from 'express';
 import playwright from 'playwright';
@@ -15,6 +16,13 @@ export const getAuthenticationToken = (value: string) =>
     createHmac('sha512', lightdashConfig.lightdashSecret)
         .update(value)
         .digest('hex');
+
+// TEST:
+// try with Docker compose; then run api login the headless browser login with Postman - different origin, should throw error
+// set internal host to point to the name of the container in docker compose
+
+// have e2e tests for this to catch possible regressions
+// might have to have render use the internal host env var
 
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
@@ -34,22 +42,31 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
                 next(err);
             }
 
-            if (
-                lightdashConfig.siteUrl !==
-                lightdashConfig.headlessBrowser.internalLightdashHost
-            ) {
-                // Generate signed session cookie like express-session does
-                const signedCookie = `s:${req.session.id}.${createHmac(
-                    'sha256',
-                    lightdashConfig.lightdashSecret,
-                )
-                    .update(req.session.id)
-                    .digest('base64')
-                    .replace(/=+$/, '')}`;
+            const internalHost = new URL(
+                lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
 
-                // Set cookie in response headers
+            /**
+             * We need to set a secure cookie if:
+             * - secure cookies are enabled
+             * - the internal host is http (can't set session cookie because of policies set in App.ts)
+             *
+             * This is because 'express-session' middleware does not allow us to set multiple domain's cookie sessions
+             */
+            const shouldSetSecureCookie =
+                lightdashConfig.secureCookies === true &&
+                internalHost.protocol === 'http:' &&
+                lightdashConfig.siteUrl !==
+                    lightdashConfig.headlessBrowser.internalLightdashHost;
+
+            if (shouldSetSecureCookie) {
+                const value = `s:${sign(
+                    req.session.id,
+                    lightdashConfig.lightdashSecret,
+                )}`;
+
                 res.setHeader('Set-Cookie', [
-                    `connect.sid=${signedCookie}; Path=/; HttpOnly; SameSite=Lax; Domain=${req.hostname}; Secure`,
+                    `connect.sid=${value}; Path=/; HttpOnly; SameSite=Lax; Domain=${internalHost.host}; Secure`,
                 ]);
             }
             res.json({
