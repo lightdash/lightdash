@@ -1,12 +1,15 @@
+import type { ResultRow, ResultValue } from '@lightdash/common';
 import {
     getCoreRowModel,
     getExpandedRowModel,
     getPaginationRowModel,
     useReactTable,
+    type ColumnDefBase,
     type ColumnOrderState,
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
+import { formatCellContent } from '../../../hooks/useColumns';
 import {
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
@@ -112,9 +115,24 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     }, [stickyColumns, rowColumnWidth]);
 
     const visibleColumns = useMemo(() => {
-        return hideRowNumbers
+        const cols = hideRowNumbers
             ? [...stickyColumns, ...otherColumns]
             : [stickyRowColumn, ...stickyColumns, ...otherColumns];
+
+        return cols.map((column) => {
+            return {
+                ...column,
+                cell: ({ getValue }) => {
+                    const value = getValue();
+
+                    if (value === undefined) {
+                        return null;
+                    }
+
+                    return formatCellContent(value);
+                },
+            } satisfies ColumnDefBase<ResultRow, { value: ResultValue }>;
+        });
     }, [hideRowNumbers, stickyColumns, otherColumns, stickyRowColumn]);
 
     const table = useReactTable({
