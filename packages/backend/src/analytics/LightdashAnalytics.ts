@@ -210,6 +210,7 @@ type MetricQueryExecutionProperties = {
     tableCalculationsPercentFormatCount: number;
     tableCalculationsCurrencyFormatCount: number;
     tableCalculationsNumberFormatCount: number;
+    tableCalculationCustomFormatCount: number;
     filtersCount: number;
     sortsCount: number;
     hasExampleMetric: boolean;
@@ -218,6 +219,7 @@ type MetricQueryExecutionProperties = {
     additionalMetricsPercentFormatCount: number;
     additionalMetricsCurrencyFormatCount: number;
     additionalMetricsNumberFormatCount: number;
+    additionalMetricsCustomFormatCount: number;
     numFixedWidthBinCustomDimensions: number;
     numFixedBinsBinCustomDimensions: number;
     numCustomRangeBinCustomDimensions: number;

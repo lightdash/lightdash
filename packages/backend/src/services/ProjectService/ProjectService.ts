@@ -2227,6 +2227,12 @@ export class ProjectService extends BaseService {
                                         tableCalculation.format?.type ===
                                         CustomFormatType.NUMBER,
                                 ).length,
+                            tableCalculationCustomFormatCount:
+                                metricQuery.tableCalculations.filter(
+                                    (tableCalculation) =>
+                                        tableCalculation.format?.type ===
+                                        CustomFormatType.CUSTOM,
+                                ).length,
                             additionalMetricsCount: (
                                 metricQuery.additionalMetrics || []
                             ).filter((metric) =>
@@ -2274,6 +2280,17 @@ export class ProjectService extends BaseService {
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
                                         CustomFormatType.NUMBER,
+                            ).length,
+                            additionalMetricsCustomFormatCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getItemId(metric),
+                                    ) &&
+                                    metric.formatOptions &&
+                                    metric.formatOptions.type ===
+                                        CustomFormatType.CUSTOM,
                             ).length,
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),

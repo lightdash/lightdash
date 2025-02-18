@@ -81,6 +81,7 @@ const TableCalculationModal: FC<Props> = ({
                 compact: tableCalculation?.format?.compact,
                 prefix: tableCalculation?.format?.prefix,
                 suffix: tableCalculation?.format?.suffix,
+                custom: tableCalculation?.format?.custom,
             },
         },
         validate: {

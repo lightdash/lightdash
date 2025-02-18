@@ -1892,6 +1892,7 @@ const models: TsoaRoute.Models = {
             'id',
             'date',
             'timestamp',
+            'custom',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -1935,6 +1936,10 @@ const models: TsoaRoute.Models = {
                 subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
             },
             timeInterval: { ref: 'TimeFrames' },
+            custom: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
         },
         additionalProperties: true,
     },
@@ -7980,6 +7985,14 @@ const models: TsoaRoute.Models = {
                 },
             },
             selector: { dataType: 'string' },
+            authorization_method: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'enum', enums: ['personal_access_token'] },
+                    { dataType: 'enum', enums: ['installation_id'] },
+                ],
+                required: true,
+            },
             personal_access_token: { dataType: 'string' },
             installation_id: { dataType: 'string' },
             repository: { dataType: 'string', required: true },

@@ -365,6 +365,47 @@ function applyCompact(
     return { compactValue: Number(value), compactSuffix: '' };
 }
 
+export function formatValueWithExpression(expression: string, value: unknown) {
+    try {
+        let sanitizedValue = value;
+
+        if (typeof value === 'bigint') {
+            if (
+                value <= Number.MAX_SAFE_INTEGER &&
+                value >= Number.MIN_SAFE_INTEGER
+            ) {
+                sanitizedValue = Number(value);
+            } else {
+                throw new Error(
+                    "Can't format value as BigInt is out of safe integer range",
+                );
+            }
+        }
+
+        // format date
+        if (isDateFormat(expression)) {
+            if (!isMomentInput(sanitizedValue)) {
+                return 'NaT';
+            }
+            return formatWithExpression(
+                expression,
+                moment(sanitizedValue).toDate(),
+            );
+        }
+
+        // format text
+        if (isTextFormat(expression)) {
+            return formatWithExpression(expression, sanitizedValue);
+        }
+
+        // format number
+        return formatWithExpression(expression, Number(sanitizedValue));
+    } catch (e) {
+        console.error('Error formatting value with expression', e);
+        return `${value}`;
+    }
+}
+
 export function applyCustomFormat(
     value: unknown,
     format?: CustomFormat | undefined,
@@ -419,6 +460,8 @@ export function applyCustomFormat(
             const numberFormatted = formatNumberValue(compactNumber, format);
 
             return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
+        case CustomFormatType.CUSTOM:
+            return formatValueWithExpression(format.custom || '', value);
         default:
             return assertUnreachable(
                 format.type,
@@ -531,6 +574,10 @@ export function convertCustomFormatToFormatExpression(
     let defaultFormatExpression: string | null = null;
     let conversions: Array<string> = [];
     switch (format.type) {
+        case CustomFormatType.CUSTOM: {
+            // no conversion needed
+            return format.custom || null;
+        }
         case CustomFormatType.DEFAULT: {
             // No format expression needed
             break;
@@ -584,47 +631,6 @@ export function getFormatExpression(
     return customFormat
         ? convertCustomFormatToFormatExpression(customFormat) || undefined
         : undefined;
-}
-
-export function formatValueWithExpression(expression: string, value: unknown) {
-    try {
-        let sanitizedValue = value;
-
-        if (typeof value === 'bigint') {
-            if (
-                value <= Number.MAX_SAFE_INTEGER &&
-                value >= Number.MIN_SAFE_INTEGER
-            ) {
-                sanitizedValue = Number(value);
-            } else {
-                throw new Error(
-                    "Can't format value as BigInt is out of safe integer range",
-                );
-            }
-        }
-
-        // format date
-        if (isDateFormat(expression)) {
-            if (!isMomentInput(sanitizedValue)) {
-                return 'NaT';
-            }
-            return formatWithExpression(
-                expression,
-                moment(sanitizedValue).toDate(),
-            );
-        }
-
-        // format text
-        if (isTextFormat(expression)) {
-            return formatWithExpression(expression, sanitizedValue);
-        }
-
-        // format number
-        return formatWithExpression(expression, Number(sanitizedValue));
-    } catch (e) {
-        console.error('Error formatting value with expression', e);
-        return `${value}`;
-    }
 }
 
 export function formatItemValue(
