@@ -267,4 +267,15 @@ describe('Dashboard', () => {
         cy.findAllByText('No chart available').should('have.length', 0);
         cy.findAllByText('No data available').should('have.length', 0);
     });
+
+    it('Should preview a dashboard image export', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+        cy.contains('a', 'to promote').click();
+        // get the fourth button with class  mantine-ActionIcon-root
+        cy.get('.mantine-ActionIcon-root').eq(4).click();
+        cy.contains('Export dashboard').click();
+        cy.findByText('Generate preview').click();
+
+        cy.get('div').contains('Success', { timeout: 20000 }).should('exist');
+    });
 });
