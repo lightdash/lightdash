@@ -9,6 +9,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ValidationService } from './ValidationService';
 import {
     chartForValidation,
+    chartForValidationWithCustomMetricFilters,
     chartForValidationWithJoinedField,
     config,
     dashboardForValidation,
@@ -318,5 +319,30 @@ describe('validation', () => {
         );
 
         expect(errors.length).toEqual(0);
+    });
+
+    it('Should validate custom metric filters', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore]);
+
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            chartForValidationWithCustomMetricFilters,
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        const expectedErrors: string[] = [
+            "Custom metric filter error: the field 'table_custom_metric_filter_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_custom_metric_filter_dimension' no longer exists",
+        ];
+
+        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
     });
 });
