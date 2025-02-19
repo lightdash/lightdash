@@ -1,3 +1,10 @@
+## [0.1507.2](https://github.com/lightdash/lightdash/compare/0.1507.1...0.1507.2) (2025-02-19)
+
+
+### Bug Fixes
+
+* reload metrics catalog on index catalog complete ([#13742](https://github.com/lightdash/lightdash/issues/13742)) ([7b0967e](https://github.com/lightdash/lightdash/commit/7b0967e10cf0be58106d8755e246e80f5a5c80b0))
+
 ## [0.1507.1](https://github.com/lightdash/lightdash/compare/0.1507.0...0.1507.1) (2025-02-19)
 
 

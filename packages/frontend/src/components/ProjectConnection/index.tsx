@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     ProjectType,
     friendlyName,
+    isCreateProjectJob,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type DbtVersionOption,
@@ -352,7 +353,8 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (
             createProjectJobId &&
             createProjectJobId === activeJob?.jobUuid &&
-            activeJob?.jobResults?.projectUuid
+            isCreateProjectJob(activeJob) &&
+            activeJob.jobResults?.projectUuid
         ) {
             void navigate({
                 pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
