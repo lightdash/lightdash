@@ -88,6 +88,7 @@ const FilterRuleSchemaBase = z
             .array(
                 z.union([
                     z.null(),
+                    z.boolean(),
                     z.string().describe('Use strings for date filters'),
                     z.number().describe('Do not use numbers for date filters'),
                 ]),
