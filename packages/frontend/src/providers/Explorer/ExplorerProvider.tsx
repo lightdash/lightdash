@@ -25,6 +25,7 @@ import {
     type TimeZone,
 } from '@lightdash/common';
 import { produce } from 'immer';
+import { differenceWith } from 'lodash';
 import cloneDeep from 'lodash/cloneDeep';
 import {
     useCallback,
@@ -1485,6 +1486,23 @@ const ExplorerProvider: FC<
         ],
     );
 
+    const subtotalGroupings = useMemo(
+        () =>
+            differenceWith(
+                unsavedChartVersion.tableConfig.columnOrder,
+                [
+                    ...unsavedChartVersion.metricQuery.metrics,
+                    ...(unsavedChartVersion.pivotConfig?.columns ?? []),
+                ],
+                (a, b) => a === b,
+            ),
+        [
+            unsavedChartVersion.metricQuery.metrics,
+            unsavedChartVersion.pivotConfig?.columns,
+            unsavedChartVersion.tableConfig.columnOrder,
+        ],
+    );
+
     // Fetch query results after state update
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
         queryResults;
@@ -1494,6 +1512,7 @@ const ExplorerProvider: FC<
             const result = await mutateAsyncQuery(
                 unsavedChartVersion.tableName,
                 unsavedChartVersion.metricQuery,
+                subtotalGroupings,
             );
 
             dispatch({
@@ -1507,8 +1526,9 @@ const ExplorerProvider: FC<
         }
     }, [
         mutateAsyncQuery,
-        unsavedChartVersion.tableName,
+        subtotalGroupings,
         unsavedChartVersion.metricQuery,
+        unsavedChartVersion.tableName,
     ]);
 
     useEffect(() => {

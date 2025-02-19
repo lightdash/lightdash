@@ -4,6 +4,7 @@ import {
     type ApiQueryResults,
     type DashboardFilters,
     type DateGranularity,
+    type FieldId,
     type MetricQuery,
     type SortField,
 } from '@lightdash/common';
@@ -140,7 +141,11 @@ export const useQueryResults = (props?: {
     const { mutateAsync } = mutation;
 
     const mutateAsyncOverride = useCallback(
-        async (tableName: string, metricQuery: MetricQuery) => {
+        async (
+            tableName: string,
+            metricQuery: MetricQuery,
+            subtotalGroupings: FieldId[] = [],
+        ) => {
             const fields = new Set([
                 ...metricQuery.dimensions,
                 ...metricQuery.metrics,
@@ -155,7 +160,7 @@ export const useQueryResults = (props?: {
                     chartUuid: props?.chartUuid,
                     dateZoomGranularity: props?.dateZoomGranularity,
                     context: props?.context,
-                    subtotalGroupings: [], // TODO: subtotals
+                    subtotalGroupings,
                 });
             } else {
                 console.warn(
