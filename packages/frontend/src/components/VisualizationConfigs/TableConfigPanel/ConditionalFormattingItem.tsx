@@ -363,7 +363,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             hasRemove={config.rules.length > 1}
                                             ruleIndex={ruleIndex}
                                             rule={rule}
-                                            field={field || fields[0]}
+                                            field={field}
                                             onChangeRule={(newRule) =>
                                                 handleChangeRule(
                                                     ruleIndex,

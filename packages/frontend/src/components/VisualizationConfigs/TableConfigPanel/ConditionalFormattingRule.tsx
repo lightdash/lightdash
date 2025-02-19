@@ -32,7 +32,7 @@ interface ConditionalFormattingRuleProps {
     isDefaultOpen?: boolean;
     ruleIndex: number;
     rule: ConditionalFormattingWithConditionalOperator;
-    field: FilterableItem;
+    field: FilterableItem | undefined;
     hasRemove?: boolean;
     onChangeRule: (
         newRule: ConditionalFormattingWithConditionalOperator,
@@ -76,8 +76,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         return [];
     }, [filterType]);
 
-    if (!filterType) return null;
-
     return (
         <Stack spacing="xs" ref={ref}>
             <Group noWrap position="apart">
@@ -116,9 +114,18 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             if (!value) return;
                             onChangeRuleOperator(value as ConditionalOperator);
                         }}
+                        placeholder="Condition"
+                        disabled={!field || !filterType}
                     />
 
-                    {projectUuid && (
+                    <Select
+                        display={field && filterType ? 'none' : 'block'}
+                        placeholder="Value(s)"
+                        data={[]}
+                        disabled={!field || !filterType}
+                    />
+
+                    {projectUuid && field && filterType && (
                         <FiltersProvider projectUuid={projectUuid}>
                             <FilterInputComponent
                                 filterType={filterType}
