@@ -18,6 +18,7 @@ import {
 } from '../types/conditionalRule';
 import {
     CustomFormatType,
+    DimensionType,
     Format,
     isField,
     isFilterableItem,
@@ -26,7 +27,7 @@ import {
 } from '../types/field';
 import { type FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
-import { getItemId, isNumericItem } from './item';
+import { getItemId, isNumericItem, isStringDimension } from './item';
 
 export const createConditionalFormatingRule =
     (): ConditionalFormattingWithConditionalOperator => ({
@@ -98,7 +99,7 @@ export const hasMatchingConditionalRules = (
 ) => {
     if (!config) return false;
 
-    const parsedValue = typeof value === 'string' ? Number(value) : value;
+    const parsedValue = isNumericItem(field) ? Number(value) : value;
     const convertedValue = convertFormattedValue(parsedValue, field);
 
     const currentFieldId = getItemId(field);
@@ -117,18 +118,45 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.EQUALS:
                     return rule.values.some((v) => convertedValue === v);
                 case ConditionalOperator.NOT_EQUALS:
-                    return rule.values.some((v) => convertedValue !== v);
+                    if (
+                        isNumericItem(field) &&
+                        typeof convertedValue === 'number'
+                    ) {
+                        return rule.values.some((v) => convertedValue !== v);
+                    }
+                    throw new Error('Not implemented');
                 case ConditionalOperator.LESS_THAN:
-                    return typeof convertedValue === 'number'
-                        ? rule.values.some((v) => convertedValue < v)
-                        : false;
+                    if (
+                        isNumericItem(field) &&
+                        typeof convertedValue === 'number'
+                    ) {
+                        return rule.values.some(
+                            (v) => typeof v === 'number' && convertedValue < v,
+                        );
+                    }
+                    throw new Error('Not implemented');
                 case ConditionalOperator.GREATER_THAN:
-                    return typeof convertedValue === 'number'
-                        ? rule.values.some((v) => convertedValue > v)
-                        : false;
+                    if (
+                        isNumericItem(field) &&
+                        typeof convertedValue === 'number'
+                    ) {
+                        return rule.values.some(
+                            (v) => typeof v === 'number' && convertedValue > v,
+                        );
+                    }
+                    throw new Error('Not implemented');
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
+                    if (isStringDimension(field)) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'string' &&
+                                typeof convertedValue === 'string' &&
+                                convertedValue.includes(v),
+                        );
+                    }
+                    throw new Error('Not implemented');
                 case ConditionalOperator.NOT_INCLUDE:
                 case ConditionalOperator.LESS_THAN_OR_EQUAL:
                 case ConditionalOperator.GREATER_THAN_OR_EQUAL:
@@ -195,7 +223,9 @@ export const getConditionalFormattingConfig = ({
     if (
         !conditionalFormattings ||
         !field ||
-        (!isNumericItem(field) && !isCalculationTypeUndefined)
+        (!isNumericItem(field) &&
+            field.type !== DimensionType.STRING &&
+            !isCalculationTypeUndefined)
     )
         return undefined;
 

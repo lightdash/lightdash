@@ -9,6 +9,8 @@ import {
     getItemLabelWithoutTableName,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isNumericItem,
+    isStringDimension,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
@@ -177,13 +179,18 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         // FIXME: check if we can fix this problem in number input
                         draft.rules[index] = {
                             ...newRule,
-                            values: newRule.values.map((v) => Number(v)),
+                            values: newRule.values.map((v) => {
+                                if (isStringDimension(field)) {
+                                    return String(v);
+                                }
+                                return Number(v);
+                            }),
                         };
                     }),
                 );
             }
         },
-        [handleChange, config],
+        [config, handleChange, field],
     );
 
     const handleChangeSingleColor = useCallback(
@@ -292,6 +299,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             ConditionalFormattingConfigType
                                                 .Range
                                         ],
+                                        disabled: !isNumericItem(field),
                                     },
                                 ]}
                                 value={getConditionalFormattingConfigType(
