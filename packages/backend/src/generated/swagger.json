@@ -8183,6 +8183,12 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "subtotalGroupings": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
                     },
@@ -8264,6 +8270,7 @@
                     }
                 },
                 "required": [
+                    "subtotalGroupings",
                     "tableCalculations",
                     "limit",
                     "sorts",
@@ -14754,7 +14761,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1505.2",
+        "version": "0.1506.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -21105,7 +21112,23 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/MetricQuery"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/MetricQuery"
+                                    },
+                                    {
+                                        "properties": {
+                                            "subtotalGroupings": {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/FieldId"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": ["subtotalGroupings"],
+                                        "type": "object"
+                                    }
+                                ]
                             }
                         }
                     }

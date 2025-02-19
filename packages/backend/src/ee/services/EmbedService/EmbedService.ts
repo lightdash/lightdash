@@ -643,6 +643,7 @@ export class EmbedService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            [], // TODO: subtotals
             dateZoomGranularity,
         );
 

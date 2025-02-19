@@ -27,6 +27,7 @@ type QueryResultsProps = {
     chartUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
+    subtotalGroupings: string[];
 };
 
 const getChartResults = async ({
@@ -91,6 +92,7 @@ const getQueryResults = async ({
     csvLimit,
     dateZoomGranularity,
     context,
+    subtotalGroupings,
 }: QueryResultsProps) => {
     const timezoneFixQuery = query && {
         ...query,
@@ -106,6 +108,7 @@ const getQueryResults = async ({
             granularity: dateZoomGranularity,
             csvLimit,
             context,
+            subtotalGroupings,
         }),
     });
 };
@@ -152,6 +155,7 @@ export const useQueryResults = (props?: {
                     chartUuid: props?.chartUuid,
                     dateZoomGranularity: props?.dateZoomGranularity,
                     context: props?.context,
+                    subtotalGroupings: [], // TODO: subtotals
                 });
             } else {
                 console.warn(

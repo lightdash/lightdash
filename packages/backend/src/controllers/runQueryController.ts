@@ -125,6 +125,7 @@ export class RunViewChartQueryController extends BaseController {
                 projectUuid,
                 exploreId,
                 body.csvLimit,
+                body.subtotalGroupings,
                 body.granularity,
                 getContextFromHeader(req),
             );

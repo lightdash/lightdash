@@ -177,6 +177,9 @@ export function getGroupedRowModelLightdash<TData extends RowData>(): (
                         return row;
                     });
 
+                    console.log({
+                        aggregatedGroupedRows,
+                    });
                     return aggregatedGroupedRows;
                 };
 

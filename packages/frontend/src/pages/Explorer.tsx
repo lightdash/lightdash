@@ -50,7 +50,9 @@ const ExplorerPage = memo(() => {
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
-    const queryResults = useQueryResults({ dateZoomGranularity });
+    const queryResults = useQueryResults({
+        dateZoomGranularity,
+    });
 
     const cannotViewProject = user.data?.ability?.cannot(
         'view',

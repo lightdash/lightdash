@@ -83,6 +83,8 @@ type CompileMetricQueryArgs = {
 
     warehouseClient: WarehouseClient;
 };
+
+// TODO: do I need to do anything about subtotals here?
 export const compileMetricQuery = ({
     explore,
     metricQuery,

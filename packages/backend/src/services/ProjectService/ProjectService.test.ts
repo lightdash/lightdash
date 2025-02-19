@@ -184,6 +184,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 'valid_explore',
                 null,
+                [], // TODO: subtotals
             );
             expect(result).toEqual(expectedApiQueryResultsWith1Row);
         });
@@ -203,6 +204,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 'valid_explore',
                 null,
+                [], // TODO: subtotals
             );
             expect(result).toEqual(expectedApiQueryResultsWith501Rows);
         });

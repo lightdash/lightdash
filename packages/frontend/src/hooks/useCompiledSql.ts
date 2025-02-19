@@ -14,6 +14,7 @@ const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
+    subtotalGroupings: string[],
 ) => {
     const timezoneFixQuery = {
         ...query,
@@ -23,7 +24,10 @@ const getCompiledQuery = async (
     return lightdashApi<ApiCompiledQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/compileQuery`,
         method: 'POST',
-        body: JSON.stringify(timezoneFixQuery),
+        body: JSON.stringify({
+            ...timezoneFixQuery,
+            subtotalGroupings,
+        }),
     });
 };
 
@@ -34,6 +38,9 @@ export const useCompiledSql = (
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+
+    // TODO: subtotals etch subtotal groupings from the explore
+
     const {
         dimensions,
         metrics,
@@ -72,7 +79,12 @@ export const useCompiledSql = (
         enabled: tableId !== undefined,
         queryKey,
         queryFn: () =>
-            getCompiledQuery(projectUuid!, tableId || '', metricQuery),
+            getCompiledQuery(
+                projectUuid!,
+                tableId || '',
+                metricQuery,
+                [], // TODO: subtotals
+            ),
         onError: (result) => setErrorResponse(result),
         ...queryOptions,
     });

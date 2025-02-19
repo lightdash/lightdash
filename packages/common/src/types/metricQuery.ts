@@ -167,4 +167,5 @@ export type MetricQueryRequest = {
     metadata?: MetricQuery['metadata'];
     timezone?: string;
     metricOverrides?: MetricOverrides;
+    subtotalGroupings: FieldId[];
 };

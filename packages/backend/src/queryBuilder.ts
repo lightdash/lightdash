@@ -879,7 +879,81 @@ export type BuildQueryProps = {
     userAttributes?: UserAttributeValueMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
+    subtotalGroupings: FieldId[];
 };
+
+function getSqlGroupBy(groups: string[], subtotalGroupings: FieldId[]) {
+    if (groups.length === 0) {
+        return '';
+    }
+
+    console.log({
+        groups,
+        subtotalGroupings,
+    });
+
+    if (subtotalGroupings.length > 0) {
+        const groupFieldAliases = groups.map((group) => {
+            // this is something like `DATE_TRUNC('MONTH', "orders".order_date) AS "orders_order_date_month"`
+            const field = group.split(' AS ')[1];
+            return field.replace(/"/g, '');
+        });
+
+        // This will be a list of grouping sets, e.g. [[1, 2, 3], [1, 2], [1]]
+        const subtotalGroupingsIndexes = [
+            // Generate hierarchical grouping sets from subtotal groupings
+            ...subtotalGroupings
+                .map((grouping) => groupFieldAliases.indexOf(grouping) + 1)
+                .filter((index) => index !== 0) // because we add + 1
+                .reduce<number[][]>((acc, _, i, arr) => {
+                    // Create grouping sets by taking increasingly larger slices of the subtotal groupings array
+                    const slice = arr.slice(0, arr.length - i);
+                    return slice.length > 0 ? [...acc, slice.sort()] : acc;
+                }, []),
+        ].filter((set) => set.length > 0);
+
+        return `GROUP BY GROUPING SETS (${subtotalGroupingsIndexes
+            .map((indexes) => `(${indexes.join(',')})`)
+            .join(',')})`;
+    }
+    return `GROUP BY ${groups.map((_, i) => i + 1).join(',')}`;
+}
+
+function getSubtotalGroupingCaseStatement(
+    subtotalGroupings: FieldId[],
+    subtotalGroupingDimensionsCompiledSql: Record<string, string>,
+): string | undefined {
+    if (!subtotalGroupings.length) {
+        return undefined;
+    }
+
+    const groupingFieldsForStatements = subtotalGroupings.reduce<
+        Record<string, string[]>
+    >((acc, value, i, arr) => {
+        if (i === arr.length - 1) {
+            return acc;
+        }
+        return {
+            ...acc,
+            [value]: arr.slice(i + 1),
+        };
+    }, {});
+
+    return `CASE
+${Object.entries(groupingFieldsForStatements)
+    .map(
+        ([groupingField, groupingFields]) =>
+            `  WHEN ${groupingFields
+                .map(
+                    (field) =>
+                        `GROUPING(${subtotalGroupingDimensionsCompiledSql[field]}) = 1`,
+                )
+                .join(' AND ')} THEN '${groupingField}_subtotal'`,
+    )
+    .join('\n')}
+  ELSE 'detail'
+END AS subtotal_level`;
+}
 
 export const buildQuery = ({
     explore,
@@ -888,6 +962,7 @@ export const buildQuery = ({
     intrinsicUserAttributes,
     userAttributes = {},
     timezone,
+    subtotalGroupings,
 }: BuildQueryProps): CompiledQuery => {
     let hasExampleMetric: boolean = false;
     const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
@@ -1090,12 +1165,37 @@ export const buildQuery = ({
         return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
     }, []);
 
+    const subtotalGroupingDimensionsCompiledSql = Object.fromEntries(
+        subtotalGroupings.map((groupingField) => {
+            const dimension = getDimensionFromId(
+                groupingField,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
+
+            return [groupingField, dimension.compiledSql];
+        }),
+    );
+
+    const subtotalGroupingCaseStatement = getSubtotalGroupingCaseStatement(
+        subtotalGroupings,
+        subtotalGroupingDimensionsCompiledSql,
+    );
+
+    console.log({
+        dimensions,
+    });
+
     const sqlSelect = `SELECT\n${[
         ...dimensionSelects,
         ...(customBinDimensionSql?.selects || []),
         ...(customSqlDimensionSql?.selects || []),
         ...metricSelects,
         ...filteredMetricSelects,
+        ...(subtotalGroupingCaseStatement
+            ? [subtotalGroupingCaseStatement]
+            : []),
     ].join(',\n')}`;
 
     const groups = [
@@ -1103,10 +1203,11 @@ export const buildQuery = ({
         ...(customBinDimensionSql?.selects || []),
         ...(customSqlDimensionSql?.selects || []),
     ];
-    const sqlGroupBy =
-        groups.length > 0
-            ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
-            : '';
+
+    // TODO: subtotals - we should be using either groups
+    const sqlGroupBy = getSqlGroupBy(groups, subtotalGroupings);
+
+    console.log('sqlGroupBy', sqlGroupBy);
 
     const compiledDimensions = getDimensions(explore);
 

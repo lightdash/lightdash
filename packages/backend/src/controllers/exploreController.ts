@@ -7,6 +7,7 @@ import {
     ApiSuccessEmpty,
     MetricQuery,
     PivotConfig,
+    type FieldId,
 } from '@lightdash/common';
 import {
     Body,
@@ -110,14 +111,22 @@ export class ExploreController extends BaseController {
         @Path() exploreId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: MetricQuery,
+        @Body() body: MetricQuery & { subtotalGroupings: FieldId[] },
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
+
+        const { subtotalGroupings, ...metricQuery } = body;
 
         const results = (
             await this.services
                 .getProjectService()
-                .compileQuery(req.user!, body, projectUuid, exploreId)
+                .compileQuery(
+                    req.user!,
+                    metricQuery,
+                    projectUuid,
+                    exploreId,
+                    subtotalGroupings,
+                )
         ).query;
 
         return {

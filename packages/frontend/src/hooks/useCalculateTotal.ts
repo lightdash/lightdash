@@ -35,6 +35,7 @@ const calculateTotalFromQuery = async (
         metricQuery: {
             ...metricQuery,
             filters: convertDateFilters(metricQuery.filters),
+            subtotalGroupings: [], // TODO: subtotals
         },
     };
     return lightdashApi<ApiCalculateTotalResponse['results']>({

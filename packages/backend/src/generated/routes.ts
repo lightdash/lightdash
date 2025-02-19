@@ -7362,6 +7362,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                subtotalGroupings: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
                 metricOverrides: { ref: 'MetricOverrides' },
                 timezone: { dataType: 'string' },
                 metadata: {
@@ -25154,7 +25159,25 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: { in: 'body', name: 'body', required: true, ref: 'MetricQuery' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricQuery' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        subtotalGroupings: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'FieldId' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+        },
     };
     app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/compileQuery',

@@ -124,6 +124,7 @@ import {
     snakeCaseName,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
+    type FieldId,
     type RunQueryTags,
     type SemanticLayerConnectionUpdate,
     type Tag,
@@ -1253,6 +1254,7 @@ export class ProjectService extends BaseService {
         intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         timezone: string,
+        subtotalGroupings: FieldId[],
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithGranularity(
@@ -1275,6 +1277,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
+            subtotalGroupings,
         });
 
         return buildQueryResult;
@@ -1285,6 +1288,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
+        subtotalGroupings: string[],
     ) {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -1339,6 +1343,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            subtotalGroupings,
         );
         await sshTunnel.disconnect();
         return compiledQuery;
@@ -1429,6 +1434,7 @@ export class ProjectService extends BaseService {
             context,
             queryTags,
             chartUuid: undefined,
+            subtotalGroupings: [], // TODO: subtotals
         });
     }
 
@@ -1514,6 +1520,7 @@ export class ProjectService extends BaseService {
                 invalidateCache,
                 explore,
                 chartUuid,
+                subtotalGroupings: [], // TODO: subtotals
             });
 
         return {
@@ -1647,6 +1654,7 @@ export class ProjectService extends BaseService {
                 explore,
                 granularity,
                 chartUuid,
+                subtotalGroupings: [], // TODO: subtotals
             });
 
         const metricQueryDimensions = [
@@ -1684,6 +1692,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        subtotalGroupings: FieldId[],
         dateZoomGranularity?: DateGranularity,
         context: QueryExecutionContext = QueryExecutionContext.EXPLORE,
     ): Promise<ApiQueryResults> {
@@ -1741,6 +1750,7 @@ export class ProjectService extends BaseService {
             granularity: dateZoomGranularity,
             chartUuid: undefined,
             invalidateCache: true, // Do not cache results for explore queries
+            subtotalGroupings,
         });
     }
 
@@ -1756,6 +1766,7 @@ export class ProjectService extends BaseService {
         explore: validExplore,
         granularity,
         chartUuid,
+        subtotalGroupings,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1768,6 +1779,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
         chartUuid: string | undefined;
+        subtotalGroupings: FieldId[];
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1790,6 +1802,7 @@ export class ProjectService extends BaseService {
                         explore,
                         granularity,
                         chartUuid,
+                        subtotalGroupings,
                     });
                 span.setAttribute('rows', rows.length);
 
@@ -1865,6 +1878,7 @@ export class ProjectService extends BaseService {
                     context: QueryExecutionContext.METRICS_EXPLORER,
                     queryTags: {},
                     chartUuid: undefined,
+                    subtotalGroupings: [], // TODO: subtotals
                 }),
             'runMetricQuery',
             this.logger,
@@ -1910,6 +1924,7 @@ export class ProjectService extends BaseService {
                     context,
                     chartUuid,
                     queryTags,
+                    subtotalGroupings: [], // TODO: subtotals
                 });
             },
         );
@@ -2070,6 +2085,7 @@ export class ProjectService extends BaseService {
         explore: loadedExplore,
         granularity,
         chartUuid,
+        subtotalGroupings,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -2082,6 +2098,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
         chartUuid: string | undefined; // for analytics
+        subtotalGroupings: FieldId[];
     }): Promise<{
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
@@ -2158,6 +2175,7 @@ export class ProjectService extends BaseService {
                         intrinsicUserAttributes,
                         userAttributes,
                         this.lightdashConfig.query.timezone || 'UTC',
+                        subtotalGroupings,
                         granularity,
                     );
 
@@ -2914,6 +2932,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            [], // TODO: subtotals
         );
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
@@ -4690,6 +4709,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            [], // TODO: subtotals
         );
 
         return { query, totalQuery };
