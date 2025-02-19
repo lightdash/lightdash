@@ -49,7 +49,7 @@ const persistInstanceUrl = (instanceUrl: string) => {
         instanceUrl = `${instanceUrl}/`;
     }
 
-    localStorage.setItem(
+    sessionStorage.setItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
         instanceUrl,
     );
