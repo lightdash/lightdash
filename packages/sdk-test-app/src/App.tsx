@@ -206,6 +206,10 @@ function App() {
                                         backgroundColor: 'transparent',
                                         fontFamily: 'Comic Sans MS',
                                     }}
+                                    contentOverrides={i18n.getResourceBundle(
+                                        i18n.language,
+                                        'lightdash',
+                                    )}
                                 />
                             </div>
 

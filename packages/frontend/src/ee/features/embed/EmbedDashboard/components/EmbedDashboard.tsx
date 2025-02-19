@@ -36,7 +36,7 @@ const EmbedDashboard: FC = () => {
         (c) => c.allFilterableFieldsMap,
     );
 
-    const { embedToken, filters } = useEmbed();
+    const { embedToken, filters, t } = useEmbed();
 
     const sdkDashboardFilters = useMemo(() => {
         if (
@@ -182,6 +182,7 @@ const EmbedDashboard: FC = () => {
             >
                 {dashboard.tiles.map((tile) => (
                     <div key={tile.uuid}>
+
                         {tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <EmbedDashboardChartTile
                                 projectUuid={projectUuid}
