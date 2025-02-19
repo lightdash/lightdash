@@ -9,6 +9,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ValidationService } from './ValidationService';
 import {
     chartForValidation,
+    chartForValidationWithCustomMetricFilters,
     chartForValidationWithJoinedField,
     config,
     dashboardForValidation,
@@ -86,6 +87,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -248,6 +250,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -272,6 +275,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
             "The chart 'Test chart' is broken on this dashboard.",
         ];
 
@@ -298,6 +302,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -315,6 +320,26 @@ describe('validation', () => {
 
         const errors = await validationService.generateValidation(
             'projectUuid',
+        );
+
+        expect(errors.length).toEqual(0);
+    });
+
+    it('Should validate custom metric filters', async () => {
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [explore, exploreWithJoin]);
+
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            chartForValidationWithCustomMetricFilters,
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
         );
 
         expect(errors.length).toEqual(0);

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     CompiledField,
+    convertFieldRefToFieldId,
     CreateChartValidation,
     CreateDashboardValidation,
     CreateTableValidation,
@@ -215,6 +216,7 @@ export class ValidationService extends BaseService {
         const charts = await this.savedChartModel.findChartsForValidation(
             projectUuid,
         );
+
         // Only validate charts that are using selected explores
         const results = charts
             .filter((c) => {
@@ -237,6 +239,7 @@ export class ValidationService extends BaseService {
                     customSqlDimensions,
                     customMetrics,
                     customMetricsBaseDimensions,
+                    customMetricsFilters,
                     tableCalculations,
                 }) => {
                     const availableDimensionIds =
@@ -361,6 +364,24 @@ export class ValidationService extends BaseService {
                         [],
                     );
 
+                    const customMetricFilterErrors =
+                        customMetricsFilters.reduce<CreateChartValidation[]>(
+                            (acc, filter) => {
+                                const fieldId = convertFieldRefToFieldId(
+                                    filter.target.fieldRef,
+                                );
+                                return containsFieldId({
+                                    acc,
+                                    fieldIds: allItemIdsAvailableInChart,
+                                    fieldId,
+                                    error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
+                                    errorType: ValidationErrorType.CustomMetric,
+                                    fieldName: fieldId,
+                                });
+                            },
+                            [],
+                        );
+
                     const sortErrors = sorts.reduce<CreateChartValidation[]>(
                         (acc, field) =>
                             containsFieldId({
@@ -380,6 +401,7 @@ export class ValidationService extends BaseService {
                         ...filterErrors,
                         ...sortErrors,
                         ...customMetricsErrors,
+                        ...customMetricFilterErrors,
                     ];
                 },
             );

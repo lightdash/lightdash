@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AbilityAction,
     AnyType,
+    ConditionalOperator,
     DimensionType,
     Explore,
     ExploreError,
@@ -96,6 +97,16 @@ export const chartForValidation: Awaited<
     customSqlDimensions: [],
     sorts: ['table_dimension'],
     dashboardUuid: undefined,
+    customMetricsFilters: [
+        {
+            id: 'table_custom_metric',
+            target: {
+                fieldRef: 'table.dimension',
+            },
+            values: ['n'],
+            operator: ConditionalOperator.ENDS_WITH,
+        },
+    ],
 };
 
 export const chartForValidationWithJoinedField: Awaited<
@@ -106,6 +117,32 @@ export const chartForValidationWithJoinedField: Awaited<
     dimensions: ['table_dimension', 'another_table_dimension'],
     metrics: ['table_metric', 'another_table_metric'],
     sorts: ['another_table_dimension'],
+};
+
+export const chartForValidationWithCustomMetricFilters: Awaited<
+    ReturnType<SavedChartModel['findChartsForValidation']>
+>[number] = {
+    ...chartForValidation,
+    tableName: 'another_table',
+    dimensions: ['table_dimension', 'another_table_dimension'],
+    customMetricsFilters: [
+        {
+            id: 'table_custom_metric',
+            target: {
+                fieldRef: 'another_table.dimension',
+            },
+            values: ['n'],
+            operator: ConditionalOperator.ENDS_WITH,
+        },
+        {
+            id: 'table_custom_metric',
+            target: {
+                fieldRef: 'table.dimension',
+            },
+            values: ['A'],
+            operator: ConditionalOperator.STARTS_WITH,
+        },
+    ],
 };
 
 export const dashboardForValidation: {
