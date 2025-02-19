@@ -27,6 +27,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
+                case FilterOperator.IN_BETWEEN:
+                    // in between is a special case since it displays two separate date pickers
+                    // by default it shows a correct placeholder which is "Start date" and "End date"
+                    return '';
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.INCLUDE:
@@ -38,7 +42,6 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
-                case FilterOperator.IN_BETWEEN:
                     // This can happen if a filter was added using an old table calculation without type, as we default to number
                     console.warn(
                         `Unexpected operator ${type} for number filter type. If you are using a table calculation, please update its result type to string.`,

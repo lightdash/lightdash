@@ -81,6 +81,7 @@ export const getFilterOperatorOptions = (
                 FilterOperator.NOT_EQUALS,
                 FilterOperator.LESS_THAN,
                 FilterOperator.GREATER_THAN,
+                FilterOperator.IN_BETWEEN,
             ]);
         case FilterType.DATE:
             return timeFilterOptions;
