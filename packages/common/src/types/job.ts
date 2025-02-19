@@ -76,6 +76,15 @@ export function isCompileJob(value: unknown): value is CompileJob {
     );
 }
 
+export function isCreateProjectJob(value: unknown): value is CreateProjectJob {
+    return (
+        typeof value === 'object' &&
+        value != null &&
+        'jobType' in value &&
+        value.jobType === JobType.CREATE_PROJECT
+    );
+}
+
 export type CreateJob = Pick<
     Job,
     'jobUuid' | 'projectUuid' | 'jobType' | 'jobStatus' | 'userUuid'
