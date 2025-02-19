@@ -18,7 +18,6 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     contentOverrides,
 }) => {
-    
     const t = (input: string) => {
         return get(contentOverrides, input);
     };

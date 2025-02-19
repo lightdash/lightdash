@@ -65,7 +65,7 @@ function App() {
         padding: '40px',
         borderRadius: '8px',
         boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        maxWidth: '800px',
+        maxWidth: '1400px',
         width: '100%',
     };
 
@@ -80,9 +80,7 @@ function App() {
 
     // Chart container style
     const chartContainerStyle = {
-        margin: '20px auto',
         width: '100%',
-        maxWidth: '600px',
         height: '400px',
         border: '2px dashed #ccc',
         display: 'flex',
@@ -195,10 +193,7 @@ function App() {
                                 locally.
                             </p>
 
-                            <div
-                                id="chart-container"
-                                style={chartContainerStyle}
-                            >
+                            <div style={chartContainerStyle}>
                                 <Lightdash.Dashboard
                                     instanceUrl={lightdashUrl}
                                     token={lightdashToken}
