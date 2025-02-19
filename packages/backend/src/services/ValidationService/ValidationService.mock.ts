@@ -97,7 +97,16 @@ export const chartForValidation: Awaited<
     customSqlDimensions: [],
     sorts: ['table_dimension'],
     dashboardUuid: undefined,
-    customMetricsFilters: [],
+    customMetricsFilters: [
+        {
+            id: 'table_custom_metric',
+            target: {
+                fieldRef: 'table.dimension',
+            },
+            values: ['n'],
+            operator: ConditionalOperator.ENDS_WITH,
+        },
+    ],
 };
 
 export const chartForValidationWithJoinedField: Awaited<
@@ -114,11 +123,13 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
     ReturnType<SavedChartModel['findChartsForValidation']>
 >[number] = {
     ...chartForValidation,
+    tableName: 'another_table',
+    dimensions: ['table_dimension', 'another_table_dimension'],
     customMetricsFilters: [
         {
             id: 'table_custom_metric',
             target: {
-                fieldRef: 'table.custom_metric_filter_dimension',
+                fieldRef: 'another_table.dimension',
             },
             values: ['n'],
             operator: ConditionalOperator.ENDS_WITH,
@@ -126,7 +137,7 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
         {
             id: 'table_custom_metric',
             target: {
-                fieldRef: 'table.custom_metric_filter_dimension',
+                fieldRef: 'table.dimension',
             },
             values: ['A'],
             operator: ConditionalOperator.STARTS_WITH,

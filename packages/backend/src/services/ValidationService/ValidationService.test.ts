@@ -87,6 +87,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -249,6 +250,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -273,6 +275,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
             "The chart 'Test chart' is broken on this dashboard.",
         ];
 
@@ -299,6 +302,7 @@ describe('validation', () => {
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
             "Custom metric error: the base dimension 'table_dimension' no longer exists",
+            "Custom metric filter error: the field 'table_dimension' no longer exists",
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -324,7 +328,7 @@ describe('validation', () => {
     it('Should validate custom metric filters', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
-        ).mockImplementationOnce(async () => [explore]);
+        ).mockImplementationOnce(async () => [explore, exploreWithJoin]);
 
         (
             savedChartModel.findChartsForValidation as jest.Mock
@@ -338,11 +342,6 @@ describe('validation', () => {
             new Set([ValidationTarget.CHARTS]),
         );
 
-        const expectedErrors: string[] = [
-            "Custom metric filter error: the field 'table_custom_metric_filter_dimension' no longer exists",
-            "Custom metric filter error: the field 'table_custom_metric_filter_dimension' no longer exists",
-        ];
-
-        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+        expect(errors.length).toEqual(0);
     });
 });
