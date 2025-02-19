@@ -98,10 +98,17 @@ type PageResult = {
     name: string;
     url: string;
 };
-
+export type DashboardTabResult = {
+    uuid: string; // Tab uuid
+    name: string; // Tab name
+    dashboardUuid: string;
+    dashboardName: string;
+    spaceUuid: string;
+};
 export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
+    | DashboardTabResult
     | SavedChartSearchResult
     | SqlChartSearchResult
     | SemanticViewerChartSearchResults
@@ -132,6 +139,7 @@ export type SearchResults = {
     tables: (TableSearchResult | TableErrorSearchResult)[];
     fields: FieldSearchResult[];
     pages: PageResult[];
+    dashboardTabs: DashboardTabResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {
@@ -149,6 +157,7 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
 
 export enum SearchItemType {
     DASHBOARD = 'dashboard',
+    DASHBOARD_TAB = 'dashboard_tab',
     CHART = 'saved_chart',
     SQL_CHART = 'sql_chart',
     SEMANTIC_VIEWER_CHART = 'semantic_viewer_chart',
@@ -178,6 +187,8 @@ export function getSearchItemTypeFromResultKey(
             return SearchItemType.SQL_CHART;
         case 'semanticViewerCharts':
             return SearchItemType.SEMANTIC_VIEWER_CHART;
+        case 'dashboardTabs':
+            return SearchItemType.DASHBOARD_TAB;
         default:
             return assertUnreachable(
                 searchResultKey,

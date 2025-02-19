@@ -16,6 +16,7 @@ import {
     IconCodeCircle,
     IconFolder,
     IconLayoutDashboard,
+    IconLayoutNavbarInactive,
     IconRectangle,
     IconTable,
     IconUser,
@@ -35,6 +36,9 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconRectangle;
         case SearchItemType.DASHBOARD:
             return IconLayoutDashboard;
+        case SearchItemType.DASHBOARD_TAB:
+            return IconLayoutNavbarInactive;
+
         case SearchItemType.SEMANTIC_VIEWER_CHART:
         case SearchItemType.CHART:
             return IconChartBar;
