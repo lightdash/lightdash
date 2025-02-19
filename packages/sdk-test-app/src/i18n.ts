@@ -10,8 +10,8 @@ i18next
     .init({
         backend: {
             // TODO: set these
-            projectId: '46d373ca-fa6c-4f26-b5e8-6d365b336b1a',
-            apiKey: '31ba4e7b-e170-4c55-b5dd-dcb55413664f',
+            projectId: '',
+            apiKey: '',
             version: 'latest',
             private: false,
             referenceLng: 'en',
