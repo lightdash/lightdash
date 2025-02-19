@@ -18,6 +18,8 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
     onSubmit,
     onClear,
 }) => {
+    const { t } = useTranslation();
+
     return (
         <div style={{ display: 'flex', gap: '8px' }}>
             <input
@@ -26,8 +28,10 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
                 onChange={(e) => onDraftUrlChange(e.target.value)}
                 style={{ flexGrow: 1 }}
             />
-            <button onClick={onSubmit}>Set Embed URL</button>
-            <button onClick={onClear}>Clear</button>
+            <button onClick={onSubmit}>
+                {t('app.setUrlButton', 'Set Embed URL')}
+            </button>
+            <button onClick={onClear}>{t('app.clearButton', 'Clear')}</button>
         </div>
     );
 };
