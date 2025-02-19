@@ -124,7 +124,6 @@ export default defineConfig({
     server: {
         port: 3000,
         host: true,
-        allowedHosts: ['lightdash.iraklijani.com'],
         hmr: {
             overlay: true,
         },
