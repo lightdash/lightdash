@@ -375,7 +375,7 @@ export class ValidationService extends BaseService {
                                     fieldIds: allItemIdsAvailableInChart,
                                     fieldId,
                                     error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
-                                    errorType: ValidationErrorType.Filter,
+                                    errorType: ValidationErrorType.CustomMetric,
                                     fieldName: fieldId,
                                 });
                             },
