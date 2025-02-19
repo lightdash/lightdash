@@ -21,6 +21,7 @@ import {
     isCustomSqlDimension,
     isFormat,
     LightdashUser,
+    MetricFilterRule,
     MetricOverrides,
     NotFoundError,
     Organization,
@@ -1123,6 +1124,7 @@ export class SavedChartModel {
             customBinDimensions: string[];
             customSqlDimensions: string[];
             sorts: string[];
+            customMetricsFilters: MetricFilterRule[];
             dashboardUuid: string | undefined;
         }>
     > {
@@ -1191,6 +1193,9 @@ export class SavedChartModel {
                 customMetrics: this.database.raw(
                     "COALESCE(ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.name)) FILTER (WHERE sqvam.name IS NOT NULL), '{}')",
                 ),
+                customMetricsFilters: this.database.raw(
+                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.filters)) FILTER (WHERE sqvam.filters IS NOT NULL), '{}')",
+                ),
                 customMetricsBaseDimensions: this.database.raw(
                     "COALESCE(ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.base_dimension_name)) FILTER (WHERE sqvam.base_dimension_name IS NOT NULL), '{}')",
                 ),
@@ -1246,9 +1251,12 @@ export class SavedChartModel {
         const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
             savedCharts,
         );
-        return savedCharts.filter(
-            (chart) => !chartsNotInTilesUuids.includes(chart.uuid),
-        );
+        return savedCharts
+            .map((chart) => ({
+                ...chart,
+                customMetricsFilters: chart.customMetricsFilters.flat(),
+            }))
+            .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid));
     }
 
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
