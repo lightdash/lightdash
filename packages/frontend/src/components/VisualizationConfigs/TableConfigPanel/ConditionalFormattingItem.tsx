@@ -33,6 +33,7 @@ import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
@@ -69,6 +70,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
 }) => {
     const [isAddingRule, setIsAddingRule] = useState(false);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
+    const { itemsMap } = useVisualizationContext();
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
@@ -91,13 +93,30 @@ export const ConditionalFormattingItem: FC<Props> = ({
         (newField: FilterableItem | undefined) => {
             handleChange(
                 produce(config, (draft) => {
-                    draft.target = newField
-                        ? { fieldId: getItemId(newField) }
-                        : null;
+                    const currentField = draft.target?.fieldId
+                        ? itemsMap?.[draft.target?.fieldId]
+                        : undefined;
+                    // Reset the config if the field type changes
+                    const shouldReset =
+                        (isNumericItem(currentField) &&
+                            isStringDimension(newField)) ||
+                        (isStringDimension(currentField) &&
+                            isNumericItem(newField));
+
+                    if (shouldReset && newField) {
+                        return createConditionalFormattingConfigWithSingleColor(
+                            colorPalette[0],
+                            { fieldId: getItemId(newField) },
+                        );
+                    } else {
+                        draft.target = newField
+                            ? { fieldId: getItemId(newField) }
+                            : null;
+                    }
                 }),
             );
         },
-        [handleChange, config],
+        [handleChange, config, colorPalette, itemsMap],
     );
 
     const handleConfigTypeChange = useCallback(
