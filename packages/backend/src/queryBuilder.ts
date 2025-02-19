@@ -1204,11 +1204,7 @@ export const buildQuery = ({
         ...(customSqlDimensionSql?.selects || []),
     ];
 
-    // TODO: subtotals - we should be using either groups
     const sqlGroupBy = getSqlGroupBy(groups, subtotalGroupings);
-
-    console.log('sqlGroupBy', sqlGroupBy);
-
     const compiledDimensions = getDimensions(explore);
 
     let shouldWrapQueryCTE = false;
