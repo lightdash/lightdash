@@ -222,7 +222,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                     fw={500}
                                     disabled={value.disabled}
                                     label={
-                                        <Flex align="center" gap="xxs">
+                                        <Flex align="flex-start" gap="xxs">
                                             <MantineIcon
                                                 color="blue.8"
                                                 icon={getChartIcon(
