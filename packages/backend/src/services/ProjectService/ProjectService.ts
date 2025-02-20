@@ -1773,7 +1773,6 @@ export class ProjectService extends BaseService {
         chartUuid: string | undefined;
         skipFormatting?: boolean;
     }): Promise<ApiQueryResults> {
-        console.trace();
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
             {},
