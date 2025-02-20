@@ -121,6 +121,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             isConditionalFormattingConfigWithSingleColor(draft)
                         ) {
                             draft.rules = draft.rules.map((rule) => {
+                                // When we're changing the field, we need to be sure that the compareTarget is set to null if it matches the new field
+                                // We cannot compare to the same field
                                 if (
                                     isConditionalFormattingWithCompareTarget(
                                         rule,
