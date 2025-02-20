@@ -25,7 +25,7 @@ import {
     type TimeZone,
 } from '@lightdash/common';
 import { produce } from 'immer';
-import { differenceWith } from 'lodash';
+import { difference } from 'lodash';
 import cloneDeep from 'lodash/cloneDeep';
 import {
     useCallback,
@@ -1488,14 +1488,10 @@ const ExplorerProvider: FC<
 
     const subtotalGroupings = useMemo(
         () =>
-            differenceWith(
-                unsavedChartVersion.tableConfig.columnOrder,
-                [
-                    ...unsavedChartVersion.metricQuery.metrics,
-                    ...(unsavedChartVersion.pivotConfig?.columns ?? []),
-                ],
-                (a, b) => a === b,
-            ),
+            difference(unsavedChartVersion.tableConfig.columnOrder, [
+                ...unsavedChartVersion.metricQuery.metrics,
+                ...(unsavedChartVersion.pivotConfig?.columns ?? []),
+            ]),
         [
             unsavedChartVersion.metricQuery.metrics,
             unsavedChartVersion.pivotConfig?.columns,
