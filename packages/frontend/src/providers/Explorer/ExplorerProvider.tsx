@@ -1486,6 +1486,7 @@ const ExplorerProvider: FC<
         ],
     );
 
+    // TODO: subtotals: de-duplicate with useCompiledSql
     const subtotalGroupings = useMemo(
         () =>
             difference(unsavedChartVersion.tableConfig.columnOrder, [

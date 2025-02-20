@@ -4,6 +4,8 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { difference } from 'lodash';
+import { useMemo } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
@@ -38,8 +40,12 @@ export const useCompiledSql = (
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-
-    // TODO: subtotals etch subtotal groupings from the explore
+    const columnOrder = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
+    );
+    const pivotColumns = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.pivotConfig?.columns,
+    );
 
     const {
         dimensions,
@@ -53,6 +59,12 @@ export const useCompiledSql = (
         timezone,
     } = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
+    );
+
+    // TODO: subtotals: de-duplicate with ExplorerProvider
+    const subtotalGroupings = useMemo(
+        () => difference(columnOrder, [...metrics, ...(pivotColumns ?? [])]),
+        [columnOrder, metrics, pivotColumns],
     );
 
     const setErrorResponse = useQueryError();
@@ -83,7 +95,7 @@ export const useCompiledSql = (
                 projectUuid!,
                 tableId || '',
                 metricQuery,
-                [], // TODO: subtotals
+                subtotalGroupings,
             ),
         onError: (result) => setErrorResponse(result),
         ...queryOptions,
