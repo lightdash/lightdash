@@ -1,3 +1,10 @@
+## [0.1509.1](https://github.com/lightdash/lightdash/compare/0.1509.0...0.1509.1) (2025-02-20)
+
+
+### Bug Fixes
+
+* editor project access ([#13767](https://github.com/lightdash/lightdash/issues/13767)) ([f445f20](https://github.com/lightdash/lightdash/commit/f445f207784da974cb9aaee52bbefe820fbe6dac))
+
 # [0.1509.0](https://github.com/lightdash/lightdash/compare/0.1508.1...0.1509.0) (2025-02-20)
 
 
