@@ -126,6 +126,17 @@ export const hasMatchingConditionalRules = (
                     return typeof convertedValue === 'number'
                         ? rule.values.some((v) => convertedValue > v)
                         : false;
+                case ConditionalOperator.IN_BETWEEN:
+                case ConditionalOperator.NOT_IN_BETWEEN: {
+                    if (typeof convertedValue !== 'number') {
+                        return false;
+                    }
+                    const min = rule.values?.[0] || 0;
+                    const max = rule.values?.[1] || 0;
+                    return rule.operator === ConditionalOperator.IN_BETWEEN
+                        ? convertedValue >= min && convertedValue <= max
+                        : convertedValue <= min || convertedValue >= max;
+                }
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
@@ -137,8 +148,6 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.IN_THE_NEXT:
                 case ConditionalOperator.IN_THE_CURRENT:
                 case ConditionalOperator.NOT_IN_THE_CURRENT:
-                case ConditionalOperator.IN_BETWEEN:
-                case ConditionalOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(
