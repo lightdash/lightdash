@@ -184,11 +184,11 @@ export const hasMatchingConditionalRules = (
                             );
                         }
 
-                        if (
-                            typeof convertedCompareValue === 'number' &&
-                            isConditionalFormattingWithCompareTarget(rule)
-                        ) {
-                            return convertedValue < convertedCompareValue;
+                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                            return (
+                                typeof convertedCompareValue === 'number' &&
+                                convertedValue < convertedCompareValue
+                            );
                         }
                     }
 
@@ -205,11 +205,11 @@ export const hasMatchingConditionalRules = (
                             );
                         }
 
-                        if (
-                            typeof convertedCompareValue === 'number' &&
-                            isConditionalFormattingWithCompareTarget(rule)
-                        ) {
-                            return convertedValue > convertedCompareValue;
+                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                            return (
+                                typeof convertedCompareValue === 'number' &&
+                                convertedValue > convertedCompareValue
+                            );
                         }
                     }
 
