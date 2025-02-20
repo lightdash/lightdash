@@ -26,7 +26,7 @@ const FilterNumberRangeInput: FC<Props> = ({
                 error={isInvalid ? 'Range is invalid' : undefined}
                 disabled={disabled}
                 autoFocus={true}
-                placeholder={placeholder}
+                placeholder="Min value"
                 {...rest}
                 value={value?.[0]}
                 onChange={(newValue) => {
@@ -41,7 +41,7 @@ const FilterNumberRangeInput: FC<Props> = ({
             <FilterNumberInput
                 error={isInvalid}
                 disabled={disabled}
-                placeholder={placeholder}
+                placeholder="Max value"
                 {...rest}
                 value={value?.[1]}
                 onChange={(newValue) => {

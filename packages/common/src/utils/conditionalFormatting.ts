@@ -138,6 +138,7 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.IN_THE_CURRENT:
                 case ConditionalOperator.NOT_IN_THE_CURRENT:
                 case ConditionalOperator.IN_BETWEEN:
+                case ConditionalOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(

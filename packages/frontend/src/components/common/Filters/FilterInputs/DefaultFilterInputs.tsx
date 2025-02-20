@@ -137,6 +137,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                 />
             );
         case FilterOperator.IN_BETWEEN:
+        case FilterOperator.NOT_IN_BETWEEN:
             return (
                 <FilterNumberRangeInput
                     disabled={disabled}

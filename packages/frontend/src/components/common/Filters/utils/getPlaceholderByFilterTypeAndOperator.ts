@@ -28,6 +28,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_NULL:
                     return '';
                 case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
                     // in between is a special case since it displays two separate date pickers
                     // by default it shows a correct placeholder which is "Start date" and "End date"
                     return '';
@@ -73,6 +74,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(operator, 'unknown operator');
@@ -103,6 +105,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
+                case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(operator, 'unknown operator');
@@ -129,6 +132,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:
                     return assertUnreachable(operator, 'unknown operator');

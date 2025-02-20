@@ -82,6 +82,7 @@ export const getFilterOperatorOptions = (
                 FilterOperator.LESS_THAN,
                 FilterOperator.GREATER_THAN,
                 FilterOperator.IN_BETWEEN,
+                FilterOperator.NOT_IN_BETWEEN,
             ]);
         case FilterType.DATE:
             return timeFilterOptions;
@@ -182,6 +183,8 @@ const getValueAsString = (
                             }
                         })
                         .join(', ');
+                case FilterOperator.NOT_IN_BETWEEN:
+                    throw new Error('Not implemented');
                 default:
                     return assertUnreachable(
                         operator,
