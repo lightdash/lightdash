@@ -211,6 +211,8 @@ ENV LIGHTDASH_MODE pr
 ENV DBT_DEMO_DIR /usr/app
 ARG RENDER_EXTERNAL_URL
 ENV SITE_URL=$RENDER_EXTERNAL_URL
+ARG RENDER_SERVICE_NAME
+ENV INTERNAL_LIGHTDASH_HOST=http://$RENDER_SERVICE_NAME:10000
 
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles

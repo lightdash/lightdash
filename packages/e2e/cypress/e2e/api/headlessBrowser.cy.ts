@@ -1,3 +1,4 @@
+import { SEED_ORG_1_ADMIN } from '@lightdash/common';
 import fetch from 'node-fetch';
 
 const apiUrl = '/api/v1';
@@ -41,6 +42,19 @@ describe('Lightdash headless browser', () => {
             expect(jsonResponse.request.flag).to.be.equal(
                 jsonResponse.response.flag,
             );
+        });
+    });
+
+    it('Should return forbidden error with invalid token', () => {
+        cy.request({
+            url: `${apiUrl}/headless-browser/login/${SEED_ORG_1_ADMIN.user_uuid}`,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: { token: 'invalid-token' },
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+            expect(resp.body).to.have.property('status', 'error');
         });
     });
 });
