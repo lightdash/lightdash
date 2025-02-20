@@ -83,7 +83,7 @@ export const formatCellContent = (
 
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
-) => <span>bleh {formatCellContent(info.getValue())}</span>;
+) => <span>{formatCellContent(info.getValue())}</span>;
 
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
