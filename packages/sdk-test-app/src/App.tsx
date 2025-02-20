@@ -70,9 +70,9 @@ function App() {
         maxWidth: '600px',
         height: '400px',
         border: '2px dashed #ccc',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        // display: 'flex',
+        // justifyContent: 'center',
+        // alignItems: 'center',
         backgroundColor: 'aliceblue',
     };
 
