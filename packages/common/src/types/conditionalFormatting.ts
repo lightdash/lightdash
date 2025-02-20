@@ -2,6 +2,7 @@ import {
     type ConditionalOperator,
     type ConditionalRule,
 } from './conditionalRule';
+import type { ItemsMap } from './field';
 import { type FieldTarget } from './filter';
 
 export type ConditionalFormattingMinMax<T = number> = {
@@ -106,4 +107,12 @@ export const getConditionalFormattingComparisonType = (
 export type ConditionalFormattingMinMaxMap = Record<
     string,
     ConditionalFormattingMinMax
+>;
+
+export type ConditionalFormattingRowFields = Record<
+    string,
+    {
+        field: ItemsMap[string];
+        value: unknown;
+    }
 >;
