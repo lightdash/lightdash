@@ -29,8 +29,8 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     return '';
                 case FilterOperator.IN_BETWEEN:
                 case FilterOperator.NOT_IN_BETWEEN:
-                    // in between is a special case since it displays two separate date pickers
-                    // by default it shows a correct placeholder which is "Start date" and "End date"
+                    // in between is a special case since it displays two separate number inputs
+                    // by default it shows a correct placeholder which is "Min value" and "Max value"
                     return '';
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.STARTS_WITH:
