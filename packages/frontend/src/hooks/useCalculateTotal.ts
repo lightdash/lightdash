@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     convertDateDashboardFilters,
     convertDateFilters,
@@ -99,6 +100,8 @@ export const useCalculateTotal = ({
     fieldIds?: string[];
     showColumnCalculation?: boolean;
 }) => {
+    const { isEmbedded } = useEmbed();
+
     const metricsWithTotals = useMemo(() => {
         if (!fieldIds || !itemsMap) return [];
         if (showColumnCalculation === false) return [];
@@ -130,7 +133,7 @@ export const useCalculateTotal = ({
                 : Promise.reject(),
         retry: false,
         enabled:
-            !window.location.pathname.startsWith('/embed/') &&
+            !isEmbedded &&
             metricsWithTotals.length > 0 &&
             (metricQuery || savedChartUuid) !== undefined,
         onError: (result) =>

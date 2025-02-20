@@ -16,7 +16,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     return (
         <EmbedProviderContext.Provider
-            value={{ embedToken, filters, projectUuid }}
+            value={{ isEmbedded: true, embedToken, filters, projectUuid }}
         >
             {children}
         </EmbedProviderContext.Provider>
