@@ -1,7 +1,6 @@
 import {
     FilterOperator,
     FilterType,
-    getConditionalFormattingComparisonType,
     getItemId,
     isConditionalFormattingWithCompareTarget,
     isConditionalFormattingWithValues,
@@ -11,14 +10,13 @@ import {
     type ConditionalOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { ConditionalFormattingComparisonType } from '@lightdash/common/src/types/conditionalFormatting';
 import {
     ActionIcon,
-    Chip,
     Collapse,
     Group,
     Select,
     Stack,
+    Switch,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -47,9 +45,7 @@ interface ConditionalFormattingRuleProps {
         newRule: ConditionalFormattingWithConditionalOperator,
     ) => void;
     onChangeRuleOperator: (newOperator: ConditionalOperator) => void;
-    onChangeRuleComparisonType: (
-        newComparisonType: ConditionalFormattingComparisonType,
-    ) => void;
+    onChangeRuleComparisonType: (compareToAnotherField: boolean) => void;
     onRemoveRule: () => void;
 }
 
@@ -144,27 +140,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                     <Text fw={500} fz="xs">
                         Condition {ruleIndex + 1}
                     </Text>
-                    <Chip.Group
-                        value={getConditionalFormattingComparisonType(rule)}
-                        onChange={(value) =>
-                            onChangeRuleComparisonType(
-                                value as ConditionalFormattingComparisonType,
-                            )
-                        }
-                    >
-                        <Chip
-                            value={ConditionalFormattingComparisonType.Values}
-                        >
-                            Select field values
-                        </Chip>
-                        <Chip
-                            value={
-                                ConditionalFormattingComparisonType.CompareTarget
-                            }
-                        >
-                            Compare to other field
-                        </Chip>
-                    </Chip.Group>
 
                     {hasRemove && hovered && (
                         <Tooltip
@@ -188,48 +163,64 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             </Group>
 
             <Collapse in={isOpen}>
-                <Group noWrap spacing="xs">
-                    <Select
-                        value={rule.operator}
-                        data={filterOperatorOptions}
-                        onChange={(value) => {
-                            if (!value) return;
-                            onChangeRuleOperator(value as ConditionalOperator);
+                <Stack spacing="xs">
+                    <Switch
+                        label="Compare to another field"
+                        disabled={!field}
+                        labelPosition="right"
+                        checked={isConditionalFormattingWithCompareTarget(rule)}
+                        onChange={(event) => {
+                            console.log(event.currentTarget.checked, rule);
+                            onChangeRuleComparisonType(
+                                event.currentTarget.checked,
+                            );
                         }}
-                        placeholder="Condition"
-                        disabled={!field || !filterType}
                     />
+                    <Group noWrap spacing="xs">
+                        <Select
+                            value={rule.operator}
+                            data={filterOperatorOptions}
+                            onChange={(value) => {
+                                if (!value) return;
+                                onChangeRuleOperator(
+                                    value as ConditionalOperator,
+                                );
+                            }}
+                            placeholder="Condition"
+                            disabled={!field || !filterType}
+                        />
 
-                    <Select
-                        display={field && filterType ? 'none' : 'block'}
-                        placeholder="Value(s)"
-                        data={[]}
-                        disabled={!field || !filterType}
-                    />
+                        <Select
+                            display={field && filterType ? 'none' : 'block'}
+                            placeholder="Value(s)"
+                            data={[]}
+                            disabled={!field || !filterType}
+                        />
 
-                    {projectUuid &&
-                        field &&
-                        filterType &&
-                        (isConditionalFormattingWithValues(rule) ? (
-                            <FiltersProvider projectUuid={projectUuid}>
-                                <FilterInputComponent
-                                    filterType={filterType}
-                                    field={field}
-                                    rule={rule}
-                                    onChange={onChangeRule}
+                        {projectUuid &&
+                            field &&
+                            filterType &&
+                            (isConditionalFormattingWithValues(rule) ? (
+                                <FiltersProvider projectUuid={projectUuid}>
+                                    <FilterInputComponent
+                                        filterType={filterType}
+                                        field={field}
+                                        rule={rule}
+                                        onChange={onChangeRule}
+                                    />
+                                </FiltersProvider>
+                            ) : (
+                                <FieldSelect
+                                    clearable
+                                    item={compareField}
+                                    items={availableCompareFields}
+                                    onChange={handleChangeCompareField}
+                                    hasGrouping
+                                    placeholder="Compare field"
                                 />
-                            </FiltersProvider>
-                        ) : (
-                            <FieldSelect
-                                label="Select field"
-                                clearable
-                                item={compareField}
-                                items={availableCompareFields}
-                                onChange={handleChangeCompareField}
-                                hasGrouping
-                            />
-                        ))}
-                </Group>
+                            ))}
+                    </Group>
+                </Stack>
             </Collapse>
         </Stack>
     );

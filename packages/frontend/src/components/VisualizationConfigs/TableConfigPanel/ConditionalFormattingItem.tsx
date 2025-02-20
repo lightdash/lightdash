@@ -1,5 +1,4 @@
 import {
-    ConditionalFormattingComparisonType,
     ConditionalFormattingConfigType,
     assertUnreachable,
     createConditionalFormattingConfigWithColorRange,
@@ -224,27 +223,16 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const handleChangeRuleComparisonType = useCallback(
-        (
-            index: number,
-            newComparisonType: ConditionalFormattingComparisonType,
-        ) => {
+        (index: number, compareToAnotherField: boolean) => {
             if (isConditionalFormattingConfigWithSingleColor(config)) {
                 handleChange(
                     produce(config, (draft) => {
-                        if (
-                            newComparisonType ===
-                            ConditionalFormattingComparisonType.Values
-                        ) {
-                            draft.rules[index] =
-                                createConditionalFormattingRuleWithValues();
-                        }
-
-                        if (
-                            newComparisonType ===
-                            ConditionalFormattingComparisonType.CompareTarget
-                        ) {
+                        if (compareToAnotherField) {
                             draft.rules[index] =
                                 createConditionalFormattingRuleWithCompareTarget();
+                        } else {
+                            draft.rules[index] =
+                                createConditionalFormattingRuleWithValues();
                         }
                     }),
                 );
