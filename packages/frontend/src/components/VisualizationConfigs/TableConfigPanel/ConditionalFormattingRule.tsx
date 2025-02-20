@@ -93,6 +93,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         if (filterType === FilterType.STRING) {
             return getFilterOptions([
                 FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
                 FilterOperator.INCLUDE,
             ]);
         }
