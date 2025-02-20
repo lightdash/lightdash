@@ -48,6 +48,14 @@ export const createConditionalFormattingRuleWithCompareTarget =
         compareTarget: null,
     });
 
+export const createConditionalFormattingRuleWithCompareTargetValues =
+    (): ConditionalFormattingWithCompareTarget => ({
+        id: uuidv4(),
+        operator: ConditionalOperator.EQUALS,
+        compareTarget: null,
+        values: [],
+    });
+
 export const createConditionalFormattingConfigWithSingleColor = (
     defaultColor: string,
     target: FieldTarget | null = null,
@@ -143,32 +151,53 @@ export const hasMatchingConditionalRules = (
                 );
             }
 
+            const shouldCompareFieldToValue =
+                isConditionalFormattingWithValues(rule) &&
+                (!isConditionalFormattingWithCompareTarget(rule) ||
+                    convertedValue === null);
+
+            const shouldCompareFieldToTarget =
+                isConditionalFormattingWithCompareTarget(rule) &&
+                !isConditionalFormattingWithValues(rule);
+
+            const shouldCompareTargetToValue =
+                isConditionalFormattingWithCompareTarget(rule) &&
+                isConditionalFormattingWithValues(rule);
+
             switch (rule.operator) {
                 case ConditionalOperator.NULL:
                     return convertedValue === null;
                 case ConditionalOperator.NOT_NULL:
                     return convertedValue !== null;
                 case ConditionalOperator.EQUALS:
-                    if (isConditionalFormattingWithValues(rule)) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some((v) => convertedValue === v);
                     }
 
-                    if (isConditionalFormattingWithCompareTarget(rule)) {
+                    if (shouldCompareFieldToTarget) {
                         return convertedValue === convertedCompareValue;
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) => convertedCompareValue === v,
+                        );
                     }
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.NOT_EQUALS:
-                    if (
-                        isNumericItem(field) &&
-                        typeof convertedValue === 'number' &&
-                        isConditionalFormattingWithValues(rule)
-                    ) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some((v) => convertedValue !== v);
                     }
 
-                    if (isConditionalFormattingWithCompareTarget(rule)) {
+                    if (shouldCompareFieldToTarget) {
                         return convertedValue !== convertedCompareValue;
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) => convertedCompareValue !== v,
+                        );
                     }
 
                     throw new Error('Not implemented');
@@ -177,17 +206,26 @@ export const hasMatchingConditionalRules = (
                         isNumericItem(field) &&
                         typeof convertedValue === 'number'
                     ) {
-                        if (isConditionalFormattingWithValues(rule)) {
+                        if (shouldCompareFieldToValue) {
                             return rule.values.some(
                                 (v) =>
                                     typeof v === 'number' && convertedValue < v,
                             );
                         }
 
-                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                        if (shouldCompareFieldToTarget) {
                             return (
                                 typeof convertedCompareValue === 'number' &&
                                 convertedValue < convertedCompareValue
+                            );
+                        }
+
+                        if (shouldCompareTargetToValue) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'number' &&
+                                    typeof convertedCompareValue === 'number' &&
+                                    convertedCompareValue < v,
                             );
                         }
                     }
@@ -198,17 +236,26 @@ export const hasMatchingConditionalRules = (
                         isNumericItem(field) &&
                         typeof convertedValue === 'number'
                     ) {
-                        if (isConditionalFormattingWithValues(rule)) {
+                        if (shouldCompareFieldToValue) {
                             return rule.values.some(
                                 (v) =>
                                     typeof v === 'number' && convertedValue > v,
                             );
                         }
 
-                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                        if (shouldCompareFieldToTarget) {
                             return (
                                 typeof convertedCompareValue === 'number' &&
                                 convertedValue > convertedCompareValue
+                            );
+                        }
+
+                        if (shouldCompareTargetToValue) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'number' &&
+                                    typeof convertedCompareValue === 'number' &&
+                                    convertedCompareValue > v,
                             );
                         }
                     }
@@ -218,7 +265,7 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
                     if (isStringDimension(field)) {
-                        if (isConditionalFormattingWithValues(rule)) {
+                        if (shouldCompareFieldToValue) {
                             return rule.values.some(
                                 (v) =>
                                     typeof v === 'string' &&
@@ -227,11 +274,20 @@ export const hasMatchingConditionalRules = (
                             );
                         }
 
-                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                        if (shouldCompareFieldToTarget) {
                             return (
                                 typeof convertedValue === 'string' &&
                                 typeof convertedCompareValue === 'string' &&
                                 convertedValue.includes(convertedCompareValue)
+                            );
+                        }
+
+                        if (shouldCompareTargetToValue) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'string' &&
+                                    typeof convertedCompareValue === 'string' &&
+                                    convertedCompareValue.includes(v),
                             );
                         }
                     }

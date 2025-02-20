@@ -6,6 +6,7 @@ import {
     isTableCalculation,
     type ConditionalRule,
 } from '@lightdash/common';
+import { TextInput } from '@mantine/core';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
@@ -35,6 +36,10 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             ? rule.disabled && !rule.values
             : undefined,
     });
+
+    if (!field) {
+        return <TextInput disabled={true} />;
+    }
 
     switch (rule.operator) {
         case FilterOperator.NULL:

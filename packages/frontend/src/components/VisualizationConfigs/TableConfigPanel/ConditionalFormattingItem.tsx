@@ -1,8 +1,10 @@
 import {
+    CompareTargetComparisonType,
     ConditionalFormattingConfigType,
     assertUnreachable,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
+    createConditionalFormattingRuleWithCompareTargetValues,
     createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfigType,
     getItemId,
@@ -10,7 +12,6 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isConditionalFormattingWithCompareTarget,
-    isConditionalFormattingWithValues,
     isNumericItem,
     isStringDimension,
     type ConditionalFormattingColorRange,
@@ -225,13 +226,32 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const handleChangeRuleComparisonType = useCallback(
-        (index: number, compareToAnotherField: boolean) => {
+        (index: number, comparisonTypes: CompareTargetComparisonType[]) => {
             if (isConditionalFormattingConfigWithSingleColor(config)) {
                 handleChange(
                     produce(config, (draft) => {
+                        const compareToAnotherField =
+                            comparisonTypes.includes(
+                                CompareTargetComparisonType.Field,
+                            ) &&
+                            !comparisonTypes.includes(
+                                CompareTargetComparisonType.Values,
+                            );
+
+                        const compareToAnotherFieldValues =
+                            comparisonTypes.includes(
+                                CompareTargetComparisonType.Field,
+                            ) &&
+                            comparisonTypes.includes(
+                                CompareTargetComparisonType.Values,
+                            );
+
                         if (compareToAnotherField) {
                             draft.rules[index] =
                                 createConditionalFormattingRuleWithCompareTarget();
+                        } else if (compareToAnotherFieldValues) {
+                            draft.rules[index] =
+                                createConditionalFormattingRuleWithCompareTargetValues();
                         } else {
                             draft.rules[index] =
                                 createConditionalFormattingRuleWithValues();
@@ -251,27 +271,12 @@ export const ConditionalFormattingItem: FC<Props> = ({
             if (isConditionalFormattingConfigWithSingleColor(config)) {
                 handleChange(
                     produce(config, (draft) => {
-                        if (isConditionalFormattingWithValues(newRule)) {
-                            // FIXME: check if we can fix this problem in number input
-                            draft.rules[index] = {
-                                ...newRule,
-                                values: newRule.values.map((v) => {
-                                    if (isStringDimension(field)) {
-                                        return String(v);
-                                    }
-                                    return Number(v);
-                                }),
-                            };
-                        } else if (
-                            isConditionalFormattingWithCompareTarget(newRule)
-                        ) {
-                            draft.rules[index] = newRule;
-                        }
+                        draft.rules[index] = newRule;
                     }),
                 );
             }
         },
-        [config, handleChange, field],
+        [config, handleChange],
     );
 
     const handleChangeSingleColor = useCallback(
@@ -441,11 +446,11 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                                 )
                                             }
                                             onChangeRuleComparisonType={(
-                                                newComparisonType,
+                                                newComparisonTypes,
                                             ) =>
                                                 handleChangeRuleComparisonType(
                                                     ruleIndex,
-                                                    newComparisonType,
+                                                    newComparisonTypes,
                                                 )
                                             }
                                             onRemoveRule={() =>
