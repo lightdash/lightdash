@@ -24,6 +24,7 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
+import { differenceBy } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import FieldSelect from '../../common/FieldSelect';
@@ -80,7 +81,18 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     const filterOperatorOptions = useMemo(() => {
         if (!filterType) return [];
         if (filterType === FilterType.NUMBER) {
-            return getFilterOperatorOptions(filterType);
+            const options = getFilterOperatorOptions(filterType);
+
+            if (isConditionalFormattingWithCompareTarget(rule)) {
+                const ignoredOperators = getFilterOptions([
+                    FilterOperator.NULL,
+                    FilterOperator.NOT_NULL,
+                ]);
+
+                return differenceBy(options, ignoredOperators, 'value');
+            }
+
+            return options;
         }
         if (filterType === FilterType.STRING) {
             return getFilterOptions([
@@ -89,7 +101,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             ]);
         }
         return [];
-    }, [filterType]);
+    }, [filterType, rule]);
 
     const compareField = useMemo(() => {
         if (isConditionalFormattingWithCompareTarget(rule)) {
@@ -102,11 +114,10 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     const availableCompareFields = useMemo(() => {
         return fields.filter(
             (f) =>
-                (isNumericItem(f) && isNumericItem(field)) ||
-                (isStringDimension(f) &&
-                    isStringDimension(field) &&
-                    field &&
-                    getItemId(f) !== getItemId(field)),
+                ((isNumericItem(f) && isNumericItem(field)) ||
+                    (isStringDimension(f) && isStringDimension(field))) &&
+                field &&
+                getItemId(f) !== getItemId(field),
         );
     }, [fields, field]);
 
@@ -133,8 +144,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                     <Text fw={500} fz="xs">
                         Condition {ruleIndex + 1}
                     </Text>
-
-                    {/* TODO: implement compare to other field */}
                     <Chip.Group
                         value={getConditionalFormattingComparisonType(rule)}
                         onChange={(value) =>
