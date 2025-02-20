@@ -3155,12 +3155,19 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "ConditionalRule_ConditionalOperator.number_": {
+            "ConditionalRule_ConditionalOperator.number-or-string_": {
                 "properties": {
                     "values": {
                         "items": {
-                            "type": "number",
-                            "format": "double"
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
                         },
                         "type": "array"
                     },
@@ -3177,14 +3184,21 @@
             "ConditionalFormattingWithConditionalOperator": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
                     },
                     {
                         "properties": {
                             "values": {
                                 "items": {
-                                    "type": "number",
-                                    "format": "double"
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
                                 },
                                 "type": "array"
                             }
@@ -14754,7 +14768,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1506.0",
+        "version": "0.1509.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
