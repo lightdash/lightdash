@@ -24,6 +24,7 @@ export type ConditionalFormattingWithValues<T = number | string> =
 export type ConditionalFormattingWithCompareTarget<T = number | string> =
     ConditionalRule<ConditionalOperator, T> & {
         compareTarget: FieldTarget | null;
+        values?: T[];
     };
 
 export type ConditionalFormattingWithConditionalOperator<T = number | string> =
@@ -97,3 +98,8 @@ export type ConditionalFormattingRowFields = Record<
         value: unknown;
     }
 >;
+
+export enum CompareTargetComparisonType {
+    Field = 'field',
+    Values = 'values',
+}
