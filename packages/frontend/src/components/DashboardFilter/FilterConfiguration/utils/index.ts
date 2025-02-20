@@ -35,10 +35,11 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
         case FilterOperator.NOT_IN_THE_CURRENT:
             return filterRule.settings && filterRule.settings.unitOfTime;
         case FilterOperator.IN_BETWEEN:
+        case FilterOperator.NOT_IN_BETWEEN:
             return (
                 filterRule.values &&
                 filterRule.values.length === 2 &&
-                filterRule.values.every(Boolean)
+                filterRule.values.every((val) => val != null && val !== '')
             );
         default:
             return assertUnreachable(filterRule.operator, 'unknown operator');

@@ -13,8 +13,8 @@ import useFiltersContext from '../useFiltersContext';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiStringInput from './FilterMultiStringInput';
 import FilterNumberInput from './FilterNumberInput';
+import FilterNumberRangeInput from './FilterNumberRangeInput';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
-
 const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
@@ -122,7 +122,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.NOT_IN_THE_CURRENT:
-        case FilterOperator.IN_BETWEEN:
             return (
                 <FilterNumberInput
                     disabled={disabled}
@@ -133,6 +132,22 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         onChange({
                             ...rule,
                             values: newValue !== null ? [newValue] : [],
+                        });
+                    }}
+                />
+            );
+        case FilterOperator.IN_BETWEEN:
+        case FilterOperator.NOT_IN_BETWEEN:
+            return (
+                <FilterNumberRangeInput
+                    disabled={disabled}
+                    autoFocus={true}
+                    placeholder={placeholder}
+                    value={rule.values}
+                    onChange={(value) => {
+                        onChange({
+                            ...rule,
+                            values: value,
                         });
                     }}
                 />

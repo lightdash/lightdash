@@ -19,4 +19,5 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
     [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
+    [FilterOperator.NOT_IN_BETWEEN]: 'is not between',
 };

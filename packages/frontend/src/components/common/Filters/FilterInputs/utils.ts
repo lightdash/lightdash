@@ -81,6 +81,8 @@ export const getFilterOperatorOptions = (
                 FilterOperator.NOT_EQUALS,
                 FilterOperator.LESS_THAN,
                 FilterOperator.GREATER_THAN,
+                FilterOperator.IN_BETWEEN,
+                FilterOperator.NOT_IN_BETWEEN,
             ]);
         case FilterType.DATE:
             return timeFilterOptions;
@@ -110,7 +112,13 @@ const getValueAsString = (
     switch (filterType) {
         case FilterType.STRING:
         case FilterType.NUMBER:
-            return values?.join(', ');
+            switch (operator) {
+                case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
+                    return `${firstValue || 0}, ${secondValue || 0}`;
+                default:
+                    return values?.join(', ');
+            }
         case FilterType.BOOLEAN:
             return values?.map(formatBoolean).join(', ');
         case FilterType.DATE:
@@ -181,6 +189,8 @@ const getValueAsString = (
                             }
                         })
                         .join(', ');
+                case FilterOperator.NOT_IN_BETWEEN:
+                    throw new Error('Not implemented');
                 default:
                     return assertUnreachable(
                         operator,
