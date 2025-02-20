@@ -1,14 +1,20 @@
 import {
     FilterOperator,
     FilterType,
+    getConditionalFormattingComparisonType,
+    getItemId,
+    isConditionalFormattingWithCompareTarget,
+    isConditionalFormattingWithValues,
     isNumericItem,
     isStringDimension,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
     type FilterableItem,
 } from '@lightdash/common';
+import { ConditionalFormattingComparisonType } from '@lightdash/common/src/types/conditionalFormatting';
 import {
     ActionIcon,
+    Chip,
     Collapse,
     Group,
     Select,
@@ -18,8 +24,9 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
+import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import {
     getFilterOperatorOptions,
@@ -33,11 +40,15 @@ interface ConditionalFormattingRuleProps {
     ruleIndex: number;
     rule: ConditionalFormattingWithConditionalOperator;
     field: FilterableItem | undefined;
+    fields: FilterableItem[];
     hasRemove?: boolean;
     onChangeRule: (
         newRule: ConditionalFormattingWithConditionalOperator,
     ) => void;
     onChangeRuleOperator: (newOperator: ConditionalOperator) => void;
+    onChangeRuleComparisonType: (
+        newComparisonType: ConditionalFormattingComparisonType,
+    ) => void;
     onRemoveRule: () => void;
 }
 
@@ -46,8 +57,10 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     ruleIndex,
     rule,
     field,
+    fields,
     onChangeRule,
     onChangeRuleOperator,
+    onChangeRuleComparisonType,
     onRemoveRule,
     hasRemove,
 }) => {
@@ -55,6 +68,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
     const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
+
     // conditional formatting only supports number filters or string filters
     const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
         useMemo(() => {
@@ -62,6 +76,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             if (isStringDimension(field)) return FilterType.STRING;
             return undefined;
         }, [field]);
+
     const filterOperatorOptions = useMemo(() => {
         if (!filterType) return [];
         if (filterType === FilterType.NUMBER) {
@@ -76,6 +91,41 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         return [];
     }, [filterType]);
 
+    const compareField = useMemo(() => {
+        if (isConditionalFormattingWithCompareTarget(rule)) {
+            return fields.find(
+                (f) => getItemId(f) === rule.compareTarget?.fieldId,
+            );
+        }
+    }, [fields, rule]);
+
+    const availableCompareFields = useMemo(() => {
+        return fields.filter(
+            (f) =>
+                (isNumericItem(f) && isNumericItem(field)) ||
+                (isStringDimension(f) &&
+                    isStringDimension(field) &&
+                    field &&
+                    getItemId(f) !== getItemId(field)),
+        );
+    }, [fields, field]);
+
+    const handleChangeCompareField = useCallback(
+        (newCompareField: FilterableItem | undefined) => {
+            if (isConditionalFormattingWithCompareTarget(rule)) {
+                onChangeRule({
+                    ...rule,
+                    compareTarget: newCompareField
+                        ? {
+                              fieldId: getItemId(newCompareField),
+                          }
+                        : null,
+                });
+            }
+        },
+        [onChangeRule, rule],
+    );
+
     return (
         <Stack spacing="xs" ref={ref}>
             <Group noWrap position="apart">
@@ -83,6 +133,29 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                     <Text fw={500} fz="xs">
                         Condition {ruleIndex + 1}
                     </Text>
+
+                    {/* TODO: implement compare to other field */}
+                    <Chip.Group
+                        value={getConditionalFormattingComparisonType(rule)}
+                        onChange={(value) =>
+                            onChangeRuleComparisonType(
+                                value as ConditionalFormattingComparisonType,
+                            )
+                        }
+                    >
+                        <Chip
+                            value={ConditionalFormattingComparisonType.Values}
+                        >
+                            Select field values
+                        </Chip>
+                        <Chip
+                            value={
+                                ConditionalFormattingComparisonType.CompareTarget
+                            }
+                        >
+                            Compare to other field
+                        </Chip>
+                    </Chip.Group>
 
                     {hasRemove && hovered && (
                         <Tooltip
@@ -125,16 +198,28 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         disabled={!field || !filterType}
                     />
 
-                    {projectUuid && field && filterType && (
-                        <FiltersProvider projectUuid={projectUuid}>
-                            <FilterInputComponent
-                                filterType={filterType}
-                                field={field}
-                                rule={rule}
-                                onChange={onChangeRule}
+                    {projectUuid &&
+                        field &&
+                        filterType &&
+                        (isConditionalFormattingWithValues(rule) ? (
+                            <FiltersProvider projectUuid={projectUuid}>
+                                <FilterInputComponent
+                                    filterType={filterType}
+                                    field={field}
+                                    rule={rule}
+                                    onChange={onChangeRule}
+                                />
+                            </FiltersProvider>
+                        ) : (
+                            <FieldSelect
+                                label="Select field"
+                                clearable
+                                item={compareField}
+                                items={availableCompareFields}
+                                onChange={handleChangeCompareField}
+                                hasGrouping
                             />
-                        </FiltersProvider>
-                    )}
+                        ))}
                 </Group>
             </Collapse>
         </Stack>

@@ -15,10 +15,27 @@ export type ConditionalFormattingColorRange = {
     steps: number;
 };
 
-export type ConditionalFormattingWithConditionalOperator<T = number | string> =
+export type ConditionalFormattingWithValues<T = number | string> =
     ConditionalRule<ConditionalOperator, T> & {
         values: T[];
     };
+
+export type ConditionalFormattingWithCompareTarget<T = number | string> =
+    ConditionalRule<ConditionalOperator, T> & {
+        compareTarget: FieldTarget | null;
+    };
+
+export type ConditionalFormattingWithConditionalOperator<T = number | string> =
+    | ConditionalFormattingWithValues<T>
+    | ConditionalFormattingWithCompareTarget<T>;
+
+export const isConditionalFormattingWithValues = (
+    rule: ConditionalFormattingWithConditionalOperator,
+): rule is ConditionalFormattingWithValues => 'values' in rule;
+
+export const isConditionalFormattingWithCompareTarget = (
+    rule: ConditionalFormattingWithConditionalOperator,
+): rule is ConditionalFormattingWithCompareTarget => 'compareTarget' in rule;
 
 export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
@@ -62,6 +79,25 @@ export const getConditionalFormattingConfigType = (
 
     if (isConditionalFormattingConfigWithColorRange(rule)) {
         return ConditionalFormattingConfigType.Range;
+    }
+
+    throw new Error('Invalid conditional formatting rule');
+};
+
+export enum ConditionalFormattingComparisonType {
+    Values = 'values',
+    CompareTarget = 'compare_target',
+}
+
+export const getConditionalFormattingComparisonType = (
+    rule: ConditionalFormattingWithConditionalOperator,
+): ConditionalFormattingComparisonType => {
+    if (isConditionalFormattingWithValues(rule)) {
+        return ConditionalFormattingComparisonType.Values;
+    }
+
+    if (isConditionalFormattingWithCompareTarget(rule)) {
+        return ConditionalFormattingComparisonType.CompareTarget;
     }
 
     throw new Error('Invalid conditional formatting rule');

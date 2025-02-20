@@ -1,9 +1,11 @@
 import { findLast } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import type { ItemsMap } from '..';
+import type { ConditionalFormattingWithCompareTarget, ItemsMap } from '..';
 import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithCompareTarget,
+    isConditionalFormattingWithValues,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
@@ -28,11 +30,18 @@ import { type FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem, isStringDimension } from './item';
 
-export const createConditionalFormatingRule =
+export const createConditionalFormattingRuleWithValues =
     (): ConditionalFormattingWithConditionalOperator => ({
         id: uuidv4(),
         operator: ConditionalOperator.EQUALS,
         values: [],
+    });
+
+export const createConditionalFormattingRuleWithCompareTarget =
+    (): ConditionalFormattingWithCompareTarget => ({
+        id: uuidv4(),
+        operator: ConditionalOperator.EQUALS,
+        compareTarget: null,
     });
 
 export const createConditionalFormattingConfigWithSingleColor = (
@@ -41,7 +50,7 @@ export const createConditionalFormattingConfigWithSingleColor = (
 ): ConditionalFormattingConfigWithSingleColor => ({
     target,
     color: defaultColor,
-    rules: [createConditionalFormatingRule()],
+    rules: [createConditionalFormattingRuleWithValues()],
 });
 
 export const createConditionalFormattingConfigWithColorRange = (
@@ -95,11 +104,21 @@ export const hasMatchingConditionalRules = (
     value: unknown,
     minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
+    compareTarget?: {
+        field: ItemsMap[string];
+        value: unknown;
+    },
 ) => {
     if (!config) return false;
 
     const parsedValue = isNumericItem(field) ? Number(value) : value;
     const convertedValue = convertFormattedValue(parsedValue, field);
+    const parsedCompareValue = isNumericItem(compareTarget?.field)
+        ? Number(compareTarget?.value)
+        : compareTarget?.value;
+    const convertedCompareValue = compareTarget
+        ? convertFormattedValue(parsedCompareValue, compareTarget.field)
+        : undefined;
 
     const currentFieldId = getItemId(field);
     const targetFieldId = config.target?.fieldId;
@@ -115,46 +134,95 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.NOT_NULL:
                     return convertedValue !== null;
                 case ConditionalOperator.EQUALS:
-                    return rule.values.some((v) => convertedValue === v);
+                    if (isConditionalFormattingWithValues(rule)) {
+                        return rule.values.some((v) => convertedValue === v);
+                    }
+
+                    if (isConditionalFormattingWithCompareTarget(rule)) {
+                        return convertedCompareValue === convertedValue;
+                    }
+
+                    throw new Error('Not implemented');
                 case ConditionalOperator.NOT_EQUALS:
                     if (
                         isNumericItem(field) &&
-                        typeof convertedValue === 'number'
+                        typeof convertedValue === 'number' &&
+                        isConditionalFormattingWithValues(rule)
                     ) {
                         return rule.values.some((v) => convertedValue !== v);
                     }
+
+                    if (isConditionalFormattingWithCompareTarget(rule)) {
+                        return convertedCompareValue !== convertedValue;
+                    }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.LESS_THAN:
                     if (
                         isNumericItem(field) &&
                         typeof convertedValue === 'number'
                     ) {
-                        return rule.values.some(
-                            (v) => typeof v === 'number' && convertedValue < v,
-                        );
+                        if (isConditionalFormattingWithValues(rule)) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'number' && convertedValue < v,
+                            );
+                        }
+
+                        if (
+                            typeof convertedCompareValue === 'number' &&
+                            isConditionalFormattingWithCompareTarget(rule)
+                        ) {
+                            return convertedCompareValue < convertedValue;
+                        }
                     }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.GREATER_THAN:
                     if (
                         isNumericItem(field) &&
                         typeof convertedValue === 'number'
                     ) {
-                        return rule.values.some(
-                            (v) => typeof v === 'number' && convertedValue > v,
-                        );
+                        if (isConditionalFormattingWithValues(rule)) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'number' && convertedValue > v,
+                            );
+                        }
+
+                        if (
+                            typeof convertedCompareValue === 'number' &&
+                            isConditionalFormattingWithCompareTarget(rule)
+                        ) {
+                            return convertedCompareValue > convertedValue;
+                        }
                     }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
                     if (isStringDimension(field)) {
-                        return rule.values.some(
-                            (v) =>
-                                typeof v === 'string' &&
-                                typeof convertedValue === 'string' &&
-                                convertedValue.includes(v),
-                        );
+                        if (isConditionalFormattingWithValues(rule)) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'string' &&
+                                    typeof convertedValue === 'string' &&
+                                    convertedValue.includes(v),
+                            );
+                        }
+
+                        if (
+                            typeof convertedCompareValue === 'string' &&
+                            typeof convertedValue === 'string' &&
+                            isConditionalFormattingWithCompareTarget(rule)
+                        ) {
+                            return convertedCompareValue.includes(
+                                convertedValue,
+                            );
+                        }
                     }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.NOT_INCLUDE:
                 case ConditionalOperator.LESS_THAN_OR_EQUAL:
