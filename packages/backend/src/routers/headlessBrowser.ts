@@ -4,6 +4,7 @@ import {
     getErrorMessage,
     getObjectValue,
 } from '@lightdash/common';
+import { sign } from 'cookie-signature';
 import { createHmac } from 'crypto';
 import express from 'express';
 import playwright from 'playwright';
@@ -33,9 +34,39 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
             if (err) {
                 next(err);
             }
+
+            const internalHost = new URL(
+                lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
+
+            /**
+             * We need to set a secure cookie if:
+             * - secure cookies are enabled
+             * - the internal host is http (can't set session cookie because of policies set in App.ts)
+             *
+             * This is because 'express-session' middleware does not allow us to set multiple domain's cookie sessions
+             */
+            const shouldSetSecureCookie =
+                lightdashConfig.secureCookies === true &&
+                internalHost.protocol === 'http:' &&
+                lightdashConfig.siteUrl !==
+                    lightdashConfig.headlessBrowser.internalLightdashHost;
+
+            if (shouldSetSecureCookie) {
+                const value = `s:${sign(
+                    req.session.id,
+                    lightdashConfig.lightdashSecret,
+                )}`;
+
+                res.setHeader('Set-Cookie', [
+                    `connect.sid=${value}; Path=/; HttpOnly; SameSite=Lax; Domain=${internalHost.host}; Secure`,
+                ]);
+            }
             res.json({
                 status: 'ok',
-                results: sessionUser,
+                results: {
+                    userUuid: sessionUser.userUuid,
+                },
             });
         });
     } catch (e) {

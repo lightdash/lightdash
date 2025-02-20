@@ -9,6 +9,8 @@ import {
     getItemLabelWithoutTableName,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isNumericItem,
+    isStringDimension,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
@@ -31,6 +33,7 @@ import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
@@ -67,6 +70,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
 }) => {
     const [isAddingRule, setIsAddingRule] = useState(false);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
+    const { itemsMap } = useVisualizationContext();
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
@@ -89,13 +93,36 @@ export const ConditionalFormattingItem: FC<Props> = ({
         (newField: FilterableItem | undefined) => {
             handleChange(
                 produce(config, (draft) => {
-                    draft.target = newField
-                        ? { fieldId: getItemId(newField) }
-                        : null;
+                    const currentField = draft.target?.fieldId
+                        ? itemsMap?.[draft.target?.fieldId]
+                        : undefined;
+                    // Reset the config if the field type changes
+                    // TODO: move to a helper function
+                    const shouldReset =
+                        (isNumericItem(currentField) &&
+                            isStringDimension(newField)) ||
+                        (isStringDimension(currentField) &&
+                            isNumericItem(newField));
+
+                    if (shouldReset && newField) {
+                        // Reset the config if the field type changes
+                        return createConditionalFormattingConfigWithSingleColor(
+                            colorPalette[0],
+                            { fieldId: getItemId(newField) },
+                        );
+                    } else if (newField) {
+                        // Update the target if the field is changed
+                        draft.target = { fieldId: getItemId(newField) };
+                    } else {
+                        // Reset the config if the field is removed
+                        return createConditionalFormattingConfigWithSingleColor(
+                            colorPalette[0],
+                        );
+                    }
                 }),
             );
         },
-        [handleChange, config],
+        [handleChange, config, colorPalette, itemsMap],
     );
 
     const handleConfigTypeChange = useCallback(
@@ -177,13 +204,18 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         // FIXME: check if we can fix this problem in number input
                         draft.rules[index] = {
                             ...newRule,
-                            values: newRule.values.map((v) => Number(v)),
+                            values: newRule.values.map((v) => {
+                                if (isStringDimension(field)) {
+                                    return String(v);
+                                }
+                                return Number(v);
+                            }),
                         };
                     }),
                 );
             }
         },
-        [handleChange, config],
+        [config, handleChange, field],
     );
 
     const handleChangeSingleColor = useCallback(
@@ -292,6 +324,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             ConditionalFormattingConfigType
                                                 .Range
                                         ],
+                                        disabled: !isNumericItem(field),
                                     },
                                 ]}
                                 value={getConditionalFormattingConfigType(
@@ -336,7 +369,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             hasRemove={config.rules.length > 1}
                                             ruleIndex={ruleIndex}
                                             rule={rule}
-                                            field={field || fields[0]}
+                                            field={field}
                                             onChangeRule={(newRule) =>
                                                 handleChangeRule(
                                                     ruleIndex,

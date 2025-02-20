@@ -15,7 +15,7 @@ export type ConditionalFormattingColorRange = {
     steps: number;
 };
 
-export type ConditionalFormattingWithConditionalOperator<T = number> =
+export type ConditionalFormattingWithConditionalOperator<T = number | string> =
     ConditionalRule<ConditionalOperator, T> & {
         values: T[];
     };

@@ -58,7 +58,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     headers,
     version = 'v1',
 }: LightdashApiProps): Promise<T> => {
-    const baseUrl = localStorage.getItem(
+    const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     );
     const apiPrefix = `${baseUrl ?? BASE_API_URL}api/${version}`;

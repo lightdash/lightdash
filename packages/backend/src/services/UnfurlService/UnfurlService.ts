@@ -934,20 +934,19 @@ export class UnfurlService extends BaseService {
 
     private async getUserCookie(userUuid: string): Promise<string> {
         const token = getAuthenticationToken(userUuid);
-
-        const response = await fetch(
-            new URL(
-                `/api/v1/headless-browser/login/${userUuid}`,
-                this.lightdashConfig.headlessBrowser.internalLightdashHost,
-            ).href,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token }),
-            },
+        // Use internal URL for the request (could be the same as the site URL)
+        const internalUrl = new URL(
+            `/api/v1/headless-browser/login/${userUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
         );
+
+        const response = await fetch(internalUrl.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token }),
+        });
         if (response.status !== 200) {
             throw new Error(
                 `Unable to get cookie for user ${userUuid}: ${await response.text()}`,
@@ -955,9 +954,14 @@ export class UnfurlService extends BaseService {
         }
         const header = response.headers.get('set-cookie');
         if (header === null) {
-            const loginBody = await response.json();
+            const loginBody = (await response.json()) as {
+                status: string;
+                results: SessionUser;
+            };
             throw new AuthorizationError(
-                `Cannot sign in:\n${JSON.stringify(loginBody)}`,
+                `Cannot sign in user before taking screenshot:\n${
+                    'results' in loginBody ? loginBody.results?.userUuid : ''
+                }`,
             );
         }
         return header;

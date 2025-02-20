@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ConditionalOperator } from '../../types/conditionalRule';
+import { DimensionType, MetricType } from '../../types/field';
 import { UnitOfTime } from '../../types/filter';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
@@ -45,20 +46,56 @@ const DateFilterOperatorSchemaReqUnitOfTime = z
         'Operators that require a unit of time to be applied on the filter',
     );
 
+const DimensionTypeSchema = z.union([
+    z.literal(DimensionType.BOOLEAN),
+    z.literal(DimensionType.DATE),
+    z.literal(DimensionType.NUMBER),
+    z.literal(DimensionType.STRING),
+    z.literal(DimensionType.TIMESTAMP),
+]);
+
+const MetricTypeSchema = z.union([
+    z.literal(MetricType.PERCENTILE),
+    z.literal(MetricType.AVERAGE),
+    z.literal(MetricType.COUNT),
+    z.literal(MetricType.COUNT_DISTINCT),
+    z.literal(MetricType.SUM),
+    z.literal(MetricType.MIN),
+    z.literal(MetricType.MAX),
+    z.literal(MetricType.NUMBER),
+    z.literal(MetricType.MEDIAN),
+    z.literal(MetricType.STRING),
+    z.literal(MetricType.DATE),
+    z.literal(MetricType.TIMESTAMP),
+    z.literal(MetricType.BOOLEAN),
+]);
+
+const FieldTypeSchema = z.union([DimensionTypeSchema, MetricTypeSchema]);
+
 const FilterRuleSchemaBase = z
     .object({
         id: z.string().describe('A unique identifier for the filter'),
         target: z
             .object({
                 fieldId: FieldIdSchema,
+                type: FieldTypeSchema.describe('Type of the field'),
             })
             .describe('Target field to apply the filter'),
         operator: FilterOperatorSchema.describe(
             'Filter operator to apply to the target field',
         ),
         values: z
-            .array(z.unknown())
-            .describe('Values to apply to the target field using the operator'),
+            .array(
+                z.union([
+                    z.null(),
+                    z.boolean(),
+                    z.string().describe('Use strings for date filters'),
+                    z.number().describe('Do not use numbers for date filters'),
+                ]),
+            )
+            .describe(
+                'Use the provided values with the specified operator on the target field. If the target field type is timestamp or date, ensure values are JavaScript Date-compatible strings.',
+            ),
     })
     .describe('Base filter rule schema');
 
@@ -67,6 +104,9 @@ const UnitOfTimeFilterRuleSchema = FilterRuleSchemaBase.merge(
         operator: DateFilterOperatorSchemaReqUnitOfTime.describe(
             'The operator to apply the filter',
         ),
+        values: z
+            .array(z.union([z.null(), z.string()]))
+            .describe('Ensure values are JavaScript Date-compatible strings.'),
         settings: z.object({
             completed: z
                 .boolean()
