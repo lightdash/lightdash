@@ -2910,12 +2910,21 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalRule_ConditionalOperator.number_': {
+    'ConditionalRule_ConditionalOperator.number-or-string_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                values: { dataType: 'array', array: { dataType: 'double' } },
+                values: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'string' },
+                        ],
+                    },
+                },
                 operator: { ref: 'ConditionalOperator', required: true },
                 id: { dataType: 'string', required: true },
             },
@@ -2928,13 +2937,21 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'ConditionalRule_ConditionalOperator.number_' },
+                {
+                    ref: 'ConditionalRule_ConditionalOperator.number-or-string_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         values: {
                             dataType: 'array',
-                            array: { dataType: 'double' },
+                            array: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'double' },
+                                    { dataType: 'string' },
+                                ],
+                            },
                             required: true,
                         },
                     },
