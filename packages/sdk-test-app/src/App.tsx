@@ -42,7 +42,7 @@ function App() {
     useEffect(() => {
         console.log('---------------');
         console.log(`translation object for ${i18n.language}`);
-        console.log(i18n.getResourceBundle(i18n.language, 'lightdash'));
+        console.log(i18n.getResourceBundle(i18n.language, 'analytics'));
         i18n.changeLanguage('ka');
         console.log('---------------');
     }, [i18n]);
@@ -81,7 +81,7 @@ function App() {
     // Chart container style
     const chartContainerStyle = {
         width: '100%',
-        height: '400px',
+        height: '500px',
         border: '2px dashed #ccc',
         display: 'flex',
         justifyContent: 'center',
@@ -95,7 +95,7 @@ function App() {
         borderLeft: '4px solid #2196F3', // blue accent border
         padding: '15px',
         margin: '20px auto',
-        maxWidth: '600px',
+        maxWidth: '800px',
         color: '#0b75c9', // bluish text
         borderRadius: '4px',
     };
@@ -148,7 +148,7 @@ function App() {
                     <>
                         <header>
                             <h1 style={{ color: '#333', margin: '0 0 10px' }}>
-                                Lightdash SDK
+                                {t('Lightdash SDK')}
                             </h1>
                             <h4>Embed URL:</h4>
                             <div
@@ -177,8 +177,13 @@ function App() {
                         </header>
 
                         <main>
-                            <h2 style={{ color: '#555', margin: '0 0 20px' }}>
-                                Dashboard component
+                            <h2
+                                style={{
+                                    color: '#555',
+                                    margin: '30px 0 10px 0',
+                                }}
+                            >
+                                {t('Dashboard component')}
                             </h2>
                             <p
                                 style={{
@@ -187,14 +192,15 @@ function App() {
                                     color: '#666',
                                 }}
                             >
-                                This is a demo page that includes a Lightdash
-                                dashboard component. The data is fetched from
-                                the Lightdash server, but this app is running
-                                locally.
+                                {t(
+                                    'app.intro',
+                                    'This is a demo page that includes a Lightdash dashboard component. The data is fetched from the Lightdash server, but this app is running locally.',
+                                )}
                             </p>
 
                             <div style={chartContainerStyle}>
                                 <Lightdash.Dashboard
+                                    key={i18n.language}
                                     instanceUrl={lightdashUrl}
                                     token={lightdashToken}
                                     styles={{
@@ -203,7 +209,7 @@ function App() {
                                     }}
                                     contentOverrides={i18n.getResourceBundle(
                                         i18n.language,
-                                        'lightdash',
+                                        'analytics',
                                     )}
                                 />
                             </div>
@@ -211,15 +217,20 @@ function App() {
                             {/* Info box with bluish text */}
                             <div style={infoBoxStyle}>
                                 <p>
-                                    Additional Information: This chart is
-                                    powered by Lightdash SDK.
+                                    {t(
+                                        'Additional Information: This chart is powered by Lightdash SDK.',
+                                    )}
                                 </p>
                             </div>
                             {/* TODO: decide how to handle http vs https so we can use the iframe */}
                             {/* <h2 style={{ color: '#555', margin: '0 0 20px' }}>
-                        Embedded dashboard
-                    </h2>
-                    <iframe src={embedUrl} width="100%" height="400px" /> */}
+                                {t('Embedded dashboard')}
+                            </h2>
+                            <iframe
+                                src={embedUrl}
+                                width="100%"
+                                height="400px"
+                            /> */}
                         </main>
 
                         <footer>
