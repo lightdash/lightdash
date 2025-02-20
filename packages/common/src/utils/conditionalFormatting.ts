@@ -18,7 +18,6 @@ import {
 } from '../types/conditionalRule';
 import {
     CustomFormatType,
-    DimensionType,
     Format,
     isField,
     isFilterableItem,
@@ -224,7 +223,7 @@ export const getConditionalFormattingConfig = ({
         !conditionalFormattings ||
         !field ||
         (!isNumericItem(field) &&
-            field.type !== DimensionType.STRING &&
+            !isStringDimension(field) &&
             !isCalculationTypeUndefined)
     )
         return undefined;
