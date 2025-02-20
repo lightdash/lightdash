@@ -28,6 +28,7 @@ import {
 import MantineIcon from '../../MantineIcon';
 import useFiltersContext from '../useFiltersContext';
 import MultiValuePastePopover from './MultiValuePastePopover';
+import { formatDisplayValue } from './utils';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;
@@ -150,7 +151,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         // also we are merging status indicator as a first item
         return uniq([...results, ...values]).map((value) => ({
             value,
-            label: value,
+            label: formatDisplayValue(value),
         }));
     }, [results, values]);
 
