@@ -18,12 +18,16 @@ const FilterNumberRangeInput: FC<Props> = ({
     const isInvalid = !(
         value?.[0] == null ||
         value?.[1] == null ||
-        value[0] <= value[1]
+        value[0] < value[1]
     );
     return (
         <Group noWrap align="start" w="100%" spacing="xs">
             <FilterNumberInput
-                error={isInvalid ? 'Range is invalid' : undefined}
+                error={
+                    isInvalid
+                        ? 'Minimum should be less than the maximum'
+                        : undefined
+                }
                 disabled={disabled}
                 autoFocus={true}
                 placeholder="Min value"
