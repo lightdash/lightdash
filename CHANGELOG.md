@@ -1,3 +1,10 @@
+# [0.1509.0](https://github.com/lightdash/lightdash/compare/0.1508.1...0.1509.0) (2025-02-20)
+
+
+### Features
+
+* add filter dashboard to on pie charts ([#13756](https://github.com/lightdash/lightdash/issues/13756)) ([b583679](https://github.com/lightdash/lightdash/commit/b583679de12228b29156d2fa5db181331fb647bd))
+
 ## [0.1508.1](https://github.com/lightdash/lightdash/compare/0.1508.0...0.1508.1) (2025-02-20)
 
 
