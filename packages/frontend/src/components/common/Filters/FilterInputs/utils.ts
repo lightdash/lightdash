@@ -112,7 +112,13 @@ const getValueAsString = (
     switch (filterType) {
         case FilterType.STRING:
         case FilterType.NUMBER:
-            return values?.join(', ');
+            switch (operator) {
+                case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
+                    return `${firstValue || 0}, ${secondValue || 0}`;
+                default:
+                    return values?.join(', ');
+            }
         case FilterType.BOOLEAN:
             return values?.map(formatBoolean).join(', ');
         case FilterType.DATE:
