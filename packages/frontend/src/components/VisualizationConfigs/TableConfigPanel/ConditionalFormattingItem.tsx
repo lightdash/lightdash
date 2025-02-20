@@ -97,6 +97,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         ? itemsMap?.[draft.target?.fieldId]
                         : undefined;
                     // Reset the config if the field type changes
+                    // TODO: move to a helper function
                     const shouldReset =
                         (isNumericItem(currentField) &&
                             isStringDimension(newField)) ||
@@ -104,14 +105,19 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             isNumericItem(newField));
 
                     if (shouldReset && newField) {
+                        // Reset the config if the field type changes
                         return createConditionalFormattingConfigWithSingleColor(
                             colorPalette[0],
                             { fieldId: getItemId(newField) },
                         );
+                    } else if (newField) {
+                        // Update the target if the field is changed
+                        draft.target = { fieldId: getItemId(newField) };
                     } else {
-                        draft.target = newField
-                            ? { fieldId: getItemId(newField) }
-                            : null;
+                        // Reset the config if the field is removed
+                        return createConditionalFormattingConfigWithSingleColor(
+                            colorPalette[0],
+                        );
                     }
                 }),
             );
