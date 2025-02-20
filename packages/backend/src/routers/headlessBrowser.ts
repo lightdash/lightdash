@@ -17,13 +17,6 @@ export const getAuthenticationToken = (value: string) =>
         .update(value)
         .digest('hex');
 
-// TEST:
-// try with Docker compose; then run api login the headless browser login with Postman - different origin, should throw error
-// set internal host to point to the name of the container in docker compose
-
-// have e2e tests for this to catch possible regressions
-// might have to have render use the internal host env var
-
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
         const userUuid = getObjectValue(req.params, 'userUuid');
