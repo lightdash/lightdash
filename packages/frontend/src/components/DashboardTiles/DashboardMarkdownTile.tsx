@@ -12,7 +12,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import TileBase from './TileBase/index';
 
-type Props = Pick<
+export type Props = Pick<
     React.ComponentProps<typeof TileBase>,
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & {

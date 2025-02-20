@@ -10,6 +10,7 @@ function useEmbed(): EmbedContext {
             embedToken: undefined,
             filters: undefined,
             projectUuid: undefined,
+            t: (_input: string) => undefined,
         };
     }
 
