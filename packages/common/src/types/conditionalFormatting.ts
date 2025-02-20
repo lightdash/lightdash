@@ -85,25 +85,6 @@ export const getConditionalFormattingConfigType = (
     throw new Error('Invalid conditional formatting rule');
 };
 
-export enum ConditionalFormattingComparisonType {
-    Values = 'values',
-    CompareTarget = 'compare_target',
-}
-
-export const getConditionalFormattingComparisonType = (
-    rule: ConditionalFormattingWithConditionalOperator,
-): ConditionalFormattingComparisonType => {
-    if (isConditionalFormattingWithValues(rule)) {
-        return ConditionalFormattingComparisonType.Values;
-    }
-
-    if (isConditionalFormattingWithCompareTarget(rule)) {
-        return ConditionalFormattingComparisonType.CompareTarget;
-    }
-
-    throw new Error('Invalid conditional formatting rule');
-};
-
 export type ConditionalFormattingMinMaxMap = Record<
     string,
     ConditionalFormattingMinMax
