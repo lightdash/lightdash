@@ -1,3 +1,10 @@
+## [0.1508.1](https://github.com/lightdash/lightdash/compare/0.1508.0...0.1508.1) (2025-02-20)
+
+
+### Bug Fixes
+
+* fix tabs search multiple results ([#13763](https://github.com/lightdash/lightdash/issues/13763)) ([cd783d8](https://github.com/lightdash/lightdash/commit/cd783d89cf32429b6eaa68961258dfc4ac8e0aca))
+
 # [0.1508.0](https://github.com/lightdash/lightdash/compare/0.1507.3...0.1508.0) (2025-02-20)
 
 
