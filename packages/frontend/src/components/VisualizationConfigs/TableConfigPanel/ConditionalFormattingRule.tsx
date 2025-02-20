@@ -1,5 +1,8 @@
 import {
+    FilterOperator,
     FilterType,
+    isNumericItem,
+    isStringDimension,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
     type FilterableItem,
@@ -15,20 +18,21 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
+import { useParams } from 'react-router';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
-import { getFilterOperatorOptions } from '../../common/Filters/FilterInputs/utils';
+import {
+    getFilterOperatorOptions,
+    getFilterOptions,
+} from '../../common/Filters/FilterInputs/utils';
+import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-
-// conditional formatting only supports number filters
-const filterType = FilterType.NUMBER;
-const filterOperatorOptions = getFilterOperatorOptions(filterType);
 
 interface ConditionalFormattingRuleProps {
     isDefaultOpen?: boolean;
     ruleIndex: number;
     rule: ConditionalFormattingWithConditionalOperator;
-    field: FilterableItem;
+    field: FilterableItem | undefined;
     hasRemove?: boolean;
     onChangeRule: (
         newRule: ConditionalFormattingWithConditionalOperator,
@@ -47,8 +51,30 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     onRemoveRule,
     hasRemove,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
+    // conditional formatting only supports number filters or string filters
+    const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
+        useMemo(() => {
+            if (isNumericItem(field)) return FilterType.NUMBER;
+            if (isStringDimension(field)) return FilterType.STRING;
+            return undefined;
+        }, [field]);
+    const filterOperatorOptions = useMemo(() => {
+        if (!filterType) return [];
+        if (filterType === FilterType.NUMBER) {
+            return getFilterOperatorOptions(filterType);
+        }
+        if (filterType === FilterType.STRING) {
+            return getFilterOptions([
+                FilterOperator.EQUALS,
+                FilterOperator.INCLUDE,
+            ]);
+        }
+        return [];
+    }, [filterType]);
 
     return (
         <Stack spacing="xs" ref={ref}>
@@ -88,14 +114,27 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             if (!value) return;
                             onChangeRuleOperator(value as ConditionalOperator);
                         }}
+                        placeholder="Condition"
+                        disabled={!field || !filterType}
                     />
 
-                    <FilterInputComponent
-                        filterType={filterType}
-                        field={field}
-                        rule={rule}
-                        onChange={onChangeRule}
+                    <Select
+                        display={field && filterType ? 'none' : 'block'}
+                        placeholder="Value(s)"
+                        data={[]}
+                        disabled={!field || !filterType}
                     />
+
+                    {projectUuid && field && filterType && (
+                        <FiltersProvider projectUuid={projectUuid}>
+                            <FilterInputComponent
+                                filterType={filterType}
+                                field={field}
+                                rule={rule}
+                                onChange={onChangeRule}
+                            />
+                        </FiltersProvider>
+                    )}
                 </Group>
             </Collapse>
         </Stack>
