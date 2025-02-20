@@ -53,6 +53,7 @@ const TableTreeWrapper: FC<React.PropsWithChildren<TableTreeWrapperProps>> = ({
                     top: 0,
                     position: 'sticky',
                     backgroundColor: 'white',
+                    zIndex: 1,
                 },
             }}
         >
