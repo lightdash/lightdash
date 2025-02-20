@@ -169,12 +169,11 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         disabled={!field}
                         labelPosition="right"
                         checked={isConditionalFormattingWithCompareTarget(rule)}
-                        onChange={(event) => {
-                            console.log(event.currentTarget.checked, rule);
+                        onChange={(event) =>
                             onChangeRuleComparisonType(
                                 event.currentTarget.checked,
-                            );
-                        }}
+                            )
+                        }
                     />
                     <Group noWrap spacing="xs">
                         <Select
