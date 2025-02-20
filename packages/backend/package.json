@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1507.2",
+    "version": "0.1507.3",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -8,6 +8,7 @@
         "@types/archiver": "^6.0.2",
         "@types/bcrypt": "^5.0.0",
         "@types/connect-flash": "^0.0.37",
+        "@types/cookie-signature": "^1.1.2",
         "@types/cors": "^2.8.17",
         "@types/express": "^4.17.11",
         "@types/express-session": "^1.17.4",
@@ -66,6 +67,7 @@
         "bcrypt": "^5.1.1",
         "canvas": "^2.11.2",
         "chokidar": "^4.0.2",
+        "cookie-signature": "^1.2.2",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^3.0.0",
         "cors": "^2.8.5",
