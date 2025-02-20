@@ -1,9 +1,15 @@
 import { findLast } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import type { ItemsMap } from '..';
+import type {
+    ConditionalFormattingRowFields,
+    ConditionalFormattingWithCompareTarget,
+    ItemsMap,
+} from '..';
 import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithCompareTarget,
+    isConditionalFormattingWithValues,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
@@ -28,11 +34,18 @@ import { type FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem, isStringDimension } from './item';
 
-export const createConditionalFormatingRule =
+export const createConditionalFormattingRuleWithValues =
     (): ConditionalFormattingWithConditionalOperator => ({
         id: uuidv4(),
         operator: ConditionalOperator.EQUALS,
         values: [],
+    });
+
+export const createConditionalFormattingRuleWithCompareTarget =
+    (): ConditionalFormattingWithCompareTarget => ({
+        id: uuidv4(),
+        operator: ConditionalOperator.EQUALS,
+        compareTarget: null,
     });
 
 export const createConditionalFormattingConfigWithSingleColor = (
@@ -41,7 +54,7 @@ export const createConditionalFormattingConfigWithSingleColor = (
 ): ConditionalFormattingConfigWithSingleColor => ({
     target,
     color: defaultColor,
-    rules: [createConditionalFormatingRule()],
+    rules: [createConditionalFormattingRuleWithValues()],
 });
 
 export const createConditionalFormattingConfigWithColorRange = (
@@ -95,6 +108,7 @@ export const hasMatchingConditionalRules = (
     value: unknown,
     minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
+    rowFields?: ConditionalFormattingRowFields,
 ) => {
     if (!config) return false;
 
@@ -109,52 +123,119 @@ export const hasMatchingConditionalRules = (
 
     if (isConditionalFormattingConfigWithSingleColor(config)) {
         return config.rules.every((rule) => {
+            let convertedCompareValue: number | unknown | undefined;
+
+            if (
+                isConditionalFormattingWithCompareTarget(rule) &&
+                rule.compareTarget?.fieldId &&
+                rowFields
+            ) {
+                const compareField = rowFields[rule.compareTarget.fieldId];
+
+                if (!compareField) return false;
+
+                const parsedCompareValue = isNumericItem(compareField.field)
+                    ? Number(compareField.value)
+                    : compareField.value;
+                convertedCompareValue = convertFormattedValue(
+                    parsedCompareValue,
+                    compareField.field,
+                );
+            }
+
             switch (rule.operator) {
                 case ConditionalOperator.NULL:
                     return convertedValue === null;
                 case ConditionalOperator.NOT_NULL:
                     return convertedValue !== null;
                 case ConditionalOperator.EQUALS:
-                    return rule.values.some((v) => convertedValue === v);
+                    if (isConditionalFormattingWithValues(rule)) {
+                        return rule.values.some((v) => convertedValue === v);
+                    }
+
+                    if (isConditionalFormattingWithCompareTarget(rule)) {
+                        return convertedValue === convertedCompareValue;
+                    }
+
+                    throw new Error('Not implemented');
                 case ConditionalOperator.NOT_EQUALS:
                     if (
                         isNumericItem(field) &&
-                        typeof convertedValue === 'number'
+                        typeof convertedValue === 'number' &&
+                        isConditionalFormattingWithValues(rule)
                     ) {
                         return rule.values.some((v) => convertedValue !== v);
                     }
+
+                    if (isConditionalFormattingWithCompareTarget(rule)) {
+                        return convertedValue !== convertedCompareValue;
+                    }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.LESS_THAN:
                     if (
                         isNumericItem(field) &&
                         typeof convertedValue === 'number'
                     ) {
-                        return rule.values.some(
-                            (v) => typeof v === 'number' && convertedValue < v,
-                        );
+                        if (isConditionalFormattingWithValues(rule)) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'number' && convertedValue < v,
+                            );
+                        }
+
+                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                            return (
+                                typeof convertedCompareValue === 'number' &&
+                                convertedValue < convertedCompareValue
+                            );
+                        }
                     }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.GREATER_THAN:
                     if (
                         isNumericItem(field) &&
                         typeof convertedValue === 'number'
                     ) {
-                        return rule.values.some(
-                            (v) => typeof v === 'number' && convertedValue > v,
-                        );
+                        if (isConditionalFormattingWithValues(rule)) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'number' && convertedValue > v,
+                            );
+                        }
+
+                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                            return (
+                                typeof convertedCompareValue === 'number' &&
+                                convertedValue > convertedCompareValue
+                            );
+                        }
                     }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
                     if (isStringDimension(field)) {
-                        return rule.values.some(
-                            (v) =>
-                                typeof v === 'string' &&
+                        if (isConditionalFormattingWithValues(rule)) {
+                            return rule.values.some(
+                                (v) =>
+                                    typeof v === 'string' &&
+                                    typeof convertedValue === 'string' &&
+                                    convertedValue.includes(v),
+                            );
+                        }
+
+                        if (isConditionalFormattingWithCompareTarget(rule)) {
+                            return (
                                 typeof convertedValue === 'string' &&
-                                convertedValue.includes(v),
-                        );
+                                typeof convertedCompareValue === 'string' &&
+                                convertedValue.includes(convertedCompareValue)
+                            );
+                        }
                     }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.NOT_INCLUDE:
                 case ConditionalOperator.LESS_THAN_OR_EQUAL:
@@ -210,11 +291,13 @@ export const getConditionalFormattingConfig = ({
     value,
     minMaxMap = {},
     conditionalFormattings,
+    rowFields,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown | undefined;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
+    rowFields?: ConditionalFormattingRowFields;
 }) => {
     // For backwards compatibility with old table calculations without type
     const isCalculationTypeUndefined =
@@ -229,7 +312,7 @@ export const getConditionalFormattingConfig = ({
         return undefined;
 
     return findLast(conditionalFormattings, (config) =>
-        hasMatchingConditionalRules(field, value, minMaxMap, config),
+        hasMatchingConditionalRules(field, value, minMaxMap, config, rowFields),
     );
 };
 
