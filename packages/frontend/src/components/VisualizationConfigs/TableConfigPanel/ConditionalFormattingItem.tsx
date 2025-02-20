@@ -117,6 +117,30 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     } else if (newField) {
                         // Update the target if the field is changed
                         draft.target = { fieldId: getItemId(newField) };
+
+                        if (
+                            isConditionalFormattingConfigWithSingleColor(draft)
+                        ) {
+                            draft.rules = draft.rules.map((rule) => {
+                                if (
+                                    isConditionalFormattingWithCompareTarget(
+                                        rule,
+                                    )
+                                ) {
+                                    if (
+                                        getItemId(newField) ===
+                                        rule.compareTarget?.fieldId
+                                    ) {
+                                        return {
+                                            ...rule,
+                                            compareTarget: null,
+                                        };
+                                    }
+                                }
+
+                                return rule;
+                            });
+                        }
                     } else {
                         // Reset the config if the field is removed
                         return createConditionalFormattingConfigWithSingleColor(
