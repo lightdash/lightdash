@@ -18,6 +18,7 @@
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
+        "dev-lib": "NODE_OPTIONS=--max-old-space-size=8192 VITE_LIB=true vite build --watch",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 VITE_LIB=true vite build",
         "serve": "vite preview",

@@ -103,17 +103,13 @@ const TileUpdateModal = <T extends Tile>({
                       DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
-                                form as UseFormReturnType<
-                                    DashboardMarkdownTileProperties['properties']
-                                >
+                                form as UseFormReturnType<DashboardMarkdownTileProperties>
                             }
                         />
                     ) : tile.type === DashboardTileTypes.LOOM ? (
                         <LoomTileForm
                             form={
-                                form as UseFormReturnType<
-                                    DashboardLoomTileProperties['properties']
-                                >
+                                form as UseFormReturnType<DashboardLoomTileProperties>
                             }
                             withHideTitle
                         />

@@ -4,7 +4,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import MDEditor from '@uiw/react-md-editor';
 
 interface MarkdownTileFormProps {
-    form: UseFormReturnType<DashboardMarkdownTileProperties['properties']>;
+    form: UseFormReturnType<DashboardMarkdownTileProperties>;
 }
 
 const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => (

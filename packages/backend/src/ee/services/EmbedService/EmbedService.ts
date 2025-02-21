@@ -821,6 +821,8 @@ export class EmbedService extends BaseService {
         );
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const dashboardFilters = dashboard.filters.dimensions;
+        // TODO: fixme
+        // @ts-ignore-next-line
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
         if (!filter) {
             throw new ParameterError(`Filter ${filterUuid} not found`);

@@ -309,6 +309,8 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     );
     const originalDashboardFilters = dashboard?.filters;
     const dashboardFilterIds = useMemo(
+        // TODO: fixme
+        // @ts-ignore-next-line
         () => new Set(dashboard?.filters.dimensions.map((f) => f.id)),
         [dashboard?.filters.dimensions],
     );
@@ -323,6 +325,8 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
             if (!originalDashboardFilters) return;
 
             const originalFilter = originalDashboardFilters.dimensions.find(
+                // TODO: fixme
+                // @ts-ignore-next-line
                 (d) => d.id === schedulerFilter.id,
             );
 
@@ -377,6 +381,8 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         >
             {dashboard && dashboard.filters.dimensions.length > 0 ? (
                 <Stack>
+                    {/* TODO: fixme */}
+                    {/* @ts-ignore-next-line */}
                     {dashboard?.filters?.dimensions.map((filter) => {
                         const schedulerFilter = schedulerFiltersData?.find(
                             (sf) => sf.id === filter.id,

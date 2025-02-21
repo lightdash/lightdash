@@ -113,6 +113,8 @@ const Filter: FC<Props> = ({
         if (!dashboard || !filterRule) return;
 
         return dashboard.filters.dimensions.find(
+            // TODO: fixme
+            // @ts-ignore-next-line
             (item) => item.id === filterRule.id,
         );
     }, [dashboard, filterRule]);

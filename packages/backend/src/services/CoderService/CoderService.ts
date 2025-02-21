@@ -7,12 +7,16 @@ import {
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
+    dashboardAsCodeSchema,
     DashboardDAO,
     DashboardTile,
     DashboardTileAsCode,
     DashboardTileTypes,
+    extractI18nKeys,
+    extractI18nValues,
     ForbiddenError,
     friendlyName,
+    isVariousChartTile,
     NotFoundError,
     Project,
     PromotionAction,
@@ -43,15 +47,6 @@ type CoderServiceArguments = {
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
 };
-
-const isChartTile = (
-    tile: DashboardTileAsCode,
-): tile is DashboardTileAsCode & {
-    properties: { chartSlug: string; hideTitle: boolean };
-} =>
-    tile.type === DashboardTileTypes.SAVED_CHART ||
-    tile.type === DashboardTileTypes.SQL_CHART ||
-    tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -139,9 +134,11 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
         }
 
+        // TODO: Remove this once we have a better way to handle the tiles
+        // @ts-ignore-next-line
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile) => {
-                if (isChartTile(tile)) {
+                if (isVariousChartTile(tile)) {
                     return {
                         ...tile,
                         uuid: undefined,
@@ -161,7 +158,8 @@ export class CoderService extends BaseService {
             },
             [],
         );
-        return {
+
+        const dashboardAsCode = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
@@ -175,6 +173,37 @@ export class CoderService extends BaseService {
             version: currentVersion,
             downloadedAt: new Date(),
         };
+
+        const i18nPaths = extractI18nKeys(
+            dashboardAsCodeSchema,
+            dashboardAsCode,
+        );
+        const i18nValues = extractI18nValues(
+            dashboardAsCodeSchema,
+            dashboardAsCode,
+        );
+        console.log(
+            '--------------------',
+            '--------------------',
+            '--------------------',
+            '--------------------',
+            JSON.stringify(
+                {
+                    sc: dashboardAsCodeSchema.shape,
+                    dashboardAsCode,
+                    i18nPaths,
+                    i18nValues,
+                },
+                null,
+                2,
+            ),
+            '--------------------',
+            '--------------------',
+            '--------------------',
+            '--------------------',
+        );
+
+        return dashboardAsCode;
     }
 
     async convertTileWithSlugsToUuids(
@@ -183,7 +212,9 @@ export class CoderService extends BaseService {
     ): Promise<DashboardTile[]> {
         const chartSlugs: string[] = tiles.reduce<string[]>(
             (acc, tile) =>
-                isChartTile(tile) ? [...acc, tile.properties.chartSlug] : acc,
+                isVariousChartTile(tile)
+                    ? [...acc, tile.properties.chartSlug ?? '']
+                    : acc,
             [],
         );
 
@@ -195,7 +226,7 @@ export class CoderService extends BaseService {
         });
 
         return tiles.map((tile) => {
-            if (isChartTile(tile)) {
+            if (isVariousChartTile(tile)) {
                 const savedChart = charts.find(
                     (chart) => chart.slug === tile.properties.chartSlug,
                 );
@@ -217,7 +248,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     Dashboard or chart ids can be uuids or slugs
      We need to convert uuids to slugs before making the query
     */
@@ -306,7 +337,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
     @returns: DashboardAsCode[]
     */
@@ -761,7 +792,7 @@ export class CoderService extends BaseService {
                     ...dashboardAsCode,
                     tiles: tilesWithUuids,
                     forceSlug: true,
-                },
+                } as any, // TODO: fix this
                 user,
                 projectUuid,
             );

@@ -5,7 +5,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 
 interface LoomTileFormProps {
-    form: UseFormReturnType<DashboardLoomTileProperties['properties']>;
+    form: UseFormReturnType<DashboardLoomTileProperties>;
     withHideTitle: boolean;
 }
 

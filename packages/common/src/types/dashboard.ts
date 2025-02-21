@@ -1,6 +1,7 @@
+import { z } from 'zod';
 import { type FilterableDimension } from './field';
 import { type DashboardFilters } from './filter';
-import { type ChartKind, type SavedChartType } from './savedCharts';
+import { ChartKind, type SavedChartType } from './savedCharts';
 import { type SpaceShare } from './space';
 import { type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
@@ -13,97 +14,159 @@ export enum DashboardTileTypes {
     LOOM = 'loom',
 }
 
-type CreateDashboardTileBase = {
-    uuid?: string;
-    type: DashboardTileTypes;
-    x: number;
-    y: number;
-    h: number;
-    w: number;
+export const createDashboardTileBaseSchema = z.object({
+    uuid: z.string().optional(),
+    type: z.nativeEnum(DashboardTileTypes),
+    x: z.number(),
+    y: z.number(),
+    h: z.number(),
+    w: z.number(),
+    tabUuid: z.union([z.string(), z.undefined()]),
+});
+
+const createDashboardTileBaseSchemaWithoutTabUuid =
+    createDashboardTileBaseSchema.omit({ tabUuid: true });
+
+export type CreateDashboardTileBase = z.infer<
+    typeof createDashboardTileBaseSchemaWithoutTabUuid
+> & { tabUuid: string | undefined };
+
+export const dashboardTileBaseSchema = createDashboardTileBaseSchema.extend({
+    uuid: z.string(),
+});
+
+const dashboardTileBaseSchemaWithoutTabUuid =
+    createDashboardTileBaseSchema.omit({ tabUuid: true });
+
+export type DashboardTileBase = z.infer<
+    typeof dashboardTileBaseSchemaWithoutTabUuid
+> & {
     tabUuid: string | undefined;
 };
 
-type DashboardTileBase = Required<CreateDashboardTileBase>;
+export const dashboardMarkdownTilePropertiesSchema = z.object({
+    title: z.string().describe('@i18n'),
+    content: z.string().describe('@i18n'),
+});
 
-export type DashboardMarkdownTileProperties = {
-    type: DashboardTileTypes.MARKDOWN;
-    properties: {
-        title: string;
-        content: string;
-    };
-};
+export const dashboardLoomTilePropertiesSchema = z.object({
+    title: z.string().describe('@i18n'),
+    hideTitle: z.boolean().optional(),
+    url: z.string().describe('@i18n'),
+});
 
-export type DashboardLoomTileProperties = {
-    type: DashboardTileTypes.LOOM;
-    properties: {
-        title: string;
-        hideTitle?: boolean;
-        url: string;
-    };
-};
+export const dashboardChartTilePropertiesSchema = z.object({
+    title: z.string().describe('@i18n').optional(),
+    hideTitle: z.boolean().optional(),
+    savedChartUuid: z.string().nullable(),
+    belongsToDashboard: z.boolean().optional(),
+    chartName: z.string().nullable().optional(),
+    lastVersionChartKind: z.nativeEnum(ChartKind).nullable().optional(),
+    chartSlug: z.string().optional(),
+});
 
-export type DashboardChartTileProperties = {
-    type: DashboardTileTypes.SAVED_CHART;
-    properties: {
-        title?: string;
-        hideTitle?: boolean;
-        savedChartUuid: string | null;
-        belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
-        chartName?: string | null;
-        lastVersionChartKind?: ChartKind | null;
-        chartSlug?: string;
-    };
-};
+export const dashboardSqlChartTilePropertiesSchema = z.object({
+    title: z.string().describe('@i18n').optional(),
+    savedSqlUuid: z.string().nullable(),
+    chartName: z.string(),
+    hideTitle: z.boolean().optional(),
+    chartSlug: z.string().optional(),
+});
 
-export type DashboardSqlChartTileProperties = {
-    type: DashboardTileTypes.SQL_CHART;
-    properties: {
-        title?: string;
-        savedSqlUuid: string | null;
-        chartName: string;
-        hideTitle?: boolean;
-        chartSlug?: string;
-    };
-};
+export const dashboardSemanticViewerChartTilePropertiesSchema = z.object({
+    title: z.string().describe('@i18n').optional(),
+    savedSemanticViewerChartUuid: z.string().nullable(),
+    chartName: z.string(),
+    hideTitle: z.boolean().optional(),
+    chartSlug: z.string().optional(),
+});
 
-export type DashboardSemanticViewerChartTileProperties = {
-    type: DashboardTileTypes.SEMANTIC_VIEWER_CHART;
-    properties: {
-        title?: string;
-        savedSemanticViewerChartUuid: string | null;
-        chartName: string;
-        hideTitle?: boolean;
-        chartSlug?: string;
-    };
-};
+export type DashboardMarkdownTileProperties = z.infer<
+    typeof dashboardMarkdownTilePropertiesSchema
+>;
+export type DashboardLoomTileProperties = z.infer<
+    typeof dashboardLoomTilePropertiesSchema
+>;
+export type DashboardChartTileProperties = z.infer<
+    typeof dashboardChartTilePropertiesSchema
+>;
+export type DashboardSqlChartTileProperties = z.infer<
+    typeof dashboardSqlChartTilePropertiesSchema
+>;
+export type DashboardSemanticViewerChartTileProperties = z.infer<
+    typeof dashboardSemanticViewerChartTilePropertiesSchema
+>;
 
-export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
-    DashboardMarkdownTileProperties;
-export type DashboardMarkdownTile = DashboardTileBase &
-    DashboardMarkdownTileProperties;
+export const dashboardMarkdownTileSchema = dashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.MARKDOWN),
+    properties: dashboardMarkdownTilePropertiesSchema,
+});
+export const dashboardLoomTileSchema = dashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.LOOM),
+    properties: dashboardLoomTilePropertiesSchema,
+});
+export const dashboardChartTileSchema = dashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.SAVED_CHART),
+    properties: dashboardChartTilePropertiesSchema,
+});
+export const dashboardSqlChartTileSchema = dashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.SQL_CHART),
+    properties: dashboardSqlChartTilePropertiesSchema,
+});
+export const dashboardSemanticViewerChartTileSchema =
+    dashboardTileBaseSchema.extend({
+        type: z.literal(DashboardTileTypes.SEMANTIC_VIEWER_CHART),
+        properties: dashboardSemanticViewerChartTilePropertiesSchema,
+    });
 
-export type CreateDashboardLoomTile = CreateDashboardTileBase &
-    DashboardLoomTileProperties;
-export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
+export type DashboardMarkdownTile = z.infer<typeof dashboardMarkdownTileSchema>;
+export type DashboardLoomTile = z.infer<typeof dashboardLoomTileSchema>;
+export type DashboardChartTile = z.infer<typeof dashboardChartTileSchema>;
+export type DashboardSqlChartTile = z.infer<typeof dashboardSqlChartTileSchema>;
+export type DashboardSemanticViewerChartTile = z.infer<
+    typeof dashboardSemanticViewerChartTileSchema
+>;
 
-export type CreateDashboardChartTile = CreateDashboardTileBase &
-    DashboardChartTileProperties;
-export type DashboardChartTile = DashboardTileBase &
-    DashboardChartTileProperties;
+const createDashboardMarkdownTileSchema = createDashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.MARKDOWN),
+    properties: dashboardMarkdownTilePropertiesSchema,
+});
+const createDashboardLoomTileSchema = createDashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.LOOM),
+    properties: dashboardLoomTilePropertiesSchema,
+});
+const createDashboardChartTileSchema = createDashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.SAVED_CHART),
+    properties: dashboardChartTilePropertiesSchema,
+});
+const createDashboardSqlChartTileSchema = createDashboardTileBaseSchema.extend({
+    type: z.literal(DashboardTileTypes.SQL_CHART),
+    properties: dashboardSqlChartTilePropertiesSchema,
+});
+const createDashboardSemanticViewerChartTileSchema =
+    createDashboardTileBaseSchema.extend({
+        type: z.literal(DashboardTileTypes.SEMANTIC_VIEWER_CHART),
+        properties: dashboardSemanticViewerChartTilePropertiesSchema,
+    });
 
-export type CreateDashboardSqlChartTile = CreateDashboardTileBase &
-    DashboardSqlChartTileProperties;
-export type DashboardSqlChartTile = DashboardTileBase &
-    DashboardSqlChartTileProperties;
+export type CreateDashboardMarkdownTile = z.infer<
+    typeof createDashboardMarkdownTileSchema
+>;
+export type CreateDashboardLoomTile = z.infer<
+    typeof createDashboardLoomTileSchema
+>;
+export type CreateDashboardChartTile = z.infer<
+    typeof createDashboardChartTileSchema
+>;
+export type CreateDashboardSqlChartTile = z.infer<
+    typeof createDashboardSqlChartTileSchema
+>;
+export type CreateDashboardSemanticViewerChartTile = z.infer<
+    typeof createDashboardSemanticViewerChartTileSchema
+>;
 
-export type CreateDashboardSemanticViewerChartTile = CreateDashboardTileBase &
-    DashboardSemanticViewerChartTileProperties;
-export type DashboardSemanticViewerChartTile = DashboardTileBase &
-    DashboardSemanticViewerChartTileProperties;
-
-export const isChartTile = (
-    tile: DashboardTileBase,
-): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
+export const isChartTile = (tile: DashboardTile): tile is DashboardChartTile =>
+    tile.type === DashboardTileTypes.SAVED_CHART;
 
 export type CreateDashboard = {
     name: string;
@@ -122,12 +185,15 @@ export type CreateDashboard = {
     config?: DashboardConfig;
 };
 
-export type DashboardTile =
-    | DashboardChartTile
-    | DashboardMarkdownTile
-    | DashboardLoomTile
-    | DashboardSqlChartTile
-    | DashboardSemanticViewerChartTile;
+export const dashboardTileSchema = z.union([
+    dashboardChartTileSchema,
+    dashboardMarkdownTileSchema,
+    dashboardLoomTileSchema,
+    dashboardSqlChartTileSchema,
+    dashboardSemanticViewerChartTileSchema,
+]);
+
+export type DashboardTile = z.infer<typeof dashboardTileSchema>;
 
 export const isDashboardChartTileType = (
     tile: DashboardTile,
@@ -142,19 +208,21 @@ export const isDashboardLoomTileType = (
 ): tile is DashboardLoomTile => tile.type === DashboardTileTypes.LOOM;
 
 export const isDashboardSqlChartTile = (
-    tile: DashboardTileBase,
+    tile: DashboardTile,
 ): tile is DashboardSqlChartTile => tile.type === DashboardTileTypes.SQL_CHART;
 
 export const isDashboardSemanticViewerChartTile = (
-    tile: DashboardTileBase,
+    tile: DashboardTile,
 ): tile is DashboardSemanticViewerChartTile =>
     tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
 
-export type DashboardTab = {
-    uuid: string;
-    name: string;
-    order: number;
-};
+const dashboardTabSchema = z.object({
+    uuid: z.string(),
+    name: z.string(),
+    order: z.number(),
+});
+
+export type DashboardTab = z.infer<typeof dashboardTabSchema>;
 
 export type DashboardTabWithUrls = DashboardTab & {
     nextUrl: string | null;
@@ -168,15 +236,21 @@ export type DashboardConfig = {
     isDateZoomDisabled: boolean;
 };
 
-export type Dashboard = {
+export const dashboardSchema = z.object({
+    name: z.string().describe('@i18n'),
+    description: z.string().describe('@i18n').optional(),
+    tiles: z.array(dashboardTileSchema),
+    updatedAt: z.date(),
+    slug: z.string(),
+    tabs: z.array(dashboardTabSchema),
+    filters: z.any(),
+});
+
+export type Dashboard = z.infer<typeof dashboardSchema> & {
     organizationUuid: string;
     projectUuid: string;
     dashboardVersionId: number;
     uuid: string;
-    name: string;
-    description?: string;
-    updatedAt: Date;
-    tiles: Array<DashboardTile>;
     filters: DashboardFilters;
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
@@ -185,10 +259,8 @@ export type Dashboard = {
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
-    tabs: DashboardTab[];
     isPrivate: boolean | null;
     access: SpaceShare[] | null;
-    slug: string;
     config?: DashboardConfig;
 };
 

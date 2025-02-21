@@ -120,17 +120,13 @@ export const TileAddModal: FC<AddProps> = ({
                     {type === DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
-                                form as UseFormReturnType<
-                                    DashboardMarkdownTileProperties['properties']
-                                >
+                                form as UseFormReturnType<DashboardMarkdownTileProperties>
                             }
                         />
                     ) : type === DashboardTileTypes.LOOM ? (
                         <LoomTileForm
                             form={
-                                form as UseFormReturnType<
-                                    DashboardLoomTileProperties['properties']
-                                >
+                                form as UseFormReturnType<DashboardLoomTileProperties>
                             }
                             withHideTitle={false}
                         />

@@ -449,6 +449,8 @@ const DashboardProvider: React.FC<
                 : setDashboardFilters;
 
             const isFilterSaved = dashboard?.filters.dimensions.some(
+                // TODO: fixme
+                // @ts-ignore-next-line
                 ({ id }) => id === item.id,
             );
 

@@ -1,12 +1,14 @@
-import type {
-    Dashboard,
-    DashboardChartTileProperties,
-    DashboardLoomTileProperties,
-    DashboardMarkdownTileProperties,
-    DashboardTile,
-    PromotionChanges,
-    SavedChart,
-} from '..';
+import { z } from 'zod';
+import type { PromotionChanges, SavedChart } from '..';
+import {
+    dashboardChartTileSchema,
+    dashboardLoomTileSchema,
+    dashboardMarkdownTileSchema,
+    dashboardSchema,
+    dashboardSemanticViewerChartTileSchema,
+    dashboardSqlChartTileSchema,
+    DashboardTileTypes,
+} from './dashboard';
 
 export const currentVersion = 1;
 // We want to only use properties that can be modified by the user
@@ -44,26 +46,72 @@ export type ApiChartAsCodeUpsertResponse = {
     results: PromotionChanges;
 };
 
-export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
-    uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
-    properties:
-        | Pick<
-              DashboardChartTileProperties['properties'],
-              'title' | 'hideTitle' | 'chartSlug'
-          >
-        | DashboardMarkdownTileProperties['properties']
-        | DashboardLoomTileProperties['properties'];
-};
+const chartTileAsCodeSchema = dashboardChartTileSchema.extend({
+    uuid: dashboardChartTileSchema.shape.uuid.optional(),
+});
 
-export type DashboardAsCode = Pick<
-    Dashboard,
-    'name' | 'description' | 'updatedAt' | 'filters' | 'tabs' | 'slug'
-> & {
-    tiles: DashboardTileAsCode[];
-    version: number;
-    spaceSlug: string;
-    downloadedAt?: Date;
-};
+const markdownTileAsCodeSchema = dashboardMarkdownTileSchema.extend({
+    uuid: dashboardMarkdownTileSchema.shape.uuid.optional(),
+});
+
+const sqlChartTileAsCodeSchema = dashboardSqlChartTileSchema.extend({
+    uuid: dashboardSqlChartTileSchema.shape.uuid.optional(),
+});
+
+const semanticViewerChartTileAsCodeSchema =
+    dashboardSemanticViewerChartTileSchema.extend({
+        uuid: dashboardSemanticViewerChartTileSchema.shape.uuid.optional(),
+    });
+
+const loomTileAsCodeSchema = dashboardLoomTileSchema.extend({
+    uuid: dashboardLoomTileSchema.shape.uuid.optional(),
+});
+
+export type ChartTileAsCode = z.infer<typeof chartTileAsCodeSchema>;
+export type MarkdownTileAsCode = z.infer<typeof markdownTileAsCodeSchema>;
+export type SqlChartTileAsCode = z.infer<typeof sqlChartTileAsCodeSchema>;
+export type LoomTileAsCode = z.infer<typeof loomTileAsCodeSchema>;
+export type SemanticViewerChartTileAsCode = z.infer<
+    typeof semanticViewerChartTileAsCodeSchema
+>;
+
+export type DashboardTileAsCode = z.infer<typeof dashboardTileAsCodeSchema>;
+
+const dashboardTileAsCodeSchema = z.union([
+    chartTileAsCodeSchema,
+    markdownTileAsCodeSchema,
+    sqlChartTileAsCodeSchema,
+    loomTileAsCodeSchema,
+    semanticViewerChartTileAsCodeSchema,
+]);
+
+export const isVariousChartTile = (
+    tile: DashboardTileAsCode,
+): tile is
+    | ChartTileAsCode
+    | SqlChartTileAsCode
+    | SemanticViewerChartTileAsCode =>
+    tile.type === DashboardTileTypes.SAVED_CHART ||
+    tile.type === DashboardTileTypes.SQL_CHART ||
+    tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
+
+export const dashboardAsCodeSchema = dashboardSchema
+    .pick({
+        name: true,
+        description: true,
+        updatedAt: true,
+        filters: true,
+        tabs: true,
+        slug: true,
+    })
+    .extend({
+        tiles: z.array(dashboardTileAsCodeSchema),
+        version: z.number(),
+        spaceSlug: z.string(),
+        downloadedAt: z.date().optional(),
+    });
+
+export type DashboardAsCode = z.infer<typeof dashboardAsCodeSchema>;
 
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
