@@ -748,15 +748,15 @@ const findAndOverrideChartFilter = (
         ? filterRulesList.find((dashboardFilter) => {
               const dashboardTarget =
                   dashboardFilter.target as DashboardFieldTarget;
+
               return (
                   // @ts-expect-error
-                  dashboardTarget.fieldsToChange?.includes(item.target.fieldId)
+                  dashboardTarget.fieldsToChange?.includes(
+                      item.target.fieldId,
+                  ) || dashboardTarget.fieldId === item.target.fieldId
               );
           })
         : undefined;
-
-    // @ts-expect-error
-    console.log({ identicalDashboardFilter, item: item.target.fieldId });
 
     return identicalDashboardFilter
         ? {

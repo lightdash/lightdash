@@ -1703,7 +1703,7 @@ export class ProjectService extends BaseService {
                         },
                     };
                 }
-                return null;
+                return filter;
             }),
             metrics: getDashboardFilterRulesForTables(
                 tables,
@@ -1714,15 +1714,6 @@ export class ProjectService extends BaseService {
                 dashboardFilters.tableCalculations,
             ),
         };
-
-        console.log('appliedDashboardFilters', {
-            appliedDashboardFilters: JSON.stringify(
-                appliedDashboardFilters,
-                null,
-                2,
-            ),
-            savedChart: JSON.stringify(savedChart, null, 2),
-        });
 
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
