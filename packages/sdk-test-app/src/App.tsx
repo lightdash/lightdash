@@ -39,14 +39,6 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
 function App() {
     const { t, i18n } = useTranslation();
 
-    useEffect(() => {
-        console.log('---------------');
-        console.log(`translation object for ${i18n.language}`);
-        console.log(i18n.getResourceBundle(i18n.language, 'analytics'));
-        i18n.changeLanguage('ka');
-        console.log('---------------');
-    }, [i18n]);
-
     const [lightdashUrl, setLightdashUrl] = useState<string | null>(null);
     const [lightdashToken, setLightdashToken] = useState<string | null>(null);
     const [embedUrl, setEmbedUrl] = useState<string>(EMBED_URL);
@@ -135,7 +127,6 @@ function App() {
                             draftUrl={draftUrl}
                             onDraftUrlChange={setDraftUrl}
                             onSubmit={() => {
-                                console.log(draftUrl);
                                 setEmbedUrl(draftUrl);
                             }}
                             onClear={() => {
@@ -161,7 +152,6 @@ function App() {
                                     draftUrl={draftUrl}
                                     onDraftUrlChange={setDraftUrl}
                                     onSubmit={() => {
-                                        console.log(draftUrl);
                                         setEmbedUrl(draftUrl);
                                     }}
                                     onClear={() => {
