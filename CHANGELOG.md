@@ -1,3 +1,10 @@
+## [0.1512.1](https://github.com/lightdash/lightdash/compare/0.1512.0...0.1512.1) (2025-02-21)
+
+
+### Bug Fixes
+
+* hide toasts in SDK ([#13787](https://github.com/lightdash/lightdash/issues/13787)) ([71cba77](https://github.com/lightdash/lightdash/commit/71cba7790aa415d02dc8f7b0413c179d5dd225fb))
+
 # [0.1512.0](https://github.com/lightdash/lightdash/compare/0.1511.2...0.1512.0) (2025-02-21)
 
 
