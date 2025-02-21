@@ -443,7 +443,7 @@ export const getConditionalFormattingDescription = (
                         };
                     }
 
-                    // If there are values, then the field is being compared to the values
+                    // If there are values, then the target is being compared to the values
                     return {
                         ...getConditionalRuleLabel(r, compareRowField.field),
                         isComparingTargetToValues: true,
