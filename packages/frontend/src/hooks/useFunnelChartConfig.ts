@@ -2,6 +2,7 @@ import {
     FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
+    getFormattedWithFallback,
     isField,
     isMetric,
     isTableCalculation,
@@ -177,7 +178,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                         dataMaxValue = dataValue;
                     }
                     return {
-                        name: rowValues[0].formatted,
+                        name: getFormattedWithFallback(rowValues[0]),
                         value: dataValue,
                         meta: {
                             value: rowValues[fieldIndex],

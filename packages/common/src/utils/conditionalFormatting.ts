@@ -1,9 +1,15 @@
 import { findLast } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import type { ItemsMap } from '..';
+import type {
+    ConditionalFormattingRowFields,
+    ConditionalFormattingWithCompareTarget,
+    ItemsMap,
+} from '..';
 import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithCompareTarget,
+    isConditionalFormattingWithValues,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
@@ -28,10 +34,25 @@ import { type FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem, isStringDimension } from './item';
 
-export const createConditionalFormatingRule =
+export const createConditionalFormattingRuleWithValues =
     (): ConditionalFormattingWithConditionalOperator => ({
         id: uuidv4(),
         operator: ConditionalOperator.EQUALS,
+        values: [],
+    });
+
+export const createConditionalFormattingRuleWithCompareTarget =
+    (): ConditionalFormattingWithCompareTarget => ({
+        id: uuidv4(),
+        operator: ConditionalOperator.EQUALS,
+        compareTarget: null,
+    });
+
+export const createConditionalFormattingRuleWithCompareTargetValues =
+    (): ConditionalFormattingWithCompareTarget => ({
+        id: uuidv4(),
+        operator: ConditionalOperator.EQUALS,
+        compareTarget: null,
         values: [],
     });
 
@@ -41,7 +62,7 @@ export const createConditionalFormattingConfigWithSingleColor = (
 ): ConditionalFormattingConfigWithSingleColor => ({
     target,
     color: defaultColor,
-    rules: [createConditionalFormatingRule()],
+    rules: [createConditionalFormattingRuleWithValues()],
 });
 
 export const createConditionalFormattingConfigWithColorRange = (
@@ -95,6 +116,7 @@ export const hasMatchingConditionalRules = (
     value: unknown,
     minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
+    rowFields?: ConditionalFormattingRowFields,
 ) => {
     if (!config) return false;
 
@@ -109,52 +131,178 @@ export const hasMatchingConditionalRules = (
 
     if (isConditionalFormattingConfigWithSingleColor(config)) {
         return config.rules.every((rule) => {
+            let convertedCompareValue: number | unknown | undefined;
+            let compareField: ItemsMap[string] | undefined;
+
+            if (
+                isConditionalFormattingWithCompareTarget(rule) &&
+                rule.compareTarget?.fieldId &&
+                rowFields
+            ) {
+                const rowField = rowFields[rule.compareTarget.fieldId];
+
+                if (!rowField) return false;
+
+                compareField = rowField.field;
+
+                const parsedCompareValue = isNumericItem(compareField)
+                    ? Number(rowField.value)
+                    : rowField.value;
+                convertedCompareValue = convertFormattedValue(
+                    parsedCompareValue,
+                    compareField,
+                );
+            }
+
+            // Compares field value to values when there is no compare target
+            const shouldCompareFieldToValue =
+                isConditionalFormattingWithValues(rule) &&
+                !isConditionalFormattingWithCompareTarget(rule);
+
+            // Compares field value to compare target when there is a compare target and there are no values
+            const shouldCompareFieldToTarget =
+                isConditionalFormattingWithCompareTarget(rule) &&
+                !isConditionalFormattingWithValues(rule);
+
+            // Compares compare target value to values when there is a compare target and there are values
+            const shouldCompareTargetToValue =
+                isConditionalFormattingWithCompareTarget(rule) &&
+                isConditionalFormattingWithValues(rule);
+
             switch (rule.operator) {
                 case ConditionalOperator.NULL:
                     return convertedValue === null;
                 case ConditionalOperator.NOT_NULL:
                     return convertedValue !== null;
                 case ConditionalOperator.EQUALS:
-                    return rule.values.some((v) => convertedValue === v);
+                    if (shouldCompareFieldToValue) {
+                        return rule.values.some((v) => convertedValue === v);
+                    }
+
+                    if (shouldCompareFieldToTarget) {
+                        return convertedValue === convertedCompareValue;
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) => convertedCompareValue === v,
+                        );
+                    }
+
+                    throw new Error('Not implemented');
                 case ConditionalOperator.NOT_EQUALS:
-                    if (
-                        isNumericItem(field) &&
-                        typeof convertedValue === 'number'
-                    ) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some((v) => convertedValue !== v);
                     }
+
+                    if (shouldCompareFieldToTarget) {
+                        return convertedValue !== convertedCompareValue;
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) => convertedCompareValue !== v,
+                        );
+                    }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.LESS_THAN:
-                    if (
-                        isNumericItem(field) &&
-                        typeof convertedValue === 'number'
-                    ) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some(
-                            (v) => typeof v === 'number' && convertedValue < v,
+                            (v) =>
+                                isNumericItem(field) &&
+                                typeof v === 'number' &&
+                                typeof convertedValue === 'number' &&
+                                convertedValue < v,
                         );
                     }
+
+                    if (shouldCompareFieldToTarget) {
+                        return (
+                            isNumericItem(field) &&
+                            isNumericItem(compareField) &&
+                            typeof convertedCompareValue === 'number' &&
+                            typeof convertedValue === 'number' &&
+                            convertedValue < convertedCompareValue
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isNumericItem(compareField) &&
+                                typeof v === 'number' &&
+                                typeof convertedCompareValue === 'number' &&
+                                convertedCompareValue < v,
+                        );
+                    }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.GREATER_THAN:
-                    if (
-                        isNumericItem(field) &&
-                        typeof convertedValue === 'number'
-                    ) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some(
-                            (v) => typeof v === 'number' && convertedValue > v,
+                            (v) =>
+                                isNumericItem(field) &&
+                                typeof v === 'number' &&
+                                typeof convertedValue === 'number' &&
+                                convertedValue > v,
                         );
                     }
+
+                    if (shouldCompareFieldToTarget) {
+                        return (
+                            isNumericItem(field) &&
+                            isNumericItem(compareField) &&
+                            typeof convertedCompareValue === 'number' &&
+                            typeof convertedValue === 'number' &&
+                            convertedValue > convertedCompareValue
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isNumericItem(compareField) &&
+                                typeof v === 'number' &&
+                                typeof convertedCompareValue === 'number' &&
+                                convertedCompareValue > v,
+                        );
+                    }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
-                    if (isStringDimension(field)) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some(
                             (v) =>
+                                isStringDimension(field) &&
                                 typeof v === 'string' &&
                                 typeof convertedValue === 'string' &&
                                 convertedValue.includes(v),
                         );
                     }
+
+                    if (shouldCompareFieldToTarget) {
+                        return (
+                            isStringDimension(field) &&
+                            isStringDimension(compareField) &&
+                            typeof convertedValue === 'string' &&
+                            typeof convertedCompareValue === 'string' &&
+                            convertedValue.includes(convertedCompareValue)
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isStringDimension(compareField) &&
+                                typeof v === 'string' &&
+                                typeof convertedCompareValue === 'string' &&
+                                convertedCompareValue.includes(v),
+                        );
+                    }
+
                     throw new Error('Not implemented');
                 case ConditionalOperator.NOT_INCLUDE:
                 case ConditionalOperator.LESS_THAN_OR_EQUAL:
@@ -210,11 +358,13 @@ export const getConditionalFormattingConfig = ({
     value,
     minMaxMap = {},
     conditionalFormattings,
+    rowFields,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown | undefined;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
+    rowFields?: ConditionalFormattingRowFields;
 }) => {
     // For backwards compatibility with old table calculations without type
     const isCalculationTypeUndefined =
@@ -229,13 +379,14 @@ export const getConditionalFormattingConfig = ({
         return undefined;
 
     return findLast(conditionalFormattings, (config) =>
-        hasMatchingConditionalRules(field, value, minMaxMap, config),
+        hasMatchingConditionalRules(field, value, minMaxMap, config, rowFields),
     );
 };
 
 export const getConditionalFormattingDescription = (
     field: ItemsMap[string] | undefined,
     conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
+    rowFields: ConditionalFormattingRowFields,
     getConditionalRuleLabel: (
         rule: ConditionalFormattingWithConditionalOperator,
         item: FilterableItem,
@@ -268,8 +419,44 @@ export const getConditionalFormattingDescription = (
         )
     ) {
         return conditionalFormattingConfig.rules
-            .map((r) => getConditionalRuleLabel(r, field))
-            .map((l) => `${l.operator} ${l.value}`)
+            .map<
+                ConditionalRuleLabels & { isComparingTargetToValues?: boolean }
+            >((r) => {
+                const fieldLabel = getConditionalRuleLabel(r, field);
+                if (isConditionalFormattingWithCompareTarget(r)) {
+                    const compareRowField = r.compareTarget?.fieldId
+                        ? rowFields[r.compareTarget?.fieldId]
+                        : undefined;
+
+                    if (
+                        !compareRowField ||
+                        !isFilterableItem(compareRowField.field)
+                    ) {
+                        return fieldLabel;
+                    }
+
+                    // If there are no values, then the field is being compared to the compare target
+                    if (!isConditionalFormattingWithValues(r)) {
+                        return {
+                            ...fieldLabel,
+                            value: String(compareRowField.value),
+                        };
+                    }
+
+                    // If there are values, then the target is being compared to the values
+                    return {
+                        ...getConditionalRuleLabel(r, compareRowField.field),
+                        isComparingTargetToValues: true,
+                    };
+                }
+
+                return fieldLabel;
+            })
+            .map((l) =>
+                l.isComparingTargetToValues
+                    ? `${l.field} ${l.operator} ${l.value}`
+                    : `${l.operator} ${l.value}`,
+            )
             .join(' and ');
     }
 

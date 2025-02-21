@@ -44,7 +44,10 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                         : -1;
                                 })
                                 .map((project) => ({
-                                    label: project.name,
+                                    label:
+                                        project.projectUuid === projectUuid
+                                            ? `${project.name} (Current)`
+                                            : project.name,
                                     value: project.projectUuid,
                                     disabled:
                                         project.projectUuid === projectUuid,
@@ -61,6 +64,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         onChange={(value) => {
                             setSelectedProject(value || null);
                         }}
+                        placeholder="Select project"
                     />
                     <Flex justify="flex-end" gap="sm" mt="sm">
                         <Button
