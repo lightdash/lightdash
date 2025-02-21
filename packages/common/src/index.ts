@@ -254,6 +254,7 @@ export * from './utils/charts';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
 export * from './utils/dashboard';
+export * from './utils/dbt';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';

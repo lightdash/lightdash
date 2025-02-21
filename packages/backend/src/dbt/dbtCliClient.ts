@@ -11,6 +11,7 @@ import {
     isDbtRpcManifestResults,
     ParseError,
     SupportedDbtVersions,
+    validateDbtSelector,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import execa, { ExecaError, ExecaReturnValue } from 'execa';
@@ -244,12 +245,6 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
-    static validateSelector(selector: string): boolean {
-        // eslint-disable-next-line no-useless-escape
-        const validSelectorPattern = /^@?[a-zA-Z0-9\s\*\-\.\+:_]+$/;
-        return validSelectorPattern.test(selector);
-    }
-
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         return Sentry.startSpan(
             {
@@ -264,7 +259,7 @@ export class DbtCliClient implements DbtClient {
                 const selector = this.selector?.trim();
 
                 if (selector) {
-                    if (!DbtCliClient.validateSelector(selector)) {
+                    if (!validateDbtSelector(selector)) {
                         throw new ParseError('Invalid dbt selector format');
                     }
                     dbtCommand.push('compile', '--select', `${selector}`);
