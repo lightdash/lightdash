@@ -1605,106 +1605,7 @@ export class ProjectService extends BaseService {
             dimensions: getDashboardFilterRulesForTables(
                 tables,
                 dashboardFilters.dimensions,
-            ).map((filter) => {
-                const dimensionFiltersFromChart =
-                    savedChart.metricQuery.filters?.dimensions;
-
-                const baseDimension =
-                    explore.tables[filter.target.tableName].dimensions[
-                        filter.target.fieldId.replace(
-                            `${filter.target.tableName}_`,
-                            '',
-                        )
-                    ];
-                if (baseDimension.timeIntervalBaseDimensionName) {
-                    const fieldsToChange: string[] = [];
-
-                    const calculateFieldsToChange = (
-                        filterGroup: FilterGroup | undefined,
-                    ) => {
-                        if (!filterGroup) {
-                            return;
-                        }
-                        if (isAndFilterGroup(filterGroup)) {
-                            filterGroup.and.forEach((item) => {
-                                if (isFilterRule(item)) {
-                                    const baseDimensionOfFilterRule =
-                                        item.target.fieldId.replace(
-                                            `${filter.target.tableName}_`,
-                                            '',
-                                        ) in
-                                        explore.tables[filter.target.tableName]
-                                            .dimensions
-                                            ? explore.tables[
-                                                  filter.target.tableName
-                                              ].dimensions[
-                                                  item.target.fieldId.replace(
-                                                      `${filter.target.tableName}_`,
-                                                      '',
-                                                  )
-                                              ]
-                                            : undefined;
-
-                                    if (
-                                        baseDimensionOfFilterRule &&
-                                        baseDimension.timeIntervalBaseDimensionName ===
-                                            baseDimensionOfFilterRule.timeIntervalBaseDimensionName
-                                    ) {
-                                        fieldsToChange.push(
-                                            item.target.fieldId,
-                                        );
-                                    }
-                                }
-                            });
-                        }
-                        if (isOrFilterGroup(filterGroup)) {
-                            filterGroup.or.forEach((item) => {
-                                if (isFilterRule(item)) {
-                                    const baseDimensionOfFilterRule =
-                                        item.target.fieldId.replace(
-                                            `${filter.target.tableName}_`,
-                                            '',
-                                        ) in
-                                        explore.tables[filter.target.tableName]
-                                            .dimensions
-                                            ? explore.tables[
-                                                  filter.target.tableName
-                                              ].dimensions[
-                                                  item.target.fieldId.replace(
-                                                      `${filter.target.tableName}_`,
-                                                      '',
-                                                  )
-                                              ]
-                                            : undefined;
-
-                                    if (
-                                        baseDimensionOfFilterRule &&
-                                        baseDimension.timeIntervalBaseDimensionName ===
-                                            baseDimensionOfFilterRule.timeIntervalBaseDimensionName
-                                    ) {
-                                        fieldsToChange.push(
-                                            item.target.fieldId,
-                                        );
-                                    }
-                                }
-                            });
-                        }
-                    };
-
-                    calculateFieldsToChange(dimensionFiltersFromChart);
-
-                    return {
-                        ...filter,
-                        target: {
-                            ...filter.target,
-                            baseTimeDimensionName:
-                                baseDimension.timeIntervalBaseDimensionName,
-                            fieldsToChange,
-                        },
-                    };
-                }
-                return filter;
-            }),
+            ),
             metrics: getDashboardFilterRulesForTables(
                 tables,
                 dashboardFilters.metrics,
@@ -1719,6 +1620,7 @@ export class ProjectService extends BaseService {
             ...addDashboardFiltersToMetricQuery(
                 savedChart.metricQuery,
                 appliedDashboardFilters,
+                explore,
             ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0

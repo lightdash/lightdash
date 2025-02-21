@@ -3,7 +3,7 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
-import { type Table } from '../types/explore';
+import { type Explore, type Table } from '../types/explore';
 import {
     DimensionType,
     MetricType,
@@ -31,6 +31,7 @@ import {
     isFilterGroup,
     isFilterRule,
     isFilterRuleDefinedForFieldId,
+    isOrFilterGroup,
     type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -750,7 +751,6 @@ const findAndOverrideChartFilter = (
                   dashboardFilter.target as DashboardFieldTarget;
 
               return (
-                  // @ts-expect-error
                   dashboardTarget.fieldsToChange?.includes(
                       item.target.fieldId,
                   ) || dashboardTarget.fieldId === item.target.fieldId
@@ -852,17 +852,128 @@ const convertDashboardFilterRuleToFilterRule = (
     }),
 });
 
+const trackWhichMetricFiltersToOverride = (
+    metricQueryDimensionFilters: FilterGroup | undefined,
+    dashboardFilterRule: DashboardFilterRule,
+    explore?: Explore,
+): DashboardFilterRule => {
+    if (!explore) {
+        return dashboardFilterRule;
+    }
+    const dimensionFiltersFromChart = metricQueryDimensionFilters;
+
+    const baseDimension =
+        explore.tables[dashboardFilterRule.target.tableName].dimensions[
+            dashboardFilterRule.target.fieldId.replace(
+                `${dashboardFilterRule.target.tableName}_`,
+                '',
+            )
+        ];
+    if (baseDimension.timeIntervalBaseDimensionName) {
+        const fieldsToChange: string[] = [];
+
+        const calculateFieldsToChange = (
+            filterGroup: FilterGroup | undefined,
+        ) => {
+            if (!filterGroup) {
+                return;
+            }
+
+            if (isAndFilterGroup(filterGroup)) {
+                filterGroup.and.forEach((item) => {
+                    if (isFilterRule(item)) {
+                        const baseDimensionOfFilterRule =
+                            item.target.fieldId.replace(
+                                `${dashboardFilterRule.target.tableName}_`,
+                                '',
+                            ) in
+                            explore.tables[dashboardFilterRule.target.tableName]
+                                .dimensions
+                                ? explore.tables[
+                                      dashboardFilterRule.target.tableName
+                                  ].dimensions[
+                                      item.target.fieldId.replace(
+                                          `${dashboardFilterRule.target.tableName}_`,
+                                          '',
+                                      )
+                                  ]
+                                : undefined;
+
+                        if (
+                            baseDimensionOfFilterRule &&
+                            baseDimension.timeIntervalBaseDimensionName ===
+                                baseDimensionOfFilterRule.timeIntervalBaseDimensionName
+                        ) {
+                            fieldsToChange.push(item.target.fieldId);
+                        }
+                    }
+                });
+            }
+            if (isOrFilterGroup(filterGroup)) {
+                filterGroup.or.forEach((item) => {
+                    if (isFilterRule(item)) {
+                        const baseDimensionOfFilterRule =
+                            item.target.fieldId.replace(
+                                `${dashboardFilterRule.target.tableName}_`,
+                                '',
+                            ) in
+                            explore.tables[dashboardFilterRule.target.tableName]
+                                .dimensions
+                                ? explore.tables[
+                                      dashboardFilterRule.target.tableName
+                                  ].dimensions[
+                                      item.target.fieldId.replace(
+                                          `${dashboardFilterRule.target.tableName}_`,
+                                          '',
+                                      )
+                                  ]
+                                : undefined;
+
+                        if (
+                            baseDimensionOfFilterRule &&
+                            baseDimension.timeIntervalBaseDimensionName ===
+                                baseDimensionOfFilterRule.timeIntervalBaseDimensionName
+                        ) {
+                            fieldsToChange.push(item.target.fieldId);
+                        }
+                    }
+                });
+            }
+        };
+
+        calculateFieldsToChange(dimensionFiltersFromChart);
+
+        return {
+            ...dashboardFilterRule,
+            target: {
+                ...dashboardFilterRule.target,
+                baseTimeDimensionName:
+                    baseDimension.timeIntervalBaseDimensionName,
+                fieldsToChange,
+            },
+        };
+    }
+    return dashboardFilterRule;
+};
+
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
+    explore?: Explore,
 ): MetricQuery => ({
     ...metricQuery,
     filters: {
         dimensions: overrideFilterGroupWithFilterRules(
             metricQuery.filters?.dimensions,
-            dashboardFilters.dimensions.map(
-                convertDashboardFilterRuleToFilterRule,
-            ),
+            dashboardFilters.dimensions
+                .map((filter) =>
+                    trackWhichMetricFiltersToOverride(
+                        metricQuery.filters?.dimensions,
+                        filter,
+                        explore,
+                    ),
+                )
+                .map(convertDashboardFilterRuleToFilterRule),
         ),
         metrics: overrideFilterGroupWithFilterRules(
             metricQuery.filters?.metrics,

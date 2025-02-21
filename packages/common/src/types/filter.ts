@@ -78,6 +78,8 @@ export interface MetricFilterRule
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
+    baseTimeDimensionName?: string;
+    fieldsToChange?: string[];
 };
 
 export type DashboardTileTarget = DashboardFieldTarget | false;
