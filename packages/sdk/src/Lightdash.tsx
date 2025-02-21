@@ -70,6 +70,7 @@ const SdkProviders: FC<
                         chartFont: styles?.fontFamily,
                     },
                 }}
+                notificationsLimit={0}
             >
                 <AppProvider>
                     <FullscreenProvider enabled={false}>
