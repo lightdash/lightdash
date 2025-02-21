@@ -1,3 +1,38 @@
+## [0.1510.1](https://github.com/lightdash/lightdash/compare/0.1510.0...0.1510.1) (2025-02-21)
+
+
+### Bug Fixes
+
+* fix formatted undefined and log query results ([#13784](https://github.com/lightdash/lightdash/issues/13784)) ([ed23b36](https://github.com/lightdash/lightdash/commit/ed23b36b4a4fdcb444084ba1d1479e0500340400))
+
+# [0.1510.0](https://github.com/lightdash/lightdash/compare/0.1509.2...0.1510.0) (2025-02-21)
+
+
+### Features
+
+* format rows frontend ([#13768](https://github.com/lightdash/lightdash/issues/13768)) ([469a726](https://github.com/lightdash/lightdash/commit/469a726eb2d7ade278a198ed5a69b3bce033aac2))
+
+## [0.1509.2](https://github.com/lightdash/lightdash/compare/0.1509.1...0.1509.2) (2025-02-21)
+
+
+### Bug Fixes
+
+* **frontend:** Series disappear when manually sorting them ([#13779](https://github.com/lightdash/lightdash/issues/13779)) ([878f43f](https://github.com/lightdash/lightdash/commit/878f43fb6cf3b5407c0bfeaf6793947439108992))
+
+## [0.1509.1](https://github.com/lightdash/lightdash/compare/0.1509.0...0.1509.1) (2025-02-20)
+
+
+### Bug Fixes
+
+* editor project access ([#13767](https://github.com/lightdash/lightdash/issues/13767)) ([f445f20](https://github.com/lightdash/lightdash/commit/f445f207784da974cb9aaee52bbefe820fbe6dac))
+
+# [0.1509.0](https://github.com/lightdash/lightdash/compare/0.1508.1...0.1509.0) (2025-02-20)
+
+
+### Features
+
+* add filter dashboard to on pie charts ([#13756](https://github.com/lightdash/lightdash/issues/13756)) ([b583679](https://github.com/lightdash/lightdash/commit/b583679de12228b29156d2fa5db181331fb647bd))
+
 ## [0.1508.1](https://github.com/lightdash/lightdash/compare/0.1508.0...0.1508.1) (2025-02-20)
 
 
