@@ -1797,11 +1797,12 @@ export class ProjectService extends BaseService {
                     });
                 span.setAttribute('rows', rows.length);
 
-                this.logger.info(
-                    `Query returned ${rows.length} rows and ${
-                        Object.keys(rows[0]).length
-                    } columns with querytags ${JSON.stringify(queryTags)}`,
-                );
+                if (rows.length > 0)
+                    this.logger.info(
+                        `Query returned ${rows.length} rows and ${
+                            Object.keys(rows[0]).length
+                        } columns with querytags ${JSON.stringify(queryTags)}`,
+                    );
                 const { warehouseConnection } =
                     await this.projectModel.getWithSensitiveFields(projectUuid);
                 if (warehouseConnection) {
@@ -1854,11 +1855,14 @@ export class ProjectService extends BaseService {
                     },
                 );
 
-                this.logger.info(
-                    `Formatted rows returned ${formattedRows.length} rows and ${
-                        Object.keys(formattedRows[0]).length
-                    } columns`,
-                );
+                if (formattedRows.length > 0)
+                    this.logger.info(
+                        `Formatted rows returned ${
+                            formattedRows.length
+                        } rows and ${
+                            Object.keys(formattedRows[0]).length
+                        } columns`,
+                    );
                 return {
                     rows: formattedRows,
                     metricQuery,
