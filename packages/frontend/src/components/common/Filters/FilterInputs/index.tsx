@@ -11,7 +11,7 @@ import DefaultFilterInputs from './DefaultFilterInputs';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
-    field?: FilterableItem;
+    field: FilterableItem;
     rule: T;
     onChange: (value: T) => void;
     disabled?: boolean;

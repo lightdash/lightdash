@@ -20,6 +20,7 @@ import {
     Stack,
     Switch,
     Text,
+    TextInput,
     Tooltip,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
@@ -225,6 +226,13 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         [onChangeRuleComparisonType, comparisonSwitchValues],
     );
 
+    const valuesInputField = useMemo(() => {
+        if (isConditionalFormattingWithCompareTarget(rule)) {
+            return compareField;
+        }
+        return field;
+    }, [rule, compareField, field]);
+
     return (
         <Stack spacing="xs" ref={ref}>
             <Group noWrap position="apart">
@@ -316,36 +324,34 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
                         {projectUuid &&
                             filterType &&
-                            (isConditionalFormattingWithCompareTarget(rule) ? (
-                                isConditionalFormattingWithValues(rule) ? (
-                                    <FiltersProvider projectUuid={projectUuid}>
+                            isConditionalFormattingWithValues(rule) && (
+                                <FiltersProvider projectUuid={projectUuid}>
+                                    {valuesInputField ? (
                                         <FilterInputComponent
                                             filterType={filterType}
-                                            field={compareField}
+                                            field={valuesInputField}
                                             rule={rule}
                                             onChange={handleChangeRule}
                                         />
-                                    </FiltersProvider>
-                                ) : (
-                                    <FieldSelect
-                                        clearable
-                                        item={compareField}
-                                        items={availableCompareFields}
-                                        onChange={handleChangeCompareField}
-                                        hasGrouping
-                                        placeholder="Compare field"
-                                    />
-                                )
-                            ) : (
-                                <FiltersProvider projectUuid={projectUuid}>
-                                    <FilterInputComponent
-                                        filterType={filterType}
-                                        field={field}
-                                        rule={rule}
-                                        onChange={handleChangeRule}
-                                    />
+                                    ) : (
+                                        <TextInput
+                                            disabled={true}
+                                            placeholder="Values"
+                                        />
+                                    )}
                                 </FiltersProvider>
-                            ))}
+                            )}
+                        {isConditionalFormattingWithCompareTarget(rule) &&
+                            !isConditionalFormattingWithValues(rule) && (
+                                <FieldSelect
+                                    clearable
+                                    item={compareField}
+                                    items={availableCompareFields}
+                                    onChange={handleChangeCompareField}
+                                    hasGrouping
+                                    placeholder="Compare field"
+                                />
+                            )}
                     </Group>
                 </Stack>
             </Collapse>
