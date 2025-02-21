@@ -99,7 +99,8 @@ export type ConditionalFormattingRowFields = Record<
     }
 >;
 
-export enum CompareTargetComparisonType {
-    Field = 'field',
-    Values = 'values',
+export enum ConditionalFormattingComparisonType {
+    VALUES = 'values',
+    TARGET_FIELD = 'target_field',
+    TARGET_TO_VALUES = 'target_to_values',
 }

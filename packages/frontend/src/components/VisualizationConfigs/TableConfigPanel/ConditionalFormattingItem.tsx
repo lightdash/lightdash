@@ -1,5 +1,5 @@
 import {
-    CompareTargetComparisonType,
+    ConditionalFormattingComparisonType,
     ConditionalFormattingConfigType,
     assertUnreachable,
     createConditionalFormattingConfigWithColorRange,
@@ -226,35 +226,31 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const handleChangeRuleComparisonType = useCallback(
-        (index: number, comparisonTypes: CompareTargetComparisonType[]) => {
+        (
+            index: number,
+            comparisonType: ConditionalFormattingComparisonType,
+        ) => {
             if (isConditionalFormattingConfigWithSingleColor(config)) {
                 handleChange(
                     produce(config, (draft) => {
-                        const compareToAnotherField =
-                            comparisonTypes.includes(
-                                CompareTargetComparisonType.Field,
-                            ) &&
-                            !comparisonTypes.includes(
-                                CompareTargetComparisonType.Values,
-                            );
-
-                        const compareToAnotherFieldValues =
-                            comparisonTypes.includes(
-                                CompareTargetComparisonType.Field,
-                            ) &&
-                            comparisonTypes.includes(
-                                CompareTargetComparisonType.Values,
-                            );
-
-                        if (compareToAnotherField) {
-                            draft.rules[index] =
-                                createConditionalFormattingRuleWithCompareTarget();
-                        } else if (compareToAnotherFieldValues) {
-                            draft.rules[index] =
-                                createConditionalFormattingRuleWithCompareTargetValues();
-                        } else {
-                            draft.rules[index] =
-                                createConditionalFormattingRuleWithValues();
+                        switch (comparisonType) {
+                            case ConditionalFormattingComparisonType.VALUES:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithValues();
+                                break;
+                            case ConditionalFormattingComparisonType.TARGET_FIELD:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithCompareTarget();
+                                break;
+                            case ConditionalFormattingComparisonType.TARGET_TO_VALUES:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithCompareTargetValues();
+                                break;
+                            default:
+                                assertUnreachable(
+                                    comparisonType,
+                                    'Unknown comparison type',
+                                );
                         }
                     }),
                 );
@@ -446,11 +442,11 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                                 )
                                             }
                                             onChangeRuleComparisonType={(
-                                                newComparisonTypes,
+                                                newComparisonType,
                                             ) =>
                                                 handleChangeRuleComparisonType(
                                                     ruleIndex,
-                                                    newComparisonTypes,
+                                                    newComparisonType,
                                                 )
                                             }
                                             onRemoveRule={() =>

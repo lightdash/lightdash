@@ -1,5 +1,5 @@
 import {
-    CompareTargetComparisonType,
+    ConditionalFormattingComparisonType,
     FilterOperator,
     FilterType,
     getItemId,
@@ -13,12 +13,12 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Checkbox,
+    Center,
     Collapse,
     Group,
+    SegmentedControl,
     Select,
     Stack,
-    Switch,
     Text,
     TextInput,
     Tooltip,
@@ -49,7 +49,7 @@ interface ConditionalFormattingRuleProps {
     ) => void;
     onChangeRuleOperator: (newOperator: ConditionalOperator) => void;
     onChangeRuleComparisonType: (
-        comparisonTypes: CompareTargetComparisonType[],
+        comparisonType: ConditionalFormattingComparisonType,
     ) => void;
     onRemoveRule: () => void;
 }
@@ -71,22 +71,20 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
-    const comparisonSwitchValues = useMemo(() => {
+    const comparisonType = useMemo(() => {
         if (
             isConditionalFormattingWithCompareTarget(rule) &&
             isConditionalFormattingWithValues(rule)
         ) {
-            return [
-                CompareTargetComparisonType.Field,
-                CompareTargetComparisonType.Values,
-            ];
+            return ConditionalFormattingComparisonType.TARGET_TO_VALUES;
         } else if (
             isConditionalFormattingWithCompareTarget(rule) &&
             !isConditionalFormattingWithValues(rule)
         ) {
-            return [CompareTargetComparisonType.Field];
+            return ConditionalFormattingComparisonType.TARGET_FIELD;
         }
-        return [];
+
+        return ConditionalFormattingComparisonType.VALUES;
     }, [rule]);
 
     const compareField = useMemo(() => {
@@ -121,7 +119,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             const options = getFilterOperatorOptions(filterType);
 
             if (isConditionalFormattingWithCompareTarget(rule)) {
-                // TODO: conditional formatting
                 const ignoredOperators = getFilterOptions([
                     FilterOperator.NULL,
                     FilterOperator.NOT_NULL,
@@ -209,23 +206,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         [onChangeRule, compareField, field],
     );
 
-    const handleChangeComparisonType = useCallback(
-        (type: CompareTargetComparisonType) => {
-            return (event: React.ChangeEvent<HTMLInputElement>) => {
-                if (event.target.checked) {
-                    onChangeRuleComparisonType(
-                        Array.from(new Set([...comparisonSwitchValues, type])),
-                    );
-                } else {
-                    onChangeRuleComparisonType(
-                        comparisonSwitchValues.filter((t) => t !== type),
-                    );
-                }
-            };
-        },
-        [onChangeRuleComparisonType, comparisonSwitchValues],
-    );
-
     const valuesInputField = useMemo(() => {
         if (isConditionalFormattingWithCompareTarget(rule)) {
             return compareField;
@@ -264,35 +244,53 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
             <Collapse in={isOpen}>
                 <Stack spacing="xs">
-                    <Group>
-                        <Stack spacing="xs">
-                            <Switch
-                                label="Compare with another field"
-                                disabled={!field}
-                                labelPosition="right"
-                                checked={comparisonSwitchValues.includes(
-                                    CompareTargetComparisonType.Field,
-                                )}
-                                onChange={handleChangeComparisonType(
-                                    CompareTargetComparisonType.Field,
-                                )}
-                            />
-                            {comparisonSwitchValues.includes(
-                                CompareTargetComparisonType.Field,
-                            ) && (
-                                <Checkbox
-                                    label="Use field's values"
-                                    disabled={!field}
-                                    labelPosition="right"
-                                    onChange={handleChangeComparisonType(
-                                        CompareTargetComparisonType.Values,
-                                    )}
-                                    checked={comparisonSwitchValues.includes(
-                                        CompareTargetComparisonType.Values,
-                                    )}
-                                />
-                            )}
-                        </Stack>
+                    <Group noWrap spacing="xs">
+                        <Text fw={500} fz="xs" c="dimmed">
+                            Compare:
+                        </Text>
+                        <SegmentedControl
+                            size="xs"
+                            value={comparisonType}
+                            onChange={onChangeRuleComparisonType}
+                            data={[
+                                {
+                                    label: (
+                                        <Tooltip
+                                            label="Compare selected field to values"
+                                            withinPortal
+                                            variant="xs"
+                                        >
+                                            <Center>Values</Center>
+                                        </Tooltip>
+                                    ),
+                                    value: ConditionalFormattingComparisonType.VALUES,
+                                },
+                                {
+                                    label: (
+                                        <Tooltip
+                                            label="Compare selected field to another field"
+                                            withinPortal
+                                            variant="xs"
+                                        >
+                                            <Center>Field</Center>
+                                        </Tooltip>
+                                    ),
+                                    value: ConditionalFormattingComparisonType.TARGET_FIELD,
+                                },
+                                {
+                                    label: (
+                                        <Tooltip
+                                            label="Compare another field to values"
+                                            withinPortal
+                                            variant="xs"
+                                        >
+                                            <Center>Field values</Center>
+                                        </Tooltip>
+                                    ),
+                                    value: ConditionalFormattingComparisonType.TARGET_TO_VALUES,
+                                },
+                            ]}
+                        ></SegmentedControl>
                     </Group>
                     {isConditionalFormattingWithCompareTarget(rule) &&
                         isConditionalFormattingWithValues(rule) && (
