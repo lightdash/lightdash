@@ -2,6 +2,7 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type ApiQueryResults,
+    type ApiRawQueryResults,
     type DashboardFilters,
     type DateGranularity,
     type MetricQuery,
@@ -39,7 +40,7 @@ const getChartResults = async ({
     dashboardSorts?: SortField[];
     context?: string;
 }) => {
-    return lightdashApi<ApiQueryResults>({
+    return lightdashApi<ApiRawQueryResults>({
         url: `/saved/${chartUuid}/results${
             context ? `?context=${context}` : ''
         }`,
@@ -124,15 +125,16 @@ export const useQueryResults = (props?: {
 
     const fetchQuery =
         props?.isViewOnly === true ? getChartResults : getQueryResults;
-    const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
-        fetchQuery,
-        {
-            mutationKey: ['queryResults'],
-            onError: (error) => {
-                setErrorResponse(error);
-            },
+    const mutation = useMutation<
+        ApiRawQueryResults,
+        ApiError,
+        QueryResultsProps
+    >(fetchQuery, {
+        mutationKey: ['queryResults'],
+        onError: (error) => {
+            setErrorResponse(error);
         },
-    );
+    });
 
     const { mutateAsync } = mutation;
 

@@ -91,7 +91,11 @@ import {
     type WarehouseCredentials,
 } from './types/projects';
 import { type MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
-import { type ResultRow } from './types/results';
+import {
+    isFormattedResult,
+    type RawResultRow,
+    type ResultRow,
+} from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
@@ -447,8 +451,14 @@ export type CacheMetadata = {
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
-    rows: ResultRow[] | Record<string, AnyType>[];
-    skipFormatting?: boolean;
+    rows: ResultRow[];
+    fields: ItemsMap;
+};
+
+export type ApiRawQueryResults = {
+    metricQuery: MetricQuery;
+    cacheMetadata: CacheMetadata;
+    rows: RawResultRow[];
     fields: ItemsMap;
 };
 
@@ -458,7 +468,7 @@ export type ApiChartAndResults = {
     appliedDashboardFilters: DashboardFilters | undefined;
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
-    rows: ResultRow[];
+    rows: RawResultRow[];
     fields: ItemsMap;
 };
 
@@ -740,7 +750,8 @@ type ApiResults =
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiMetricsExplorerTotalResults['results']
-    | ApiGetSpotlightTableConfig['results'];
+    | ApiGetSpotlightTableConfig['results']
+    | ApiRawQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -931,7 +942,7 @@ export type UpdateProject = Omit<
 };
 
 export const getResultValueArray = (
-    rows: ResultRow[],
+    rows: ResultRow[] | RawResultRow[],
     preferRaw: boolean = false,
     calculateMinAndMax: boolean = false,
 ): {
@@ -942,13 +953,16 @@ export const getResultValueArray = (
 
     const results = rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
-            const rawWithFallback =
-                row[key]?.value.raw ?? row[key]?.value.formatted; // using nullish coalescing operator to handle null and undefined only
-            const formattedWithFallback =
-                row[key]?.value.formatted || row[key]?.value.raw;
+            let value: unknown;
+            const result = row[key];
+            if (isFormattedResult(result)) {
+                const rawWithFallback = result?.raw ?? result?.formatted; // using nullish coalescing operator to handle null and undefined only
+                const formattedWithFallback = result?.formatted || result?.raw;
 
-            const value = preferRaw ? rawWithFallback : formattedWithFallback;
-
+                value = preferRaw ? rawWithFallback : formattedWithFallback;
+            } else {
+                value = `${result}`;
+            }
             acc[key] = value;
 
             if (calculateMinAndMax) {

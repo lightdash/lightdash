@@ -49,7 +49,7 @@ export const getItemBgColor = (
 };
 
 export const formatCellContent = (
-    data?: { value: ResultValue },
+    data?: { value: ResultValue } | unknown,
     item?:
         | Field
         | Dimension
@@ -57,9 +57,12 @@ export const formatCellContent = (
         | TableCalculation
         | CustomDimension,
 ) => {
-    if (!data) return '-';
+    if (data === undefined || data === null) return '-';
+    if (typeof data !== 'object') {
+        return formatItemValue(item, data);
+    }
 
-    const { value } = data;
+    const { value } = data as { value: ResultValue };
 
     if (typeof value?.formatted === 'string') {
         const lines = value?.formatted.split('\\n') ?? [];
@@ -73,11 +76,6 @@ export const formatCellContent = (
             : value?.formatted ?? value?.raw;
     }
 
-    if (value?.formatted === null && item) {
-        // Null formatting means the formatting was skipped by the backend
-        // so we need to handle formatting in the frontend based on the raw value
-        return formatItemValue(item, value?.raw);
-    }
     return value?.formatted ?? value?.raw;
 };
 

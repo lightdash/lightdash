@@ -333,7 +333,7 @@ const useTableConfig = (
                     rowTotals: tableChartConfig?.showRowCalculation,
                 },
                 metricQuery: resultsData.metricQuery,
-                rows: resultsData.rows,
+                rows: resultsData.rows as ResultRow[],
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,
                 },
