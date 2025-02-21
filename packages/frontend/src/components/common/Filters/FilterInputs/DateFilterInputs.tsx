@@ -34,7 +34,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     const { startOfWeek } = useFiltersContext();
 
     if (!field) {
-        return null;
+        return <DefaultFilterInputs {...props} />;
     }
 
     const isTimestamp =
