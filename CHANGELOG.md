@@ -1,3 +1,10 @@
+## [0.1511.1](https://github.com/lightdash/lightdash/compare/0.1511.0...0.1511.1) (2025-02-21)
+
+
+### Bug Fixes
+
+* CLI commands (specifically `lightdash generate`) fail when `version: 2` is missing, even when it's not required ([#13783](https://github.com/lightdash/lightdash/issues/13783)) ([c99794e](https://github.com/lightdash/lightdash/commit/c99794e02cf0f63de8e78bbc5ef63a332642352c))
+
 # [0.1511.0](https://github.com/lightdash/lightdash/compare/0.1510.1...0.1511.0) (2025-02-21)
 
 
