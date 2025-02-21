@@ -86,8 +86,6 @@ const EmbedDashboardChartTile: FC<Props> = ({
         return structuredClone(frozenObject);
     }, [data, t]);
 
-    console.log('tiles', { translatedTile, data, translatedChartData });
-
     if (locked) {
         return (
             <Box h="100%">
