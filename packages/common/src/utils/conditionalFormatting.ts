@@ -207,33 +207,30 @@ export const hasMatchingConditionalRules = (
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.LESS_THAN:
-                    if (shouldCompareFieldToValue && isNumericItem(field)) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some(
                             (v) =>
+                                isNumericItem(field) &&
                                 typeof v === 'number' &&
                                 typeof convertedValue === 'number' &&
                                 convertedValue < v,
                         );
                     }
 
-                    if (
-                        shouldCompareFieldToTarget &&
-                        isNumericItem(field) &&
-                        isNumericItem(compareField)
-                    ) {
+                    if (shouldCompareFieldToTarget) {
                         return (
+                            isNumericItem(field) &&
+                            isNumericItem(compareField) &&
                             typeof convertedCompareValue === 'number' &&
                             typeof convertedValue === 'number' &&
                             convertedValue < convertedCompareValue
                         );
                     }
 
-                    if (
-                        shouldCompareTargetToValue &&
-                        isNumericItem(compareField)
-                    ) {
+                    if (shouldCompareTargetToValue) {
                         return rule.values.some(
                             (v) =>
+                                isNumericItem(compareField) &&
                                 typeof v === 'number' &&
                                 typeof convertedCompareValue === 'number' &&
                                 convertedCompareValue < v,
@@ -242,33 +239,30 @@ export const hasMatchingConditionalRules = (
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.GREATER_THAN:
-                    if (shouldCompareFieldToValue && isNumericItem(field)) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some(
                             (v) =>
+                                isNumericItem(field) &&
                                 typeof v === 'number' &&
                                 typeof convertedValue === 'number' &&
                                 convertedValue > v,
                         );
                     }
 
-                    if (
-                        shouldCompareFieldToTarget &&
-                        isNumericItem(field) &&
-                        isNumericItem(compareField)
-                    ) {
+                    if (shouldCompareFieldToTarget) {
                         return (
+                            isNumericItem(field) &&
+                            isNumericItem(compareField) &&
                             typeof convertedCompareValue === 'number' &&
                             typeof convertedValue === 'number' &&
                             convertedValue > convertedCompareValue
                         );
                     }
 
-                    if (
-                        shouldCompareTargetToValue &&
-                        isNumericItem(compareField)
-                    ) {
+                    if (shouldCompareTargetToValue) {
                         return rule.values.some(
                             (v) =>
+                                isNumericItem(compareField) &&
                                 typeof v === 'number' &&
                                 typeof convertedCompareValue === 'number' &&
                                 convertedCompareValue > v,
@@ -279,33 +273,30 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
-                    if (shouldCompareFieldToValue && isStringDimension(field)) {
+                    if (shouldCompareFieldToValue) {
                         return rule.values.some(
                             (v) =>
+                                isStringDimension(field) &&
                                 typeof v === 'string' &&
                                 typeof convertedValue === 'string' &&
                                 convertedValue.includes(v),
                         );
                     }
 
-                    if (
-                        shouldCompareFieldToTarget &&
-                        isStringDimension(field) &&
-                        isStringDimension(compareField)
-                    ) {
+                    if (shouldCompareFieldToTarget) {
                         return (
+                            isStringDimension(field) &&
+                            isStringDimension(compareField) &&
                             typeof convertedValue === 'string' &&
                             typeof convertedCompareValue === 'string' &&
                             convertedValue.includes(convertedCompareValue)
                         );
                     }
 
-                    if (
-                        shouldCompareTargetToValue &&
-                        isStringDimension(compareField)
-                    ) {
+                    if (shouldCompareTargetToValue) {
                         return rule.values.some(
                             (v) =>
+                                isStringDimension(compareField) &&
                                 typeof v === 'string' &&
                                 typeof convertedCompareValue === 'string' &&
                                 convertedCompareValue.includes(v),

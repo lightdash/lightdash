@@ -32,6 +32,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
+
+    if (!field) {
+        return null;
+    }
+
     const isTimestamp =
         (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
         DimensionType.TIMESTAMP;
