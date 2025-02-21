@@ -1,6 +1,7 @@
 import {
     formatItemValue,
     friendlyName,
+    getFormattedWithFallback,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -70,7 +71,7 @@ export const formatCellContent = (
                       {index < array.length - 1 && <br />}
                   </Fragment>
               ))
-            : value?.formatted ?? value?.raw;
+            : getFormattedWithFallback(value);
     }
 
     if (value?.formatted === null && item) {
@@ -78,7 +79,7 @@ export const formatCellContent = (
         // so we need to handle formatting in the frontend based on the raw value
         return formatItemValue(item, value?.raw);
     }
-    return value?.formatted ?? value?.raw;
+    return getFormattedWithFallback(value);
 };
 
 export const getFormattedValueCell = (
