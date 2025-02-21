@@ -745,6 +745,7 @@ export class EmbedService extends BaseService {
             ...addDashboardFiltersToMetricQuery(
                 chart.metricQuery,
                 appliedDashboardFilters,
+                explore,
             ),
         };
 

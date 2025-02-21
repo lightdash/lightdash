@@ -3,7 +3,7 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
-import { type Table } from '../types/explore';
+import { type Explore, type Table } from '../types/explore';
 import {
     DimensionType,
     MetricType,
@@ -740,23 +740,52 @@ export const addFiltersToMetricQuery = (
     },
 });
 
+/**
+ * This function is used to override the chart filter with the dashboard filter
+ * if the dashboard filter is a time or date dimension and the chart filter is a different granularity of the same dimension
+ * or if the dashboard filter is the same dimension as the chart filter
+ * Example:
+ * Chart has a filter order_date_month; User applies Dashboard filter order_date_year
+ * The chart filter will be overridden with the dashboard filter
+ * but the fieldsToChange property will be set to [order_date_month]
+ * so we know which metric filter to override
+ * Another example:
+ * Chart has a filter is_completed: true; User applies Dashboard filter is_completed: false
+ * The chart filter will be overridden with the dashboard filter (is_completed: false)
+ * @param item - The item to override
+ * @param filterRulesList - The list of filter rules to check against
+ * @returns The overridden item
+ */
 const findAndOverrideChartFilter = (
     item: FilterGroupItem,
     filterRulesList: FilterRule[],
 ): FilterGroupItem => {
     const identicalDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find((x) => x.target.fieldId === item.target.fieldId)
+        ? filterRulesList.find((dashboardFilter) => {
+              const dashboardTarget =
+                  dashboardFilter.target as DashboardFieldTarget;
+
+              return (
+                  dashboardTarget.fieldsToChange?.includes(
+                      item.target.fieldId,
+                  ) || dashboardTarget.fieldId === item.target.fieldId
+              );
+          })
         : undefined;
+
     return identicalDashboardFilter
         ? {
               ...item,
+              target: {
+                  fieldId: identicalDashboardFilter.target.fieldId,
+              },
               id: identicalDashboardFilter.id,
               values: identicalDashboardFilter.values,
-              ...(identicalDashboardFilter.settings
-                  ? {
-                        settings: identicalDashboardFilter.settings,
-                    }
-                  : {}),
+
+              ...(identicalDashboardFilter.settings && {
+                  settings: identicalDashboardFilter.settings,
+              }),
+
               operator: identicalDashboardFilter.operator,
           }
         : item;
@@ -827,6 +856,7 @@ const convertDashboardFilterRuleToFilterRule = (
 ): FilterRule => ({
     id: dashboardFilterRule.id,
     target: {
+        ...dashboardFilterRule.target,
         fieldId: dashboardFilterRule.target.fieldId,
     },
     operator: dashboardFilterRule.operator,
@@ -839,17 +869,109 @@ const convertDashboardFilterRuleToFilterRule = (
     }),
 });
 
+const getFieldIdWithoutTable = (fieldId: string, tableName: string) =>
+    fieldId.replace(`${tableName}_`, '');
+
+/**
+ * This function is used to track which timestamp/date metric filters to override
+ * It returns a new dashboard filter rule with the fieldsToChange property
+ * which is an array of field ids that should be changed to the base dimension
+ * For example:
+ * Chart has a filter order_date_month; User applies Dashboard filter order_date_year
+ * The chart filter will be overridden with the dashboard filter
+ * but the fieldsToChange property will be set to [order_date_month]
+ * so we know which metric filter to override
+ * @param metricQueryDimensionFilters - The dimension filters from the metric query
+ * @param dashboardFilterRule - The dashboard filter rule to override
+ * @param explore - The explore object
+ * @returns A new dashboard filter rule with the fieldsToChange property
+ */
+export const trackWhichTimeBasedMetricFiltersToOverride = (
+    metricQueryDimensionFilters: FilterGroup | undefined,
+    dashboardFilterRule: DashboardFilterRule,
+    explore?: Explore,
+): DashboardFilterRule => {
+    if (!explore) return dashboardFilterRule;
+
+    const baseDimension =
+        explore.tables[dashboardFilterRule.target.tableName]?.dimensions[
+            getFieldIdWithoutTable(
+                dashboardFilterRule.target.fieldId,
+                dashboardFilterRule.target.tableName,
+            )
+        ];
+
+    if (!baseDimension?.timeIntervalBaseDimensionName)
+        return dashboardFilterRule;
+
+    const traverseFilterGroup = (
+        filterGroup: FilterGroup | undefined,
+    ): string[] => {
+        if (!filterGroup) return [];
+
+        return getItemsFromFilterGroup(filterGroup).reduce<string[]>(
+            (acc, item) => {
+                if (isFilterGroup(item)) {
+                    return [...acc, ...traverseFilterGroup(item)];
+                }
+
+                if (isFilterRule(item)) {
+                    const itemFieldId = getFieldIdWithoutTable(
+                        item.target.fieldId,
+                        dashboardFilterRule.target.tableName,
+                    );
+                    const itemDimension =
+                        explore.tables[dashboardFilterRule.target.tableName]
+                            ?.dimensions[itemFieldId];
+
+                    const isTimeOrDateDimension =
+                        itemDimension?.timeIntervalBaseDimensionName ===
+                        baseDimension.timeIntervalBaseDimensionName;
+
+                    if (isTimeOrDateDimension) {
+                        return [...acc, item.target.fieldId];
+                    }
+                }
+
+                return acc;
+            },
+            [],
+        );
+    };
+
+    const fieldsToChange = traverseFilterGroup(metricQueryDimensionFilters);
+
+    return fieldsToChange.length > 0
+        ? {
+              ...dashboardFilterRule,
+              target: {
+                  ...dashboardFilterRule.target,
+                  baseTimeDimensionName:
+                      baseDimension.timeIntervalBaseDimensionName,
+                  fieldsToChange,
+              },
+          }
+        : dashboardFilterRule;
+};
+
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
+    explore?: Explore,
 ): MetricQuery => ({
     ...metricQuery,
     filters: {
         dimensions: overrideFilterGroupWithFilterRules(
             metricQuery.filters?.dimensions,
-            dashboardFilters.dimensions.map(
-                convertDashboardFilterRuleToFilterRule,
-            ),
+            dashboardFilters.dimensions
+                .map((filter) =>
+                    trackWhichTimeBasedMetricFiltersToOverride(
+                        metricQuery.filters?.dimensions,
+                        filter,
+                        explore,
+                    ),
+                )
+                .map(convertDashboardFilterRuleToFilterRule),
         ),
         metrics: overrideFilterGroupWithFilterRules(
             metricQuery.filters?.metrics,

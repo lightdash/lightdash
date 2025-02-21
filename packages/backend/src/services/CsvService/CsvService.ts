@@ -570,6 +570,7 @@ This method can be memory intensive
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
+                  explore,
               )
             : metricQuery;
 
@@ -898,6 +899,7 @@ This method can be memory intensive
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
+                  explore,
               )
             : metricQuery;
 

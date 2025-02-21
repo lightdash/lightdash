@@ -33,6 +33,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     FilterableDimension,
@@ -111,6 +112,7 @@ import {
     getMetrics,
     getTimezoneLabel,
     hasIntersection,
+    isAndFilterGroup,
     isCustomSqlDimension,
     isDateItem,
     isDimension,
@@ -118,6 +120,7 @@ import {
     isFilterRule,
     isFilterableDimension,
     isNotNull,
+    isOrFilterGroup,
     isUserWithOrg,
     maybeReplaceFieldsInChartVersion,
     replaceDimensionInExplore,
@@ -1614,6 +1617,7 @@ export class ProjectService extends BaseService {
             ...addDashboardFiltersToMetricQuery(
                 savedChart.metricQuery,
                 appliedDashboardFilters,
+                explore,
             ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0

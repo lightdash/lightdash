@@ -1,13 +1,13 @@
 import { cloneDeep } from 'lodash';
 import { ConditionalOperator } from './conditionalRule';
 import {
+    type AndFilterGroup,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
-    isFilterRuleDefinedForFieldId,
-    removeFieldFromFilterGroup,
-    type AndFilterGroup,
     type DashboardTileTarget,
     type FilterGroup,
+    isFilterRuleDefinedForFieldId,
+    removeFieldFromFilterGroup,
 } from './filter';
 
 describe('compress and uncompress dashboard filters', () => {
