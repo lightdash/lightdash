@@ -47,7 +47,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
     );
 
     const translatedChartData = useMemo(() => {
-        return produce(data, (draft) => {
+        const frozenObject = produce(data, (draft) => {
             if (!draft) return;
 
             // TODO: typeguard and add other chart types
@@ -82,6 +82,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 });
             }
         });
+
+        return structuredClone(frozenObject);
     }, [data, t]);
 
     console.log('tiles', { translatedTile, data, translatedChartData });
