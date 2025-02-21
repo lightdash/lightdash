@@ -573,6 +573,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         getConditionalFormattingDescription(
                                             item,
                                             conditionalFormattingConfig,
+                                            rowFields,
                                             getConditionalRuleLabel,
                                         );
 

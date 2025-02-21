@@ -386,6 +386,7 @@ export const getConditionalFormattingConfig = ({
 export const getConditionalFormattingDescription = (
     field: ItemsMap[string] | undefined,
     conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
+    rowFields: ConditionalFormattingRowFields,
     getConditionalRuleLabel: (
         rule: ConditionalFormattingWithConditionalOperator,
         item: FilterableItem,
@@ -418,8 +419,44 @@ export const getConditionalFormattingDescription = (
         )
     ) {
         return conditionalFormattingConfig.rules
-            .map((r) => getConditionalRuleLabel(r, field))
-            .map((l) => `${l.operator} ${l.value}`)
+            .map<
+                ConditionalRuleLabels & { isComparingTargetToValues?: boolean }
+            >((r) => {
+                const fieldLabel = getConditionalRuleLabel(r, field);
+                if (isConditionalFormattingWithCompareTarget(r)) {
+                    const compareRowField = r.compareTarget?.fieldId
+                        ? rowFields[r.compareTarget?.fieldId]
+                        : undefined;
+
+                    if (
+                        !compareRowField ||
+                        !isFilterableItem(compareRowField.field)
+                    ) {
+                        return fieldLabel;
+                    }
+
+                    // If there are no values, then the field is being compared to the compare target
+                    if (!isConditionalFormattingWithValues(r)) {
+                        return {
+                            ...fieldLabel,
+                            value: String(compareRowField.value),
+                        };
+                    }
+
+                    // If there are values, then the field is being compared to the values
+                    return {
+                        ...getConditionalRuleLabel(r, compareRowField.field),
+                        isComparingTargetToValues: true,
+                    };
+                }
+
+                return fieldLabel;
+            })
+            .map((l) =>
+                l.isComparingTargetToValues
+                    ? `${l.field} ${l.operator} ${l.value}`
+                    : `${l.operator} ${l.value}`,
+            )
             .join(' and ');
     }
 

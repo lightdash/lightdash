@@ -115,6 +115,7 @@ const TableRow: FC<TableRowProps> = ({
                 const tooltipContent = getConditionalFormattingDescription(
                     field,
                     conditionalFormattingConfig,
+                    rowFields,
                     getConditionalRuleLabel,
                 );
 
