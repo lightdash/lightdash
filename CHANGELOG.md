@@ -1,3 +1,10 @@
+# [0.1511.0](https://github.com/lightdash/lightdash/compare/0.1510.1...0.1511.0) (2025-02-21)
+
+
+### Features
+
+* conditional formatting against another field and with another field's values ([#13766](https://github.com/lightdash/lightdash/issues/13766)) ([9ba44b5](https://github.com/lightdash/lightdash/commit/9ba44b5a340284c0f9ca8a383ce522ed342a52fe))
+
 ## [0.1510.1](https://github.com/lightdash/lightdash/compare/0.1510.0...0.1510.1) (2025-02-21)
 
 
