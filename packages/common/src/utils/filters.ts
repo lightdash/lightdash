@@ -31,7 +31,6 @@ import {
     isFilterGroup,
     isFilterRule,
     isFilterRuleDefinedForFieldId,
-    isOrFilterGroup,
     type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -741,6 +740,22 @@ export const addFiltersToMetricQuery = (
     },
 });
 
+/**
+ * This function is used to override the chart filter with the dashboard filter
+ * if the dashboard filter is a time or date dimension and the chart filter is a different granularity of the same dimension
+ * or if the dashboard filter is the same dimension as the chart filter
+ * Example:
+ * Chart has a filter order_date_month; User applies Dashboard filter order_date_year
+ * The chart filter will be overridden with the dashboard filter
+ * but the fieldsToChange property will be set to [order_date_month]
+ * so we know which metric filter to override
+ * Another example:
+ * Chart has a filter is_completed: true; User applies Dashboard filter is_completed: false
+ * The chart filter will be overridden with the dashboard filter (is_completed: false)
+ * @param item - The item to override
+ * @param filterRulesList - The list of filter rules to check against
+ * @returns The overridden item
+ */
 const findAndOverrideChartFilter = (
     item: FilterGroupItem,
     filterRulesList: FilterRule[],
@@ -852,108 +867,89 @@ const convertDashboardFilterRuleToFilterRule = (
     }),
 });
 
-const trackWhichMetricFiltersToOverride = (
+const getFieldIdWithoutTable = (fieldId: string, tableName: string) =>
+    fieldId.replace(`${tableName}_`, '');
+
+/**
+ * This function is used to track which timestamp/date metric filters to override
+ * It returns a new dashboard filter rule with the fieldsToChange property
+ * which is an array of field ids that should be changed to the base dimension
+ * For example:
+ * Chart has a filter order_date_month; User applies Dashboard filter order_date_year
+ * The chart filter will be overridden with the dashboard filter
+ * but the fieldsToChange property will be set to [order_date_month]
+ * so we know which metric filter to override
+ * @param metricQueryDimensionFilters - The dimension filters from the metric query
+ * @param dashboardFilterRule - The dashboard filter rule to override
+ * @param explore - The explore object
+ * @returns A new dashboard filter rule with the fieldsToChange property
+ */
+export const trackWhichTimeBasedMetricFiltersToOverride = (
     metricQueryDimensionFilters: FilterGroup | undefined,
     dashboardFilterRule: DashboardFilterRule,
     explore?: Explore,
 ): DashboardFilterRule => {
-    if (!explore) {
-        return dashboardFilterRule;
-    }
-    const dimensionFiltersFromChart = metricQueryDimensionFilters;
+    if (!explore) return dashboardFilterRule;
 
     const baseDimension =
-        explore.tables[dashboardFilterRule.target.tableName].dimensions[
-            dashboardFilterRule.target.fieldId.replace(
-                `${dashboardFilterRule.target.tableName}_`,
-                '',
+        explore.tables[dashboardFilterRule.target.tableName]?.dimensions[
+            getFieldIdWithoutTable(
+                dashboardFilterRule.target.fieldId,
+                dashboardFilterRule.target.tableName,
             )
         ];
-    if (baseDimension.timeIntervalBaseDimensionName) {
-        const fieldsToChange: string[] = [];
 
-        const calculateFieldsToChange = (
-            filterGroup: FilterGroup | undefined,
-        ) => {
-            if (!filterGroup) {
-                return;
-            }
+    if (!baseDimension?.timeIntervalBaseDimensionName)
+        return dashboardFilterRule;
 
-            if (isAndFilterGroup(filterGroup)) {
-                filterGroup.and.forEach((item) => {
-                    if (isFilterRule(item)) {
-                        const baseDimensionOfFilterRule =
-                            item.target.fieldId.replace(
-                                `${dashboardFilterRule.target.tableName}_`,
-                                '',
-                            ) in
-                            explore.tables[dashboardFilterRule.target.tableName]
-                                .dimensions
-                                ? explore.tables[
-                                      dashboardFilterRule.target.tableName
-                                  ].dimensions[
-                                      item.target.fieldId.replace(
-                                          `${dashboardFilterRule.target.tableName}_`,
-                                          '',
-                                      )
-                                  ]
-                                : undefined;
+    const traverseFilterGroup = (
+        filterGroup: FilterGroup | undefined,
+    ): string[] => {
+        if (!filterGroup) return [];
 
-                        if (
-                            baseDimensionOfFilterRule &&
-                            baseDimension.timeIntervalBaseDimensionName ===
-                                baseDimensionOfFilterRule.timeIntervalBaseDimensionName
-                        ) {
-                            fieldsToChange.push(item.target.fieldId);
-                        }
+        return getItemsFromFilterGroup(filterGroup).reduce<string[]>(
+            (acc, item) => {
+                if (isFilterGroup(item)) {
+                    return [...acc, ...traverseFilterGroup(item)];
+                }
+
+                if (isFilterRule(item)) {
+                    const itemFieldId = getFieldIdWithoutTable(
+                        item.target.fieldId,
+                        dashboardFilterRule.target.tableName,
+                    );
+                    const itemDimension =
+                        explore.tables[dashboardFilterRule.target.tableName]
+                            ?.dimensions[itemFieldId];
+
+                    const isTimeOrDateDimension =
+                        itemDimension?.timeIntervalBaseDimensionName ===
+                        baseDimension.timeIntervalBaseDimensionName;
+
+                    if (isTimeOrDateDimension) {
+                        return [...acc, item.target.fieldId];
                     }
-                });
-            }
-            if (isOrFilterGroup(filterGroup)) {
-                filterGroup.or.forEach((item) => {
-                    if (isFilterRule(item)) {
-                        const baseDimensionOfFilterRule =
-                            item.target.fieldId.replace(
-                                `${dashboardFilterRule.target.tableName}_`,
-                                '',
-                            ) in
-                            explore.tables[dashboardFilterRule.target.tableName]
-                                .dimensions
-                                ? explore.tables[
-                                      dashboardFilterRule.target.tableName
-                                  ].dimensions[
-                                      item.target.fieldId.replace(
-                                          `${dashboardFilterRule.target.tableName}_`,
-                                          '',
-                                      )
-                                  ]
-                                : undefined;
+                }
 
-                        if (
-                            baseDimensionOfFilterRule &&
-                            baseDimension.timeIntervalBaseDimensionName ===
-                                baseDimensionOfFilterRule.timeIntervalBaseDimensionName
-                        ) {
-                            fieldsToChange.push(item.target.fieldId);
-                        }
-                    }
-                });
-            }
-        };
-
-        calculateFieldsToChange(dimensionFiltersFromChart);
-
-        return {
-            ...dashboardFilterRule,
-            target: {
-                ...dashboardFilterRule.target,
-                baseTimeDimensionName:
-                    baseDimension.timeIntervalBaseDimensionName,
-                fieldsToChange,
+                return acc;
             },
-        };
-    }
-    return dashboardFilterRule;
+            [],
+        );
+    };
+
+    const fieldsToChange = traverseFilterGroup(metricQueryDimensionFilters);
+
+    return fieldsToChange.length > 0
+        ? {
+              ...dashboardFilterRule,
+              target: {
+                  ...dashboardFilterRule.target,
+                  baseTimeDimensionName:
+                      baseDimension.timeIntervalBaseDimensionName,
+                  fieldsToChange,
+              },
+          }
+        : dashboardFilterRule;
 };
 
 export const addDashboardFiltersToMetricQuery = (
@@ -967,7 +963,7 @@ export const addDashboardFiltersToMetricQuery = (
             metricQuery.filters?.dimensions,
             dashboardFilters.dimensions
                 .map((filter) =>
-                    trackWhichMetricFiltersToOverride(
+                    trackWhichTimeBasedMetricFiltersToOverride(
                         metricQuery.filters?.dimensions,
                         filter,
                         explore,
