@@ -4,6 +4,7 @@ import uniq from 'lodash/uniq';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../MantineIcon';
 import MultiValuePastePopover from './MultiValuePastePopover';
+import { formatDisplayValue } from './utils';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     values: string[];
@@ -71,7 +72,7 @@ const FilterMultiStringInput: FC<Props> = ({
         // also we are merging status indicator as a first item
         return uniq([...results, ...values]).map((value) => ({
             value,
-            label: value,
+            label: formatDisplayValue(value),
         }));
     }, [results, values]);
 
