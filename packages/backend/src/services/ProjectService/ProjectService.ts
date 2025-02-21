@@ -121,7 +121,6 @@ import {
     isUserWithOrg,
     maybeReplaceFieldsInChartVersion,
     replaceDimensionInExplore,
-    rowsWithoutFormatting,
     snakeCaseName,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
@@ -1803,6 +1802,15 @@ export class ProjectService extends BaseService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
+                if (skipFormatting) {
+                    return {
+                        rows,
+                        metricQuery,
+                        cacheMetadata,
+                        skipFormatting,
+                        fields,
+                    };
+                }
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapSentryTransaction<ResultRow[]>(
                     'ProjectService.runQueryAndFormatRows.formatRows',
@@ -1811,9 +1819,6 @@ export class ProjectService extends BaseService {
                         warehouse: warehouseConnection?.type,
                     },
                     async (formatRowsSpan) => {
-                        if (skipFormatting) {
-                            return rowsWithoutFormatting(rows);
-                        }
                         const useWorker = rows.length > 500;
                         return measureTime(
                             async () => {

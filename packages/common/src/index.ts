@@ -447,7 +447,8 @@ export type CacheMetadata = {
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
-    rows: ResultRow[];
+    rows: ResultRow[] | Record<string, AnyType>[];
+    skipFormatting?: boolean;
     fields: ItemsMap;
 };
 
@@ -1174,24 +1175,6 @@ export function formatRows(
             };
         }
 
-        return resultRow;
-    });
-}
-
-export function rowsWithoutFormatting(rows: { [col: string]: AnyType }[]) {
-    return rows.map((row) => {
-        const resultRow: ResultRow = {};
-        const columnNames = Object.keys(row || {});
-
-        for (const columnName of columnNames) {
-            const value = row[columnName];
-            resultRow[columnName] = {
-                value: {
-                    raw: value,
-                    formatted: null,
-                },
-            };
-        }
         return resultRow;
     });
 }

@@ -1,6 +1,6 @@
 export type ResultValue = {
     raw: unknown;
-    formatted: string | null; // null if the value is not formatted
+    formatted: string;
 };
 
 export type ResultRow = Record<string, { value: ResultValue }>;
