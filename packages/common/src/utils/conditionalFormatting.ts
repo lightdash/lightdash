@@ -151,15 +151,18 @@ export const hasMatchingConditionalRules = (
                 );
             }
 
+            // Compares field value to values when there is no compare target OR compare target value is null
             const shouldCompareFieldToValue =
                 isConditionalFormattingWithValues(rule) &&
                 (!isConditionalFormattingWithCompareTarget(rule) ||
                     convertedCompareValue === null);
 
+            // Compares field value to compare target when there is a compare target and there are no values
             const shouldCompareFieldToTarget =
                 isConditionalFormattingWithCompareTarget(rule) &&
                 !isConditionalFormattingWithValues(rule);
 
+            // Compares compare target value to values when there is a compare target and there are values
             const shouldCompareTargetToValue =
                 isConditionalFormattingWithCompareTarget(rule) &&
                 isConditionalFormattingWithValues(rule);
