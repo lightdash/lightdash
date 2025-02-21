@@ -245,6 +245,10 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
+    static validateSelector(selector: string): boolean {
+        return validateDbtSelector(selector);
+    }
+
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         return Sentry.startSpan(
             {
@@ -259,7 +263,7 @@ export class DbtCliClient implements DbtClient {
                 const selector = this.selector?.trim();
 
                 if (selector) {
-                    if (!validateDbtSelector(selector)) {
+                    if (!DbtCliClient.validateSelector(selector)) {
                         throw new ParseError('Invalid dbt selector format');
                     }
                     dbtCommand.push('compile', '--select', `${selector}`);
