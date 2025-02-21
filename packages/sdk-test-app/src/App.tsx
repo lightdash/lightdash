@@ -30,8 +30,12 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
                     onChange={(e) => onDraftUrlChange(e.target.value)}
                     style={{ flexGrow: 1 }}
                 />
-                <button onClick={onSubmit}>Set Embed URL</button>
-                <button onClick={onClear}>Clear</button>
+                <button onClick={onSubmit}>
+                    {t('app.setUrlButton', 'Set Embed URL')}
+                </button>
+                <button onClick={onClear}>
+                    {t('app.clearButton', 'Clear')}
+                </button>
             </div>
         </div>
     );
@@ -40,15 +44,13 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
 function App() {
     const { t, i18n } = useTranslation();
 
-    const storedEmbedUrl = localStorage.getItem('embedUrl');
-
     const [lightdashUrl, setLightdashUrl] = useState<string | null>(null);
     const [lightdashToken, setLightdashToken] = useState<string | null>(null);
     const [embedUrl, setEmbedUrl] = useState<string>(
-        storedEmbedUrl || EMBED_URL,
+        localStorage.getItem('embedUrl') || EMBED_URL,
     );
     const [draftUrl, setDraftUrl] = useState<string>(
-        storedEmbedUrl || EMBED_URL,
+        localStorage.getItem('embedUrl') || EMBED_URL,
     );
     const containerStyle = {
         fontFamily: 'Arial, Helvetica, sans-serif',
@@ -94,7 +96,6 @@ function App() {
         borderLeft: '4px solid #2196F3', // blue accent border
         padding: '15px',
         margin: '20px auto',
-        maxWidth: '800px',
         color: '#0b75c9', // bluish text
         borderRadius: '4px',
     };
@@ -106,101 +107,61 @@ function App() {
         setLightdashToken(lightdashToken);
     }, [embedUrl]);
 
-    if (!lightdashUrl || !lightdashToken) {
-        return (
-            <div style={containerStyle}>
-                <div style={contentStyle}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <h3>Invalid embed URL</h3>
-                        <p>Enter a Lightdash embed URL</p>
-
-                        <EmbedUrlInput
-                            draftUrl={draftUrl}
-                            onDraftUrlChange={setDraftUrl}
-                            onSubmit={() => {
-                                setEmbedUrl(draftUrl);
-                                localStorage.setItem('embedUrl', draftUrl);
-                            }}
-                            onClear={() => {
-                                setDraftUrl('');
-                                setEmbedUrl('');
-                                localStorage.removeItem('embedUrl');
-                            }}
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div style={containerStyle}>
-            <div
-                style={{
-                    justifyContent: 'flex-end',
-                    display: 'flex',
-                    gap: '8px',
-                }}
-            >
-                <button onClick={() => i18n.changeLanguage('en')}>🇬🇧</button>
-                <button onClick={() => i18n.changeLanguage('ka')}>🇬🇪</button>
-                <button onClick={() => i18n.changeLanguage('es')}>🇪🇸</button>
-            </div>
-
-            {!lightdashUrl && !lightdashToken ? (
+            <div style={contentStyle}>
                 <header>
                     <h1 style={{ color: '#333', margin: '0 0 10px' }}>
                         Lightdash SDK
                     </h1>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <h3>{t('Invalid embed URL')}</h3>
-                        <p>{t('Enter a Lightdash embed URL')}</p>
-                        <EmbedUrlInput
-                            draftUrl={draftUrl}
-                            onDraftUrlChange={setDraftUrl}
-                            onSubmit={() => {
-                                setEmbedUrl(draftUrl);
-                                localStorage.setItem('embedUrl', draftUrl);
-                            }}
-                            onClear={() => {
-                                setDraftUrl('');
-                                setEmbedUrl('');
-                                localStorage.removeItem('embedUrl');
-                            }}
-                        />
+
+                    <div
+                        style={{
+                            justifyContent: 'flex-end',
+                            display: 'flex',
+                            gap: '8px',
+                        }}
+                    >
+                        <button onClick={() => i18n.changeLanguage('en')}>
+                            🇬🇧
+                        </button>
+                        <button onClick={() => i18n.changeLanguage('ka')}>
+                            🇬🇪
+                        </button>
+                        <button onClick={() => i18n.changeLanguage('es')}>
+                            🇪🇸
+                        </button>
                     </div>
                 </header>
-            ) : (
-                <>
-                    <header>
-                        <h1 style={{ color: '#333', margin: '0 0 10px' }}>
-                            {t('Lightdash SDK')}
-                        </h1>
-                        <h4>Embed URL:</h4>
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                            }}
-                        >
-                            <EmbedUrlInput
-                                draftUrl={draftUrl}
-                                onDraftUrlChange={setDraftUrl}
-                                onSubmit={() => {
-                                    setEmbedUrl(draftUrl);
-                                }}
-                                onClear={() => {
-                                    setDraftUrl('');
-                                    setEmbedUrl('');
-                                }}
-                            />
-                        </div>
-                        <h4>Current lightdash URL:</h4>
-                        <p style={inputDisplayStyle}>{lightdashUrl}</p>
-                        <h4>Current lightdash token:</h4>
-                        <p style={inputDisplayStyle}>{lightdashToken}</p>
-                    </header>
 
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <p>{t('Enter a Lightdash embed URL')}</p>
+
+                    <EmbedUrlInput
+                        draftUrl={draftUrl}
+                        onDraftUrlChange={setDraftUrl}
+                        onSubmit={() => {
+                            setEmbedUrl(draftUrl);
+                            localStorage.setItem('embedUrl', draftUrl);
+                        }}
+                        onClear={() => {
+                            setDraftUrl('');
+                            setEmbedUrl('');
+                            localStorage.removeItem('embedUrl');
+                        }}
+                    />
+
+                    {lightdashUrl && lightdashToken ? (
+                        <>
+                            <h4>Current lightdash URL:</h4>
+                            <p style={inputDisplayStyle}>{lightdashUrl}</p>
+                            <h4>Current lightdash token:</h4>
+                            <p style={inputDisplayStyle}>{lightdashToken}</p>
+                        </>
+                    ) : null}
+                </div>
+
+                {lightdashUrl && lightdashToken ? (
                     <main>
                         <h2
                             style={{
@@ -241,36 +202,23 @@ function App() {
 
                         {/* Info box with bluish text */}
                         <div style={infoBoxStyle}>
-                            <p>
-                                {t(
-                                    'Additional Information: This chart is powered by Lightdash SDK.',
-                                )}
-                            </p>
+                            {t(
+                                'Additional Information: This chart is powered by Lightdash SDK.',
+                            )}
                         </div>
-                        {/* TODO: decide how to handle http vs https so we can use the iframe */}
-                        {/* <h2 style={{ color: '#555', margin: '0 0 20px' }}>
-                                    {t('Embedded dashboard')}
-                                </h2>
-                                <iframe
-                                    src={embedUrl}
-                                    width="100%"
-                                    height="400px"
-                                /> */}
                     </main>
+                ) : null}
 
-                    <footer>
-                        <p
-                            style={{
-                                fontSize: '0.9em',
-                                color: '#999',
-                                margin: '20px 0 0',
-                            }}
-                        >
-                            &copy; 2025 Lightdash
-                        </p>
-                    </footer>
-                </>
-            )}
+                <footer
+                    style={{
+                        fontSize: '0.9em',
+                        color: '#999',
+                        margin: '20px 0 0',
+                    }}
+                >
+                    &copy; 2025 Lightdash
+                </footer>
+            </div>
         </div>
     );
 }
