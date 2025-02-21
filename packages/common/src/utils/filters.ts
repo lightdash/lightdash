@@ -745,18 +745,30 @@ const findAndOverrideChartFilter = (
     filterRulesList: FilterRule[],
 ): FilterGroupItem => {
     const identicalDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find((x) => x.target.fieldId === item.target.fieldId)
+        ? filterRulesList.find((dashboardFilter) => {
+              const dashboardTarget =
+                  dashboardFilter.target as DashboardFieldTarget;
+              return (
+                  // @ts-expect-error
+                  dashboardTarget.fieldsToChange?.includes(item.target.fieldId)
+              );
+          })
         : undefined;
+
+    // @ts-expect-error
+    console.log({ identicalDashboardFilter, item: item.target.fieldId });
+
     return identicalDashboardFilter
         ? {
               ...item,
+              target: {
+                  fieldId: identicalDashboardFilter.target.fieldId,
+              },
               id: identicalDashboardFilter.id,
               values: identicalDashboardFilter.values,
-              ...(identicalDashboardFilter.settings
-                  ? {
-                        settings: identicalDashboardFilter.settings,
-                    }
-                  : {}),
+
+              settings: identicalDashboardFilter.settings ?? {},
+
               operator: identicalDashboardFilter.operator,
           }
         : item;
@@ -827,6 +839,7 @@ const convertDashboardFilterRuleToFilterRule = (
 ): FilterRule => ({
     id: dashboardFilterRule.id,
     target: {
+        ...dashboardFilterRule.target,
         fieldId: dashboardFilterRule.target.fieldId,
     },
     operator: dashboardFilterRule.operator,

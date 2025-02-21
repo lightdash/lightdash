@@ -33,6 +33,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     FilterableDimension,
@@ -111,6 +112,7 @@ import {
     getMetrics,
     getTimezoneLabel,
     hasIntersection,
+    isAndFilterGroup,
     isCustomSqlDimension,
     isDateItem,
     isDimension,
@@ -118,6 +120,7 @@ import {
     isFilterRule,
     isFilterableDimension,
     isNotNull,
+    isOrFilterGroup,
     isUserWithOrg,
     maybeReplaceFieldsInChartVersion,
     replaceDimensionInExplore,
@@ -1587,6 +1590,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // TODO: get explore dimension base dimension for time dimensions
+        // Check agains the same
+        // Figure out how to override.
+        // Figure out if all should be replaced! There is a consideration for partial overrides. - chat to Katie about this.
+
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
             user.userUuid,
@@ -1597,7 +1605,106 @@ export class ProjectService extends BaseService {
             dimensions: getDashboardFilterRulesForTables(
                 tables,
                 dashboardFilters.dimensions,
-            ),
+            ).map((filter) => {
+                const dimensionFiltersFromChart =
+                    savedChart.metricQuery.filters?.dimensions;
+
+                const baseDimension =
+                    explore.tables[filter.target.tableName].dimensions[
+                        filter.target.fieldId.replace(
+                            `${filter.target.tableName}_`,
+                            '',
+                        )
+                    ];
+                if (baseDimension.timeIntervalBaseDimensionName) {
+                    const fieldsToChange: string[] = [];
+
+                    const calculateFieldsToChange = (
+                        filterGroup: FilterGroup | undefined,
+                    ) => {
+                        if (!filterGroup) {
+                            return;
+                        }
+                        if (isAndFilterGroup(filterGroup)) {
+                            filterGroup.and.forEach((item) => {
+                                if (isFilterRule(item)) {
+                                    const baseDimensionOfFilterRule =
+                                        item.target.fieldId.replace(
+                                            `${filter.target.tableName}_`,
+                                            '',
+                                        ) in
+                                        explore.tables[filter.target.tableName]
+                                            .dimensions
+                                            ? explore.tables[
+                                                  filter.target.tableName
+                                              ].dimensions[
+                                                  item.target.fieldId.replace(
+                                                      `${filter.target.tableName}_`,
+                                                      '',
+                                                  )
+                                              ]
+                                            : undefined;
+
+                                    if (
+                                        baseDimensionOfFilterRule &&
+                                        baseDimension.timeIntervalBaseDimensionName ===
+                                            baseDimensionOfFilterRule.timeIntervalBaseDimensionName
+                                    ) {
+                                        fieldsToChange.push(
+                                            item.target.fieldId,
+                                        );
+                                    }
+                                }
+                            });
+                        }
+                        if (isOrFilterGroup(filterGroup)) {
+                            filterGroup.or.forEach((item) => {
+                                if (isFilterRule(item)) {
+                                    const baseDimensionOfFilterRule =
+                                        item.target.fieldId.replace(
+                                            `${filter.target.tableName}_`,
+                                            '',
+                                        ) in
+                                        explore.tables[filter.target.tableName]
+                                            .dimensions
+                                            ? explore.tables[
+                                                  filter.target.tableName
+                                              ].dimensions[
+                                                  item.target.fieldId.replace(
+                                                      `${filter.target.tableName}_`,
+                                                      '',
+                                                  )
+                                              ]
+                                            : undefined;
+
+                                    if (
+                                        baseDimensionOfFilterRule &&
+                                        baseDimension.timeIntervalBaseDimensionName ===
+                                            baseDimensionOfFilterRule.timeIntervalBaseDimensionName
+                                    ) {
+                                        fieldsToChange.push(
+                                            item.target.fieldId,
+                                        );
+                                    }
+                                }
+                            });
+                        }
+                    };
+
+                    calculateFieldsToChange(dimensionFiltersFromChart);
+
+                    return {
+                        ...filter,
+                        target: {
+                            ...filter.target,
+                            baseTimeDimensionName:
+                                baseDimension.timeIntervalBaseDimensionName,
+                            fieldsToChange,
+                        },
+                    };
+                }
+                return null;
+            }),
             metrics: getDashboardFilterRulesForTables(
                 tables,
                 dashboardFilters.metrics,
@@ -1607,6 +1714,15 @@ export class ProjectService extends BaseService {
                 dashboardFilters.tableCalculations,
             ),
         };
+
+        console.log('appliedDashboardFilters', {
+            appliedDashboardFilters: JSON.stringify(
+                appliedDashboardFilters,
+                null,
+                2,
+            ),
+            savedChart: JSON.stringify(savedChart, null, 2),
+        });
 
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
