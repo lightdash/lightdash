@@ -116,11 +116,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
     const onDragEnd = useCallback(
         (result: DropResult) => {
-            console.log(
-                'onDragEnd %s -> %s',
-                result.source.index,
-                result.destination?.index,
-            );
             const allSerieIds = series.map(getSeriesId);
             const serie = series.find(
                 (s) => getSeriesId(s) === result.draggableId,
