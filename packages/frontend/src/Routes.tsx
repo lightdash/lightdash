@@ -19,6 +19,7 @@ import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
+import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
 import MinimalDashboard from './pages/MinimalDashboard';
@@ -214,6 +215,11 @@ const DASHBOARD_ROUTES: RouteObject[] = [
 ];
 
 const SQL_RUNNER_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/sqlRunner',
+        // Support old share links. Redirects to new route.
+        element: <LegacySqlRunner />,
+    },
     {
         path: '/projects/:projectUuid/sql-runner',
         element: (
