@@ -27,7 +27,9 @@ import { convertSdkFilterToDashboardFilter } from '../utils';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const EmbedDashboard: FC = () => {
+const EmbedDashboard: FC<{
+    containerStyles?: React.CSSProperties;
+}> = ({ containerStyles }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
@@ -164,7 +166,7 @@ const EmbedDashboard: FC = () => {
         ),
     };
     return (
-        <div style={{ height: '100vh', overflowY: 'auto' }}>
+        <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
             <EmbedDashboardHeader
                 dashboard={dashboard}
                 projectUuid={projectUuid}

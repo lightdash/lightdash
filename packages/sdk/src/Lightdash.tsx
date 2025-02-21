@@ -145,17 +145,15 @@ const Dashboard: FC<Props> = ({
                 projectUuid={projectUuid}
                 filters={filters}
             >
-                <div
-                    style={{
+                <EmbedDashboard
+                    containerStyles={{
                         width: '100%',
                         height: '100%',
                         position: 'relative',
-                        // overflow: 'auto',
+                        overflow: 'auto',
                         backgroundColor: styles?.backgroundColor,
                     }}
-                >
-                    <EmbedDashboard />
-                </div>
+                />
             </EmbedProvider>
         </SdkProviders>
     );
