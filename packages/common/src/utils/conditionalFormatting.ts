@@ -132,22 +132,25 @@ export const hasMatchingConditionalRules = (
     if (isConditionalFormattingConfigWithSingleColor(config)) {
         return config.rules.every((rule) => {
             let convertedCompareValue: number | unknown | undefined;
+            let compareField: ItemsMap[string] | undefined;
 
             if (
                 isConditionalFormattingWithCompareTarget(rule) &&
                 rule.compareTarget?.fieldId &&
                 rowFields
             ) {
-                const compareField = rowFields[rule.compareTarget.fieldId];
+                const rowField = rowFields[rule.compareTarget.fieldId];
 
-                if (!compareField) return false;
+                if (!rowField) return false;
 
-                const parsedCompareValue = isNumericItem(compareField.field)
-                    ? Number(compareField.value)
-                    : compareField.value;
+                compareField = rowField.field;
+
+                const parsedCompareValue = isNumericItem(compareField)
+                    ? Number(rowField.value)
+                    : rowField.value;
                 convertedCompareValue = convertFormattedValue(
                     parsedCompareValue,
-                    compareField.field,
+                    compareField,
                 );
             }
 
@@ -204,94 +207,109 @@ export const hasMatchingConditionalRules = (
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.LESS_THAN:
+                    if (shouldCompareFieldToValue && isNumericItem(field)) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'number' &&
+                                typeof convertedValue === 'number' &&
+                                convertedValue < v,
+                        );
+                    }
+
                     if (
+                        shouldCompareFieldToTarget &&
                         isNumericItem(field) &&
-                        typeof convertedValue === 'number'
+                        isNumericItem(compareField)
                     ) {
-                        if (shouldCompareFieldToValue) {
-                            return rule.values.some(
-                                (v) =>
-                                    typeof v === 'number' && convertedValue < v,
-                            );
-                        }
+                        return (
+                            typeof convertedCompareValue === 'number' &&
+                            typeof convertedValue === 'number' &&
+                            convertedValue < convertedCompareValue
+                        );
+                    }
 
-                        if (shouldCompareFieldToTarget) {
-                            return (
+                    if (
+                        shouldCompareTargetToValue &&
+                        isNumericItem(compareField)
+                    ) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'number' &&
                                 typeof convertedCompareValue === 'number' &&
-                                convertedValue < convertedCompareValue
-                            );
-                        }
-
-                        if (shouldCompareTargetToValue) {
-                            return rule.values.some(
-                                (v) =>
-                                    typeof v === 'number' &&
-                                    typeof convertedCompareValue === 'number' &&
-                                    convertedCompareValue < v,
-                            );
-                        }
+                                convertedCompareValue < v,
+                        );
                     }
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.GREATER_THAN:
+                    if (shouldCompareFieldToValue && isNumericItem(field)) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'number' &&
+                                typeof convertedValue === 'number' &&
+                                convertedValue > v,
+                        );
+                    }
+
                     if (
+                        shouldCompareFieldToTarget &&
                         isNumericItem(field) &&
-                        typeof convertedValue === 'number'
+                        isNumericItem(compareField)
                     ) {
-                        if (shouldCompareFieldToValue) {
-                            return rule.values.some(
-                                (v) =>
-                                    typeof v === 'number' && convertedValue > v,
-                            );
-                        }
+                        return (
+                            typeof convertedCompareValue === 'number' &&
+                            typeof convertedValue === 'number' &&
+                            convertedValue > convertedCompareValue
+                        );
+                    }
 
-                        if (shouldCompareFieldToTarget) {
-                            return (
+                    if (
+                        shouldCompareTargetToValue &&
+                        isNumericItem(compareField)
+                    ) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'number' &&
                                 typeof convertedCompareValue === 'number' &&
-                                convertedValue > convertedCompareValue
-                            );
-                        }
-
-                        if (shouldCompareTargetToValue) {
-                            return rule.values.some(
-                                (v) =>
-                                    typeof v === 'number' &&
-                                    typeof convertedCompareValue === 'number' &&
-                                    convertedCompareValue > v,
-                            );
-                        }
+                                convertedCompareValue > v,
+                        );
                     }
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
-                    if (isStringDimension(field)) {
-                        if (shouldCompareFieldToValue) {
-                            return rule.values.some(
-                                (v) =>
-                                    typeof v === 'string' &&
-                                    typeof convertedValue === 'string' &&
-                                    convertedValue.includes(v),
-                            );
-                        }
-
-                        if (shouldCompareFieldToTarget) {
-                            return (
+                    if (shouldCompareFieldToValue && isStringDimension(field)) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'string' &&
                                 typeof convertedValue === 'string' &&
-                                typeof convertedCompareValue === 'string' &&
-                                convertedValue.includes(convertedCompareValue)
-                            );
-                        }
+                                convertedValue.includes(v),
+                        );
+                    }
 
-                        if (shouldCompareTargetToValue) {
-                            return rule.values.some(
-                                (v) =>
-                                    typeof v === 'string' &&
-                                    typeof convertedCompareValue === 'string' &&
-                                    convertedCompareValue.includes(v),
-                            );
-                        }
+                    if (
+                        shouldCompareFieldToTarget &&
+                        isStringDimension(field) &&
+                        isStringDimension(compareField)
+                    ) {
+                        return (
+                            typeof convertedValue === 'string' &&
+                            typeof convertedCompareValue === 'string' &&
+                            convertedValue.includes(convertedCompareValue)
+                        );
+                    }
+
+                    if (
+                        shouldCompareTargetToValue &&
+                        isStringDimension(compareField)
+                    ) {
+                        return rule.values.some(
+                            (v) =>
+                                typeof v === 'string' &&
+                                typeof convertedCompareValue === 'string' &&
+                                convertedCompareValue.includes(v),
+                        );
                     }
 
                     throw new Error('Not implemented');

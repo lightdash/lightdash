@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Checkbox,
     Collapse,
     Group,
     Select,
@@ -207,6 +208,23 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         [onChangeRule, compareField, field],
     );
 
+    const handleChangeComparisonType = useCallback(
+        (type: CompareTargetComparisonType) => {
+            return (event: React.ChangeEvent<HTMLInputElement>) => {
+                if (event.target.checked) {
+                    onChangeRuleComparisonType(
+                        Array.from(new Set([...comparisonSwitchValues, type])),
+                    );
+                } else {
+                    onChangeRuleComparisonType(
+                        comparisonSwitchValues.filter((t) => t !== type),
+                    );
+                }
+            };
+        },
+        [onChangeRuleComparisonType, comparisonSwitchValues],
+    );
+
     return (
         <Stack spacing="xs" ref={ref}>
             <Group noWrap position="apart">
@@ -238,26 +256,32 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
             <Collapse in={isOpen}>
                 <Stack spacing="xs">
-                    <Switch.Group
-                        value={comparisonSwitchValues}
-                        onChange={onChangeRuleComparisonType}
-                        size="xs"
-                    >
+                    <Group>
                         <Stack spacing="xs">
                             <Switch
                                 label="Compare with another field"
-                                value={CompareTargetComparisonType.Field}
                                 disabled={!field}
                                 labelPosition="right"
+                                checked={comparisonSwitchValues.includes(
+                                    CompareTargetComparisonType.Field,
+                                )}
+                                onChange={handleChangeComparisonType(
+                                    CompareTargetComparisonType.Field,
+                                )}
                             />
-                            <Switch
+                            <Checkbox
                                 label="Use field's values"
-                                value={CompareTargetComparisonType.Values}
                                 disabled={!field}
                                 labelPosition="right"
+                                onChange={handleChangeComparisonType(
+                                    CompareTargetComparisonType.Values,
+                                )}
+                                checked={comparisonSwitchValues.includes(
+                                    CompareTargetComparisonType.Values,
+                                )}
                             />
                         </Stack>
-                    </Switch.Group>
+                    </Group>
                     {isConditionalFormattingWithCompareTarget(rule) &&
                         isConditionalFormattingWithValues(rule) && (
                             <FieldSelect

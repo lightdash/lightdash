@@ -37,8 +37,7 @@ export const isConditionalFormattingWithValues = (
 
 export const isConditionalFormattingWithCompareTarget = (
     rule: ConditionalFormattingWithConditionalOperator,
-): rule is ConditionalFormattingWithCompareTarget =>
-    'compareTarget' in rule && Boolean(rule.compareTarget);
+): rule is ConditionalFormattingWithCompareTarget => 'compareTarget' in rule;
 
 export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
