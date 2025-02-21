@@ -1590,11 +1590,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // TODO: get explore dimension base dimension for time dimensions
-        // Check agains the same
-        // Figure out how to override.
-        // Figure out if all should be replaced! There is a consideration for partial overrides. - chat to Katie about this.
-
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
             user.userUuid,
