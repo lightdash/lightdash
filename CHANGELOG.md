@@ -1,3 +1,10 @@
+## [0.1510.1](https://github.com/lightdash/lightdash/compare/0.1510.0...0.1510.1) (2025-02-21)
+
+
+### Bug Fixes
+
+* fix formatted undefined and log query results ([#13784](https://github.com/lightdash/lightdash/issues/13784)) ([ed23b36](https://github.com/lightdash/lightdash/commit/ed23b36b4a4fdcb444084ba1d1479e0500340400))
+
 # [0.1510.0](https://github.com/lightdash/lightdash/compare/0.1509.2...0.1510.0) (2025-02-21)
 
 
