@@ -1,3 +1,11 @@
+## [0.1512.2](https://github.com/lightdash/lightdash/compare/0.1512.1...0.1512.2) (2025-02-21)
+
+
+### Bug Fixes
+
+* add dimension button overlap issue ([#13759](https://github.com/lightdash/lightdash/issues/13759)) ([0c9ba5e](https://github.com/lightdash/lightdash/commit/0c9ba5e2331d246406201b71ff2792d2d1681286))
+* add placeholder and add '(current)' to current project ([#13726](https://github.com/lightdash/lightdash/issues/13726)) ([3d2de1e](https://github.com/lightdash/lightdash/commit/3d2de1e814b35512bb0741cab06b829978d8033e))
+
 ## [0.1512.1](https://github.com/lightdash/lightdash/compare/0.1512.0...0.1512.1) (2025-02-21)
 
 
