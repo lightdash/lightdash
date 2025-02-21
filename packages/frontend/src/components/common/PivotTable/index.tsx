@@ -12,6 +12,7 @@ import {
     isSummable,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
+    type ConditionalFormattingRowFields,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -507,6 +508,23 @@ const PivotTable: FC<PivotTableProps> = ({
                     const row = rows[rowIndex];
                     if (!row) return null;
 
+                    const rowFields = row
+                        .getVisibleCells()
+                        .reduce<ConditionalFormattingRowFields>((acc, cell) => {
+                            const meta = cell.column.columnDef.meta;
+                            if (meta?.item) {
+                                const cellValue = cell.getValue() as
+                                    | ResultRow[0]
+                                    | undefined;
+
+                                acc[getItemId(meta.item)] = {
+                                    field: meta.item,
+                                    value: cellValue?.value?.raw,
+                                };
+                            }
+                            return acc;
+                        }, {});
+
                     const toggleExpander = row.getToggleExpandedHandler();
 
                     return (
@@ -538,6 +556,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         value: value?.raw,
                                         minMaxMap,
                                         conditionalFormattings,
+                                        rowFields,
                                     });
 
                                 const conditionalFormattingColor =
