@@ -5,9 +5,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     embedToken: undefined,
     filters: undefined,
     projectUuid: undefined,
-    t: (_input: string) => {
-        return undefined;
-    },
+    t: (_input: string) => undefined,
 });
 
 export default EmbedProviderContext;
