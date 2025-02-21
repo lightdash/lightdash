@@ -55,7 +55,9 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 // @ts-ignore
                 draft?.chart?.chartConfig?.config?.eChartsConfig;
 
-            if (eChartsConfig?.xAxis) {
+            if (!eChartsConfig) return;
+
+            if (eChartsConfig.xAxis) {
                 // TODO: fix any
                 eChartsConfig.xAxis.forEach((axis: any, index: number) => {
                     axis.name =
