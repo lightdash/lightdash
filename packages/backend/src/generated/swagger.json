@@ -3181,7 +3181,7 @@
                 "required": ["operator", "id"],
                 "type": "object"
             },
-            "ConditionalFormattingWithConditionalOperator": {
+            "ConditionalFormattingWithValues_number-or-string_": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
@@ -3205,6 +3205,51 @@
                         },
                         "required": ["values"],
                         "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingWithCompareTarget_number-or-string_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            },
+                            "compareTarget": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/FieldTarget"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": ["compareTarget"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingWithConditionalOperator": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget_number-or-string_"
                     }
                 ]
             },

@@ -1,14 +1,17 @@
 import {
+    ConditionalFormattingComparisonType,
     ConditionalFormattingConfigType,
     assertUnreachable,
-    createConditionalFormatingRule,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
+    createConditionalFormattingRuleWithCompareTargetValues,
+    createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfigType,
     getItemId,
     getItemLabelWithoutTableName,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithCompareTarget,
     isNumericItem,
     isStringDimension,
     type ConditionalFormattingColorRange,
@@ -18,6 +21,7 @@ import {
     type ConditionalOperator,
     type FilterableItem,
 } from '@lightdash/common';
+import { createConditionalFormattingRuleWithCompareTarget } from '@lightdash/common/src/utils/conditionalFormatting';
 import {
     Accordion,
     Box,
@@ -113,6 +117,32 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     } else if (newField) {
                         // Update the target if the field is changed
                         draft.target = { fieldId: getItemId(newField) };
+
+                        if (
+                            isConditionalFormattingConfigWithSingleColor(draft)
+                        ) {
+                            draft.rules = draft.rules.map((rule) => {
+                                // When we're changing the field, we need to be sure that the compareTarget is set to null if it matches the new field
+                                // We cannot compare to the same field
+                                if (
+                                    isConditionalFormattingWithCompareTarget(
+                                        rule,
+                                    )
+                                ) {
+                                    if (
+                                        getItemId(newField) ===
+                                        rule.compareTarget?.fieldId
+                                    ) {
+                                        return {
+                                            ...rule,
+                                            compareTarget: null,
+                                        };
+                                    }
+                                }
+
+                                return rule;
+                            });
+                        }
                     } else {
                         // Reset the config if the field is removed
                         return createConditionalFormattingConfigWithSingleColor(
@@ -158,7 +188,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
         if (isConditionalFormattingConfigWithSingleColor(config)) {
             handleChange(
                 produce(config, (draft) => {
-                    draft.rules.push(createConditionalFormatingRule());
+                    draft.rules.push(
+                        createConditionalFormattingRuleWithValues(),
+                    );
                 }),
             );
         }
@@ -193,6 +225,40 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [handleChange, config],
     );
 
+    const handleChangeRuleComparisonType = useCallback(
+        (
+            index: number,
+            comparisonType: ConditionalFormattingComparisonType,
+        ) => {
+            if (isConditionalFormattingConfigWithSingleColor(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        switch (comparisonType) {
+                            case ConditionalFormattingComparisonType.VALUES:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithValues();
+                                break;
+                            case ConditionalFormattingComparisonType.TARGET_FIELD:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithCompareTarget();
+                                break;
+                            case ConditionalFormattingComparisonType.TARGET_TO_VALUES:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithCompareTargetValues();
+                                break;
+                            default:
+                                assertUnreachable(
+                                    comparisonType,
+                                    'Unknown comparison type',
+                                );
+                        }
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
+
     const handleChangeRule = useCallback(
         (
             index: number,
@@ -201,21 +267,12 @@ export const ConditionalFormattingItem: FC<Props> = ({
             if (isConditionalFormattingConfigWithSingleColor(config)) {
                 handleChange(
                     produce(config, (draft) => {
-                        // FIXME: check if we can fix this problem in number input
-                        draft.rules[index] = {
-                            ...newRule,
-                            values: newRule.values.map((v) => {
-                                if (isStringDimension(field)) {
-                                    return String(v);
-                                }
-                                return Number(v);
-                            }),
-                        };
+                        draft.rules[index] = newRule;
                     }),
                 );
             }
         },
-        [config, handleChange, field],
+        [config, handleChange],
     );
 
     const handleChangeSingleColor = useCallback(
@@ -293,7 +350,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 onControlClick={onControlClick}
                 onRemove={handleRemove}
             />
-
             <Accordion.Panel>
                 <Stack spacing="xs">
                     <FiltersProvider>
@@ -370,6 +426,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             ruleIndex={ruleIndex}
                                             rule={rule}
                                             field={field}
+                                            fields={fields}
                                             onChangeRule={(newRule) =>
                                                 handleChangeRule(
                                                     ruleIndex,
@@ -382,6 +439,14 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                                 handleChangeRuleOperator(
                                                     ruleIndex,
                                                     newOperator,
+                                                )
+                                            }
+                                            onChangeRuleComparisonType={(
+                                                newComparisonType,
+                                            ) =>
+                                                handleChangeRuleComparisonType(
+                                                    ruleIndex,
+                                                    newComparisonType,
                                                 )
                                             }
                                             onRemoveRule={() =>
