@@ -1797,6 +1797,11 @@ export class ProjectService extends BaseService {
                     });
                 span.setAttribute('rows', rows.length);
 
+                this.logger.info(
+                    `Query returned ${rows.length} rows and ${
+                        Object.keys(rows[0]).length
+                    } columns with querytags ${JSON.stringify(queryTags)}`,
+                );
                 const { warehouseConnection } =
                     await this.projectModel.getWithSensitiveFields(projectUuid);
                 if (warehouseConnection) {
@@ -1812,9 +1817,13 @@ export class ProjectService extends BaseService {
                     },
                     async (formatRowsSpan) => {
                         if (skipFormatting) {
+                            this.logger.info(
+                                `Skipping formatting for ${rows.length} rows`,
+                            );
                             return rowsWithoutFormatting(rows);
                         }
                         const useWorker = rows.length > 500;
+                        this.logger.info(`Formatting ${rows.length} rows`);
                         return measureTime(
                             async () => {
                                 formatRowsSpan.setAttribute(
@@ -1845,6 +1854,11 @@ export class ProjectService extends BaseService {
                     },
                 );
 
+                this.logger.info(
+                    `Formatted rows returned ${formattedRows.length} rows and ${
+                        Object.keys(formattedRows[0]).length
+                    } columns`,
+                );
                 return {
                     rows: formattedRows,
                     metricQuery,
