@@ -154,7 +154,7 @@ export const hasMatchingConditionalRules = (
             const shouldCompareFieldToValue =
                 isConditionalFormattingWithValues(rule) &&
                 (!isConditionalFormattingWithCompareTarget(rule) ||
-                    convertedValue === null);
+                    convertedCompareValue === null);
 
             const shouldCompareFieldToTarget =
                 isConditionalFormattingWithCompareTarget(rule) &&
