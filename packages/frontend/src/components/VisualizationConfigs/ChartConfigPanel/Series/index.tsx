@@ -159,9 +159,10 @@ export const Series: FC<Props> = ({ items }) => {
                                                         item={field}
                                                         items={items}
                                                         layout={dirtyLayout}
-                                                        seriesGroup={
-                                                            seriesGroup.value
-                                                        }
+                                                        seriesGroup={seriesGroup.value?.filter(
+                                                            (s) =>
+                                                                !s.isFilteredOut,
+                                                        )}
                                                         updateSingleSeries={
                                                             updateSingleSeries
                                                         }
@@ -178,8 +179,10 @@ export const Series: FC<Props> = ({ items }) => {
                                                             getSingleSeries
                                                         }
                                                         series={
-                                                            dirtyEchartsConfig?.series ||
-                                                            []
+                                                            dirtyEchartsConfig?.series?.filter(
+                                                                (s) =>
+                                                                    !s.isFilteredOut,
+                                                            ) || []
                                                         }
                                                     />
                                                 ) : (

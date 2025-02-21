@@ -18,24 +18,33 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
     onClear,
 }) => {
     return (
-        <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-                type="text"
-                value={draftUrl}
-                onChange={(e) => onDraftUrlChange(e.target.value)}
-                style={{ flexGrow: 1 }}
-            />
-            <button onClick={onSubmit}>Set Embed URL</button>
-            <button onClick={onClear}>Clear</button>
+        <div>
+            <h4>Embed URL:</h4>
+            <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                    type="text"
+                    value={draftUrl}
+                    onChange={(e) => onDraftUrlChange(e.target.value)}
+                    style={{ flexGrow: 1 }}
+                />
+                <button onClick={onSubmit}>Set Embed URL</button>
+                <button onClick={onClear}>Clear</button>
+            </div>
         </div>
     );
 };
 
 function App() {
+    const storedEmbedUrl = localStorage.getItem('embedUrl');
+
     const [lightdashUrl, setLightdashUrl] = useState<string | null>(null);
     const [lightdashToken, setLightdashToken] = useState<string | null>(null);
-    const [embedUrl, setEmbedUrl] = useState<string>(EMBED_URL);
-    const [draftUrl, setDraftUrl] = useState<string>(EMBED_URL);
+    const [embedUrl, setEmbedUrl] = useState<string>(
+        storedEmbedUrl || EMBED_URL,
+    );
+    const [draftUrl, setDraftUrl] = useState<string>(
+        storedEmbedUrl || EMBED_URL,
+    );
     const containerStyle = {
         fontFamily: 'Arial, Helvetica, sans-serif',
         background: 'linear-gradient(135deg, #f0f2f5 0%, #e9eff5 100%)',
@@ -108,12 +117,13 @@ function App() {
                             draftUrl={draftUrl}
                             onDraftUrlChange={setDraftUrl}
                             onSubmit={() => {
-                                console.log(draftUrl);
                                 setEmbedUrl(draftUrl);
+                                localStorage.setItem('embedUrl', draftUrl);
                             }}
                             onClear={() => {
                                 setDraftUrl('');
                                 setEmbedUrl('');
+                                localStorage.removeItem('embedUrl');
                             }}
                         />
                     </div>
@@ -129,18 +139,18 @@ function App() {
                     <h1 style={{ color: '#333', margin: '0 0 10px' }}>
                         Lightdash SDK
                     </h1>
-                    <h4>Embed URL:</h4>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <EmbedUrlInput
                             draftUrl={draftUrl}
                             onDraftUrlChange={setDraftUrl}
                             onSubmit={() => {
-                                console.log(draftUrl);
                                 setEmbedUrl(draftUrl);
+                                localStorage.setItem('embedUrl', draftUrl);
                             }}
                             onClear={() => {
                                 setDraftUrl('');
                                 setEmbedUrl('');
+                                localStorage.removeItem('embedUrl');
                             }}
                         />
                     </div>

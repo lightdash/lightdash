@@ -1,6 +1,7 @@
 import {
     formatItemValue,
     friendlyName,
+    getFormattedWithFallback,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -10,6 +11,7 @@ import {
     itemsInMetricQuery,
     type AdditionalMetric,
     type CustomDimension,
+    type Dimension,
     type Field,
     type ItemsMap,
     type RawResultRow,
@@ -47,7 +49,15 @@ export const getItemBgColor = (
     }
 };
 
-export const formatCellContent = (data?: { value: ResultValue }) => {
+export const formatCellContent = (
+    data?: { value: ResultValue },
+    item?:
+        | Field
+        | Dimension
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension,
+) => {
     if (!data) return '-';
 
     const { value } = data;
@@ -61,10 +71,15 @@ export const formatCellContent = (data?: { value: ResultValue }) => {
                       {index < array.length - 1 && <br />}
                   </Fragment>
               ))
-            : value?.formatted ?? value?.raw;
+            : getFormattedWithFallback(value);
     }
 
-    return value?.formatted ?? value?.raw;
+    if (value?.formatted === null && item) {
+        // Null formatting means the formatting was skipped by the backend
+        // so we need to handle formatting in the frontend based on the raw value
+        return formatItemValue(item, value?.raw);
+    }
+    return getFormattedWithFallback(value);
 };
 
 export const getFormattedValueCell = (
