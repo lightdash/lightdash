@@ -1,3 +1,10 @@
+# [0.1512.0](https://github.com/lightdash/lightdash/compare/0.1511.2...0.1512.0) (2025-02-21)
+
+
+### Features
+
+* sdk localize ([#13739](https://github.com/lightdash/lightdash/issues/13739)) ([6bcd447](https://github.com/lightdash/lightdash/commit/6bcd447a9c91f6f2bcfacb573f03e621a0e2f486))
+
 ## [0.1511.2](https://github.com/lightdash/lightdash/compare/0.1511.1...0.1511.2) (2025-02-21)
 
 
