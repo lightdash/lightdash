@@ -1,7 +1,10 @@
 export type ResultValue = {
     raw: unknown;
-    formatted: string;
+    formatted: string | null; // null if the value is not formatted
 };
+
+export const getFormattedWithFallback = (value: ResultValue): string =>
+    value.formatted || `${value.raw}`;
 
 export type ResultRow = Record<string, { value: ResultValue }>;
 
