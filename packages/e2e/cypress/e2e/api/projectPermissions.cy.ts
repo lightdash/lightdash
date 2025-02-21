@@ -493,7 +493,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
         );
     });
 
-    it.skip('Should get success response (200) from PUT explores', () => {
+    it('Should forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -504,16 +504,17 @@ describe('Lightdash API tests for member user with editor project permissions', 
             body: [],
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(200);
+            expect(resp.status).to.eq(403);
         });
     });
 
-    it('Should get success response (200) from GET scheduler logs', () => {
-        cy.request(
-            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
-        ).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body).to.have.property('status', 'ok');
+    it('Should get forbidden (403) from GET scheduler logs', () => {
+        cy.request({
+            url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            method: 'GET',
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
         });
     });
     it('Should get list of dashboards from projects', () => {
@@ -594,7 +595,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
-    it('Should get success (200) from PATCH project', () => {
+    it('Should get forbidden (403) from PATCH project', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `${apiUrl}/projects/${projectUuid}`;
@@ -610,7 +611,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
                 body: projectResponse.body.results,
                 failOnStatusCode: false,
             }).then((resp) => {
-                expect(resp.status).to.eq(200);
+                expect(resp.status).to.eq(403);
             });
         });
     });
