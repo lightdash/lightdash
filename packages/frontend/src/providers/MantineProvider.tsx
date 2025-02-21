@@ -13,6 +13,7 @@ type Props = {
     withCSSVariables?: boolean;
     theme?: MantineThemeOverride;
     themeOverride?: MantineThemeOverride;
+    notificationsLimit?: number;
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -22,6 +23,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     withCSSVariables = false,
     theme = getMantineThemeOverride(),
     themeOverride = {},
+    notificationsLimit,
 }) => {
     return (
         <MantineProviderBase
@@ -32,7 +34,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
         >
             {children}
 
-            <Notifications />
+            <Notifications limit={notificationsLimit} />
         </MantineProviderBase>
     );
 };
