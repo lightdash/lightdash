@@ -3215,6 +3215,20 @@
                     },
                     {
                         "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            },
                             "compareTarget": {
                                 "allOf": [
                                     {
