@@ -1,6 +1,4 @@
 import Lightdash from '@lightdash/sdk';
-import { ActionIcon, Button, Collapse, Group, Paper } from '@mantine/core';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -36,7 +34,7 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
     const { t } = useTranslation();
 
     return (
-        <Paper shadow="md" p="md" withBorder>
+        <div>
             <h4>Embed URL:</h4>
             <div style={{ display: 'flex', gap: '8px' }}>
                 <input
@@ -56,7 +54,7 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
             <p style={inputDisplayStyle}>{lightdashUrl}</p>
             <h4>Current lightdash token:</h4>
             <p style={inputDisplayStyle}>{lightdashToken}</p>
-        </Paper>
+        </div>
     );
 };
 
@@ -124,7 +122,13 @@ function App() {
         <div style={containerStyle}>
             <div style={contentStyle}>
                 <header>
-                    <Group position="apart">
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}
+                    >
                         <h1 style={{ color: '#333', margin: '0 0 10px' }}>
                             Lightdash SDK
                         </h1>
@@ -145,24 +149,20 @@ function App() {
                                 🇪🇸
                             </button>
                         </div>
-                        <Button
-                            compact
-                            variant="subtle"
+                        <button
                             onClick={() => setInputsOpen(!inputsOpen)}
                             color="gray"
-                            rightIcon={
-                                inputsOpen ? (
-                                    <IconChevronUp size={14} />
-                                ) : (
-                                    <IconChevronDown size={14} />
-                                )
-                            }
                         >
                             {inputsOpen ? 'Hide embed URL' : 'Show embed URL'}
-                        </Button>
-                    </Group>
+                        </button>
+                    </div>
 
-                    <Collapse in={inputsOpen} style={{ width: '100%' }}>
+                    <div
+                        style={{
+                            width: '100%',
+                            display: inputsOpen ? 'block' : 'none',
+                        }}
+                    >
                         <EmbedUrlInput
                             draftUrl={draftUrl}
                             onDraftUrlChange={setDraftUrl}
@@ -179,7 +179,7 @@ function App() {
                             lightdashUrl={lightdashUrl}
                             lightdashToken={lightdashToken}
                         />
-                    </Collapse>
+                    </div>
                 </header>
 
                 {lightdashUrl && lightdashToken ? (
