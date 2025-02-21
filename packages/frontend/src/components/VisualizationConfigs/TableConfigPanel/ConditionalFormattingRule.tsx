@@ -277,17 +277,21 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                     CompareTargetComparisonType.Field,
                                 )}
                             />
-                            <Checkbox
-                                label="Use field's values"
-                                disabled={!field}
-                                labelPosition="right"
-                                onChange={handleChangeComparisonType(
-                                    CompareTargetComparisonType.Values,
-                                )}
-                                checked={comparisonSwitchValues.includes(
-                                    CompareTargetComparisonType.Values,
-                                )}
-                            />
+                            {comparisonSwitchValues.includes(
+                                CompareTargetComparisonType.Field,
+                            ) && (
+                                <Checkbox
+                                    label="Use field's values"
+                                    disabled={!field}
+                                    labelPosition="right"
+                                    onChange={handleChangeComparisonType(
+                                        CompareTargetComparisonType.Values,
+                                    )}
+                                    checked={comparisonSwitchValues.includes(
+                                        CompareTargetComparisonType.Values,
+                                    )}
+                                />
+                            )}
                         </Stack>
                     </Group>
                     {isConditionalFormattingWithCompareTarget(rule) &&
