@@ -226,7 +226,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                             <DraggableItem
                                 key={item.id}
                                 id={item.id}
-                                disabled={!isEditMode}
+                                disabled={!isEditMode || !!openPopoverId}
                             >
                                 {field ? (
                                     <Filter
