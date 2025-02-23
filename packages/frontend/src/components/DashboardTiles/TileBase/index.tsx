@@ -21,6 +21,7 @@ import {
     IconArrowAutofitContent,
     IconDots,
     IconEdit,
+    IconLock,
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
@@ -57,6 +58,7 @@ type Props<T> = {
     minimal?: boolean;
     tabs?: DashboardTab[];
     lockHeaderVisibility?: boolean;
+    locked?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -76,6 +78,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     titleHref,
     minimal = false,
     tabs,
+    locked,
     lockHeaderVisibility = false,
 }: Props<T>) => {
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
@@ -322,7 +325,32 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             </HeaderContainer>
 
             <ChartContainer className="non-draggable sentry-block ph-no-capture">
-                {children}
+                {locked ? (
+                    <Card
+                        withBorder
+                        radius="sm"
+                        p="md"
+                        h="100%"
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1em',
+                            width: '100%',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            backgroundColor: '#f8f9fa',
+                            border: '1px dashed #ced4da',
+                        }}
+                    >
+                        <IconLock size={20} color="#adb5bd" />
+                        <Text size="sm" color="dimmed" fw={500}>
+                            Set required filters to unlock this tile.
+                        </Text>
+                    </Card>
+                ) : (
+                    children
+                )}
             </ChartContainer>
 
             {isEditingTileContent &&
