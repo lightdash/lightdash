@@ -3156,12 +3156,19 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "ConditionalRule_ConditionalOperator.number_": {
+            "ConditionalRule_ConditionalOperator.number-or-string_": {
                 "properties": {
                     "values": {
                         "items": {
-                            "type": "number",
-                            "format": "double"
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
                         },
                         "type": "array"
                     },
@@ -3175,23 +3182,75 @@
                 "required": ["operator", "id"],
                 "type": "object"
             },
-            "ConditionalFormattingWithConditionalOperator": {
+            "ConditionalFormattingWithValues_number-or-string_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
                     },
                     {
                         "properties": {
                             "values": {
                                 "items": {
-                                    "type": "number",
-                                    "format": "double"
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
                                 },
                                 "type": "array"
                             }
                         },
                         "required": ["values"],
                         "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingWithCompareTarget_number-or-string_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            },
+                            "compareTarget": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/FieldTarget"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": ["compareTarget"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingWithConditionalOperator": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithCompareTarget_number-or-string_"
                     }
                 ]
             },
@@ -9374,6 +9433,15 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "sslcertFileName": {
+                        "type": "string"
+                    },
+                    "sslkeyFileName": {
+                        "type": "string"
+                    },
+                    "sslrootcertFileName": {
+                        "type": "string"
+                    },
                     "searchPath": {
                         "type": "string"
                     }
@@ -14755,7 +14823,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1507.1",
+        "version": "0.1514.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

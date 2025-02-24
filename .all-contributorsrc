@@ -1586,6 +1586,24 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "anoopw3bdev",
+      "name": "Anoop P",
+      "avatar_url": "https://avatars.githubusercontent.com/u/44577841?v=4",
+      "profile": "https://github.com/anoopw3bdev",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "aliamerj",
+      "name": "Ali Amer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/76897266?v=4",
+      "profile": "https://dub.sh/snxvqzq",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

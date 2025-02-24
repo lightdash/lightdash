@@ -6,7 +6,9 @@ import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
 import EmbedDashboard from '../features/embed/EmbedDashboard/components/EmbedDashboard';
 import useEmbed from '../providers/Embed/useEmbed';
 
-const EmbedDashboardPage: FC = () => {
+const EmbedDashboardPage: FC<{
+    containerStyles?: React.CSSProperties;
+}> = ({ containerStyles }) => {
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid?: string;
     }>();
@@ -28,7 +30,7 @@ const EmbedDashboardPage: FC = () => {
 
     return (
         <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
-            <EmbedDashboard />
+            <EmbedDashboard containerStyles={containerStyles} />
         </DashboardProvider>
     );
 };

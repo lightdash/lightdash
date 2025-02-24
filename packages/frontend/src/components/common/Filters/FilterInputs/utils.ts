@@ -28,7 +28,7 @@ import uniq from 'lodash/uniq';
 import { type MomentInput } from 'moment';
 import { filterOperatorLabel } from './constants';
 
-const getFilterOptions = <T extends FilterOperator>(
+export const getFilterOptions = <T extends FilterOperator>(
     operators: Array<T>,
 ): Array<{ value: T; label: string }> =>
     operators.map((operator) => ({

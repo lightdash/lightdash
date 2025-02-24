@@ -746,5 +746,5 @@
         }
     },
     "additionalProperties": false,
-    "required": ["version"]
+    "required": []
 }

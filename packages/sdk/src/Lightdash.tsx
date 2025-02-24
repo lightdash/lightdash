@@ -16,6 +16,9 @@ import {
 } from '@lightdash/frontend';
 import { FC, PropsWithChildren, useEffect, useState } from 'react';
 
+// TODO: get from the sdk
+export type NestedLanguage = string | { [key: string]: NestedLanguage };
+
 type Props = {
     instanceUrl: string;
     token: Promise<string> | string;
@@ -24,6 +27,7 @@ type Props = {
         fontFamily?: string;
     };
     filters?: SdkFilter[];
+    contentOverrides?: NestedLanguage;
 };
 
 const decodeJWT = (token: string) => {
@@ -70,6 +74,7 @@ const SdkProviders: FC<
                         chartFont: styles?.fontFamily,
                     },
                 }}
+                notificationsLimit={0}
             >
                 <AppProvider>
                     <FullscreenProvider enabled={false}>
@@ -98,6 +103,7 @@ const Dashboard: FC<Props> = ({
     instanceUrl,
     styles,
     filters,
+    contentOverrides,
 }) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -144,18 +150,17 @@ const Dashboard: FC<Props> = ({
                 embedToken={token}
                 projectUuid={projectUuid}
                 filters={filters}
+                contentOverrides={contentOverrides}
             >
-                <div
-                    style={{
+                <EmbedDashboard
+                    containerStyles={{
                         width: '100%',
                         height: '100%',
                         position: 'relative',
                         overflow: 'auto',
                         backgroundColor: styles?.backgroundColor,
                     }}
-                >
-                    <EmbedDashboard />
-                </div>
+                />
             </EmbedProvider>
         </SdkProviders>
     );

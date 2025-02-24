@@ -1,4 +1,8 @@
-import { AnyType, ExploreType } from '@lightdash/common';
+import {
+    AnyType,
+    CreatePostgresCredentials,
+    ExploreType,
+} from '@lightdash/common';
 import knex from 'knex';
 import { MockClient, RawQuery, Tracker, getTracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
@@ -11,6 +15,8 @@ import {
 } from '../../database/entities/projects';
 import { ProjectModel } from './ProjectModel';
 import {
+    CompletePostgresCredentials,
+    IncompletePostgresCredentialsWithoutSecrets,
     encryptionUtilMock,
     expectedProject,
     expectedTablesConfiguration,
@@ -143,6 +149,47 @@ describe('ProjectModel', () => {
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.insert).toHaveLength(2);
+        });
+    });
+
+    describe('mergeMissingWarehouseSecrets', () => {
+        test('should merge secrets when key is missing', async () => {
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                IncompletePostgresCredentialsWithoutSecrets as CreatePostgresCredentials,
+                CompletePostgresCredentials,
+            );
+            expect(result.user).toEqual(CompletePostgresCredentials.user);
+            expect(result.password).toEqual(
+                CompletePostgresCredentials.password,
+            );
+        });
+        test('should merge secrets when value is undefined or value is empty string', async () => {
+            const newConfig = {
+                ...IncompletePostgresCredentialsWithoutSecrets,
+                user: undefined,
+                password: '',
+            };
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                newConfig as unknown as CreatePostgresCredentials,
+                CompletePostgresCredentials,
+            );
+            expect(result.user).toEqual(CompletePostgresCredentials.user);
+            expect(result.password).toEqual(
+                CompletePostgresCredentials.password,
+            );
+        });
+        test('should NOT merge secrets when value is null or non empty string', async () => {
+            const newConfig = {
+                ...IncompletePostgresCredentialsWithoutSecrets,
+                user: null,
+                password: 'new_password',
+            };
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                newConfig as unknown as CreatePostgresCredentials,
+                CompletePostgresCredentials,
+            );
+            expect(result.user).toEqual(null);
+            expect(result.password).toEqual('new_password');
         });
     });
 });

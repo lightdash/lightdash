@@ -1,39 +1,56 @@
 import {
+    ConditionalFormattingComparisonType,
+    FilterOperator,
     FilterType,
+    getItemId,
+    isConditionalFormattingWithCompareTarget,
+    isConditionalFormattingWithValues,
+    isNumericItem,
+    isStringDimension,
     type ConditionalFormattingWithConditionalOperator,
     type ConditionalOperator,
     type FilterableItem,
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Center,
     Collapse,
     Group,
+    SegmentedControl,
     Select,
     Stack,
     Text,
+    TextInput,
     Tooltip,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { differenceBy } from 'lodash';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import { useParams } from 'react-router';
+import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
-import { getFilterOperatorOptions } from '../../common/Filters/FilterInputs/utils';
+import {
+    getFilterOperatorOptions,
+    getFilterOptions,
+} from '../../common/Filters/FilterInputs/utils';
+import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-
-// conditional formatting only supports number filters
-const filterType = FilterType.NUMBER;
-const filterOperatorOptions = getFilterOperatorOptions(filterType);
 
 interface ConditionalFormattingRuleProps {
     isDefaultOpen?: boolean;
     ruleIndex: number;
     rule: ConditionalFormattingWithConditionalOperator;
-    field: FilterableItem;
+    field: FilterableItem | undefined;
+    fields: FilterableItem[];
     hasRemove?: boolean;
     onChangeRule: (
         newRule: ConditionalFormattingWithConditionalOperator,
     ) => void;
     onChangeRuleOperator: (newOperator: ConditionalOperator) => void;
+    onChangeRuleComparisonType: (
+        comparisonType: ConditionalFormattingComparisonType,
+    ) => void;
     onRemoveRule: () => void;
 }
 
@@ -42,13 +59,159 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     ruleIndex,
     rule,
     field,
+    fields,
     onChangeRule,
     onChangeRuleOperator,
+    onChangeRuleComparisonType,
     onRemoveRule,
     hasRemove,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
+
+    const comparisonType = useMemo(() => {
+        if (
+            isConditionalFormattingWithCompareTarget(rule) &&
+            isConditionalFormattingWithValues(rule)
+        ) {
+            return ConditionalFormattingComparisonType.TARGET_TO_VALUES;
+        } else if (
+            isConditionalFormattingWithCompareTarget(rule) &&
+            !isConditionalFormattingWithValues(rule)
+        ) {
+            return ConditionalFormattingComparisonType.TARGET_FIELD;
+        }
+
+        return ConditionalFormattingComparisonType.VALUES;
+    }, [rule]);
+
+    const compareField = useMemo(() => {
+        if (isConditionalFormattingWithCompareTarget(rule)) {
+            return fields.find(
+                (f) => getItemId(f) === rule.compareTarget?.fieldId,
+            );
+        }
+    }, [fields, rule]);
+
+    // conditional formatting only supports number filters or string filters
+    const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
+        useMemo(() => {
+            let fieldToFilter = field;
+
+            if (
+                isConditionalFormattingWithCompareTarget(rule) &&
+                isConditionalFormattingWithValues(rule) &&
+                compareField
+            ) {
+                fieldToFilter = compareField;
+            }
+
+            if (isNumericItem(fieldToFilter)) return FilterType.NUMBER;
+            if (isStringDimension(fieldToFilter)) return FilterType.STRING;
+            return undefined;
+        }, [field, compareField, rule]);
+
+    const filterOperatorOptions = useMemo(() => {
+        if (!filterType) return [];
+        if (filterType === FilterType.NUMBER) {
+            const options = getFilterOperatorOptions(filterType);
+
+            if (isConditionalFormattingWithCompareTarget(rule)) {
+                const ignoredOperators = getFilterOptions([
+                    FilterOperator.NULL,
+                    FilterOperator.NOT_NULL,
+                ]);
+
+                return differenceBy(options, ignoredOperators, 'value');
+            }
+
+            return options;
+        }
+        if (filterType === FilterType.STRING) {
+            return getFilterOptions([
+                FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
+                FilterOperator.INCLUDE,
+            ]);
+        }
+        return [];
+    }, [filterType, rule]);
+
+    const availableCompareFields = useMemo(() => {
+        return fields.filter((f) => {
+            // If the rule is comparing with another field and its values, we don't need them to be the same type
+            if (
+                isConditionalFormattingWithCompareTarget(rule) &&
+                isConditionalFormattingWithValues(rule)
+            ) {
+                return field && getItemId(f) !== getItemId(field);
+            }
+
+            // If the rule is comparing with another field, we need them to be the same type
+            if (
+                isConditionalFormattingWithCompareTarget(rule) &&
+                !isConditionalFormattingWithValues(rule)
+            ) {
+                return (
+                    ((isNumericItem(f) && isNumericItem(field)) ||
+                        (isStringDimension(f) && isStringDimension(field))) &&
+                    field &&
+                    getItemId(f) !== getItemId(field)
+                );
+            }
+
+            return [];
+        });
+    }, [fields, rule, field]);
+
+    const handleChangeCompareField = useCallback(
+        (newCompareField: FilterableItem | undefined) => {
+            if (isConditionalFormattingWithCompareTarget(rule)) {
+                onChangeRule({
+                    ...rule,
+                    compareTarget: newCompareField
+                        ? {
+                              fieldId: getItemId(newCompareField),
+                          }
+                        : null,
+                });
+            }
+        },
+        [onChangeRule, rule],
+    );
+
+    const handleChangeRule = useCallback(
+        (newRule: ConditionalFormattingWithConditionalOperator) => {
+            if (isConditionalFormattingWithValues(newRule)) {
+                onChangeRule({
+                    ...newRule,
+                    values: newRule.values.map((v) => {
+                        // FIXME: check if we can fix this problem in number input
+                        if (
+                            isConditionalFormattingWithCompareTarget(newRule)
+                                ? isStringDimension(compareField)
+                                : isStringDimension(field)
+                        ) {
+                            return String(v);
+                        }
+                        return Number(v);
+                    }),
+                });
+            } else {
+                onChangeRule(newRule);
+            }
+        },
+        [onChangeRule, compareField, field],
+    );
+
+    const valuesInputField = useMemo(() => {
+        if (isConditionalFormattingWithCompareTarget(rule)) {
+            return compareField;
+        }
+        return field;
+    }, [rule, compareField, field]);
 
     return (
         <Stack spacing="xs" ref={ref}>
@@ -80,23 +243,119 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             </Group>
 
             <Collapse in={isOpen}>
-                <Group noWrap spacing="xs">
-                    <Select
-                        value={rule.operator}
-                        data={filterOperatorOptions}
-                        onChange={(value) => {
-                            if (!value) return;
-                            onChangeRuleOperator(value as ConditionalOperator);
-                        }}
-                    />
+                <Stack spacing="xs">
+                    <Group noWrap spacing="xs">
+                        <Text fw={500} fz="xs" c="dimmed">
+                            Compare:
+                        </Text>
+                        <SegmentedControl
+                            size="xs"
+                            value={comparisonType}
+                            onChange={onChangeRuleComparisonType}
+                            data={[
+                                {
+                                    label: (
+                                        <Tooltip
+                                            label="Compare selected field to values"
+                                            withinPortal
+                                            variant="xs"
+                                        >
+                                            <Center>Values</Center>
+                                        </Tooltip>
+                                    ),
+                                    value: ConditionalFormattingComparisonType.VALUES,
+                                },
+                                {
+                                    label: (
+                                        <Tooltip
+                                            label="Compare selected field to another field"
+                                            withinPortal
+                                            variant="xs"
+                                        >
+                                            <Center>Field</Center>
+                                        </Tooltip>
+                                    ),
+                                    value: ConditionalFormattingComparisonType.TARGET_FIELD,
+                                },
+                                {
+                                    label: (
+                                        <Tooltip
+                                            label="Compare another field to values"
+                                            withinPortal
+                                            variant="xs"
+                                        >
+                                            <Center>Field values</Center>
+                                        </Tooltip>
+                                    ),
+                                    value: ConditionalFormattingComparisonType.TARGET_TO_VALUES,
+                                },
+                            ]}
+                        ></SegmentedControl>
+                    </Group>
+                    {isConditionalFormattingWithCompareTarget(rule) &&
+                        isConditionalFormattingWithValues(rule) && (
+                            <FieldSelect
+                                clearable
+                                item={compareField}
+                                items={availableCompareFields}
+                                onChange={handleChangeCompareField}
+                                hasGrouping
+                                placeholder="Compare field"
+                            />
+                        )}
+                    <Group noWrap spacing="xs">
+                        <Select
+                            value={rule.operator}
+                            data={filterOperatorOptions}
+                            onChange={(value) => {
+                                if (!value) return;
+                                onChangeRuleOperator(
+                                    value as ConditionalOperator,
+                                );
+                            }}
+                            placeholder="Condition"
+                            disabled={!field || !filterType}
+                        />
 
-                    <FilterInputComponent
-                        filterType={filterType}
-                        field={field}
-                        rule={rule}
-                        onChange={onChangeRule}
-                    />
-                </Group>
+                        <Select
+                            display={field && filterType ? 'none' : 'block'}
+                            placeholder="Value(s)"
+                            data={[]}
+                            disabled={!field || !filterType}
+                        />
+
+                        {projectUuid &&
+                            filterType &&
+                            isConditionalFormattingWithValues(rule) && (
+                                <FiltersProvider projectUuid={projectUuid}>
+                                    {valuesInputField ? (
+                                        <FilterInputComponent
+                                            filterType={filterType}
+                                            field={valuesInputField}
+                                            rule={rule}
+                                            onChange={handleChangeRule}
+                                        />
+                                    ) : (
+                                        <TextInput
+                                            disabled={true}
+                                            placeholder="Values"
+                                        />
+                                    )}
+                                </FiltersProvider>
+                            )}
+                        {isConditionalFormattingWithCompareTarget(rule) &&
+                            !isConditionalFormattingWithValues(rule) && (
+                                <FieldSelect
+                                    clearable
+                                    item={compareField}
+                                    items={availableCompareFields}
+                                    onChange={handleChangeCompareField}
+                                    hasGrouping
+                                    placeholder="Compare field"
+                                />
+                            )}
+                    </Group>
+                </Stack>
             </Collapse>
         </Stack>
     );
