@@ -51,7 +51,7 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.IN_BETWEEN]:
         '(customers.age) >= (1) AND (customers.age) <= (2)',
     [FilterOperator.NOT_IN_BETWEEN]:
-        '(customers.age) <= (1) OR (customers.age) >= (2)',
+        '(customers.age) < (1) OR (customers.age) > (2)',
 };
 
 export const InTheCurrentFilterBase = {

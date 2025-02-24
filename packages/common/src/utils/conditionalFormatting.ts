@@ -135,7 +135,7 @@ export const hasMatchingConditionalRules = (
                     const max = rule.values?.[1] || 0;
                     return rule.operator === ConditionalOperator.IN_BETWEEN
                         ? convertedValue >= min && convertedValue <= max
-                        : convertedValue <= min || convertedValue >= max;
+                        : convertedValue < min || convertedValue > max;
                 }
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:

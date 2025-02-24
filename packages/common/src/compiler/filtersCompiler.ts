@@ -149,9 +149,9 @@ export const renderNumberFilterSql = (
                 filter.values?.[0] || 0
             }) AND (${dimensionSql}) <= (${filter.values?.[1] || 0})`;
         case FilterOperator.NOT_IN_BETWEEN:
-            return `(${dimensionSql}) <= (${
+            return `(${dimensionSql}) < (${
                 filter.values?.[0] || 0
-            }) OR (${dimensionSql}) >= (${filter.values?.[1] || 0})`;
+            }) OR (${dimensionSql}) > (${filter.values?.[1] || 0})`;
         default:
             return raiseInvalidFilterError('number', filter);
     }
