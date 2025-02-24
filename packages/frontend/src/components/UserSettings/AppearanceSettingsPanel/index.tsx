@@ -1,38 +1,43 @@
-import { subject } from '@casl/ability';
-import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import {
+    ECHARTS_DEFAULT_COLORS,
+    type OrganizationColorPalette,
+} from '@lightdash/common';
+import {
+    Accordion,
     ActionIcon,
+    Badge,
     Button,
     Card,
     ColorInput,
     ColorSwatch,
-    Flex,
     Group,
-    Loader,
-    Popover,
+    Modal,
     SimpleGrid,
     Stack,
     Text,
+    TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconBolt,
-    IconChevronDown,
+    IconBrush,
     IconColorFilter,
     IconCubeUnfolded,
     IconInfoCircle,
     IconLeaf,
-    IconRestore,
+    IconPlus,
     IconRipple,
-    IconSunglasses,
 } from '@tabler/icons-react';
-import { isEqual } from 'lodash';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
-import { Can } from '../../../providers/Ability';
+import {
+    useColorPalettes,
+    useCreateColorPalette,
+    useSetDefaultColorPalette,
+    useUpdateColorPalette,
+} from '../../../hooks/appearance/useOrganizationAppearance';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import { isHexCodeColor } from '../../../utils/colorUtils';
 import MantineIcon from '../../common/MantineIcon';
@@ -44,7 +49,7 @@ interface ColorPalette {
     icon: typeof IconBolt;
 }
 
-const defaultColorPalettes: ColorPalette[] = [
+const PRESET_COLOR_PALETTES: ColorPalette[] = [
     {
         name: 'Default Colors',
         icon: IconColorFilter,
@@ -62,6 +67,84 @@ const defaultColorPalettes: ColorPalette[] = [
             '#9233ff',
             '#c633ff',
             '#ff33e1',
+        ],
+    },
+    {
+        name: 'Modern',
+        icon: IconCubeUnfolded,
+        colors: [
+            '#7162FF', // Lightdash Purple
+            '#1A1B1E', // Charcoal
+            '#2D2E30', // Dark Gray
+            '#4A4B4D', // Medium Gray
+            '#6B6C6E', // Light Gray
+            '#E8DDFB', // Lavender
+            '#D4F7E9', // Mint
+            '#F0A3FF', // Pink
+            '#00FFEA', // Cyan
+            '#FFEA00', // Yellow
+            '#00FF7A', // Neon Green
+            '#FF0080', // Magenta
+            '#FF6A00', // Orange
+            '#6A00FF', // Deep Purple
+            '#00FF00', // Lime
+            '#FF0000', // Red
+            '#FF00FF', // Fuchsia
+            '#00FFFF', // Aqua
+            '#7A00FF', // Violet
+            '#FFAA00', // Amber
+        ],
+    },
+    {
+        name: 'Retro',
+        icon: IconLeaf,
+        colors: [
+            '#FF6B35', // Vibrant Orange
+            '#ECB88A', // Peach
+            '#D4A373', // Terracotta
+            '#BC8A5F', // Clay
+            '#A47148', // Brown
+            '#8A5A39', // Dark Brown
+            '#6F4E37', // Mocha
+            '#544334', // Umber
+            '#393731', // Slate
+            '#2E2E2E', // Charcoal
+            '#F4D06F', // Mustard
+            '#FFD700', // Gold
+            '#C0BABC', // Silver
+            '#A9A9A9', // Medium Gray
+            '#808080', // Gray
+            '#696969', // Dim Gray
+            '#556B2F', // Olive
+            '#6B8E23', // Olive Drab
+            '#8FBC8B', // Dark Sea Green
+            '#BDB76B', // Dark Khaki
+        ],
+    },
+    {
+        name: 'Business',
+        icon: IconRipple,
+        colors: [
+            '#1A237E',
+            '#283593',
+            '#303F9F',
+            '#3949AB',
+            '#3F51B5',
+            '#5C6BC0',
+            '#7986CB',
+            '#9FA8DA',
+            '#C5CAE9',
+            '#E8EAF6',
+            '#4CAF50',
+            '#66BB6A',
+            '#81C784',
+            '#A5D6A7',
+            '#C8E6C9',
+            '#FFA726',
+            '#FFB74D',
+            '#FFCC80',
+            '#FFE0B2',
+            '#FFF3E0',
         ],
     },
     {
@@ -88,84 +171,6 @@ const defaultColorPalettes: ColorPalette[] = [
             '#00FFAA',
             '#FF00AA',
             '#FFAA00',
-        ],
-    },
-    {
-        name: 'Sunrise Serenity',
-        icon: IconSunglasses,
-        colors: [
-            '#FF6464',
-            '#FF6F6F',
-            '#FF7B7B',
-            '#FF8686',
-            '#FF9292',
-            '#FF9D9D',
-            '#FFA9A9',
-            '#FFB4B4',
-            '#FFBFBF',
-            '#FFCACA',
-            '#FFD6D6',
-            '#FFE1E1',
-            '#FFEBEB',
-            '#FFF6F6',
-            '#FFFFFF',
-            '#F6FFF9',
-            '#EDFFF3',
-            '#E4FFED',
-            '#DBFFE7',
-            '#D2FFE1',
-        ],
-    },
-    {
-        name: 'Autumn Sunset',
-        icon: IconLeaf,
-        colors: [
-            '#C2590F',
-            '#CB650F',
-            '#D5710F',
-            '#DF7D0F',
-            '#E9890F',
-            '#F3950F',
-            '#FD9F0F',
-            '#FFAB1F',
-            '#FFB72F',
-            '#FFC23F',
-            '#FFCE4F',
-            '#FFDA5F',
-            '#FFE66F',
-            '#FFF27F',
-            '#FFF88F',
-            '#FFFE9F',
-            '#FFFFAF',
-            '#FFFFBF',
-            '#FFFFCF',
-            '#FFFFDF',
-        ],
-    },
-    {
-        name: 'Oceanic Blues',
-        icon: IconRipple,
-        colors: [
-            '#0D4F8B',
-            '#195A96',
-            '#2565A1',
-            '#3170AC',
-            '#3D7BB7',
-            '#4986C2',
-            '#5591CD',
-            '#619CD8',
-            '#6DA7E3',
-            '#79B2EE',
-            '#85BEF9',
-            '#91C9FF',
-            '#9DD4FF',
-            '#A9DFFF',
-            '#B5EAFF',
-            '#C1F5FF',
-            '#CDFDFF',
-            '#DAFFFF',
-            '#E6FFFF',
-            '#F2FFFF',
         ],
     },
     {
@@ -196,12 +201,6 @@ const defaultColorPalettes: ColorPalette[] = [
     },
 ];
 
-const getColorFormFields = (colors: string[]): ColorAssignments =>
-    colors.reduce(
-        (acc, color, index) => ({ ...acc, [`color${index + 1}`]: color }),
-        {},
-    );
-
 const getColorPaletteColorStops = (palette: ColorPalette, stops: number) => {
     const { colors } = palette;
     const deltaAmount = Math.floor(colors.length / stops);
@@ -222,251 +221,447 @@ const getColorPaletteColorStops = (palette: ColorPalette, stops: number) => {
     return colors.filter((c, i) => i % deltaAmount === 0).slice(0, stops);
 };
 
-const findMatchingDefaultColorPalette = (
-    colors: string[],
-): ColorPalette | undefined =>
-    defaultColorPalettes.find((palette) => isEqual(palette.colors, colors));
-
-type ColorAssignments = Record<string, string>;
-
-const ColorPalettePreview: FC<{
-    palette: ColorPalette;
-    isActive: boolean;
-    onSelect: () => void;
-}> = ({ palette, isActive, onSelect }) => {
-    const stops = getColorPaletteColorStops(palette, 4);
-    const { name, icon } = palette;
-
-    return (
-        <Flex align="center" justify="space-between" gap="xl">
-            <Group spacing="xs">
-                <Group spacing="xxs">
-                    {stops.map((color) => (
-                        <ColorSwatch key={color} color={color} />
-                    ))}
-                </Group>
-                <MantineIcon icon={icon} />
-                <Text size="xs">{name}</Text>
-            </Group>
-
-            <Button size="xs" ml="xs" onClick={onSelect} disabled={isActive}>
-                Use theme
-            </Button>
-        </Flex>
-    );
-};
-
 const AppearanceColorSettings: FC = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
     const ability = useAbilityContext();
-    const { isInitialLoading: isOrgLoading, data } = useOrganization();
-    const updateMutation = useOrganizationUpdateMutation();
-    const colorFormFields = getColorFormFields(defaultColorPalettes[0].colors);
+    const { data: palettes = [] } = useColorPalettes();
+    const createColorPalette = useCreateColorPalette();
+    const setDefaultPalette = useSetDefaultColorPalette();
+    const updateColorPalette = useUpdateColorPalette();
 
-    /**
-     * We keep track of color palettes manually selected by the user, so that if
-     * they're customizing it further we can quickly reference the starting point
-     * again.
-     */
-    const [startingColorPalette, setStartingColorPalette] =
-        useState<ColorPalette>();
+    const [selectedPalette, setSelectedPalette] =
+        useState<OrganizationColorPalette>();
+    const [editingPaletteUuid, setEditingPaletteUuid] = useState<string | null>(
+        null,
+    );
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [newPaletteName, setNewPaletteName] = useState('');
+    const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+    const [selectedPreset, setSelectedPreset] = useState<ColorPalette>();
 
-    const form = useForm({
-        initialValues: colorFormFields,
-        validate: Object.keys(colorFormFields).reduce(
-            (acc, key) => ({
-                [key]: (value: string) =>
-                    !isHexCodeColor(value)
-                        ? 'Invalid color, ensure it is in hex format (e.g. #ff000 or #fff)'
-                        : null,
-                ...acc,
-            }),
-            {},
-        ),
+    const form = useForm<{ colors: string[]; uuid: string }>({
+        initialValues: { colors: [], uuid: '' },
+        validate: {
+            colors: (value) =>
+                value.every((c) => isHexCodeColor(c)) ? null : 'Invalid colors',
+        },
     });
 
-    /**
-     * At any point, we try to match the current color palette based on the list of colors.
-     * This allows us to reference an existing theme just based on the available state.
-     */
-    const activeColorPalette =
-        startingColorPalette ??
-        findMatchingDefaultColorPalette(Object.values(form.values));
+    const { setValues } = form;
 
-    const activeColorPaletteOrDefault =
-        activeColorPalette ?? defaultColorPalettes[0];
-
-    const setFormValuesFromColorPalette = useCallback(
-        (palette: ColorPalette) => {
-            setStartingColorPalette(palette);
-            const paletteColors = getColorFormFields(palette.colors);
-
-            form.reset();
-            form.setValues(paletteColors);
+    const presetForm = useForm({
+        initialValues: {
+            name: '',
+            colors: [],
         },
-        [form],
+        validate: {
+            name: (value) =>
+                value.trim().length >= 3
+                    ? null
+                    : 'Name must be at least 3 characters',
+            colors: (value) =>
+                value.length > 0 ? null : 'Please select a base preset',
+        },
+    });
+
+    // When selecting a palette
+    const handleSelectPalette = useCallback(
+        (palette: OrganizationColorPalette) => {
+            setSelectedPalette(palette);
+            setEditingPaletteUuid(null);
+            setValues({
+                colors: palette.colors,
+                uuid: palette.colorPaletteUuid,
+            });
+        },
+        [setValues],
     );
 
-    const setFormValuesFromData = useCallback(() => {
-        if (data?.chartColors) {
-            form.setValues(getColorFormFields(data.chartColors));
-            form.resetDirty(getColorFormFields(data.chartColors));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data?.chartColors]);
+    // Apply existing palette
+    const handleUseTheme = (palette: OrganizationColorPalette) => {
+        setDefaultPalette.mutate(palette.colorPaletteUuid, {
+            onSuccess: () => {
+                showToastSuccess({ title: `${palette.name} theme activated` });
+                // Refresh palettes list
+            },
+        });
+    };
+
+    // Save new palette
+    const handleSaveNewPalette = (apply: boolean) => {
+        if (!selectedPalette || !newPaletteName) return;
+
+        createColorPalette.mutate(
+            {
+                name: newPaletteName,
+                colors: form.values.colors,
+            },
+            {
+                onSuccess: (newPalette) => {
+                    setShowSaveModal(false);
+                    setNewPaletteName('');
+                    handleSelectPalette(newPalette);
+                    if (apply) {
+                        setDefaultPalette.mutate(newPalette.colorPaletteUuid);
+                    }
+                },
+            },
+        );
+    };
+
+    // Create new palette from preset
+    const handleCreateFromPreset = () => {
+        createColorPalette.mutate(
+            {
+                name: presetForm.values.name,
+                colors: presetForm.values.colors,
+            },
+            {
+                onSuccess: (newPalette) => {
+                    setIsPresetModalOpen(false);
+                    presetForm.reset();
+                    setSelectedPreset(undefined);
+                    handleSelectPalette(newPalette);
+                    showToastSuccess({
+                        title: `Palette "${newPalette.name}" created successfully`,
+                    });
+                },
+                onError: (error) => {
+                    showToastApiError({
+                        title: 'Failed to create palette',
+                        apiError: error.error,
+                    });
+                },
+            },
+        );
+    };
+
+    // Update palette handler
+    const handleUpdatePalette = () => {
+        updateColorPalette.mutate({
+            uuid: form.values.uuid,
+            colors: form.values.colors,
+        });
+    };
 
     useEffect(() => {
-        setFormValuesFromData();
-    }, [setFormValuesFromData]);
-
-    const renderColorInputLabel = useCallback(
-        (colorIndex: number) => {
-            const inputKey = `color${colorIndex + 1}`;
-            const formColor = form.values[inputKey];
-            const defaultColor = activeColorPaletteOrDefault.colors[colorIndex];
-            const differsFromDefault =
-                formColor != null &&
-                defaultColor != null &&
-                defaultColor !== formColor;
-
-            return (
-                <Group mb="xxs">
-                    <Text size={'xs'} color="gray">
-                        Color {colorIndex + 1}
-                    </Text>
-                    {differsFromDefault && (
-                        <Tooltip label="Restore default color">
-                            <ActionIcon
-                                size="xs"
-                                onClick={(
-                                    event: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    event.stopPropagation();
-                                    event.preventDefault();
-                                    form.setFieldValue(inputKey, defaultColor);
-                                }}
-                            >
-                                <MantineIcon icon={IconRestore} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-            );
-        },
-        [form, activeColorPaletteOrDefault],
-    );
-
-    const handleOnSubmit = form.onSubmit((newColors) => {
-        if (data) {
-            const {
-                needsProject: _needsProject,
-                organizationUuid: _organizationUuid,
-                ...params
-            } = data;
-            updateMutation.mutate({
-                ...params,
-                chartColors: Object.values(newColors),
-            });
+        if (updateColorPalette.isSuccess) {
+            setEditingPaletteUuid(null);
+            showToastSuccess({ title: 'Palette updated successfully' });
+            handleSelectPalette(updateColorPalette.data);
         }
-    });
+    }, [
+        updateColorPalette.isSuccess,
+        updateColorPalette.data,
+        showToastSuccess,
+        handleSelectPalette,
+    ]);
 
-    if (isOrgLoading) {
-        return <Loader color="dark" />;
-    }
+    // Update edit handler
+    const handleStartEditing = (palette: OrganizationColorPalette) => {
+        setSelectedPalette(palette);
+        setEditingPaletteUuid(palette.colorPaletteUuid);
+        form.setValues({
+            colors: palette.colors,
+            uuid: palette.colorPaletteUuid,
+        });
+    };
+
+    const isEditingPalette = (palette: OrganizationColorPalette) =>
+        editingPaletteUuid === palette.colorPaletteUuid;
+
+    const setActivePalette = (palette: OrganizationColorPalette) => {
+        form.setValues({
+            colors: palette.colors,
+            uuid: palette.colorPaletteUuid,
+        });
+    };
 
     return (
         <Stack spacing="md">
-            <Flex justify="space-between">
-                <Stack spacing="xs">
-                    <Title order={5}>Default chart colors</Title>
-                    <Text c="gray.6" fz="xs">
-                        Start from a pre-defined theme, or create your own color
-                        palette.
-                    </Text>
-                </Stack>
-                <Popover position="bottom-end">
-                    <Popover.Target>
-                        <Button
-                            size="sm"
-                            leftIcon={<MantineIcon icon={IconChevronDown} />}
-                        >
-                            Color themes
-                        </Button>
-                    </Popover.Target>
-                    <Popover.Dropdown>
-                        <Card>
-                            <Stack spacing={'xs'}>
-                                {defaultColorPalettes.map((palette) => (
-                                    <ColorPalettePreview
-                                        palette={palette}
-                                        key={palette.name}
-                                        onSelect={() =>
-                                            setFormValuesFromColorPalette(
-                                                palette,
-                                            )
-                                        }
-                                        isActive={
-                                            activeColorPalette?.name ===
-                                            palette.name
-                                        }
-                                    />
-                                ))}
-                            </Stack>
-                        </Card>
-                    </Popover.Dropdown>
-                </Popover>
-            </Flex>
-            <form onSubmit={handleOnSubmit}>
-                <Stack spacing="md" mb="lg">
-                    <SimpleGrid cols={4}>
-                        {Object.values(form.values).map((_color, index) => (
-                            <ColorInput
-                                key={index}
-                                width="100%"
-                                placeholder="Enter hex color"
-                                label={renderColorInputLabel(index)}
-                                swatches={activeColorPaletteOrDefault.colors}
-                                disabled={ability.cannot(
-                                    'update',
-                                    subject('Organization', {
-                                        organizationUuid:
-                                            data?.organizationUuid,
-                                    }),
-                                )}
-                                {...form.getInputProps(`color${index + 1}`)}
-                                onBlur={() => {
-                                    form.validateField(`color${index + 1}`);
-                                }}
-                            />
-                        ))}
-                    </SimpleGrid>
-                    <Can
-                        I={'update'}
-                        this={subject('Organization', {
-                            organizationUuid: data?.organizationUuid,
-                        })}
+            <Accordion variant="contained">
+                {palettes.map((palette) => (
+                    <Accordion.Item
+                        key={palette.colorPaletteUuid}
+                        value={palette.colorPaletteUuid}
                     >
-                        <Flex justify="flex-end" gap="sm">
-                            {form.isDirty() && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setFormValuesFromData();
-                                    }}
-                                >
-                                    Cancel
-                                </Button>
-                            )}
+                        <Accordion.Control
+                            onClick={() => setActivePalette(palette)}
+                        >
+                            <Group spacing="xs">
+                                <Text fw={500}>{palette.name}</Text>
+
+                                <Group spacing="xxs">
+                                    {getColorPaletteColorStops(
+                                        {
+                                            name: palette.name,
+                                            colors: palette.colors,
+                                            icon: IconBrush,
+                                        },
+                                        4,
+                                    ).map((color, index) => (
+                                        <ColorSwatch
+                                            key={color + index}
+                                            size={16}
+                                            color={color}
+                                        />
+                                    ))}
+                                </Group>
+                                {palette.isDefault && (
+                                    <Badge
+                                        color="green"
+                                        variant="light"
+                                        radius="sm"
+                                        sx={(theme) => ({
+                                            border: `1px solid ${theme.colors.green[6]}`,
+                                        })}
+                                    >
+                                        Active
+                                    </Badge>
+                                )}
+                                {isEditingPalette(palette) && (
+                                    <Badge
+                                        color="yellow"
+                                        variant="light"
+                                        radius="sm"
+                                        sx={(theme) => ({
+                                            border: `1px solid ${theme.colors.yellow[6]}`,
+                                        })}
+                                    >
+                                        Editing...
+                                    </Badge>
+                                )}
+                            </Group>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                            <Stack spacing="md">
+                                <Group spacing="xs">
+                                    {form.values.colors.map((color, index) => (
+                                        <ColorInput
+                                            key={index}
+                                            value={color}
+                                            onChange={(newColor) => {
+                                                const newColors = [
+                                                    ...form.values.colors,
+                                                ];
+                                                newColors[index] = newColor;
+                                                form.setFieldValue(
+                                                    'colors',
+                                                    newColors,
+                                                );
+                                            }}
+                                            readOnly={
+                                                !isEditingPalette(palette)
+                                            }
+                                            radius="md"
+                                            size="xs"
+                                            swatches={palette.colors}
+                                        />
+                                    ))}
+                                </Group>
+
+                                <Group position="right">
+                                    <Button
+                                        onClick={() => {
+                                            if (isEditingPalette(palette)) {
+                                                handleUpdatePalette();
+                                            } else {
+                                                handleStartEditing(palette);
+                                            }
+                                        }}
+                                        loading={updateColorPalette.isLoading}
+                                        size="xs"
+                                        variant="default"
+                                    >
+                                        {isEditingPalette(palette)
+                                            ? 'Save changes'
+                                            : 'Edit colors'}
+                                    </Button>
+
+                                    <Button
+                                        onClick={async () => {
+                                            if (isEditingPalette(palette)) {
+                                                await updateColorPalette.mutateAsync(
+                                                    {
+                                                        uuid: form.values.uuid,
+                                                        colors: form.values
+                                                            .colors,
+                                                    },
+                                                );
+                                            }
+                                            handleUseTheme(palette);
+                                        }}
+                                        loading={setDefaultPalette.isLoading}
+                                        size="xs"
+                                        disabled={palette.isDefault}
+                                    >
+                                        {palette.isDefault
+                                            ? 'Active'
+                                            : `${
+                                                  isEditingPalette(palette)
+                                                      ? 'Save & use this theme'
+                                                      : 'Use this theme'
+                                              }`}
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                ))}
+            </Accordion>
+
+            <Modal
+                opened={showSaveModal}
+                onClose={() => setShowSaveModal(false)}
+                title={`${
+                    selectedPalette?.colorPaletteUuid === 'new'
+                        ? 'Save'
+                        : 'Update'
+                } Theme`}
+            >
+                <TextInput
+                    label="Theme name"
+                    value={newPaletteName}
+                    onChange={(e) => setNewPaletteName(e.currentTarget.value)}
+                    required
+                />
+                <Group mt="md" position="right">
+                    {selectedPalette?.colorPaletteUuid === 'new' ? (
+                        <>
                             <Button
-                                type="submit"
-                                loading={updateMutation.isLoading}
-                                disabled={!form.isDirty()}
+                                variant="default"
+                                onClick={() => handleSaveNewPalette(false)}
+                            >
+                                Save theme
+                            </Button>
+                            <Button onClick={() => handleSaveNewPalette(true)}>
+                                Save & apply
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                variant="default"
+                                onClick={handleUpdatePalette}
                             >
                                 Save changes
                             </Button>
-                        </Flex>
-                    </Can>
-                </Stack>
-            </form>
+                            <Button
+                                onClick={() => {
+                                    if (!selectedPalette) return;
+                                    handleUpdatePalette();
+                                    handleUseTheme(selectedPalette);
+                                }}
+                            >
+                                Save & apply
+                            </Button>
+                        </>
+                    )}
+                </Group>
+            </Modal>
+
+            <Button
+                leftIcon={<MantineIcon icon={IconPlus} />}
+                onClick={() => setIsPresetModalOpen(true)}
+                variant="default"
+                size="xs"
+                sx={{ alignSelf: 'flex-end' }}
+            >
+                Add new palette
+            </Button>
+
+            <Modal
+                opened={isPresetModalOpen}
+                onClose={() => {
+                    setIsPresetModalOpen(false);
+                    presetForm.reset();
+                    setSelectedPreset(undefined);
+                }}
+                title="Create new palette"
+                size="xl"
+            >
+                <form onSubmit={presetForm.onSubmit(handleCreateFromPreset)}>
+                    <TextInput
+                        label="Palette name"
+                        placeholder="Enter a unique name"
+                        required
+                        radius="md"
+                        {...presetForm.getInputProps('name')}
+                        error={presetForm.errors.name}
+                    />
+
+                    <Text mt="md" fw={500} color="dimmed">
+                        Choose a base preset:
+                    </Text>
+                    {presetForm.errors.colors && (
+                        <Text color="red" size="sm" mt="xs">
+                            {presetForm.errors.colors}
+                        </Text>
+                    )}
+
+                    <SimpleGrid cols={3} mt="sm">
+                        {PRESET_COLOR_PALETTES.map((preset) => (
+                            <Card
+                                key={preset.name}
+                                withBorder
+                                sx={(theme) => ({
+                                    cursor: 'pointer',
+
+                                    '&:hover': {
+                                        borderColor: theme.colors.blue[4],
+                                    },
+                                    '&[data-with-border]': {
+                                        border: `2px solid ${
+                                            selectedPreset?.name === preset.name
+                                                ? theme.colors.blue[6]
+                                                : theme.colors.gray[3]
+                                        }`,
+                                    },
+                                    transition: 'border-color 150ms ease',
+                                })}
+                                onClick={() => {
+                                    setSelectedPreset(preset);
+                                    presetForm.setFieldValue(
+                                        'colors',
+                                        preset.colors as string[],
+                                    );
+                                }}
+                                radius="md"
+                                shadow="subtle"
+                            >
+                                <Stack spacing="xs">
+                                    <Group spacing={4}>
+                                        {preset.colors
+                                            .slice(0, 5)
+                                            .map((color) => (
+                                                <ColorSwatch
+                                                    key={color}
+                                                    color={color}
+                                                    size={16}
+                                                />
+                                            ))}
+                                    </Group>
+                                    <Group spacing="xs">
+                                        <Text size="sm" fw={500}>
+                                            {preset.name}
+                                        </Text>
+                                    </Group>
+                                </Stack>
+                            </Card>
+                        ))}
+                    </SimpleGrid>
+
+                    <Group position="right" mt="md">
+                        <Button
+                            type="submit"
+                            disabled={!presetForm.isValid()}
+                            loading={createColorPalette.isLoading}
+                        >
+                            Create palette
+                        </Button>
+                    </Group>
+                </form>
+            </Modal>
         </Stack>
     );
 };

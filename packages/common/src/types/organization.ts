@@ -33,9 +33,11 @@ export type Organization = {
 
 export type CreateOrganization = Pick<Organization, 'name'>;
 
-export type UpdateOrganization = Partial<
-    Omit<Organization, 'organizationUuid' | 'needsProject'>
->;
+export type UpdateOrganization = {
+    name?: string;
+    defaultProjectUuid?: string | null;
+    colorPaletteUuid?: string | null;
+};
 
 export type ApiOrganization = {
     status: 'ok';
@@ -136,4 +138,39 @@ export type UpdateAllowedEmailDomains = Omit<
 export type ApiOrganizationAllowedEmailDomains = {
     status: 'ok';
     results: AllowedEmailDomains;
+};
+
+export type OrganizationColorPalette = {
+    colorPaletteUuid: string;
+    organizationUuid: string;
+    name: string;
+    colors: string[];
+    created_at: Date;
+    isDefault: boolean;
+};
+
+export type CreateColorPalette = {
+    name: string;
+    colors: string[];
+};
+
+export type UpdateColorPalette = {
+    uuid: string;
+    name?: string;
+    colors?: string[];
+};
+
+export type ApiColorPaletteResponse = {
+    status: 'ok';
+    results: OrganizationColorPalette;
+};
+
+export type ApiColorPalettesResponse = {
+    status: 'ok';
+    results: OrganizationColorPalette[];
+};
+
+export type ApiCreatedColorPaletteResponse = {
+    status: 'ok';
+    results: OrganizationColorPalette;
 };

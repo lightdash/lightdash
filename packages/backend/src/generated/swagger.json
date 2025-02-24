@@ -11410,29 +11410,21 @@
             "CreateOrganization": {
                 "$ref": "#/components/schemas/Pick_Organization.name_"
             },
-            "Partial_Omit_Organization.organizationUuid-or-needsProject__": {
+            "UpdateOrganization": {
                 "properties": {
-                    "name": {
+                    "colorPaletteUuid": {
                         "type": "string",
-                        "description": "The name of the organization"
-                    },
-                    "chartColors": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "The default color palette for all projects in the organization"
+                        "nullable": true
                     },
                     "defaultProjectUuid": {
                         "type": "string",
-                        "description": "The project a user sees when they first log in to the organization"
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpdateOrganization": {
-                "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
+                "type": "object"
             },
             "WarehouseTypes": {
                 "enum": [
@@ -12006,6 +11998,115 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "OrganizationColorPalette": {
+                "properties": {
+                    "isDefault": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "colorPaletteUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isDefault",
+                    "created_at",
+                    "colors",
+                    "name",
+                    "organizationUuid",
+                    "colorPaletteUuid"
+                ],
+                "type": "object"
+            },
+            "ApiCreatedColorPaletteResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationColorPalette"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateColorPalette": {
+                "properties": {
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["colors", "name"],
+                "type": "object"
+            },
+            "ApiColorPalettesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationColorPalette"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiColorPaletteResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationColorPalette"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateColorPalette": {
+                "properties": {
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "NotificationBase": {
@@ -14822,7 +14923,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1512.2",
+        "version": "0.1514.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -19929,6 +20030,199 @@
                         "in": "query",
                         "name": "searchQuery",
                         "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/org/color-palettes": {
+            "post": {
+                "operationId": "CreateColorPalette",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreatedColorPaletteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateColorPalette"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "ListColorPalettes",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiColorPalettesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/color-palettes/{colorPaletteUuid}": {
+            "patch": {
+                "operationId": "UpdateColorPalette",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiColorPaletteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "colorPaletteUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateColorPalette"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteColorPalette",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "colorPaletteUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/org/color-palettes/{colorPaletteUuid}/default": {
+            "post": {
+                "operationId": "SetDefaultColorPalette",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiColorPaletteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "colorPaletteUuid",
+                        "required": true,
                         "schema": {
                             "type": "string"
                         }
