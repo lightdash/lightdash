@@ -1892,6 +1892,35 @@ const useEchartsCartesianConfig = (
         [itemsMap, validCartesianConfig?.layout.flipAxes],
     );
 
+    const sortedResultsByTotals = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
+
+        const stackTotals = getStackTotalRows(
+            rows,
+            stackedSeriesWithColorAssignments,
+            validCartesianConfig?.layout.flipAxes,
+            validCartesianConfigLegend,
+        );
+
+        const xField = validCartesianConfig?.layout.xField;
+
+        if (!xField) return sortedResults;
+
+        return sortedResults.sort((a, b) => {
+            const totalA = stackTotals.find((total) => total[0] === a[xField]);
+            const totalB = stackTotals.find((total) => total[0] === b[xField]);
+
+            return (totalA?.[2] ?? 0) - (totalB?.[2] ?? 0);
+        });
+    }, [
+        rows,
+        sortedResults,
+        stackedSeriesWithColorAssignments,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout.xField,
+        validCartesianConfigLegend,
+    ]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axes.xAxis,
@@ -1906,7 +1935,7 @@ const useEchartsCartesianConfig = (
             ),
             dataset: {
                 id: 'lightdashResults',
-                source: sortedResults,
+                source: sortedResultsByTotals,
             },
             tooltip,
             grid: {
@@ -1931,9 +1960,9 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
             series,
-            sortedResults,
+            sortedResultsByTotals,
             tooltip,
-            theme?.other?.chartFont,
+            theme?.other.chartFont,
         ],
     );
 
