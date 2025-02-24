@@ -59,24 +59,52 @@ const parseContentFilters = (items: string[]): string => {
     ).toString()}`;
 };
 
-const dumpIntoFiles = async (
-    folder: 'charts' | 'dashboards',
+// TODO: translations should be partials of ChartAsCode and DashboardAsCode
+type ContentAsCodeType =
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+          translationMap: object | undefined;
+      }
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+          translationMap: object | undefined;
+      };
+
+const createDirForContent = async (
     items: (ChartAsCode | DashboardAsCode)[],
-    customPath?: string,
+    folder: 'charts' | 'dashboards',
+    customPath: string | undefined,
 ) => {
     const outputDir = path.join(getDownloadFolder(customPath), folder);
 
     GlobalState.debug(`Writing ${items.length} ${folder} into ${outputDir}`);
-    // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
     if (created) console.info(`\nCreated new folder: ${outputDir} `);
 
-    for (const item of items) {
-        const itemPath = path.join(outputDir, `${item.slug}.yml`);
-        const chartYml = yaml.dump(item, {
-            quotingType: '"',
-        });
-        await fs.writeFile(itemPath, chartYml);
+    return outputDir;
+};
+
+const writeContent = async (
+    contentAsCode: ContentAsCodeType,
+    outputDir: string,
+) => {
+    const itemPath = path.join(outputDir, `${contentAsCode.content.slug}.yml`);
+    const chartYml = yaml.dump(contentAsCode.content, {
+        quotingType: '"',
+    });
+    await fs.writeFile(itemPath, chartYml);
+
+    if (contentAsCode.translationMap) {
+        const translationPath = path.join(
+            outputDir,
+            `${contentAsCode.content.slug}.translation.map.yml`,
+        );
+        await fs.writeFile(
+            translationPath,
+            yaml.dump(contentAsCode.translationMap),
+        );
     }
 };
 
@@ -171,11 +199,27 @@ export const downloadContent = async (
         });
 
         if ('dashboards' in contentAsCode) {
-            await dumpIntoFiles(
-                'dashboards',
+            const outputDir = await createDirForContent(
                 contentAsCode.dashboards,
+                'dashboards',
                 customPath,
             );
+
+            for (const [
+                index,
+                dashboard,
+            ] of contentAsCode.dashboards.entries()) {
+                await writeContent(
+                    {
+                        type: 'dashboard',
+                        content: dashboard,
+                        translationMap:
+                            contentAsCode.dashboardsInternalized?.[index],
+                    },
+                    outputDir,
+                );
+            }
+
             // Extract chart slugs from dashboards
             chartSlugs = contentAsCode.dashboards.reduce<string[]>(
                 (acc, dashboard) => {
@@ -194,7 +238,22 @@ export const downloadContent = async (
                 chartSlugs,
             );
         } else {
-            await dumpIntoFiles('charts', contentAsCode.charts, customPath);
+            const outputDir = await createDirForContent(
+                contentAsCode.charts,
+                'charts',
+                customPath,
+            );
+            for (const [, chart] of contentAsCode.charts.entries()) {
+                await writeContent(
+                    {
+                        type: 'chart',
+                        content: chart,
+                        translationMap: undefined,
+                        // contentAsCode.chartsInternalized?.[index],
+                    },
+                    outputDir,
+                );
+            }
         }
         offset = contentAsCode.offset;
     } while (contentAsCode.offset < contentAsCode.total);

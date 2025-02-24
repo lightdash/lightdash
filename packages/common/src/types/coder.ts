@@ -1,3 +1,4 @@
+import { type PartialDeep } from 'type-fest';
 import type {
     Dashboard,
     DashboardChartTileProperties,
@@ -65,10 +66,13 @@ export type DashboardAsCode = Pick<
     downloadedAt?: Date;
 };
 
+export type DashboardAsCodeInternalized = PartialDeep<DashboardAsCode>;
+
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
     results: {
         dashboards: DashboardAsCode[];
+        dashboardsInternalized: DashboardAsCodeInternalized[] | undefined;
         missingIds: string[];
         total: number;
         offset: number;

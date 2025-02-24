@@ -22,6 +22,7 @@ import {
     SpaceSummary,
     UpdatedByUser,
 } from '@lightdash/common';
+import { DashboardAsCodeInternalization } from '@lightdash/common/src';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -161,7 +162,8 @@ export class CoderService extends BaseService {
             },
             [],
         );
-        return {
+
+        const dashboardAsCode: DashboardAsCode = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
@@ -175,6 +177,13 @@ export class CoderService extends BaseService {
             version: currentVersion,
             downloadedAt: new Date(),
         };
+
+        const dashboardAsCodeInternalized =
+            new DashboardAsCodeInternalization().parse(dashboardAsCode);
+
+        console.log(JSON.stringify(dashboardAsCodeInternalized, null, 2));
+
+        return dashboardAsCode;
     }
 
     async convertTileWithSlugsToUuids(
@@ -217,7 +226,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     Dashboard or chart ids can be uuids or slugs
      We need to convert uuids to slugs before making the query
     */
@@ -306,7 +315,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
     @returns: DashboardAsCode[]
     */
@@ -345,6 +354,7 @@ export class CoderService extends BaseService {
             );
             return {
                 dashboards: [],
+                dashboardsInternalized: [],
                 missingIds: dashboardIds || [],
                 total: 0,
                 offset: 0,
@@ -398,9 +408,14 @@ export class CoderService extends BaseService {
             spaces,
         );
 
+        const transformedDashboards = dashboardsWithAccess.map((dashboard) =>
+            CoderService.transformDashboard(dashboard, spaces),
+        );
+
         return {
-            dashboards: dashboardsWithAccess.map((dashboard) =>
-                CoderService.transformDashboard(dashboard, spaces),
+            dashboards: transformedDashboards,
+            dashboardsInternalized: transformedDashboards.map((dashboard) =>
+                new DashboardAsCodeInternalization().parse(dashboard),
             ),
             missingIds,
             total: dashboardSummariesWithAccess.length,
