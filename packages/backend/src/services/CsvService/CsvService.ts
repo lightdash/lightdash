@@ -820,6 +820,9 @@ This method can be memory intensive
                 chartUuid: tile.properties.savedSqlUuid!,
             }));
 
+        this.logger.info(
+            `Downloading ${chartTileUuidsWithChartUuids.length} chart CSVs for dashboard ${dashboardUuid}`,
+        );
         const csvForChartPromises = chartTileUuidsWithChartUuids.map(
             ({ tileUuid, chartUuid }) =>
                 this.getCsvForChart(
@@ -832,7 +835,9 @@ This method can be memory intensive
                     dateZoomGranularity,
                 ),
         );
-
+        this.logger.info(
+            `Downloading ${sqlChartTileUuids.length} sql chart CSVs for dashboard ${dashboardUuid}`,
+        );
         const csvForSqlChartPromises = sqlChartTileUuids.map(({ chartUuid }) =>
             this.getCsvForSqlChart({
                 user,
@@ -1195,6 +1200,9 @@ This method can be memory intensive
         ) {
             throw new ForbiddenError();
         }
+
+        this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
+
         const analyticProperties: DownloadCsv['properties'] = {
             jobId: '', // not a job
             userId: user.userUuid,
@@ -1246,6 +1254,9 @@ This method can be memory intensive
             dateZoomGranularity,
         }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
 
+        this.logger.info(
+            `Writing ${csvFiles.length} CSV files to zip file for dashboard ${dashboardUuid}`,
+        );
         const zipFile = await writeZipFile(csvFiles);
 
         this.analytics.track({
@@ -1256,12 +1267,15 @@ This method can be memory intensive
                 numCharts: csvFiles.length,
             },
         });
-
-        const zipFileName = CsvService.sanitizeFileName(dashboard.name);
-        const timestamp = moment().format('YYYY-MM-DD-HH-mm-ss-SSSS');
+        const zipFileName = `${CsvService.sanitizeFileName(
+            dashboard.name,
+        )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
+        this.logger.info(
+            `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
+        );
         return this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
-            `${zipFileName}-${timestamp}.zip`,
+            zipFileName,
         );
     }
 }
