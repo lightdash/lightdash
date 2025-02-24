@@ -19,7 +19,6 @@ const RedirectToSqlRunner: FC = () => {
         // Note: In development, the SqlRunner state is reset so it doesn't work. If you want to debug this, disable React.StrictMode in packages/frontend/src/index.tsx
         dispatch(setSql(legacySqlState.sql));
     }
-    console.log('here');
 
     return <Navigate to={`/projects/${projectUuid}/sql-runner`} replace />;
 };
