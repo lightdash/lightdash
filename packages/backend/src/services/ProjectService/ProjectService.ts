@@ -33,7 +33,6 @@ import {
     Explore,
     ExploreError,
     ExploreType,
-    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     FilterableDimension,
