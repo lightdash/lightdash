@@ -11,7 +11,6 @@ import {
     getResponsiveGridLayoutProps,
 } from '../../../../../components/DashboardTabs/gridUtils';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
-import MarkdownTile from '../../../../../components/DashboardTiles/DashboardMarkdownTile';
 import SemanticViewerChartTile from '../../../../../components/DashboardTiles/DashboardSemanticViewerChartTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -24,10 +23,13 @@ import EmbedDashboardHeader from './EmbedDashboardHeader';
 
 import '../../../../../styles/react-grid.css';
 import { convertSdkFilterToDashboardFilter } from '../utils';
+import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const EmbedDashboard: FC = () => {
+const EmbedDashboard: FC<{
+    containerStyles?: React.CSSProperties;
+}> = ({ containerStyles }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
@@ -164,7 +166,7 @@ const EmbedDashboard: FC = () => {
         ),
     };
     return (
-        <div style={{ height: '100vh', overflowY: 'auto' }}>
+        <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
             <EmbedDashboardHeader
                 dashboard={dashboard}
                 projectUuid={projectUuid}
@@ -180,7 +182,7 @@ const EmbedDashboard: FC = () => {
                     hasRequiredDashboardFiltersToSet ? 'locked' : ''
                 }`}
             >
-                {dashboard.tiles.map((tile) => (
+                {dashboard.tiles.map((tile, index) => (
                     <div key={tile.uuid}>
                         {tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <EmbedDashboardChartTile
@@ -195,14 +197,16 @@ const EmbedDashboard: FC = () => {
                                 canExportCsv={dashboard.canExportCsv}
                                 canExportImages={dashboard.canExportImages}
                                 locked={hasRequiredDashboardFiltersToSet}
+                                tileIndex={index}
                             />
                         ) : tile.type === DashboardTileTypes.MARKDOWN ? (
-                            <MarkdownTile
+                            <EmbedMarkdownTile
                                 key={tile.uuid}
                                 tile={tile}
                                 isEditMode={false}
                                 onDelete={() => {}}
                                 onEdit={() => {}}
+                                tileIndex={index}
                             />
                         ) : tile.type === DashboardTileTypes.LOOM ? (
                             <LoomTile

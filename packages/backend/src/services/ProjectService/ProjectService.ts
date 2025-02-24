@@ -124,6 +124,7 @@ import {
     isUserWithOrg,
     maybeReplaceFieldsInChartVersion,
     replaceDimensionInExplore,
+    rowsWithoutFormatting,
     snakeCaseName,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
@@ -1516,6 +1517,7 @@ export class ProjectService extends BaseService {
                 invalidateCache,
                 explore,
                 chartUuid,
+                skipFormatting: this.lightdashConfig.skipBackendFormatting,
             });
 
         return {
@@ -1650,6 +1652,7 @@ export class ProjectService extends BaseService {
                 explore,
                 granularity,
                 chartUuid,
+                skipFormatting: this.lightdashConfig.skipBackendFormatting,
             });
 
         const metricQueryDimensions = [
@@ -1759,6 +1762,7 @@ export class ProjectService extends BaseService {
         explore: validExplore,
         granularity,
         chartUuid,
+        skipFormatting = false,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1771,6 +1775,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
         chartUuid: string | undefined;
+        skipFormatting?: boolean;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1796,6 +1801,11 @@ export class ProjectService extends BaseService {
                     });
                 span.setAttribute('rows', rows.length);
 
+                this.logger.info(
+                    `Query returned ${rows.length} rows and ${
+                        Object.keys(rows?.[0] || {}).length
+                    } columns with querytags ${JSON.stringify(queryTags)}`,
+                );
                 const { warehouseConnection } =
                     await this.projectModel.getWithSensitiveFields(projectUuid);
                 if (warehouseConnection) {
@@ -1810,7 +1820,14 @@ export class ProjectService extends BaseService {
                         warehouse: warehouseConnection?.type,
                     },
                     async (formatRowsSpan) => {
+                        if (skipFormatting) {
+                            this.logger.info(
+                                `Skipping formatting for ${rows.length} rows`,
+                            );
+                            return rowsWithoutFormatting(rows);
+                        }
                         const useWorker = rows.length > 500;
+                        this.logger.info(`Formatting ${rows.length} rows`);
                         return measureTime(
                             async () => {
                                 formatRowsSpan.setAttribute(
@@ -1841,6 +1858,11 @@ export class ProjectService extends BaseService {
                     },
                 );
 
+                this.logger.info(
+                    `Formatted rows returned ${formattedRows.length} rows and ${
+                        Object.keys(formattedRows?.[0] || {}).length
+                    } columns`,
+                );
                 return {
                     rows: formattedRows,
                     metricQuery,

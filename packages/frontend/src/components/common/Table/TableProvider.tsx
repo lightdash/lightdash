@@ -1,4 +1,4 @@
-import type { ResultRow, ResultValue } from '@lightdash/common';
+import { type ResultRow, type ResultValue } from '@lightdash/common';
 import {
     getCoreRowModel,
     getExpandedRowModel,
@@ -128,8 +128,8 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                     if (value === undefined) {
                         return null;
                     }
-
-                    return formatCellContent(value);
+                    const meta = column.meta as TableColumn['meta'];
+                    return formatCellContent(value, meta?.item);
                 },
             } satisfies ColumnDefBase<ResultRow, { value: ResultValue }>;
         });

@@ -27,7 +27,7 @@ export type YamlModel = {
 };
 
 export type YamlSchema = {
-    version: 2;
+    version?: 2;
     models?: YamlModel[];
 };
 

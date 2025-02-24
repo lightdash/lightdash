@@ -62,6 +62,9 @@ export const sensitiveCredentialsFieldNames = [
     'privateKey',
     'privateKeyPass',
     'sshTunnelPrivateKey',
+    'sslcert',
+    'sslkey',
+    'sslrootcert',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
@@ -88,23 +91,34 @@ export type DatabricksCredentials = Omit<
     CreateDatabricksCredentials,
     SensitiveCredentialsFieldNames
 >;
-export type CreatePostgresCredentials = SshTunnelConfiguration & {
-    type: WarehouseTypes.POSTGRES;
-    host: string;
-    user: string;
-    password: string;
-    requireUserCredentials?: boolean;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    searchPath?: string;
-    role?: string;
+
+export type SslConfiguration = {
     sslmode?: string;
-    startOfWeek?: WeekDay | null;
-    timeoutSeconds?: number;
+    sslcertFileName?: string;
+    sslcert?: string | null; // file content
+    sslkeyFileName?: string;
+    sslkey?: string | null; // file content
+    sslrootcertFileName?: string;
+    sslrootcert?: string | null; // file content
 };
+
+export type CreatePostgresCredentials = SshTunnelConfiguration &
+    SslConfiguration & {
+        type: WarehouseTypes.POSTGRES;
+        host: string;
+        user: string;
+        password: string;
+        requireUserCredentials?: boolean;
+        port: number;
+        dbname: string;
+        schema: string;
+        threads?: number;
+        keepalivesIdle?: number;
+        searchPath?: string;
+        role?: string;
+        startOfWeek?: WeekDay | null;
+        timeoutSeconds?: number;
+    };
 export type PostgresCredentials = Omit<
     CreatePostgresCredentials,
     SensitiveCredentialsFieldNames

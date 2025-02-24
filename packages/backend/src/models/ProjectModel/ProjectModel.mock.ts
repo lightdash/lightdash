@@ -2,6 +2,7 @@ import {
     AnyType,
     ConditionalOperator,
     CreateBigqueryCredentials,
+    CreatePostgresCredentials,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
@@ -400,3 +401,23 @@ export const exploresWithSameName: Explore[] = [
         targetDatabase: SupportedDbtAdapter.POSTGRES,
     },
 ];
+
+export const IncompletePostgresCredentialsWithoutSecrets: Omit<
+    CreatePostgresCredentials,
+    'user' | 'password'
+> = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'localhost',
+    port: 5432,
+    dbname: 'dbname',
+    schema: 'schema',
+};
+export const CompletePostgresCredentials: CreatePostgresCredentials = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'localhost',
+    user: 'saved_user',
+    password: 'saved_password',
+    port: 5432,
+    dbname: 'dbname',
+    schema: 'schema',
+};
