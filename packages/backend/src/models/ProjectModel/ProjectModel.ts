@@ -139,28 +139,36 @@ export class ProjectModel {
         };
     }
 
-    static mergeMissingWarehouseSecrets(
-        incompleteConfig: CreateWarehouseCredentials,
-        completeConfig: CreateWarehouseCredentials,
-    ): CreateWarehouseCredentials {
+    static mergeMissingWarehouseSecrets<
+        T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
+    >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
         if (incompleteConfig.type !== completeConfig.type) {
             return incompleteConfig;
         }
         return {
             ...incompleteConfig,
-            ...sensitiveCredentialsFieldNames.reduce(
-                (sum, secretKey) =>
-                    !(incompleteConfig as AnyType)[secretKey] &&
-                    (completeConfig as AnyType)[secretKey]
-                        ? {
-                              ...sum,
-                              [secretKey]: (completeConfig as AnyType)[
-                                  secretKey
-                              ],
-                          }
-                        : sum,
-                {},
-            ),
+            ...sensitiveCredentialsFieldNames.reduce((sum, secretKey) => {
+                const newConfigSecretValue = (incompleteConfig as AnyType)[
+                    secretKey
+                ];
+                const isSecretMissingInNewConfig =
+                    newConfigSecretValue === undefined ||
+                    newConfigSecretValue === ''; // Null values are not considered missing
+                const isSecretPresentInSavedConfig = !!(
+                    completeConfig as AnyType
+                )[secretKey];
+                if (
+                    isSecretMissingInNewConfig &&
+                    isSecretPresentInSavedConfig
+                ) {
+                    // merge missing secret
+                    return {
+                        ...sum,
+                        [secretKey]: (completeConfig as AnyType)[secretKey],
+                    };
+                }
+                return sum;
+            }, {}),
         };
     }
 

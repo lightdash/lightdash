@@ -1,3 +1,38 @@
+# [0.1515.0](https://github.com/lightdash/lightdash/compare/0.1514.2...0.1515.0) (2025-02-24)
+
+
+### Features
+
+* Support between and not between filter for numeric fields ([#13757](https://github.com/lightdash/lightdash/issues/13757)) ([832f527](https://github.com/lightdash/lightdash/commit/832f527e8f50f7946deb60341ce2331c04008ca0))
+
+## [0.1514.2](https://github.com/lightdash/lightdash/compare/0.1514.1...0.1514.2) (2025-02-24)
+
+
+### Bug Fixes
+
+* Support slash in dbt selector ([#13792](https://github.com/lightdash/lightdash/issues/13792)) ([e85dd8c](https://github.com/lightdash/lightdash/commit/e85dd8c0f159d28ed76d3ddcd12411ae31df9ac3))
+
+## [0.1514.1](https://github.com/lightdash/lightdash/compare/0.1514.0...0.1514.1) (2025-02-24)
+
+
+### Bug Fixes
+
+* **frontend:** disable drag when filter popover is open ([#13799](https://github.com/lightdash/lightdash/issues/13799)) ([180f4de](https://github.com/lightdash/lightdash/commit/180f4ded1abdf96c18947985ee4ffcc9372f6ba9))
+
+# [0.1514.0](https://github.com/lightdash/lightdash/compare/0.1513.0...0.1514.0) (2025-02-24)
+
+
+### Features
+
+* redirect legacy SQL Runner URLs to new page ([#13794](https://github.com/lightdash/lightdash/issues/13794)) ([9c02669](https://github.com/lightdash/lightdash/commit/9c02669be0a94c7469861f872e89810cd7329550))
+
+# [0.1513.0](https://github.com/lightdash/lightdash/compare/0.1512.2...0.1513.0) (2025-02-24)
+
+
+### Features
+
+* support Postgres client and root certificates ([#13785](https://github.com/lightdash/lightdash/issues/13785)) ([1627785](https://github.com/lightdash/lightdash/commit/16277855d8bdb4af614a51828d95af1597e8252d))
+
 ## [0.1512.2](https://github.com/lightdash/lightdash/compare/0.1512.1...0.1512.2) (2025-02-21)
 
 

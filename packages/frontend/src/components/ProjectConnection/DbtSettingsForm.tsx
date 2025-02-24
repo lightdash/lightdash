@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     DbtProjectTypeLabels,
     FeatureFlags,
+    validateDbtSelector,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Anchor, Select, Stack, TextInput } from '@mantine/core';
@@ -39,7 +40,13 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     defaultType,
     selectedWarehouse,
 }) => {
-    const { resetField, register, unregister } = useFormContext();
+    const {
+        resetField,
+        register,
+        unregister,
+        formState: { errors },
+    } = useFormContext();
+
     const type: DbtProjectType = useWatch({
         name: 'dbt.type',
         defaultValue: defaultType || DbtProjectType.GITHUB,
@@ -204,7 +211,17 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                             <Stack style={{ marginTop: '8px' }}>
                                 {type !== DbtProjectType.DBT_CLOUD_IDE && (
                                     <TextInput
-                                        {...register('dbt.selector')}
+                                        {...register('dbt.selector', {
+                                            validate: (value) => {
+                                                if (
+                                                    value === '' ||
+                                                    validateDbtSelector(value)
+                                                )
+                                                    return true;
+
+                                                return 'dbt selector is invalid';
+                                            },
+                                        })}
                                         label="dbt selector"
                                         description={
                                             <p>
@@ -223,6 +240,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                         }
                                         disabled={disabled}
                                         placeholder="tag:lightdash"
+                                        error={!!errors.dbt?.selector}
                                     />
                                 )}
 
