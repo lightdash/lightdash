@@ -1,3 +1,10 @@
+# [0.1513.0](https://github.com/lightdash/lightdash/compare/0.1512.2...0.1513.0) (2025-02-24)
+
+
+### Features
+
+* support Postgres client and root certificates ([#13785](https://github.com/lightdash/lightdash/issues/13785)) ([1627785](https://github.com/lightdash/lightdash/commit/16277855d8bdb4af614a51828d95af1597e8252d))
+
 ## [0.1512.2](https://github.com/lightdash/lightdash/compare/0.1512.1...0.1512.2) (2025-02-21)
 
 
