@@ -78,8 +78,6 @@ export interface MetricFilterRule
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
-    baseTimeDimensionName?: string;
-    fieldsToChange?: string[];
 };
 
 export type DashboardTileTarget = DashboardFieldTarget | false;
@@ -466,5 +464,17 @@ export const isFilterRuleDefinedForFieldId = (
     // If the filter rule was not found in the filter group, return false
     return filterGroupItems.some(isFilterRulePresent);
 };
+
+/**
+ * Type tracking time-based filter overrides using an external map instead of modifying filter rules
+ * Maps dashboard filter rule IDs to their override configurations
+ */
+export type TimeBasedOverrideMap = Record<
+    string,
+    {
+        baseTimeDimensionName: string;
+        fieldsToChange: string[];
+    }
+>;
 
 export { ConditionalOperator as FilterOperator };

@@ -66,6 +66,7 @@ describe('overrideChartFilter', () => {
         const result = overrideChartFilter(
             chartAndFilterGroup,
             dashboardFilterWithSameTargetAndOperator,
+            {},
         );
         expect(result).toEqual({
             id: 'fillter-group-1',
@@ -92,6 +93,7 @@ describe('overrideChartFilter', () => {
         const result = overrideChartFilter(
             chartOrFilterGroup,
             dashboardFilterWithSameTargetAndOperator,
+            {},
         );
         expect(result).toEqual({
             id: 'fillter-group-1',
@@ -118,6 +120,7 @@ describe('overrideChartFilter', () => {
         const result = overrideChartFilter(
             chartAndFilterGroup,
             dashboardFilterWithSameTargetButDifferentOperator,
+            {},
         );
         expect(result).toEqual({
             id: 'fillter-group-1',
@@ -340,7 +343,6 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
             target: {
                 fieldId: 'order_date_year',
                 tableName: 'orders',
-                fieldsToChange: [],
             },
             operator: ConditionalOperator.EQUALS,
             values: ['2024'],
@@ -352,7 +354,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
             mockExplore,
         );
 
-        expect(result.target.fieldsToChange).toEqual(
+        expect(result.overrideData?.fieldsToChange).toEqual(
             expect.arrayContaining(['order_date_month', 'order_date_week']),
         );
     });
@@ -387,7 +389,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
             mockExplore,
         );
 
-        expect(result.target.fieldsToChange).toBeUndefined();
+        expect(result.overrideData?.fieldsToChange).toBeUndefined();
     });
 
     test('should handle multiple time intervals in metric query', () => {
@@ -432,7 +434,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
             mockExplore,
         );
 
-        expect(result.target.fieldsToChange).toEqual(
+        expect(result.overrideData?.fieldsToChange).toEqual(
             expect.arrayContaining([
                 'order_date_month',
                 'order_date_week',
@@ -471,6 +473,6 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
             mockExplore,
         );
 
-        expect(result.target.fieldsToChange).toBeUndefined();
+        expect(result.overrideData?.fieldsToChange).toBeUndefined();
     });
 });
