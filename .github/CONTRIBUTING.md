@@ -416,7 +416,7 @@ then registered in `packages/backend/src/index.ts` but in order to be made avail
 `routes.ts` file by executing:
 
 ```shell
-pnpm -F backend run tsoa routes
+pnpm generate-api
 ```
 
 ### Running headless browser locally

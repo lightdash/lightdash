@@ -21,6 +21,14 @@ export const NumberFilterBase = {
     operator: FilterOperator.EQUALS,
     values: [1],
 };
+export const NumberFilterBaseWithMultiValues = {
+    ...NumberFilterBase,
+    values: [1, 2],
+};
+export const NumberOperatorsWithMultipleValues = [
+    FilterOperator.IN_BETWEEN,
+    FilterOperator.NOT_IN_BETWEEN,
+];
 export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.NULL]: '(customers.age) IS NULL',
     [FilterOperator.NOT_NULL]: '(customers.age) IS NOT NULL',
@@ -40,7 +48,10 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.IN_THE_CURRENT]: null,
     [FilterOperator.NOT_IN_THE_CURRENT]: null,
     [FilterOperator.IN_THE_NEXT]: null,
-    [FilterOperator.IN_BETWEEN]: null,
+    [FilterOperator.IN_BETWEEN]:
+        '(customers.age) >= (1) AND (customers.age) <= (2)',
+    [FilterOperator.NOT_IN_BETWEEN]:
+        '(customers.age) < (1) OR (customers.age) > (2)',
 };
 
 export const InTheCurrentFilterBase = {
