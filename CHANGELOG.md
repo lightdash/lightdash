@@ -1,3 +1,10 @@
+## [0.1514.2](https://github.com/lightdash/lightdash/compare/0.1514.1...0.1514.2) (2025-02-24)
+
+
+### Bug Fixes
+
+* Support slash in dbt selector ([#13792](https://github.com/lightdash/lightdash/issues/13792)) ([e85dd8c](https://github.com/lightdash/lightdash/commit/e85dd8c0f159d28ed76d3ddcd12411ae31df9ac3))
+
 ## [0.1514.1](https://github.com/lightdash/lightdash/compare/0.1514.0...0.1514.1) (2025-02-24)
 
 
