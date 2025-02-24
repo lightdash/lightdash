@@ -1903,22 +1903,45 @@ const useEchartsCartesianConfig = (
         );
 
         const xField = validCartesianConfig?.layout.xField;
+        const firstYField = validCartesianConfig?.layout.yField?.[0];
 
-        if (!xField) return sortedResults;
+        if (!xField || !firstYField) return sortedResults;
 
-        return sortedResults.sort((a, b) => {
-            const totalA = stackTotals.find((total) => total[0] === a[xField]);
-            const totalB = stackTotals.find((total) => total[0] === b[xField]);
+        const metricQueryFirstYFieldSort = resultsData?.metricQuery.sorts.find(
+            (sort) => sort.fieldId === firstYField,
+        );
 
-            return (totalA?.[2] ?? 0) - (totalB?.[2] ?? 0);
-        });
+        const xAxis = axes.xAxis[0];
+
+        if (
+            xAxis?.type === 'category' &&
+            metricQueryFirstYFieldSort &&
+            pivotedKeys?.includes(firstYField)
+        ) {
+            return sortedResults.sort((a, b) => {
+                const totalA =
+                    stackTotals.find((total) => total[0] === a[xField])?.[2] ??
+                    0;
+                const totalB =
+                    stackTotals.find((total) => total[0] === b[xField])?.[2] ??
+                    0;
+
+                return metricQueryFirstYFieldSort.descending
+                    ? totalB - totalA
+                    : totalA - totalB;
+            });
+        }
+
+        return sortedResults;
     }, [
-        rows,
-        sortedResults,
         stackedSeriesWithColorAssignments,
-        validCartesianConfig?.layout.flipAxes,
-        validCartesianConfig?.layout.xField,
+        sortedResults,
+        rows,
+        validCartesianConfig,
         validCartesianConfigLegend,
+        resultsData?.metricQuery,
+        axes.xAxis,
+        pivotedKeys,
     ]);
 
     const eChartsOptions = useMemo(
