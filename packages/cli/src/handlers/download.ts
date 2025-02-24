@@ -28,6 +28,7 @@ export type DownloadHandlerOptions = {
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
+    languageMap: boolean;
 };
 
 const getDownloadFolder = (customPath?: string): string => {
@@ -89,6 +90,7 @@ const createDirForContent = async (
 const writeContent = async (
     contentAsCode: ContentAsCodeType,
     outputDir: string,
+    languageMap: boolean,
 ) => {
     const itemPath = path.join(outputDir, `${contentAsCode.content.slug}.yml`);
     const chartYml = yaml.dump(contentAsCode.content, {
@@ -96,10 +98,10 @@ const writeContent = async (
     });
     await fs.writeFile(itemPath, chartYml);
 
-    if (contentAsCode.translationMap) {
+    if (contentAsCode.translationMap && languageMap) {
         const translationPath = path.join(
             outputDir,
-            `${contentAsCode.content.slug}.translation.map.yml`,
+            `${contentAsCode.content.slug}.language.map.yml`,
         );
         await fs.writeFile(
             translationPath,
@@ -170,6 +172,7 @@ export const downloadContent = async (
     type: 'charts' | 'dashboards',
     projectId: string,
     customPath?: string,
+    languageMap: boolean = false,
 ): Promise<[number, string[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
@@ -213,10 +216,10 @@ export const downloadContent = async (
                     {
                         type: 'dashboard',
                         content: dashboard,
-                        translationMap:
-                            contentAsCode.dashboardsInternalized?.[index],
+                        translationMap: contentAsCode.languageMap?.[index],
                     },
                     outputDir,
+                    languageMap,
                 );
             }
 
@@ -243,15 +246,15 @@ export const downloadContent = async (
                 'charts',
                 customPath,
             );
-            for (const [, chart] of contentAsCode.charts.entries()) {
+            for (const [index, chart] of contentAsCode.charts.entries()) {
                 await writeContent(
                     {
                         type: 'chart',
                         content: chart,
-                        translationMap: undefined,
-                        // contentAsCode.chartsInternalized?.[index],
+                        translationMap: contentAsCode.languageMap?.[index],
                     },
                     outputDir,
+                    languageMap,
                 );
             }
         }
@@ -312,6 +315,7 @@ export const downloadHandler = async (
                 'charts',
                 projectId,
                 options.path,
+                options.languageMap,
             );
             spinner.succeed(`Downloaded ${chartTotal} charts`);
         }
@@ -329,6 +333,7 @@ export const downloadHandler = async (
                 'dashboards',
                 projectId,
                 options.path,
+                options.languageMap,
             );
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
@@ -345,6 +350,7 @@ export const downloadHandler = async (
                     'charts',
                     projectId,
                     options.path,
+                    options.languageMap,
                 );
 
                 spinner.succeed(

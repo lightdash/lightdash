@@ -465,6 +465,11 @@ program
         [],
     )
     .option(
+        '-l, --language-map',
+        'generate a language maps for the downloaded charts and dashboards',
+        false,
+    )
+    .option(
         '-p, --path <path>',
         'specify a custom path to download charts and dashboards',
         undefined,

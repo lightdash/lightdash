@@ -3,6 +3,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
     ChartAsCode,
+    ChartAsCodeInternalization,
     ChartSummary,
     CreateSavedChart,
     currentVersion,
@@ -178,11 +179,6 @@ export class CoderService extends BaseService {
             downloadedAt: new Date(),
         };
 
-        const dashboardAsCodeInternalized =
-            new DashboardAsCodeInternalization().parse(dashboardAsCode);
-
-        console.log(JSON.stringify(dashboardAsCodeInternalized, null, 2));
-
         return dashboardAsCode;
     }
 
@@ -354,7 +350,7 @@ export class CoderService extends BaseService {
             );
             return {
                 dashboards: [],
-                dashboardsInternalized: [],
+                languageMap: undefined,
                 missingIds: dashboardIds || [],
                 total: 0,
                 offset: 0,
@@ -414,9 +410,19 @@ export class CoderService extends BaseService {
 
         return {
             dashboards: transformedDashboards,
-            dashboardsInternalized: transformedDashboards.map((dashboard) =>
-                new DashboardAsCodeInternalization().parse(dashboard),
-            ),
+            languageMap: transformedDashboards.map((dashboard) => {
+                try {
+                    return new DashboardAsCodeInternalization().getLanguageMap(
+                        dashboard,
+                    );
+                } catch (e: unknown) {
+                    this.logger.error(
+                        `Error getting language map for dashboard ${dashboard.slug}`,
+                        e,
+                    );
+                    return undefined;
+                }
+            }),
             missingIds,
             total: dashboardSummariesWithAccess.length,
             offset: newOffset,
@@ -456,6 +462,7 @@ export class CoderService extends BaseService {
             );
             return {
                 charts: [],
+                languageMap: undefined,
                 missingIds: chartIds || [],
                 total: 0,
                 offset: 0,
@@ -507,10 +514,25 @@ export class CoderService extends BaseService {
             dashboardUuids,
         );
 
+        const transformedCharts = charts.map((chart) =>
+            CoderService.transformChart(chart, spaces, dashboards),
+        );
+
         return {
-            charts: charts.map((chart) =>
-                CoderService.transformChart(chart, spaces, dashboards),
-            ),
+            charts: transformedCharts,
+            languageMap: transformedCharts.map((chart) => {
+                try {
+                    return new ChartAsCodeInternalization().getLanguageMap(
+                        chart,
+                    );
+                } catch (e: unknown) {
+                    this.logger.error(
+                        `Error getting language map for chart ${chart.slug}`,
+                        e,
+                    );
+                    return undefined;
+                }
+            }),
             missingIds,
             total: chartsSummariesWithAccess.length,
             offset: newOffset,
