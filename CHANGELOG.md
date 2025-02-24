@@ -1,3 +1,10 @@
+# [0.1514.0](https://github.com/lightdash/lightdash/compare/0.1513.0...0.1514.0) (2025-02-24)
+
+
+### Features
+
+* redirect legacy SQL Runner URLs to new page ([#13794](https://github.com/lightdash/lightdash/issues/13794)) ([9c02669](https://github.com/lightdash/lightdash/commit/9c02669be0a94c7469861f872e89810cd7329550))
+
 # [0.1513.0](https://github.com/lightdash/lightdash/compare/0.1512.2...0.1513.0) (2025-02-24)
 
 
