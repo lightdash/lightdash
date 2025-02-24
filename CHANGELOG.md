@@ -1,3 +1,10 @@
+# [0.1515.0](https://github.com/lightdash/lightdash/compare/0.1514.2...0.1515.0) (2025-02-24)
+
+
+### Features
+
+* Support between and not between filter for numeric fields ([#13757](https://github.com/lightdash/lightdash/issues/13757)) ([832f527](https://github.com/lightdash/lightdash/commit/832f527e8f50f7946deb60341ce2331c04008ca0))
+
 ## [0.1514.2](https://github.com/lightdash/lightdash/compare/0.1514.1...0.1514.2) (2025-02-24)
 
 
