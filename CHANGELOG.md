@@ -1,3 +1,10 @@
+## [0.1514.1](https://github.com/lightdash/lightdash/compare/0.1514.0...0.1514.1) (2025-02-24)
+
+
+### Bug Fixes
+
+* **frontend:** disable drag when filter popover is open ([#13799](https://github.com/lightdash/lightdash/issues/13799)) ([180f4de](https://github.com/lightdash/lightdash/commit/180f4ded1abdf96c18947985ee4ffcc9372f6ba9))
+
 # [0.1514.0](https://github.com/lightdash/lightdash/compare/0.1513.0...0.1514.0) (2025-02-24)
 
 
