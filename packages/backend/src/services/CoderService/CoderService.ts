@@ -3,10 +3,12 @@ import {
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
     ChartAsCode,
+    ChartAsCodeInternalization,
     ChartSummary,
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
+    DashboardAsCodeInternalization,
     DashboardDAO,
     DashboardTile,
     DashboardTileAsCode,
@@ -161,7 +163,8 @@ export class CoderService extends BaseService {
             },
             [],
         );
-        return {
+
+        const dashboardAsCode: DashboardAsCode = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
@@ -175,6 +178,8 @@ export class CoderService extends BaseService {
             version: currentVersion,
             downloadedAt: new Date(),
         };
+
+        return dashboardAsCode;
     }
 
     async convertTileWithSlugsToUuids(
@@ -217,7 +222,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     Dashboard or chart ids can be uuids or slugs
      We need to convert uuids to slugs before making the query
     */
@@ -306,7 +311,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
     @returns: DashboardAsCode[]
     */
@@ -315,6 +320,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         dashboardIds: string[] | undefined,
         offset?: number,
+        languageMap?: boolean,
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -345,6 +351,7 @@ export class CoderService extends BaseService {
             );
             return {
                 dashboards: [],
+                languageMap: undefined,
                 missingIds: dashboardIds || [],
                 total: 0,
                 offset: 0,
@@ -398,10 +405,27 @@ export class CoderService extends BaseService {
             spaces,
         );
 
+        const transformedDashboards = dashboardsWithAccess.map((dashboard) =>
+            CoderService.transformDashboard(dashboard, spaces),
+        );
+
         return {
-            dashboards: dashboardsWithAccess.map((dashboard) =>
-                CoderService.transformDashboard(dashboard, spaces),
-            ),
+            dashboards: transformedDashboards,
+            languageMap: languageMap
+                ? transformedDashboards.map((dashboard) => {
+                      try {
+                          return new DashboardAsCodeInternalization().getLanguageMap(
+                              dashboard,
+                          );
+                      } catch (e: unknown) {
+                          this.logger.error(
+                              `Error getting language map for dashboard ${dashboard.slug}`,
+                              e,
+                          );
+                          return undefined;
+                      }
+                  })
+                : undefined,
             missingIds,
             total: dashboardSummariesWithAccess.length,
             offset: newOffset,
@@ -413,6 +437,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartIds?: string[],
         offset?: number,
+        languageMap?: boolean,
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -441,6 +466,7 @@ export class CoderService extends BaseService {
             );
             return {
                 charts: [],
+                languageMap: undefined,
                 missingIds: chartIds || [],
                 total: 0,
                 offset: 0,
@@ -492,10 +518,27 @@ export class CoderService extends BaseService {
             dashboardUuids,
         );
 
+        const transformedCharts = charts.map((chart) =>
+            CoderService.transformChart(chart, spaces, dashboards),
+        );
+
         return {
-            charts: charts.map((chart) =>
-                CoderService.transformChart(chart, spaces, dashboards),
-            ),
+            charts: transformedCharts,
+            languageMap: languageMap
+                ? transformedCharts.map((chart) => {
+                      try {
+                          return new ChartAsCodeInternalization().getLanguageMap(
+                              chart,
+                          );
+                      } catch (e: unknown) {
+                          this.logger.error(
+                              `Error getting language map for chart ${chart.slug}`,
+                              e,
+                          );
+                          return undefined;
+                      }
+                  })
+                : undefined,
             missingIds,
             total: chartsSummariesWithAccess.length,
             offset: newOffset,

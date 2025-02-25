@@ -1,3 +1,17 @@
+# [0.1517.0](https://github.com/lightdash/lightdash/compare/0.1516.0...0.1517.0) (2025-02-25)
+
+
+### Features
+
+* sdk i18n ([#13809](https://github.com/lightdash/lightdash/issues/13809)) ([ac4b8a7](https://github.com/lightdash/lightdash/commit/ac4b8a7c0bf021a3122021a82f8de30432505f28))
+
+# [0.1516.0](https://github.com/lightdash/lightdash/compare/0.1515.0...0.1516.0) (2025-02-25)
+
+
+### Features
+
+* override tiles' filters if dashboard ones target similar ([#13790](https://github.com/lightdash/lightdash/issues/13790)) ([b5f67e4](https://github.com/lightdash/lightdash/commit/b5f67e4f6ad42b268d3cfc32ecc9aff47f3e2ba6))
+
 # [0.1515.0](https://github.com/lightdash/lightdash/compare/0.1514.2...0.1515.0) (2025-02-24)
 
 

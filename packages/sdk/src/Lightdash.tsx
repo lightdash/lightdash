@@ -12,12 +12,10 @@ import {
     ReactQueryProvider,
     ThirdPartyServicesProvider,
     TrackingProvider,
+    type LanguageMap,
     type SdkFilter,
 } from '@lightdash/frontend';
 import { FC, PropsWithChildren, useEffect, useState } from 'react';
-
-// TODO: get from the sdk
-export type NestedLanguage = string | { [key: string]: NestedLanguage };
 
 type Props = {
     instanceUrl: string;
@@ -27,7 +25,7 @@ type Props = {
         fontFamily?: string;
     };
     filters?: SdkFilter[];
-    contentOverrides?: NestedLanguage;
+    contentOverrides?: LanguageMap;
 };
 
 const decodeJWT = (token: string) => {
