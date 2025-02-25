@@ -10,13 +10,26 @@ interface EmbedUrlInputProps {
     onDraftUrlChange: (value: string) => void;
     onSubmit: () => void;
     onClear: () => void;
+    lightdashUrl?: string;
+    lightdashToken?: string;
 }
+
+const inputDisplayStyle = {
+    overflowX: 'auto' as const,
+    whiteSpace: 'nowrap' as const,
+    padding: '8px',
+    backgroundColor: '#f5f5f5',
+    borderRadius: '4px',
+    maxWidth: '100%',
+};
 
 const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
     draftUrl,
     onDraftUrlChange,
     onSubmit,
     onClear,
+    lightdashUrl,
+    lightdashToken,
 }) => {
     const { t } = useTranslation();
 
@@ -37,6 +50,10 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
                     {t('app.clearButton', 'Clear')}
                 </button>
             </div>
+            <h4>Current lightdash URL:</h4>
+            <p style={inputDisplayStyle}>{lightdashUrl}</p>
+            <h4>Current lightdash token:</h4>
+            <p style={inputDisplayStyle}>{lightdashToken}</p>
         </div>
     );
 };
@@ -52,6 +69,9 @@ function App() {
     const [draftUrl, setDraftUrl] = useState<string>(
         localStorage.getItem('embedUrl') || EMBED_URL,
     );
+
+    const [inputsOpen, setInputsOpen] = useState(false);
+
     const containerStyle = {
         fontFamily: 'Arial, Helvetica, sans-serif',
         background: 'linear-gradient(135deg, #f0f2f5 0%, #e9eff5 100%)',
@@ -68,15 +88,6 @@ function App() {
         boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
         maxWidth: '1400px',
         width: '100%',
-    };
-
-    const inputDisplayStyle = {
-        overflowX: 'auto' as const,
-        whiteSpace: 'nowrap' as const,
-        padding: '8px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '4px',
-        maxWidth: '100%',
     };
 
     // Chart container style
@@ -111,55 +122,65 @@ function App() {
         <div style={containerStyle}>
             <div style={contentStyle}>
                 <header>
-                    <h1 style={{ color: '#333', margin: '0 0 10px' }}>
-                        Lightdash SDK
-                    </h1>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <h1 style={{ color: '#333', margin: '0 0 10px' }}>
+                            Lightdash SDK
+                        </h1>
+                        <div
+                            style={{
+                                justifyContent: 'flex-end',
+                                display: 'flex',
+                                gap: '8px',
+                            }}
+                        >
+                            <button onClick={() => i18n.changeLanguage('en')}>
+                                🇬🇧
+                            </button>
+                            <button onClick={() => i18n.changeLanguage('ka')}>
+                                🇬🇪
+                            </button>
+                            <button onClick={() => i18n.changeLanguage('es')}>
+                                🇪🇸
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setInputsOpen(!inputsOpen)}
+                            color="gray"
+                        >
+                            {inputsOpen ? 'Hide embed URL' : 'Show embed URL'}
+                        </button>
+                    </div>
 
                     <div
                         style={{
-                            justifyContent: 'flex-end',
-                            display: 'flex',
-                            gap: '8px',
+                            width: '100%',
+                            display: inputsOpen ? 'block' : 'none',
                         }}
                     >
-                        <button onClick={() => i18n.changeLanguage('en')}>
-                            🇬🇧
-                        </button>
-                        <button onClick={() => i18n.changeLanguage('ka')}>
-                            🇬🇪
-                        </button>
-                        <button onClick={() => i18n.changeLanguage('es')}>
-                            🇪🇸
-                        </button>
+                        <EmbedUrlInput
+                            draftUrl={draftUrl}
+                            onDraftUrlChange={setDraftUrl}
+                            onSubmit={() => {
+                                setEmbedUrl(draftUrl);
+                                setInputsOpen(false);
+                                localStorage.setItem('embedUrl', draftUrl);
+                            }}
+                            onClear={() => {
+                                setDraftUrl('');
+                                setEmbedUrl('');
+                                localStorage.removeItem('embedUrl');
+                            }}
+                            lightdashUrl={lightdashUrl}
+                            lightdashToken={lightdashToken}
+                        />
                     </div>
                 </header>
-
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <p>{t('Enter a Lightdash embed URL')}</p>
-
-                    <EmbedUrlInput
-                        draftUrl={draftUrl}
-                        onDraftUrlChange={setDraftUrl}
-                        onSubmit={() => {
-                            setEmbedUrl(draftUrl);
-                            localStorage.setItem('embedUrl', draftUrl);
-                        }}
-                        onClear={() => {
-                            setDraftUrl('');
-                            setEmbedUrl('');
-                            localStorage.removeItem('embedUrl');
-                        }}
-                    />
-
-                    {lightdashUrl && lightdashToken ? (
-                        <>
-                            <h4>Current lightdash URL:</h4>
-                            <p style={inputDisplayStyle}>{lightdashUrl}</p>
-                            <h4>Current lightdash token:</h4>
-                            <p style={inputDisplayStyle}>{lightdashToken}</p>
-                        </>
-                    ) : null}
-                </div>
 
                 {lightdashUrl && lightdashToken ? (
                     <main>
