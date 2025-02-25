@@ -137,3 +137,7 @@ export class ChartAsCodeInternalization extends AsCodeInternalization<
         return mergeExisting(content, internalizationMap);
     }
 }
+
+export type ChartAsCodeLanguageMap = ReturnType<
+    ChartAsCodeInternalization['getLanguageMap']
+>;

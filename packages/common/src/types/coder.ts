@@ -1,6 +1,8 @@
 import { type PartialDeep } from 'type-fest';
 import type {
+    ChartAsCodeLanguageMap,
     Dashboard,
+    DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
@@ -30,20 +32,19 @@ export type ChartAsCode = Pick<
     downloadedAt?: Date; // Not modifiable by user, but useful to know if it has been updated
 };
 
-export type ChartAsCodeInternalized = {
-    chart: {
-        [slugKey in ChartAsCode['slug']]: PartialDeep<
-            ChartAsCode,
-            { recurseIntoArrays: true }
-        >;
-    };
-};
-
 export type ApiChartAsCodeListResponse = {
     status: 'ok';
     results: {
         charts: ChartAsCode[];
-        languageMap: Array<ChartAsCodeInternalized | undefined> | undefined;
+        languageMap:
+            | Array<
+                  | PartialDeep<
+                        ChartAsCodeLanguageMap,
+                        { recurseIntoArrays: true }
+                    >
+                  | undefined
+              >
+            | undefined;
         missingIds: string[];
         total: number;
         offset: number;
@@ -76,20 +77,19 @@ export type DashboardAsCode = Pick<
     downloadedAt?: Date;
 };
 
-export type DashboardAsCodeLanguageMap = {
-    dashboard: {
-        [slugKey in DashboardAsCode['slug']]: PartialDeep<
-            DashboardAsCode,
-            { recurseIntoArrays: true }
-        >;
-    };
-};
-
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
     results: {
         dashboards: DashboardAsCode[];
-        languageMap: Array<DashboardAsCodeLanguageMap | undefined> | undefined;
+        languageMap:
+            | Array<
+                  | PartialDeep<
+                        DashboardAsCodeLanguageMap,
+                        { recurseIntoArrays: true }
+                    >
+                  | undefined
+              >
+            | undefined;
         missingIds: string[];
         total: number;
         offset: number;

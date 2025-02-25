@@ -70,3 +70,7 @@ export class DashboardAsCodeInternalization extends AsCodeInternalization<
         return mergeExisting(content, internalizationMap);
     }
 }
+
+export type DashboardAsCodeLanguageMap = ReturnType<
+    DashboardAsCodeInternalization['getLanguageMap']
+>;

@@ -3,6 +3,7 @@
 
 import { MemoryRouter } from 'react-router';
 
+import { type LanguageMap } from '@lightdash/common';
 import EmbedDashboard from '../ee/pages/EmbedDashboard';
 import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
@@ -16,7 +17,6 @@ import ThirdPartyServicesProvider from '../providers/ThirdPartyServicesProvider'
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
 
 import { type SdkFilter } from '../ee/features/embed/EmbedDashboard/types';
-
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 
@@ -34,5 +34,6 @@ export {
     ReactQueryProvider,
     ThirdPartyServicesProvider,
     TrackingProvider,
+    type LanguageMap,
     type SdkFilter,
 };

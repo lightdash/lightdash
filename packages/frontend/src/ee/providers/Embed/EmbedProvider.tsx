@@ -1,14 +1,14 @@
+import { type LanguageMap } from '@lightdash/common';
 import { get } from 'lodash';
 import { type FC } from 'react';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import EmbedProviderContext from './context';
-import { type NestedLanguage } from './types';
 
 type Props = {
     embedToken?: string;
     filters?: SdkFilter[];
     projectUuid?: string;
-    contentOverrides?: NestedLanguage;
+    contentOverrides?: LanguageMap;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -18,13 +18,17 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     contentOverrides,
 }) => {
-    const t = (input: string) => {
-        return get(contentOverrides, input);
-    };
+    const t = (input: string) => get(contentOverrides, input);
 
     return (
         <EmbedProviderContext.Provider
-            value={{ embedToken, filters, projectUuid, t }}
+            value={{
+                embedToken,
+                filters,
+                projectUuid,
+                t,
+                languageMap: contentOverrides,
+            }}
         >
             {children}
         </EmbedProviderContext.Provider>
