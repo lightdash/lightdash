@@ -2857,6 +2857,25 @@
                 },
                 "type": "object"
             },
+            "XAxisSortType": {
+                "enum": ["default", "bar_totals"],
+                "type": "string"
+            },
+            "XAxis": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Axis"
+                    },
+                    {
+                        "properties": {
+                            "sortType": {
+                                "$ref": "#/components/schemas/XAxisSortType"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "Partial_CompleteEChartsConfig_": {
                 "properties": {
                     "legend": {
@@ -2873,7 +2892,7 @@
                     },
                     "xAxis": {
                         "items": {
-                            "$ref": "#/components/schemas/Axis"
+                            "$ref": "#/components/schemas/XAxis"
                         },
                         "type": "array"
                     },

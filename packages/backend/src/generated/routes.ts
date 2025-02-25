@@ -2587,6 +2587,26 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    XAxisSortType: {
+        dataType: 'refEnum',
+        enums: ['default', 'bar_totals'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    XAxis: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Axis' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { sortType: { ref: 'XAxisSortType' } },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Partial_CompleteEChartsConfig_: {
         dataType: 'refAlias',
         type: {
@@ -2621,7 +2641,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         {
                             dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'Axis' },
+                            array: { dataType: 'refAlias', ref: 'XAxis' },
                         },
                         { dataType: 'undefined' },
                     ],
