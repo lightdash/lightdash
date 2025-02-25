@@ -1923,7 +1923,7 @@ const useEchartsCartesianConfig = (
             // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
             const stackTotalEntries: [unknown, number][] = Object.entries(
                 groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
-            ).reduce<[string, number][]>((acc, [key, totals]) => {
+            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
                 acc.push([
                     key,
                     totals.reduce((sum, total) => sum + total[2], 0),
@@ -2004,6 +2004,8 @@ const useEchartsCartesianConfig = (
             theme?.other.chartFont,
         ],
     );
+
+    console.log(eChartsOptions);
 
     if (
         !itemsMap ||

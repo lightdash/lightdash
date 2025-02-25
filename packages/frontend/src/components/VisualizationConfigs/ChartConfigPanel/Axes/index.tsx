@@ -12,25 +12,38 @@ import {
     Checkbox,
     Group,
     NumberInput,
-    SegmentedControl,
+    Select,
     Stack,
     Switch,
+    Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
 import {
+    IconChartBar,
     IconSortAscending,
     IconSortDescending,
-    IconStairsDown,
-    IconStairsUp,
+    type Icon,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { forwardRef, type FC } from 'react';
 import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { AxisMinMax } from './AxisMinMax';
+
+const XAxisSortSelectItem = forwardRef<
+    HTMLDivElement,
+    { icon: Icon; label: string; mirrorIcon: boolean }
+>(({ icon, label, mirrorIcon, ...others }, ref) => (
+    <Group ref={ref} spacing="xs" {...others} noWrap>
+        <MantineIcon
+            style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
+            icon={icon}
+        />
+        <Text fz="xs">{label}</Text>
+    </Group>
+));
 
 type Props = {
     itemsMap: ItemsMap | undefined;
@@ -154,68 +167,34 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Group spacing="xs">
                         <Group spacing="xs">
                             <Config.Label>Sort</Config.Label>
-                            <SegmentedControl
+                            <Select
                                 value={getXAxisSort(
                                     dirtyEchartsConfig?.xAxis?.[0],
                                 )}
                                 onChange={setXAxisSort}
+                                itemComponent={XAxisSortSelectItem}
                                 data={[
                                     {
                                         value: XAxisSort.ASCENDING,
-                                        label: (
-                                            <Tooltip
-                                                label="Sort ascending"
-                                                variant="xs"
-                                                withinPortal
-                                            >
-                                                <MantineIcon
-                                                    icon={IconSortAscending}
-                                                />
-                                            </Tooltip>
-                                        ),
+                                        label: 'Ascending',
+                                        icon: IconSortAscending,
                                     },
                                     {
                                         value: XAxisSort.DESCENDING,
-                                        label: (
-                                            <Tooltip
-                                                label="Sort descending"
-                                                variant="xs"
-                                                withinPortal
-                                            >
-                                                <MantineIcon
-                                                    icon={IconSortDescending}
-                                                />
-                                            </Tooltip>
-                                        ),
+                                        label: 'Descending',
+                                        icon: IconSortDescending,
                                     },
                                     {
                                         value: XAxisSort.BAR_TOTALS_ASCENDING,
-                                        label: (
-                                            <Tooltip
-                                                label="Sort by bar totals ascending"
-                                                variant="xs"
-                                                withinPortal
-                                            >
-                                                <MantineIcon
-                                                    icon={IconStairsUp}
-                                                />
-                                            </Tooltip>
-                                        ),
+                                        label: 'Bars ascending',
+                                        icon: IconChartBar,
                                         disabled: !canSortByBarTotals,
                                     },
                                     {
                                         value: XAxisSort.BAR_TOTALS_DESCENDING,
-                                        label: (
-                                            <Tooltip
-                                                label="Sort by bar totals descending"
-                                                variant="xs"
-                                                withinPortal
-                                            >
-                                                <MantineIcon
-                                                    icon={IconStairsDown}
-                                                />
-                                            </Tooltip>
-                                        ),
+                                        label: 'Bars descending',
+                                        icon: IconChartBar,
+                                        mirrorIcon: true,
                                         disabled: !canSortByBarTotals,
                                     },
                                 ]}
