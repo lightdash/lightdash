@@ -8,6 +8,7 @@ import {
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
+    DashboardAsCodeInternalization,
     DashboardDAO,
     DashboardTile,
     DashboardTileAsCode,
