@@ -91,6 +91,7 @@ const FiltersCard: FC = memo(() => {
                     dimensions: overrideFilterGroupWithFilterRules(
                         unsavedQueryFilters.dimensions,
                         reducedRules,
+                        undefined,
                     ),
                 };
             }
