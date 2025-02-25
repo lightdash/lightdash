@@ -13,7 +13,7 @@ git secrets --register-aws > /dev/null
 # Current patterns:
 # - Private key
 # - Google Cloud API key
-# - Google Cloud service account key
+# - Google access token
 # - AWS patterns
 
 patterns="ya29\.[0-9A-Za-z_-]+ \
