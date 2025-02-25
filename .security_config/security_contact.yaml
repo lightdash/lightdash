@@ -48,6 +48,10 @@ contact:
 services:
 - perftool
 
+# List of Security Champions responsible for the security of this code.
+security_champions:
+    - corp:tony.orciuoli
+
 # Which service account(s) does your team use with artifactory? You may
 # this or leave a blank list if this repo does not store build artifacts
 # in artifactory.
