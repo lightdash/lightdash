@@ -35,6 +35,7 @@ const chartAsCodeSchema = z.object({
                         series: z
                             .array(
                                 z.object({
+                                    name: z.string().optional(),
                                     markLine: z
                                         .object({
                                             data: z.array(
