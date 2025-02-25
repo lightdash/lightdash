@@ -17,8 +17,7 @@ git secrets --register-aws > /dev/null
 # - AWS patterns
 
 patterns="ya29\.[0-9A-Za-z_-]+ \
-AIza[0-9A-Za-z_-]{35} \
-[0-9]/-[0-9A-Za-z_-]{27}"
+AIza[0-9A-Za-z_-]{35}"
 
 # Function to add a pattern if it does not already exist
 add_pattern_if_not_exists() {
