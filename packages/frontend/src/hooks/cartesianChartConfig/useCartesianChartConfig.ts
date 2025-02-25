@@ -112,7 +112,9 @@ const applyReferenceLines = (
     });
 };
 
-function getXAxisSort(sort: XAxisSort): Pick<XAxis, 'inverse' | 'sortType'> {
+function getXAxisSortConfig(
+    sort: XAxisSort,
+): Pick<XAxis, 'inverse' | 'sortType'> {
     switch (sort) {
         case XAxisSort.ASCENDING:
             return {
@@ -347,7 +349,7 @@ const useCartesianChartConfig = ({
     const setXAxisSort = useCallback((sort: XAxisSort) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
-            const { inverse, sortType } = getXAxisSort(sort);
+            const { inverse, sortType } = getXAxisSortConfig(sort);
             return {
                 ...prevState,
                 xAxis: [{ ...firstAxis, inverse, sortType }, ...axes],
