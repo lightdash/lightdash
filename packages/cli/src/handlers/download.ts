@@ -122,10 +122,12 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
         // Read all files from the lightdash directory
         // if folder does not exist, this throws an error
         const files = await fs.readdir(inputDir);
-        const jsonFiles = files.filter((file) => file.endsWith('.yml'));
+        const yamlFiles = files
+            .filter((file) => file.endsWith('.yml'))
+            .filter((file) => !file.endsWith('.language.map.yml'));
 
         // Load each JSON file
-        for (const file of jsonFiles) {
+        for (const file of yamlFiles) {
             const filePath = path.join(inputDir, file);
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const item = yaml.load(fileContent) as T;
