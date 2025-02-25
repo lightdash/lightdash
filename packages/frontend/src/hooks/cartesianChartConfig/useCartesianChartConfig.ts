@@ -426,6 +426,15 @@ const useCartesianChartConfig = ({
                             type,
                             areaStyle: hasAreaStyle ? {} : undefined,
                         })),
+                        xAxis: prevState?.xAxis?.map((axis) => ({
+                            ...axis,
+                            // If the chart is not a bar chart, and the xAxis is sorted by bar totals, set the sort type to default ( bar totals are not applied to non-bar charts )
+                            sortType:
+                                type !== CartesianSeriesType.BAR &&
+                                axis.sortType === XAxisSortType.BAR_TOTALS
+                                    ? XAxisSortType.DEFAULT
+                                    : axis.sortType,
+                        })),
                     },
             );
         },
