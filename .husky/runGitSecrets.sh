@@ -6,14 +6,19 @@ then
 fi
 
 # # Initialise git-secrets configuration
-git-secrets --register-aws > /dev/null
+git secrets --register-aws > /dev/null
 
 # Custom REGEX patterns Array to check for various custom secrets
-patterns="password:\s*([^{\"\s][^}]*|\"[^{].*[^}]\") \
-pass:\s*([^{\"\s][^}]*|\"[^{].*[^}]\") \
-api_key:\s*([^{\"\s][^}]*|\"[^{].*[^}]\") \
-token:\s*([^{\"\s][^}]*|\"[^{].*[^}]\") \
-account:\s*([^{\"\s][^}]*|\"[^{].*[^}]\")"
+
+# Current patterns:
+# - Private key
+# - Google Cloud API key
+# - Google Cloud service account key
+# - AWS patterns
+
+patterns="ya29\.[0-9A-Za-z_-]+ \
+AIza[0-9A-Za-z_-]{35} \
+[0-9]/-[0-9A-Za-z_-]{27}"
 
 # Function to add a pattern if it does not already exist
 add_pattern_if_not_exists() {
