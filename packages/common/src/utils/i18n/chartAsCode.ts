@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ChartAsCode } from '../../types/coder';
+import { ChartType } from '../../types/savedCharts';
 import { AsCodeInternalization } from './abstract';
 import { mergeExisting } from './merge';
 
@@ -14,6 +15,7 @@ const chartAsCodeSchema = z.object({
     chartConfig: z.union([
         // cartesian chart schema
         z.object({
+            type: z.literal(ChartType.CARTESIAN),
             config: z
                 .object({
                     eChartsConfig: z.object({
@@ -57,6 +59,7 @@ const chartAsCodeSchema = z.object({
 
         // pie chart schema
         z.object({
+            type: z.literal(ChartType.PIE),
             config: z
                 .object({
                     groupLabelOverrides: z
@@ -70,6 +73,7 @@ const chartAsCodeSchema = z.object({
 
         // funnel chart schema
         z.object({
+            type: z.literal(ChartType.FUNNEL),
             config: z
                 .object({
                     labelOverrides: z.record(z.string(), z.string()).optional(),
@@ -81,6 +85,7 @@ const chartAsCodeSchema = z.object({
 
         // big number chart schema
         z.object({
+            type: z.literal(ChartType.BIG_NUMBER),
             config: z
                 .object({
                     label: z.string().optional(),
@@ -93,6 +98,7 @@ const chartAsCodeSchema = z.object({
 
         // table chart schema
         z.object({
+            type: z.literal(ChartType.TABLE),
             config: z
                 .object({
                     columns: z

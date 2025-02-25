@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type DashboardAsCode } from '../../types/coder';
+import { DashboardTileTypes } from '../../types/dashboard';
 import { AsCodeInternalization } from './abstract';
 import { mergeExisting } from './merge';
 
@@ -13,23 +14,25 @@ const dashboardAsCodeSchema = z.object({
     tiles: z.array(
         z.union([
             z.object({
-                // type: DashboardTileTypes.SAVED_CHART
-                // type: DashboardTileTypes.SQL_CHART
-                // type: DashboardTileTypes.SEMANTIC_VIEWER_CHART
+                type: z.union([
+                    z.literal(DashboardTileTypes.SAVED_CHART),
+                    z.literal(DashboardTileTypes.SQL_CHART),
+                    z.literal(DashboardTileTypes.SEMANTIC_VIEWER_CHART),
+                ]),
                 properties: z.object({
                     title: z.string(),
                     chartName: z.string().optional().default(''),
                 }),
             }),
             z.object({
-                // type: DashboardTileTypes.MARKDOWN
+                type: z.literal(DashboardTileTypes.MARKDOWN),
                 properties: z.object({
                     title: z.string(),
                     content: z.string(),
                 }),
             }),
             z.object({
-                // type: DashboardTileTypes.LOOM
+                type: z.literal(DashboardTileTypes.LOOM),
                 properties: z.object({
                     title: z.string(),
                 }),
