@@ -4,6 +4,7 @@ import {
     assertUnreachable,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
+    createConditionalFormattingRuleWithCompareTarget,
     createConditionalFormattingRuleWithCompareTargetValues,
     createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfigType,
@@ -21,7 +22,6 @@ import {
     type ConditionalOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { createConditionalFormattingRuleWithCompareTarget } from '@lightdash/common/src/utils/conditionalFormatting';
 import {
     Accordion,
     Box,

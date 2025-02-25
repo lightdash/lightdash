@@ -1,4 +1,4 @@
-import { mergeExisting } from '@lightdash/common/src/utils/i18n/merge';
+import { mergeExisting } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';

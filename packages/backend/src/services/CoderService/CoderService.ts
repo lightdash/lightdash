@@ -23,7 +23,6 @@ import {
     SpaceSummary,
     UpdatedByUser,
 } from '@lightdash/common';
-import { DashboardAsCodeInternalization } from '@lightdash/common/src';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
