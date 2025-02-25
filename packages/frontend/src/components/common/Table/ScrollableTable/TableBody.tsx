@@ -4,9 +4,9 @@ import {
     getConditionalFormattingDescription,
     getItemId,
     isNumericItem,
+    type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
-import type { ConditionalFormattingRowFields } from '@lightdash/common/src/types/conditionalFormatting';
 import { Button, Group } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';

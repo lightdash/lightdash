@@ -1,5 +1,8 @@
+import { type PartialDeep } from 'type-fest';
 import type {
+    ChartAsCodeLanguageMap,
     Dashboard,
+    DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
@@ -33,6 +36,15 @@ export type ApiChartAsCodeListResponse = {
     status: 'ok';
     results: {
         charts: ChartAsCode[];
+        languageMap:
+            | Array<
+                  | PartialDeep<
+                        ChartAsCodeLanguageMap,
+                        { recurseIntoArrays: true }
+                    >
+                  | undefined
+              >
+            | undefined;
         missingIds: string[];
         total: number;
         offset: number;
@@ -69,6 +81,15 @@ export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
     results: {
         dashboards: DashboardAsCode[];
+        languageMap:
+            | Array<
+                  | PartialDeep<
+                        DashboardAsCodeLanguageMap,
+                        { recurseIntoArrays: true }
+                    >
+                  | undefined
+              >
+            | undefined;
         missingIds: string[];
         total: number;
         offset: number;
