@@ -113,7 +113,7 @@ const readFileOrThrow = (fileType: string, path: string) => {
         .then((file) => file.toString('utf-8'))
         .catch((err) => {
             throw new ParameterError(
-                `Error reading file for ${fileType}:\n\t${err.code} ${path}`,
+                `Postgres target requires ${fileType}, Error reading provided file:\n\t${err.code} ${path}`,
             );
         });
 };
@@ -155,9 +155,10 @@ export const convertPostgresSchema = async (
                 `Postgres target requires sslrootcert when sslmode is "verify-ca"`,
             );
         }
-        [sslrootcertFile] = await Promise.all([
-            readFileOrThrow('sslrootcert', target.sslrootcert),
-        ]);
+        sslrootcertFile = await readFileOrThrow(
+            'sslrootcert',
+            target.sslrootcert,
+        );
     }
 
     const password = target.pass || target.password;
