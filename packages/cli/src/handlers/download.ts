@@ -186,9 +186,11 @@ export const downloadContent = async (
             `Downloading ${type} with offset "${offset}" and filters "${contentFilters}"`,
         );
 
+        const commonParams = `offset=${offset}&languageMap=${languageMap}`;
+
         const queryParams = contentFilters
-            ? `${contentFilters}&offset=${offset}`
-            : `?offset=${offset}`;
+            ? `${contentFilters}&${commonParams}`
+            : `?${commonParams}`;
         contentAsCode = await lightdashApi({
             method: 'GET',
             url: `/api/v1/projects/${projectId}/${type}/code${queryParams}`,

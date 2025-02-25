@@ -320,6 +320,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         dashboardIds: string[] | undefined,
         offset?: number,
+        languageMap?: boolean,
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -410,19 +411,21 @@ export class CoderService extends BaseService {
 
         return {
             dashboards: transformedDashboards,
-            languageMap: transformedDashboards.map((dashboard) => {
-                try {
-                    return new DashboardAsCodeInternalization().getLanguageMap(
-                        dashboard,
-                    );
-                } catch (e: unknown) {
-                    this.logger.error(
-                        `Error getting language map for dashboard ${dashboard.slug}`,
-                        e,
-                    );
-                    return undefined;
-                }
-            }),
+            languageMap: languageMap
+                ? transformedDashboards.map((dashboard) => {
+                      try {
+                          return new DashboardAsCodeInternalization().getLanguageMap(
+                              dashboard,
+                          );
+                      } catch (e: unknown) {
+                          this.logger.error(
+                              `Error getting language map for dashboard ${dashboard.slug}`,
+                              e,
+                          );
+                          return undefined;
+                      }
+                  })
+                : undefined,
             missingIds,
             total: dashboardSummariesWithAccess.length,
             offset: newOffset,
@@ -434,6 +437,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartIds?: string[],
         offset?: number,
+        languageMap?: boolean,
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -520,19 +524,21 @@ export class CoderService extends BaseService {
 
         return {
             charts: transformedCharts,
-            languageMap: transformedCharts.map((chart) => {
-                try {
-                    return new ChartAsCodeInternalization().getLanguageMap(
-                        chart,
-                    );
-                } catch (e: unknown) {
-                    this.logger.error(
-                        `Error getting language map for chart ${chart.slug}`,
-                        e,
-                    );
-                    return undefined;
-                }
-            }),
+            languageMap: languageMap
+                ? transformedCharts.map((chart) => {
+                      try {
+                          return new ChartAsCodeInternalization().getLanguageMap(
+                              chart,
+                          );
+                      } catch (e: unknown) {
+                          this.logger.error(
+                              `Error getting language map for chart ${chart.slug}`,
+                              e,
+                          );
+                          return undefined;
+                      }
+                  })
+                : undefined,
             missingIds,
             total: chartsSummariesWithAccess.length,
             offset: newOffset,
