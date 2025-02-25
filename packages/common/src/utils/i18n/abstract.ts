@@ -16,9 +16,7 @@ export abstract class AsCodeInternalization<
     T extends AllowedAsCode,
     Z extends z.AnyZodObject,
 > {
-    protected abstract _schema: Z;
-
-    protected abstract getSchema(): ReturnType<Z['deepPartial']>;
+    protected abstract schema: Z;
 
     public abstract getLanguageMap(asCode: T['content']): {
         [typeKey in T['type']]: {
