@@ -1896,15 +1896,16 @@ const useEchartsCartesianConfig = (
     const sortedResultsByTotals = useMemo(() => {
         if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
 
-        const xField = validCartesianConfig?.layout.xField;
+        const axis = validCartesianConfig?.layout.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
 
-        if (!xField) return sortedResults;
-
-        const xAxis = axes.xAxis[0];
+        const xFieldId = validCartesianConfig?.layout?.xField;
         const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
         if (
-            xAxis?.type === 'category' &&
+            xFieldId &&
+            axis?.type === 'category' &&
             xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS &&
             (pivotDimensions?.length ?? 0) >= 1
         ) {
@@ -1915,13 +1916,20 @@ const useEchartsCartesianConfig = (
                 validCartesianConfigLegend,
             );
 
+            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
+                ? 1
+                : 0;
+
             return sortedResults.sort((a, b) => {
                 const totalA =
-                    stackTotals.find((total) => total[0] === a[xField])?.[2] ??
-                    0;
+                    stackTotals.find(
+                        (total) => total[stackTotalValueIndex] === a[xFieldId],
+                    )?.[2] ?? 0;
+
                 const totalB =
-                    stackTotals.find((total) => total[0] === b[xField])?.[2] ??
-                    0;
+                    stackTotals.find(
+                        (total) => total[stackTotalValueIndex] === b[xFieldId],
+                    )?.[2] ?? 0;
 
                 return totalA - totalB; // Asc/Desc will be taken care of by inverse config
             });
@@ -1931,9 +1939,10 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         sortedResults,
-        validCartesianConfig?.layout.xField,
         validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.xField,
         validCartesianConfig?.eChartsConfig.xAxis,
+        axes.yAxis,
         axes.xAxis,
         pivotDimensions?.length,
         rows,
