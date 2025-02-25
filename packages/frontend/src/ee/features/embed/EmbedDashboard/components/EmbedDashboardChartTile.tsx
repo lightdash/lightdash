@@ -1,3 +1,4 @@
+import { mergeExisting } from '@lightdash/common/src/utils/i18n/merge';
 import { Box } from '@mantine/core';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
@@ -9,6 +10,7 @@ import { useEmbedChartAndResults } from '../hooks';
 
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
+    dashboardSlug: string;
     embedToken: string;
     locked: boolean;
     tileIndex: number;
@@ -16,6 +18,7 @@ type Props = ComponentProps<typeof DashboardChartTile> & {
 
 const EmbedDashboardChartTile: FC<Props> = ({
     projectUuid,
+    dashboardSlug,
     embedToken,
     locked,
     canExportCsv,
@@ -26,65 +29,40 @@ const EmbedDashboardChartTile: FC<Props> = ({
     tileIndex,
     ...rest
 }) => {
+    const { languageMap } = useEmbed();
+
     const { isLoading, data, error } = useEmbedChartAndResults(
         projectUuid,
         embedToken,
         tile.uuid,
     );
 
-    const { t } = useEmbed();
-    const translatedTile = useMemo(
-        () => ({
-            ...tile,
-            properties: {
-                ...tile.properties,
-                title:
-                    t(`tiles.${tileIndex}.properties.title`) ??
-                    tile.properties.title,
-            },
-        }),
-        [tile, tileIndex, t],
-    );
+    const translatedTile = useMemo(() => {
+        if (!languageMap) return tile;
+
+        const tileLanguageMap =
+            languageMap.dashboard?.[dashboardSlug]?.tiles?.[tileIndex];
+        if (!tileLanguageMap) return tile;
+
+        return produce(tile, (draft) => {
+            draft.properties = mergeExisting(
+                draft.properties,
+                tileLanguageMap.properties,
+            );
+        });
+    }, [dashboardSlug, languageMap, tile, tileIndex]);
 
     const translatedChartData = useMemo(() => {
-        const frozenObject = produce(data, (draft) => {
-            if (!draft) return;
+        if (!data) return undefined;
 
-            // TODO: typeguard and add other chart types
-            const eChartsConfig =
-                // @ts-ignore
-                draft?.chart?.chartConfig?.config?.eChartsConfig;
+        const chartConfigLanguageMap = languageMap?.chart?.[data.chart.slug];
 
-            if (!eChartsConfig) return;
+        if (!chartConfigLanguageMap) return data;
 
-            if (eChartsConfig.xAxis) {
-                // TODO: fix any
-                eChartsConfig.xAxis.forEach((axis: any, index: number) => {
-                    axis.name =
-                        t(`${draft.chart.slug}.config.xAxis.${index}.name`) ??
-                        axis.name;
-                });
-            }
-
-            if (eChartsConfig.yAxis) {
-                eChartsConfig.yAxis.forEach((axis: any, index: number) => {
-                    axis.name =
-                        t(`${draft.chart.slug}.config.yAxis.${index}.name`) ??
-                        axis.name;
-                });
-            }
-
-            if (eChartsConfig.series) {
-                eChartsConfig.series.forEach((series: any, index: number) => {
-                    series.name =
-                        t(`${draft.chart.slug}.config.series.${index}.name`) ??
-                        series.name;
-                });
-            }
+        return produce(data, (draft) => {
+            draft.chart = mergeExisting(draft.chart, chartConfigLanguageMap);
         });
-
-        return structuredClone(frozenObject);
-    }, [data, t]);
+    }, [data, languageMap?.chart]);
 
     if (locked) {
         return (
