@@ -1162,6 +1162,7 @@ const models: TsoaRoute.Models = {
             'inTheCurrent',
             'notInTheCurrent',
             'inBetween',
+            'notInBetween',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -8504,6 +8505,27 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sslcertFileName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sslkeyFileName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sslrootcertFileName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },

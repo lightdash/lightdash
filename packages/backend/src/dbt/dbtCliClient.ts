@@ -11,6 +11,7 @@ import {
     isDbtRpcManifestResults,
     ParseError,
     SupportedDbtVersions,
+    validateDbtSelector,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import execa, { ExecaError, ExecaReturnValue } from 'execa';
@@ -245,9 +246,7 @@ export class DbtCliClient implements DbtClient {
     }
 
     static validateSelector(selector: string): boolean {
-        // eslint-disable-next-line no-useless-escape
-        const validSelectorPattern = /^@?[a-zA-Z0-9\s\*\-\.\+:_]+$/;
-        return validSelectorPattern.test(selector);
+        return validateDbtSelector(selector);
     }
 
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {

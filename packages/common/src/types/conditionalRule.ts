@@ -17,6 +17,7 @@ export enum ConditionalOperator {
     IN_THE_CURRENT = 'inTheCurrent',
     NOT_IN_THE_CURRENT = 'notInTheCurrent',
     IN_BETWEEN = 'inBetween',
+    NOT_IN_BETWEEN = 'notInBetween',
 }
 
 export type ConditionalRule<O = ConditionalOperator, V = unknown> = {

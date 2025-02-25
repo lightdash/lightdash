@@ -465,4 +465,16 @@ export const isFilterRuleDefinedForFieldId = (
     return filterGroupItems.some(isFilterRulePresent);
 };
 
+/**
+ * Type tracking time-based filter overrides using an external map instead of modifying filter rules
+ * Maps dashboard filter rule IDs to their override configurations
+ */
+export type TimeBasedOverrideMap = Record<
+    string,
+    {
+        baseTimeDimensionName: string;
+        fieldsToChange: string[];
+    }
+>;
+
 export { ConditionalOperator as FilterOperator };

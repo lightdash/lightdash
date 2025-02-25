@@ -1,10 +1,15 @@
 import { ConditionalOperator } from '../types/conditionalRule';
-import { type Table } from '../types/explore';
+import { SupportedDbtAdapter } from '../types/dbt';
+import { type Explore, type Table } from '../types/explore';
+import { DimensionType, FieldType } from '../types/field';
 import {
+    type AndFilterGroup,
+    type DashboardFilterRule,
     type FilterGroup,
     type FilterRule,
     type Filters,
     type MetricFilterRule,
+    type OrFilterGroup,
 } from '../types/filter';
 import {
     addDashboardFiltersToMetricQuery,
@@ -14,6 +19,7 @@ import {
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
+    trackWhichTimeBasedMetricFiltersToOverride,
 } from './filters';
 import {
     baseTable,
@@ -60,6 +66,7 @@ describe('overrideChartFilter', () => {
         const result = overrideChartFilter(
             chartAndFilterGroup,
             dashboardFilterWithSameTargetAndOperator,
+            {},
         );
         expect(result).toEqual({
             id: 'fillter-group-1',
@@ -86,6 +93,7 @@ describe('overrideChartFilter', () => {
         const result = overrideChartFilter(
             chartOrFilterGroup,
             dashboardFilterWithSameTargetAndOperator,
+            {},
         );
         expect(result).toEqual({
             id: 'fillter-group-1',
@@ -112,6 +120,7 @@ describe('overrideChartFilter', () => {
         const result = overrideChartFilter(
             chartAndFilterGroup,
             dashboardFilterWithSameTargetButDifferentOperator,
+            {},
         );
         expect(result).toEqual({
             id: 'fillter-group-1',
@@ -232,5 +241,238 @@ describe('resetRequiredFilterRules', () => {
             'someOther',
         ]);
         expect(newFilterRules).toEqual(expectedRequiredResetResult);
+    });
+});
+
+describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
+    const mockExplore: Explore = {
+        name: 'test',
+        label: 'Test',
+        tags: [],
+        baseTable: 'orders',
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+        joinedTables: [],
+        tables: {
+            orders: {
+                name: 'orders',
+                label: 'Orders',
+                database: 'test',
+                schema: 'public',
+                sqlTable: 'orders',
+                metrics: {},
+                lineageGraph: {},
+                dimensions: {
+                    order_date_year: {
+                        name: 'order_date_year',
+                        label: 'Order Date Year',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        compiledSql: 'order_date_year',
+                        tablesReferences: [],
+                        sql: 'order_date_year',
+                        hidden: false,
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        timeIntervalBaseDimensionName: 'order_date',
+                    },
+                    order_date_month: {
+                        name: 'order_date_month',
+                        label: 'Order Date Month',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        compiledSql: 'order_date_month',
+                        tablesReferences: [],
+                        sql: 'order_date_month',
+                        hidden: false,
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        timeIntervalBaseDimensionName: 'order_date',
+                    },
+                    order_date_week: {
+                        name: 'order_date_week',
+                        label: 'Order Date Week',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        compiledSql: 'order_date_week',
+                        sql: 'order_date_week',
+                        hidden: false,
+                        tablesReferences: [],
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        timeIntervalBaseDimensionName: 'order_date',
+                    },
+                    status: {
+                        name: 'status',
+                        label: 'Status',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        compiledSql: 'status',
+                        sql: 'status',
+                        hidden: false,
+                        tablesReferences: [],
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.BOOLEAN,
+                    },
+                },
+            },
+        },
+    };
+
+    test('should track fields to change when dashboard filter targets base time dimension', () => {
+        const metricQueryDimensionFilters: AndFilterGroup = {
+            id: 'dim-filter-group',
+            and: [
+                {
+                    id: 'month-filter',
+                    target: { fieldId: 'order_date_month' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['2024-03'],
+                },
+                {
+                    id: 'week-filter',
+                    target: { fieldId: 'order_date_week' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['2024-03-25'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'year-filter',
+            label: 'Year Filter',
+            target: {
+                fieldId: 'order_date_year',
+                tableName: 'orders',
+            },
+            operator: ConditionalOperator.EQUALS,
+            values: ['2024'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toEqual(
+            expect.arrayContaining(['order_date_month', 'order_date_week']),
+        );
+    });
+
+    test('should not track fields when dashboard filter targets non-base dimension', () => {
+        const metricQueryDimensionFilters: AndFilterGroup = {
+            id: 'dim-filter-group',
+            and: [
+                {
+                    id: 'status-filter',
+                    target: { fieldId: 'status' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'status-filter',
+            label: 'Status Filter',
+            target: {
+                fieldId: 'status',
+                tableName: 'orders',
+            },
+            operator: ConditionalOperator.EQUALS,
+            values: ['shipped'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toBeUndefined();
+    });
+
+    test('should handle multiple time intervals in metric query', () => {
+        const metricQueryDimensionFilters: OrFilterGroup = {
+            id: 'dim-filter-group',
+            or: [
+                {
+                    id: 'month-filter',
+                    target: { fieldId: 'order_date_month' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['2024-03'],
+                },
+                {
+                    id: 'week-filter',
+                    target: { fieldId: 'order_date_week' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['2024-03-25'],
+                },
+                {
+                    id: 'year-filter',
+                    target: { fieldId: 'order_date_year' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['2024'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'base-filter',
+            label: 'Base Filter',
+            target: {
+                fieldId: 'order_date_year',
+                tableName: 'orders',
+            },
+            operator: ConditionalOperator.EQUALS,
+            values: ['2024'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toEqual(
+            expect.arrayContaining([
+                'order_date_month',
+                'order_date_week',
+                'order_date_year',
+            ]),
+        );
+    });
+
+    test('should return original filter when no matching time intervals', () => {
+        const metricQueryDimensionFilters: AndFilterGroup = {
+            id: 'dim-filter-group',
+            and: [
+                {
+                    id: 'status-filter',
+                    target: { fieldId: 'status' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        };
+
+        const dashboardFilter: DashboardFilterRule = {
+            id: 'year-filter',
+            label: 'Year Filter',
+            target: {
+                fieldId: 'order_date_year',
+                tableName: 'orders',
+            },
+            operator: ConditionalOperator.EQUALS,
+            values: ['2024'],
+        };
+
+        const result = trackWhichTimeBasedMetricFiltersToOverride(
+            metricQueryDimensionFilters,
+            dashboardFilter,
+            mockExplore,
+        );
+
+        expect(result.overrideData?.fieldsToChange).toBeUndefined();
     });
 });

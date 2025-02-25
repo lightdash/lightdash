@@ -48,6 +48,8 @@ import {
     InThePastFilterBase,
     NumberDimensionMock,
     NumberFilterBase,
+    NumberFilterBaseWithMultiValues,
+    NumberOperatorsWithMultipleValues,
     TrinoExpectedInTheCurrentFilterSQL,
     TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     TrinoExpectedInTheNextCompleteFilterSQL,
@@ -89,21 +91,33 @@ describe('Filter SQL', () => {
     test.each(Object.values(FilterOperator))(
         'should return number filter sql for operator %s',
         (operator) => {
-            if (ExpectedNumberFilterSQL[operator]) {
-                expect(
-                    renderNumberFilterSql(NumberDimensionMock, {
-                        ...NumberFilterBase,
-                        operator,
-                    }),
-                ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
-            } else {
+            if (!ExpectedNumberFilterSQL[operator]) {
                 expect(() => {
                     renderNumberFilterSql(NumberDimensionMock, {
                         ...NumberFilterBase,
                         operator,
                     });
                 }).toThrow();
+                return;
             }
+
+            if (NumberOperatorsWithMultipleValues.includes(operator)) {
+                expect(
+                    renderNumberFilterSql(NumberDimensionMock, {
+                        ...NumberFilterBaseWithMultiValues,
+                        operator,
+                    }),
+                ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
+
+                return;
+            }
+
+            expect(
+                renderNumberFilterSql(NumberDimensionMock, {
+                    ...NumberFilterBase,
+                    operator,
+                }),
+            ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
         },
     );
     test.each(Object.values(UnitOfTime))(
