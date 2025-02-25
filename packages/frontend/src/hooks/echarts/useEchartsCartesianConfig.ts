@@ -30,6 +30,7 @@ import {
     TableCalculationType,
     timeFrameConfigs,
     TimeFrames,
+    XAxisSortType,
     type ApiQueryResults,
     type CartesianChart,
     type CustomDimension,
@@ -1895,29 +1896,25 @@ const useEchartsCartesianConfig = (
     const sortedResultsByTotals = useMemo(() => {
         if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
 
-        const stackTotals = getStackTotalRows(
-            rows,
-            stackedSeriesWithColorAssignments,
-            validCartesianConfig?.layout.flipAxes,
-            validCartesianConfigLegend,
-        );
-
         const xField = validCartesianConfig?.layout.xField;
-        const firstYField = validCartesianConfig?.layout.yField?.[0];
 
-        if (!xField || !firstYField) return sortedResults;
-
-        const metricQueryFirstYFieldSort = resultsData?.metricQuery.sorts.find(
-            (sort) => sort.fieldId === firstYField,
-        );
+        if (!xField) return sortedResults;
 
         const xAxis = axes.xAxis[0];
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
         if (
             xAxis?.type === 'category' &&
-            metricQueryFirstYFieldSort &&
-            pivotedKeys?.includes(firstYField)
+            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS &&
+            (pivotDimensions?.length ?? 0) >= 1
         ) {
+            const stackTotals = getStackTotalRows(
+                rows,
+                stackedSeriesWithColorAssignments,
+                validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+            );
+
             return sortedResults.sort((a, b) => {
                 const totalA =
                     stackTotals.find((total) => total[0] === a[xField])?.[2] ??
@@ -1926,9 +1923,7 @@ const useEchartsCartesianConfig = (
                     stackTotals.find((total) => total[0] === b[xField])?.[2] ??
                     0;
 
-                return metricQueryFirstYFieldSort.descending
-                    ? totalB - totalA
-                    : totalA - totalB;
+                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
             });
         }
 
@@ -1936,12 +1931,13 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         sortedResults,
-        rows,
-        validCartesianConfig,
-        validCartesianConfigLegend,
-        resultsData?.metricQuery,
+        validCartesianConfig?.layout.xField,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.eChartsConfig.xAxis,
         axes.xAxis,
-        pivotedKeys,
+        pivotDimensions?.length,
+        rows,
+        validCartesianConfigLegend,
     ]);
 
     const eChartsOptions = useMemo(

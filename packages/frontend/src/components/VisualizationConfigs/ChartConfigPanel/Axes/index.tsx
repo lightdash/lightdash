@@ -2,20 +2,28 @@ import {
     getAxisName,
     getDateGroupLabel,
     getItemLabelWithoutTableName,
+    getXAxisSort,
     isNumericItem,
+    XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
 import {
     Checkbox,
     Group,
     NumberInput,
-    SegmentedControl,
+    Select,
     Stack,
     Switch,
+    Text,
     TextInput,
 } from '@mantine/core';
-import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    IconChartBar,
+    IconSortAscending,
+    IconSortDescending,
+    type Icon,
+} from '@tabler/icons-react';
+import { forwardRef, type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -28,8 +36,18 @@ type Props = {
 
 const DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE = '5';
 
+const XAxisSortSelectItem = forwardRef<
+    HTMLDivElement,
+    { icon: Icon; label: string }
+>(({ icon, label, ...others }: { icon: Icon; label: string }, ref) => (
+    <Group ref={ref} spacing="xs" {...others} noWrap>
+        <MantineIcon icon={icon} />
+        <Text fz="xs">{label}</Text>
+    </Group>
+));
+
 export const Axes: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, pivotDimensions } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
@@ -46,7 +64,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setXMaxOffsetValue,
         setShowGridX,
         setShowGridY,
-        setInverseX,
+        setXAxisSort,
         setXAxisLabelRotation,
     } = visualizationConfig.chartConfig;
 
@@ -139,33 +157,36 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Group spacing="xs">
                         <Group spacing="xs">
                             <Config.Label>Sort</Config.Label>
-                            <SegmentedControl
-                                defaultValue={
-                                    dirtyEchartsConfig?.xAxis?.[0]?.inverse
-                                        ? 'descending'
-                                        : 'ascending'
-                                }
+                            <Select
+                                value={getXAxisSort(
+                                    dirtyEchartsConfig?.xAxis?.[0],
+                                )}
+                                onChange={setXAxisSort}
+                                itemComponent={XAxisSortSelectItem}
                                 data={[
                                     {
-                                        value: 'ascending',
-                                        label: (
-                                            <MantineIcon
-                                                icon={IconSortAscending}
-                                            />
-                                        ),
+                                        value: XAxisSort.ASCENDING,
+                                        label: 'Ascending',
+                                        icon: IconSortAscending,
                                     },
                                     {
-                                        value: 'descending',
-                                        label: (
-                                            <MantineIcon
-                                                icon={IconSortDescending}
-                                            />
-                                        ),
+                                        value: XAxisSort.DESCENDING,
+                                        label: 'Descending',
+                                        icon: IconSortDescending,
+                                    },
+                                    {
+                                        value: XAxisSort.BAR_TOTALS_ASCENDING,
+                                        label: 'Bar Totals Ascending',
+                                        disabled: !pivotDimensions?.length,
+                                        icon: IconChartBar,
+                                    },
+                                    {
+                                        value: XAxisSort.BAR_TOTALS_DESCENDING,
+                                        label: 'Bar Totals Descending',
+                                        disabled: !pivotDimensions?.length,
+                                        icon: IconChartBar,
                                     },
                                 ]}
-                                onChange={(value) => {
-                                    setInverseX(value === 'descending');
-                                }}
                             />
                         </Group>
                         {!dirtyLayout?.flipAxes && (
