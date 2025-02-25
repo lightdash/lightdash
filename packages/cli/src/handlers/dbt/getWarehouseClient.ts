@@ -250,7 +250,7 @@ export default async function getWarehouseClient(
             profileName: options.profile,
             targetName: options.target,
         });
-        GlobalState.debug(`> Using target ${target}`);
+        GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
         warehouseClient = warehouseClientFromCredentials({
             ...credentials,
