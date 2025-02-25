@@ -27,11 +27,14 @@ export class OrganizationModel {
         this.database = database;
     }
 
-    static mapDBObjectToOrganization(data: DbOrganization): Organization {
+    static mapDBObjectToOrganization(
+        data: DbOrganization,
+        palette?: DbOrganizationColorPalette,
+    ): Organization {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
-            chartColors: data.chart_colors,
+            chartColors: palette?.colors ?? undefined,
             defaultProjectUuid: data.default_project_uuid
                 ? data.default_project_uuid
                 : undefined,
@@ -49,10 +52,18 @@ export class OrganizationModel {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .select('*');
+
         if (org === undefined) {
             throw new NotFoundError(`No organization found`);
         }
-        return OrganizationModel.mapDBObjectToOrganization(org);
+
+        const [palette] = await this.database(OrganizationColorPaletteTableName)
+            .where('color_palette_uuid', org.color_palette_uuid)
+            .andWhere('organization_uuid', organizationUuid)
+            .andWhere('is_default', true)
+            .select('*');
+
+        return OrganizationModel.mapDBObjectToOrganization(org, palette);
     }
 
     async create(data: CreateOrganization): Promise<Organization> {

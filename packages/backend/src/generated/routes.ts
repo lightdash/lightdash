@@ -11146,6 +11146,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 colors: { dataType: 'array', array: { dataType: 'string' } },
                 name: { dataType: 'string' },
+                uuid: { dataType: 'string', required: true },
             },
             validators: {},
         },

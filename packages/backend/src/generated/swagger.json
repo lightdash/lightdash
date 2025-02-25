@@ -12105,8 +12105,12 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
                     }
                 },
+                "required": ["uuid"],
                 "type": "object"
             },
             "NotificationBase": {
