@@ -25,6 +25,7 @@ import {
     IconStairsUp,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -38,7 +39,7 @@ type Props = {
 const DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE = '5';
 
 export const Axes: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig, pivotDimensions } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
@@ -89,7 +90,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
     );
 
     const canSortByBarTotals =
-        dirtyChartType === CartesianSeriesType.BAR && pivotDimensions?.length;
+        dirtyChartType === CartesianSeriesType.BAR &&
+        getAxisTypeFromField(xAxisField) === 'category';
 
     return (
         <Stack>

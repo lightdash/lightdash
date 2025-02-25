@@ -91,7 +91,7 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     }
 };
 
-const getAxisTypeFromField = (
+export const getAxisTypeFromField = (
     item?: ItemsMap[string],
     hasReferenceLine?: boolean,
 ): string => {
@@ -1906,9 +1906,12 @@ const useEchartsCartesianConfig = (
         if (
             xFieldId &&
             axis?.type === 'category' &&
-            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS &&
-            (pivotDimensions?.length ?? 0) >= 1
+            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
         ) {
+            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
+                ? 1
+                : 0;
+
             const stackTotals = getStackTotalRows(
                 rows,
                 stackedSeriesWithColorAssignments,
@@ -1916,20 +1919,29 @@ const useEchartsCartesianConfig = (
                 validCartesianConfigLegend,
             );
 
-            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
-                ? 1
-                : 0;
+            // Using entries since we cannot use a map here (cannot index with unknown)
+            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
+            const stackTotalEntries: [unknown, number][] = Object.entries(
+                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
+            ).reduce<[string, number][]>((acc, [key, totals]) => {
+                acc.push([
+                    key,
+                    totals.reduce((sum, total) => sum + total[2], 0),
+                ]);
+
+                return acc;
+            }, []);
 
             return sortedResults.sort((a, b) => {
                 const totalA =
-                    stackTotals.find(
-                        (total) => total[stackTotalValueIndex] === a[xFieldId],
-                    )?.[2] ?? 0;
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === a[xFieldId],
+                    )?.[1] ?? 0;
 
                 const totalB =
-                    stackTotals.find(
-                        (total) => total[stackTotalValueIndex] === b[xFieldId],
-                    )?.[2] ?? 0;
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === b[xFieldId],
+                    )?.[1] ?? 0;
 
                 return totalA - totalB; // Asc/Desc will be taken care of by inverse config
             });
@@ -1944,7 +1956,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.xAxis,
         axes.yAxis,
         axes.xAxis,
-        pivotDimensions?.length,
         rows,
         validCartesianConfigLegend,
     ]);

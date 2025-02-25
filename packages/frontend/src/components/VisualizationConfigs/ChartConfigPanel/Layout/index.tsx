@@ -5,7 +5,6 @@ import {
     isDimension,
     isNumericItem,
     replaceStringInArray,
-    XAxisSort,
     type CustomDimension,
     type Field,
     type TableCalculation,
@@ -156,7 +155,6 @@ export const Layout: FC<Props> = ({ items }) => {
         updateYField,
         removeSingleSeries,
         addSingleSeries,
-        setXAxisSort,
     } = visualizationConfig.chartConfig;
 
     return (
@@ -331,24 +329,13 @@ export const Layout: FC<Props> = ({ items }) => {
                                                 groupSelectedField && (
                                                     <CloseButton
                                                         onClick={() => {
-                                                            const newPivotDimensions =
+                                                            setPivotDimensions(
                                                                 pivotDimensions.filter(
                                                                     (key) =>
                                                                         key !==
                                                                         pivotKey,
-                                                                );
-
-                                                            setPivotDimensions(
-                                                                newPivotDimensions,
+                                                                ),
                                                             );
-
-                                                            if (
-                                                                !newPivotDimensions.length
-                                                            ) {
-                                                                setXAxisSort(
-                                                                    XAxisSort.ASCENDING,
-                                                                );
-                                                            }
                                                         }}
                                                     />
                                                 )
