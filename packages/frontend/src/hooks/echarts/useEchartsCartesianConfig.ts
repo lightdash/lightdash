@@ -2001,7 +2001,7 @@ const useEchartsCartesianConfig = (
             series,
             sortedResultsByTotals,
             tooltip,
-            theme?.other.chartFont,
+            theme?.other?.chartFont,
         ],
     );
 
