@@ -125,6 +125,7 @@ import {
     replaceDimensionInExplore,
     snakeCaseName,
     type ApiCreateProjectResults,
+    type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
     type RunQueryTags,
     type SemanticLayerConnectionUpdate,
@@ -4930,6 +4931,142 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
         return results.row;
+    }
+
+    async _getCalculateSubtotalsQuery(
+        user: SessionUser,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        groupedDimensions: string[],
+        organizationUuid: string,
+        warehouseClient: WarehouseClient,
+    ) {
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
+        // Create a modified query that includes only the grouped dimensions and metrics
+        const subtotalsQuery: MetricQuery = {
+            ...metricQuery,
+            tableCalculations: [],
+            sorts: [],
+            // Keep only the specified grouped dimensions
+            dimensions: metricQuery.dimensions.filter((dim) =>
+                groupedDimensions.includes(dim),
+            ),
+            customDimensions: metricQuery.customDimensions,
+            metrics: metricQuery.metrics,
+            additionalMetrics: metricQuery.additionalMetrics,
+        };
+
+        const { query } = await ProjectService._compileQuery(
+            subtotalsQuery,
+            explore,
+            warehouseClient,
+            intrinsicUserAttributes,
+            userAttributes,
+            this.lightdashConfig.query.timezone || 'UTC',
+        );
+
+        return { query, subtotalsQuery };
+    }
+
+    async _calculateSubtotals(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricQuery: MetricQuery,
+        groupedDimensions: string[],
+        organizationUuid: string,
+    ) {
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
+        );
+
+        const { query } = await this._getCalculateSubtotalsQuery(
+            user,
+            explore,
+            metricQuery,
+            groupedDimensions,
+            organizationUuid,
+            warehouseClient,
+        );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+        };
+
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
+        await sshTunnel.disconnect();
+        return rows;
+    }
+
+    async calculateSubtotalsFromQuery(
+        user: SessionUser,
+        projectUuid: string,
+        data: CalculateSubtotalsFromQuery,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
+        return this._calculateSubtotals(
+            user,
+            projectUuid,
+            data.explore,
+            data.metricQuery,
+            data.groupedDimensions, // Pass the grouped dimensions as an additional parameter
+            organizationUuid,
+        );
     }
 
     async getDbtExposures(

@@ -240,6 +240,12 @@ const PivotTable: FC<PivotTableProps> = ({
         hideRowNumbers,
     ]);
 
+    const groupedRowModel = getGroupedRowModelLightdash();
+
+    console.log({
+        groupedRowModel,
+    });
+
     const table = useReactTable({
         data: data.retrofitData.allCombinedData,
         columns: columns,
@@ -252,7 +258,7 @@ const PivotTable: FC<PivotTableProps> = ({
         },
         onGroupingChange: setGrouping,
         getExpandedRowModel: getExpandedRowModel(),
-        getGroupedRowModel: getGroupedRowModelLightdash(),
+        getGroupedRowModel: groupedRowModel,
         getCoreRowModel: getCoreRowModel(),
     });
 
