@@ -9,7 +9,7 @@ import {
 
 export const PRESET_COLOR_PALETTES = [
     {
-        name: 'Default Colors',
+        name: 'Default',
         icon: IconColorFilter,
         colors: [
             // Use the initial 9 colors directly from ECHARTS to keep them in sync:
@@ -106,7 +106,7 @@ export const PRESET_COLOR_PALETTES = [
         ],
     },
     {
-        name: 'Lightdash of Color',
+        name: 'Lightdash',
         icon: IconBolt,
         colors: [
             '#7162FF',

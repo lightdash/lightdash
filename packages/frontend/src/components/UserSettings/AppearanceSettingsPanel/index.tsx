@@ -125,6 +125,7 @@ const AppearanceSettingsPanel: FC = () => {
                         href="https://docs.lightdash.com/guides/customizing-the-appearance-of-your-project"
                         target="_blank"
                         rel="noreferrer"
+                        size="xs"
                     >
                         <MantineIcon icon={IconInfoCircle} />
                     </ActionIcon>

@@ -10,18 +10,13 @@ import {
     Menu,
     Modal,
     Paper,
-    ScrollArea,
     SimpleGrid,
     Stack,
     Text,
+    type ModalProps,
 } from '@mantine/core';
-import {
-    IconChevronDown,
-    IconDotsVertical,
-    IconEdit,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { IconDotsVertical, IconEdit, IconTrash } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganizationAppearance';
 import MantineIcon from '../../common/MantineIcon';
 import { EditPaletteModal } from './EditPaletteModal';
@@ -32,28 +27,21 @@ interface PaletteItemProps {
     onSetDefault: (uuid: string) => void;
 }
 
-interface DeletePaletteModalProps {
+type DeletePaletteModalProps = Pick<ModalProps, 'opened' | 'onClose'> & {
     palette: OrganizationColorPalette;
-    isOpen: boolean;
-    onClose: () => void;
     onConfirm: () => void;
-}
+};
 
 const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
     palette,
-    isOpen,
+    opened,
     onClose,
     onConfirm,
 }) => {
-    const [showAllColors, setShowAllColors] = useState(false);
-    const colorsToShow = showAllColors
-        ? palette.colors
-        : palette.colors.slice(0, 10);
-
     return (
         <Modal
             radius="sm"
-            opened={isOpen}
+            opened={opened}
             onClose={onClose}
             title={
                 <Group>
@@ -81,41 +69,17 @@ const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
                     action cannot be undone.
                 </Text>
 
-                <Stack spacing="xs">
-                    <ScrollArea
-                        h={showAllColors ? 200 : 'auto'}
-                        offsetScrollbars
-                    >
-                        <Center>
-                            <SimpleGrid cols={5} spacing="xs">
-                                {colorsToShow.map((color, index) => (
-                                    <ColorSwatch
-                                        key={color + index}
-                                        size={24}
-                                        color={color}
-                                    />
-                                ))}
-                            </SimpleGrid>
-                        </Center>
-                    </ScrollArea>
-
-                    <Button
-                        variant="light"
-                        color="blue"
-                        size="xs"
-                        radius="md"
-                        onClick={() => setShowAllColors(!showAllColors)}
-                        rightIcon={
-                            <MantineIcon icon={IconChevronDown} size="xs" />
-                        }
-                        fullWidth
-                        mt="xs"
-                    >
-                        {showAllColors
-                            ? 'Show fewer colors'
-                            : 'Show all colors'}
-                    </Button>
-                </Stack>
+                <Center>
+                    <SimpleGrid cols={10} spacing="xs">
+                        {palette.colors.map((color, index) => (
+                            <ColorSwatch
+                                key={color + index}
+                                size={24}
+                                color={color}
+                            />
+                        ))}
+                    </SimpleGrid>
+                </Center>
             </Stack>
 
             <Group
@@ -143,6 +107,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const deleteColorPalette = useDeleteColorPalette();
 
     const handleDeletePalette = () => {
@@ -150,76 +115,58 @@ export const PaletteItem: FC<PaletteItemProps> = ({
         setIsDeleteModalOpen(false);
     };
 
-    const getColorPaletteColorStops = useCallback(
-        (colors: string[], stops: number) => {
-            const deltaAmount = Math.floor(colors.length / stops);
-            /**
-             * If for some reason we don't get enough color stops, or the number of stops
-             * matches the available colors, we short-circuit and just return an equivalent
-             * subset of colors:
-             */
-            if (deltaAmount <= 0 || stops === colors.length) {
-                return colors.slice(0, colors.length);
-            }
-
-            /**
-             * This is fairly inefficient, but we're doing this over a very small list,
-             * in a very specific place only.
-             */
-            return colors
-                .filter((c, i) => i % deltaAmount === 0)
-                .slice(0, stops);
-        },
-        [],
-    );
-
     return (
         <>
             <Paper
                 p="sm"
                 withBorder
-                radius="md"
+                radius="sm"
                 sx={(theme) => ({
                     backgroundColor: theme.white,
                     borderColor: theme.colors.gray[2],
+                    position: 'relative',
                 })}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
             >
                 <Flex justify="space-between" align="center">
                     <Group spacing="xs">
-                        <Text fw={500}>{palette.name}</Text>
-                        <Group spacing="xxs">
-                            {getColorPaletteColorStops(palette.colors, 4).map(
-                                (color, index) => (
-                                    <ColorSwatch
-                                        key={color + index}
-                                        size={16}
-                                        color={color}
-                                    />
-                                ),
-                            )}
+                        <Group spacing="two">
+                            {palette.colors.slice(0, 5).map((color, index) => (
+                                <ColorSwatch
+                                    key={color + index}
+                                    size={18}
+                                    color={color}
+                                />
+                            ))}
                         </Group>
-                        {isDefault && (
-                            <Badge color="green" variant="light" radius="md">
-                                Active
-                            </Badge>
-                        )}
+                        <Text fw={500}>{palette.name}</Text>
                     </Group>
 
                     <Group spacing="xs">
                         <Button
-                            display={isDefault ? 'none' : 'block'}
-                            size="xs"
-                            radius="md"
                             onClick={() =>
                                 onSetDefault(palette.colorPaletteUuid)
                             }
+                            sx={() => ({
+                                visibility:
+                                    isHovered && !isDefault
+                                        ? 'visible'
+                                        : 'hidden',
+                            })}
                         >
                             Use This Theme
                         </Button>
 
+                        {isDefault && (
+                            <Badge color="green" variant="light">
+                                Active
+                            </Badge>
+                        )}
+
                         <Menu shadow="subtle" position="bottom-end">
                             <Menu.Target>
-                                <ActionIcon radius="md" size="xs">
+                                <ActionIcon size="xs">
                                     <MantineIcon icon={IconDotsVertical} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -247,13 +194,13 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 
             <EditPaletteModal
                 palette={palette}
-                isOpen={isEditModalOpen}
+                opened={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
             />
 
             <DeletePaletteModal
                 palette={palette}
-                isOpen={isDeleteModalOpen}
+                opened={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDeletePalette}
             />
