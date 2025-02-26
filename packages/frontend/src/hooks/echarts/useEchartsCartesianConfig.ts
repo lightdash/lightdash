@@ -2005,8 +2005,6 @@ const useEchartsCartesianConfig = (
         ],
     );
 
-    console.log(eChartsOptions);
-
     if (
         !itemsMap ||
         rows.length <= 0 ||
