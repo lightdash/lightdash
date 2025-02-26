@@ -123,10 +123,10 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                                 spacing={0}
                                 noWrap
                                 h="100%"
+                                mah={320}
                                 sx={(theme) => ({
                                     border: `1px solid ${theme.colors.gray[2]}`,
                                     borderRadius: theme.radius.md,
-                                    maxHeight: 300,
                                     overflow: 'scroll',
                                 })}
                             >
