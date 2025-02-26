@@ -300,9 +300,7 @@ export default class App {
                 cors({
                     methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
                     allowedHeaders: '*',
-                    credentials:
-                        this.lightdashConfig.security
-                            .crossOriginResourceSharingPolicy.allowCredentials,
+                    credentials: false,
                     origin: allowedOrigins,
                 }),
             );

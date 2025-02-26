@@ -231,7 +231,6 @@ export type LightdashConfig = {
         crossOriginResourceSharingPolicy: {
             enabled: boolean;
             allowedDomains: string[];
-            allowCredentials: boolean;
         };
     };
     cookiesMaxAgeHours?: number;
@@ -557,7 +556,6 @@ export const parseConfig = (): LightdashConfig => {
             crossOriginResourceSharingPolicy: {
                 enabled: corsEnabled,
                 allowedDomains: corsEnabled ? corsAllowedDomains : [],
-                allowCredentials: iframeEmbeddingEnabled,
             },
         },
         smtp: process.env.EMAIL_SMTP_HOST
