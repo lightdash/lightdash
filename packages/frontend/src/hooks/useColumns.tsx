@@ -63,7 +63,7 @@ export const formatCellContent = (
     const { value } = data;
 
     if (typeof value?.formatted === 'string') {
-        const lines = value?.formatted.split('\\n') ?? [];
+        const lines = value?.formatted.split('\n') ?? [];
         return lines.length > 1
             ? lines.map((line, index, array) => (
                   <Fragment key={index}>
