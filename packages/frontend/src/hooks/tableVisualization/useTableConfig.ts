@@ -227,7 +227,7 @@ const useTableConfig = (
         fieldIds: selectedItemIds,
         itemsMap,
         showSubtotals,
-        groupedDimensions: dimensions.slice(0, -1),
+        groupedDimensions: dimensions.slice(0, -1), // TODO: this should change with the grouped dimensions in each specific row
     });
 
     const { rows, columns, error } = useMemo<{
