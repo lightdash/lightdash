@@ -21,11 +21,11 @@ import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganization
 import MantineIcon from '../../common/MantineIcon';
 import { EditPaletteModal } from './EditPaletteModal';
 
-interface PaletteItemProps {
+type PaletteItemProps = {
     palette: OrganizationColorPalette;
-    isDefault: boolean;
-    onSetDefault: (uuid: string) => void;
-}
+    isActive: boolean;
+    onSetActive: (uuid: string) => void;
+};
 
 type DeletePaletteModalProps = Pick<ModalProps, 'opened' | 'onClose'> & {
     palette: OrganizationColorPalette;
@@ -102,8 +102,8 @@ const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
 
 export const PaletteItem: FC<PaletteItemProps> = ({
     palette,
-    isDefault,
-    onSetDefault,
+    isActive,
+    onSetActive,
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -146,12 +146,12 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                     <Group spacing="xs">
                         <Button
                             onClick={() =>
-                                onSetDefault(palette.colorPaletteUuid)
+                                onSetActive(palette.colorPaletteUuid)
                             }
                             h={32}
                             sx={() => ({
                                 visibility:
-                                    isHovered && !isDefault
+                                    isHovered && !isActive
                                         ? 'visible'
                                         : 'hidden',
                             })}
@@ -159,7 +159,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             Use This Theme
                         </Button>
 
-                        {isDefault && (
+                        {isActive && (
                             <Badge color="green" variant="light">
                                 Active
                             </Badge>
@@ -182,7 +182,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 <Menu.Item
                                     icon={<MantineIcon icon={IconTrash} />}
                                     onClick={() => setIsDeleteModalOpen(true)}
-                                    disabled={isDefault}
+                                    disabled={isActive}
                                     color="red"
                                 >
                                     Delete palette

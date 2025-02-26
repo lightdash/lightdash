@@ -39,9 +39,9 @@ const deleteColorPaletteApi = async (colorPaletteUuid: string) =>
         body: undefined,
     });
 
-const setDefaultColorPaletteApi = async (colorPaletteUuid: string) =>
+const setActiveColorPaletteApi = async (colorPaletteUuid: string) =>
     lightdashApi<OrganizationColorPalette>({
-        url: `/org/color-palettes/${colorPaletteUuid}/default`,
+        url: `/org/color-palettes/${colorPaletteUuid}/active`,
         method: 'POST',
         body: undefined,
     });
@@ -79,7 +79,7 @@ export const useColorPalettes = () => {
         queryKey: ['color_palettes'],
         queryFn: getColorPalettesApi,
         select: (data) =>
-            data.sort((a, b) => Number(b.isDefault) - Number(a.isDefault)),
+            data.sort((a, b) => Number(b.isActive) - Number(a.isActive)),
     });
 };
 
@@ -131,23 +131,23 @@ export const useDeleteColorPalette = () => {
     );
 };
 
-export const useSetDefaultColorPalette = () => {
+export const useSetActiveColorPalette = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<OrganizationColorPalette, ApiError, string>(
-        (colorPaletteUuid) => setDefaultColorPaletteApi(colorPaletteUuid),
+        (colorPaletteUuid) => setActiveColorPaletteApi(colorPaletteUuid),
         {
-            mutationKey: ['set_default_color_palette'],
+            mutationKey: ['set_active_color_palette'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['color_palettes']);
                 showToastSuccess({
-                    title: 'Default color palette updated successfully',
+                    title: 'Active color palette updated successfully',
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to set default color palette',
+                    title: 'Failed to set active color palette',
                     apiError: error,
                 });
             },

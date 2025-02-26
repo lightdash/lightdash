@@ -13,7 +13,7 @@ import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import {
     useColorPalettes,
-    useSetDefaultColorPalette,
+    useSetActiveColorPalette,
     useUpdateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -27,7 +27,7 @@ const AppearanceColorSettings: FC = () => {
     const { showToastSuccess } = useToaster();
     const { data: palettes = [] } = useColorPalettes();
 
-    const setDefaultPalette = useSetDefaultColorPalette();
+    const setActivePalette = useSetActiveColorPalette();
     const updateColorPalette = useUpdateColorPalette();
 
     const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
@@ -64,11 +64,11 @@ const AppearanceColorSettings: FC = () => {
         handleSelectPalette,
     ]);
 
-    const handleSetDefault = useCallback(
+    const handleSetActive = useCallback(
         (uuid: string) => {
-            setDefaultPalette.mutate(uuid);
+            setActivePalette.mutate(uuid);
         },
-        [setDefaultPalette],
+        [setActivePalette],
     );
 
     return (
@@ -95,8 +95,8 @@ const AppearanceColorSettings: FC = () => {
                     <PaletteItem
                         key={palette.colorPaletteUuid}
                         palette={palette}
-                        isDefault={palette.isDefault}
-                        onSetDefault={handleSetDefault}
+                        isActive={palette.isActive}
+                        onSetActive={handleSetActive}
                     />
                 ))}
             </Stack>
