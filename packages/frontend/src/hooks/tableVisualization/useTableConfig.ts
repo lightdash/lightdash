@@ -27,6 +27,7 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -219,6 +220,16 @@ const useTableConfig = (
                       tableChartConfig?.showColumnCalculation,
               },
     );
+
+    const { data: subtotalsCalculations } = useCalculateSubtotals({
+        metricQuery: resultsData?.metricQuery,
+        explore: resultsData?.metricQuery.exploreName,
+        fieldIds: selectedItemIds,
+        itemsMap,
+        showSubtotals,
+        groupedDimensions: dimensions.slice(0, -1),
+    });
+
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
         columns: Array<TableColumn | TableHeader>;
@@ -248,6 +259,7 @@ const useTableConfig = (
             isColumnFrozen,
             columnOrder,
             totals: totalCalculations,
+            subtotals: subtotalsCalculations,
         });
     }, [
         columnOrder,
@@ -260,6 +272,7 @@ const useTableConfig = (
         isColumnFrozen,
         getFieldLabelOverride,
         totalCalculations,
+        subtotalsCalculations,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{
@@ -517,6 +530,7 @@ const useTableConfig = (
         setMetricsAsRows,
         isPivotTableEnabled,
         canUseSubtotals,
+        subtotalsCalculations,
     };
 };
 

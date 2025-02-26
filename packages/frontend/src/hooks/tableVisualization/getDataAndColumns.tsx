@@ -32,6 +32,7 @@ type Args = {
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
     totals?: Record<string, number>;
+    subtotals?: Record<string, number>[];
 };
 
 // Adapted from https://stackoverflow.com/a/45337588
@@ -53,6 +54,7 @@ const getDataAndColumns = ({
     getFieldLabelOverride,
     columnOrder,
     totals,
+    subtotals,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -81,6 +83,17 @@ const getDataAndColumns = ({
                       _leafRows: Row<ResultRow>[],
                       childRows: Row<ResultRow>[],
                   ) => {
+                      console.log({
+                          subtotals,
+                          columnId,
+                          leafRows: _leafRows,
+                          childRows,
+                          item,
+                          groupingValue:
+                              _leafRows[0].getGroupingValue(columnId),
+                          isgrouped: _leafRows[0].getIsGrouped(),
+                      });
+
                       const aggregatedValue = childRows.reduce<number>(
                           (agg, childRow) => {
                               const cellValue = childRow.getValue(columnId) as
@@ -153,7 +166,6 @@ const getDataAndColumns = ({
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
                     },
-
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.
                     // For example, setting grouping value here does not work. The workaround is to use
                     // a custom getGroupedRowModel.
@@ -163,13 +175,42 @@ const getDataAndColumns = ({
                     // },
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
-
                     aggregationFn: aggregationFunction,
                     aggregatedCell: (info) => {
-                        const value = info.getValue();
-                        const ret = value ?? info.cell.getValue();
-                        const numVal = Number(ret);
-                        return isNaN(numVal) ? ret : numVal;
+                        console.log({
+                            som: info.row.getAllCells(),
+                        });
+
+                        if (info.row.getIsGrouped()) {
+                            const groupedDimensions = Object.fromEntries(
+                                info.row.id.split('>').map((expanded) => {
+                                    return expanded.split(':');
+                                }),
+                            );
+
+                            const foundSubtotal = subtotals?.find(
+                                (subtotal) => {
+                                    return Object.keys(groupedDimensions).every(
+                                        (dimension) =>
+                                            subtotal[dimension] ===
+                                            groupedDimensions[dimension],
+                                    );
+                                },
+                            );
+
+                            console.log({
+                                info,
+                                columnId: info.column.id,
+                                foundSubtotal,
+                                subtotals,
+                            });
+
+                            if (!foundSubtotal) {
+                                return null;
+                            }
+
+                            return foundSubtotal[info.column.id];
+                        }
                     },
                 },
             );

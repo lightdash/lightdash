@@ -27,10 +27,12 @@ import {
     UpdateProjectMember,
     UserWarehouseCredentials,
     isDuplicateDashboardParams,
+    type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiUpdateDashboardsResponse,
+    type CalculateSubtotalsFromQuery,
     type CreateDashboard,
     type DuplicateDashboardParams,
     type SemanticLayerConnectionUpdate,
@@ -370,6 +372,25 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results: totalResult,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/calculate-subtotals')
+    @OperationId('CalculateSubtotalsFromQuery')
+    async CalculateSubtotalsFromQuery(
+        @Path() projectUuid: string,
+        @Body() body: CalculateSubtotalsFromQuery,
+        @Request() req: express.Request,
+    ): Promise<ApiCalculateSubtotalsResponse> {
+        this.setStatus(200);
+        const subtotalsResult = await this.services
+            .getProjectService()
+            .calculateSubtotalsFromQuery(req.user!, projectUuid, body);
+        return {
+            status: 'ok',
+            results: subtotalsResult,
         };
     }
 
