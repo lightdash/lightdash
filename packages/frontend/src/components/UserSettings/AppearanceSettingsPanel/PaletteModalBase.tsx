@@ -229,11 +229,12 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                             zIndex: 10,
                         })}
                     >
-                        <Group position="right">
-                            <Button variant="default" onClick={onClose}>
+                        <Group position="right" spacing="xs">
+                            <Button variant="default" h={32} onClick={onClose}>
                                 Cancel
                             </Button>
                             <Button
+                                h={32}
                                 type="submit"
                                 loading={isLoading}
                                 disabled={!form.isDirty() || !form.isValid()}
