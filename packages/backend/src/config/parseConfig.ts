@@ -549,7 +549,9 @@ export const parseConfig = (): LightdashConfig => {
                 allowedDomains: getArrayFromCommaSeparatedList(
                     'LIGHTDASH_CSP_ALLOWED_DOMAINS',
                 ),
-                frameAncestors: iframeAllowedDomains,
+                frameAncestors: iframeEmbeddingEnabled
+                    ? iframeAllowedDomains
+                    : ['https://*'],
                 reportUri: process.env.LIGHTDASH_CSP_REPORT_URI,
             },
             crossOriginResourceSharingPolicy: {
