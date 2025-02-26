@@ -1,15 +1,12 @@
 import {
-    MetricType,
     formatItemValue,
     friendlyName,
     isField,
-    isMetric,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
-import { type Row } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -71,57 +68,6 @@ const getDataAndColumns = ({
             }
             const headerOverride = getFieldLabelOverride(itemId);
 
-            const shouldAggregate =
-                item &&
-                isField(item) &&
-                isMetric(item) &&
-                [MetricType.SUM, MetricType.COUNT].includes(item.type);
-
-            const aggregationFunction = shouldAggregate
-                ? (
-                      columnId: string,
-                      _leafRows: Row<ResultRow>[],
-                      childRows: Row<ResultRow>[],
-                  ) => {
-                      console.log({
-                          subtotals,
-                          columnId,
-                          leafRows: _leafRows,
-                          childRows,
-                          item,
-                          groupingValue:
-                              _leafRows[0].getGroupingValue(columnId),
-                          isgrouped: _leafRows[0].getIsGrouped(),
-                      });
-
-                      const aggregatedValue = childRows.reduce<number>(
-                          (agg, childRow) => {
-                              const cellValue = childRow.getValue(columnId) as
-                                  | ResultRow[number]
-                                  | undefined;
-                              const rawValue = cellValue?.value?.raw;
-
-                              if (rawValue === null) return agg;
-                              const adder = Number(rawValue);
-                              if (isNaN(adder)) return agg;
-
-                              const precision = getDecimalPrecision(adder, agg);
-                              return (
-                                  (agg * precision + adder * precision) /
-                                  precision
-                              );
-                          },
-                          0,
-                      );
-
-                      return (
-                          <Text span fw={600}>
-                              {formatItemValue(item, aggregatedValue)}
-                          </Text>
-                      );
-                  }
-                : undefined;
-
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row) => row[itemId],
                 {
@@ -175,41 +121,54 @@ const getDataAndColumns = ({
                     // },
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
-                    aggregationFn: aggregationFunction,
                     aggregatedCell: (info) => {
                         console.log({
                             som: info.row.getAllCells(),
                         });
 
                         if (info.row.getIsGrouped()) {
-                            const groupedDimensions = Object.fromEntries(
-                                info.row.id.split('>').map((expanded) => {
-                                    return expanded.split(':');
-                                }),
+                            const rowAggregatedColumnValues =
+                                Object.fromEntries(
+                                    // row.id will be like order_status:shipped>order_date:2021-01-01
+                                    info.row.id.split('>').map((expanded) => {
+                                        return expanded.split(':');
+                                    }),
+                                );
+
+                            const groupedDimensions = Object.keys(
+                                rowAggregatedColumnValues,
                             );
+
+                            if (!groupedDimensions.length) {
+                                return null;
+                            }
 
                             const foundSubtotal = subtotals?.find(
                                 (subtotal) => {
-                                    return Object.keys(groupedDimensions).every(
+                                    return Object.keys(
+                                        rowAggregatedColumnValues,
+                                    ).every(
                                         (dimension) =>
                                             subtotal[dimension] ===
-                                            groupedDimensions[dimension],
+                                            rowAggregatedColumnValues[
+                                                dimension
+                                            ],
                                     );
                                 },
                             );
 
-                            console.log({
-                                info,
-                                columnId: info.column.id,
-                                foundSubtotal,
-                                subtotals,
-                            });
+                            const subtotalValue =
+                                foundSubtotal?.[info.column.id];
 
-                            if (!foundSubtotal) {
+                            if (!subtotalValue) {
                                 return null;
                             }
 
-                            return foundSubtotal[info.column.id];
+                            return (
+                                <Text span fw={600}>
+                                    {formatItemValue(item, subtotalValue)}
+                                </Text>
+                            );
                         }
                     },
                 },
