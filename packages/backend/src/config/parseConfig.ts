@@ -528,7 +528,7 @@ export const parseConfig = (): LightdashConfig => {
         'LIGHTDASH_CORS_ALLOWED_DOMAINS,',
     );
     const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
-    const corsEnabled = corsAllowedDomains.length > 0;
+    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
     const secureCookies = process.env.SECURE_COOKIES === 'true';
 
     if (iframeEmbeddingEnabled && !secureCookies) {
