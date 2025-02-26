@@ -156,7 +156,7 @@ export const TokensTable = () => {
                 <Table className={cx(classes.root, classes.alignLastTdRight)}>
                     <thead>
                         <tr>
-                            <th>Name</th>
+                            <th>Description</th>
                             <th>Expiration date</th>
                             <th>Last used at</th>
                             <th>UUID</th>
