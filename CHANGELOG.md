@@ -1,3 +1,10 @@
+# [0.1518.0](https://github.com/lightdash/lightdash/compare/0.1517.0...0.1518.0) (2025-02-26)
+
+
+### Features
+
+* list personal access tokens via API with PAT authentication ([#13826](https://github.com/lightdash/lightdash/issues/13826)) ([6dae07b](https://github.com/lightdash/lightdash/commit/6dae07b7fadc061b4ebab3e8fdca84f926f5e424))
+
 # [0.1517.0](https://github.com/lightdash/lightdash/compare/0.1516.0...0.1517.0) (2025-02-25)
 
 
