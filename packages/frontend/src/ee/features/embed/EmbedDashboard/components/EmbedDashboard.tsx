@@ -187,6 +187,7 @@ const EmbedDashboard: FC<{
                         {tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <EmbedDashboardChartTile
                                 projectUuid={projectUuid}
+                                dashboardSlug={dashboard.slug}
                                 embedToken={embedToken}
                                 key={tile.uuid}
                                 minimal

@@ -6,8 +6,11 @@ import {
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
-    LoginOptions,
+    CreatePersonalAccessToken,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
     ParameterError,
+    PersonalAccessToken,
     PersonalAccessTokenWithToken,
     RegisterOrActivateUser,
     UpsertUserWarehouseCredentials,
@@ -329,6 +332,81 @@ export class UserController extends BaseController {
         return {
             status: 'ok',
             results: loginOptions,
+        };
+    }
+
+    /**
+     * List personal access tokens
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/me/personal-access-tokens')
+    @OperationId('Get personal access tokens')
+    async getPersonalAccessTokens(@Request() req: express.Request): Promise<{
+        status: 'ok';
+        results: PersonalAccessToken[];
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPersonalAccessTokenService()
+                .getAllPersonalAccessTokens(req.user!),
+        };
+    }
+
+    /**
+     * Create personal access token
+     */
+    @Middlewares([
+        isAuthenticated, // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/me/personal-access-tokens')
+    @OperationId('Create personal access token')
+    async createPersonalAccessToken(
+        @Request() req: express.Request,
+        @Body() body: CreatePersonalAccessToken,
+    ): Promise<{
+        status: 'ok';
+        results: PersonalAccessTokenWithToken;
+    }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPersonalAccessTokenService()
+                .createPersonalAccessToken(
+                    req.user!,
+                    body,
+                    getRequestMethod(req.header(LightdashRequestMethodHeader)),
+                ),
+        };
+    }
+
+    /**
+     * Delete personal access token
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Delete('/me/personal-access-tokens/{personalAccessTokenUuid}')
+    @OperationId('Delete personal access token')
+    async deletePersonalAccessToken(
+        @Path() personalAccessTokenUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getPersonalAccessTokenService()
+            .deletePersonalAccessToken(req.user!, personalAccessTokenUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

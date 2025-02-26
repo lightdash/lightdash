@@ -1,3 +1,45 @@
+## [0.1518.1](https://github.com/lightdash/lightdash/compare/0.1518.0...0.1518.1) (2025-02-26)
+
+
+### Bug Fixes
+
+* row numbers not appearing ([#13829](https://github.com/lightdash/lightdash/issues/13829)) ([0f095bd](https://github.com/lightdash/lightdash/commit/0f095bd3d48837aeae90b8332704cc2c0cb1bea7))
+
+# [0.1518.0](https://github.com/lightdash/lightdash/compare/0.1517.0...0.1518.0) (2025-02-26)
+
+
+### Features
+
+* list personal access tokens via API with PAT authentication ([#13826](https://github.com/lightdash/lightdash/issues/13826)) ([6dae07b](https://github.com/lightdash/lightdash/commit/6dae07b7fadc061b4ebab3e8fdca84f926f5e424))
+
+# [0.1517.0](https://github.com/lightdash/lightdash/compare/0.1516.0...0.1517.0) (2025-02-25)
+
+
+### Features
+
+* sdk i18n ([#13809](https://github.com/lightdash/lightdash/issues/13809)) ([ac4b8a7](https://github.com/lightdash/lightdash/commit/ac4b8a7c0bf021a3122021a82f8de30432505f28))
+
+# [0.1516.0](https://github.com/lightdash/lightdash/compare/0.1515.0...0.1516.0) (2025-02-25)
+
+
+### Features
+
+* override tiles' filters if dashboard ones target similar ([#13790](https://github.com/lightdash/lightdash/issues/13790)) ([b5f67e4](https://github.com/lightdash/lightdash/commit/b5f67e4f6ad42b268d3cfc32ecc9aff47f3e2ba6))
+
+# [0.1515.0](https://github.com/lightdash/lightdash/compare/0.1514.2...0.1515.0) (2025-02-24)
+
+
+### Features
+
+* Support between and not between filter for numeric fields ([#13757](https://github.com/lightdash/lightdash/issues/13757)) ([832f527](https://github.com/lightdash/lightdash/commit/832f527e8f50f7946deb60341ce2331c04008ca0))
+
+## [0.1514.2](https://github.com/lightdash/lightdash/compare/0.1514.1...0.1514.2) (2025-02-24)
+
+
+### Bug Fixes
+
+* Support slash in dbt selector ([#13792](https://github.com/lightdash/lightdash/issues/13792)) ([e85dd8c](https://github.com/lightdash/lightdash/commit/e85dd8c0f159d28ed76d3ddcd12411ae31df9ac3))
+
 ## [0.1514.1](https://github.com/lightdash/lightdash/compare/0.1514.0...0.1514.1) (2025-02-24)
 
 

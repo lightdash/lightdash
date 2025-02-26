@@ -1,7 +1,3 @@
-import {
-    getRequestMethod,
-    LightdashRequestMethodHeader,
-} from '@lightdash/common';
 import express from 'express';
 import {
     isAuthenticated,
@@ -121,58 +117,6 @@ userRouter.patch(
                     results,
                 });
             })
-            .catch(next);
-    },
-);
-
-userRouter.post(
-    '/me/personal-access-tokens',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        req.services
-            .getPersonalAccessTokenService()
-            .createPersonalAccessToken(
-                req.user!,
-                req.body,
-                getRequestMethod(req.header(LightdashRequestMethodHeader)),
-            )
-            .then((results) => res.json({ status: 'ok', results }))
-            .catch(next);
-    },
-);
-
-userRouter.get(
-    '/me/personal-access-tokens',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        req.services
-            .getPersonalAccessTokenService()
-            .getAllPersonalAccessTokens(req.user!)
-            .then((results) =>
-                res.json({
-                    status: 'ok',
-                    results,
-                }),
-            )
-            .catch(next);
-    },
-);
-
-userRouter.delete(
-    '/me/personal-access-tokens/:tokenUuid',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        req.services
-            .getPersonalAccessTokenService()
-            .deletePersonalAccessToken(req.user!, req.params.tokenUuid)
-            .then(() =>
-                res.json({
-                    status: 'ok',
-                }),
-            )
             .catch(next);
     },
 );
