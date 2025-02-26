@@ -1,10 +1,10 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
 import {
-    Accordion,
     ActionIcon,
     Button,
     Group,
     Stack,
+    Text,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -17,16 +17,14 @@ import {
     useUpdateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import { isHexCodeColor } from '../../../utils/colorUtils';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { CreatePaletteModal } from './CreatePaletteModal';
-import { PaletteAccordionItem } from './PalettedAccordionItem';
+import { PaletteItem } from './PaletteItem';
 
 const AppearanceColorSettings: FC = () => {
     const { showToastSuccess } = useToaster();
-    const ability = useAbilityContext();
     const { data: palettes = [] } = useColorPalettes();
 
     const setDefaultPalette = useSetDefaultColorPalette();
@@ -75,26 +73,33 @@ const AppearanceColorSettings: FC = () => {
 
     return (
         <Stack spacing="md">
-            <Accordion variant="contained">
+            <Group position="apart">
+                <Text size="sm" color="gray.6">
+                    Customize the color palettes used in your charts and
+                    visualizations.
+                </Text>
+
+                <Button
+                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsPresetModalOpen(true)}
+                    variant="default"
+                    size="xs"
+                    sx={{ alignSelf: 'flex-end' }}
+                >
+                    Add new palette
+                </Button>
+            </Group>
+
+            <Stack spacing="xs">
                 {palettes.map((palette) => (
-                    <PaletteAccordionItem
+                    <PaletteItem
                         key={palette.colorPaletteUuid}
                         palette={palette}
                         isDefault={palette.isDefault}
                         onSetDefault={handleSetDefault}
                     />
                 ))}
-            </Accordion>
-
-            <Button
-                leftIcon={<MantineIcon icon={IconPlus} />}
-                onClick={() => setIsPresetModalOpen(true)}
-                variant="default"
-                size="xs"
-                sx={{ alignSelf: 'flex-end' }}
-            >
-                Add new palette
-            </Button>
+            </Stack>
 
             <CreatePaletteModal
                 opened={isPresetModalOpen}
