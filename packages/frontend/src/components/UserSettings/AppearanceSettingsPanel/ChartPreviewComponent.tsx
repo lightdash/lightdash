@@ -69,26 +69,23 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
         ChartKind.VERTICAL_BAR,
     );
 
-    // Create refs for each chart instance
     const barChartRef = useRef<EChartsReact>(null);
     const lineChartRef = useRef<EChartsReact>(null);
     const pieChartRef = useRef<EChartsReact>(null);
 
     // Create a bar chart option with the current palette colors
     const getChartOptions = useCallback(() => {
-        // Use exactly 10 bars
         const seriesCount = 10;
 
-        // Create individual series for each bar to prevent stacking
         const series = Array.from({ length: seriesCount }, (_, index) => ({
             type: 'bar',
             name: `Bar ${index + 1}`,
-            data: [Math.floor(Math.random() * 50) + 50], // Random value between 50-100
+            data: [Math.floor(Math.random() * 50) + 50],
             itemStyle: {
                 color: colors[index % colors.length],
             },
-            barGap: '10%', // Add some gap between bars
-            barCategoryGap: '20%', // Add gap between categories
+            barGap: '10%',
+            barCategoryGap: '20%',
         }));
 
         return {
@@ -125,9 +122,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
         };
     }, [colors]);
 
-    // Create a line chart option with the current palette colors
     const getLineChartOptions = useCallback(() => {
-        // Use exactly 10 lines
         const seriesCount = 10;
 
         return {
@@ -163,7 +158,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
             series: Array.from({ length: seriesCount }, (_, index) => ({
                 name: `Line ${index + 1}`,
                 type: 'line',
-                stack: undefined, // Remove stacking/grouping
+                stack: undefined,
                 data: [
                     Math.floor(Math.random() * 50) + 50 + index * 5,
                     Math.floor(Math.random() * 50) + 70 + index * 5,
@@ -183,9 +178,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
         };
     }, [colors]);
 
-    // Create a pie chart option with the current palette colors
     const getPieChartOptions = useCallback(() => {
-        // Use exactly 10 pie slices
         const seriesCount = 10;
 
         return {
@@ -258,7 +251,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
                     size="xs"
                 />
             </Group>
-            <Box style={{ height: 170, position: 'relative' }}>
+            <Box h={170} pos="relative">
                 <SingleChartPreview
                     chartType={ChartKind.VERTICAL_BAR}
                     currentChartType={chartType}

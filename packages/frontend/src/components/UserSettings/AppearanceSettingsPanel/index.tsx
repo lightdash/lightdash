@@ -1,68 +1,31 @@
-import { type OrganizationColorPalette } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
     Group,
+    Skeleton,
     Stack,
     Text,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import {
     useColorPalettes,
     useSetActiveColorPalette,
-    useUpdateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { isHexCodeColor } from '../../../utils/colorUtils';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { PaletteItem } from './PaletteItem';
 
 const AppearanceColorSettings: FC = () => {
-    const { showToastSuccess } = useToaster();
-    const { data: palettes = [] } = useColorPalettes();
+    const { data: palettes = [], isLoading } = useColorPalettes();
 
     const setActivePalette = useSetActiveColorPalette();
-    const updateColorPalette = useUpdateColorPalette();
 
-    const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
-
-    const form = useForm<{ colors: string[]; uuid: string }>({
-        initialValues: { colors: [], uuid: '' },
-        validate: {
-            colors: (value) =>
-                value.every((c) => isHexCodeColor(c)) ? null : 'Invalid colors',
-        },
-    });
-
-    const { setValues } = form;
-
-    const handleSelectPalette = useCallback(
-        (palette: OrganizationColorPalette) => {
-            setValues({
-                colors: palette.colors,
-                uuid: palette.colorPaletteUuid,
-            });
-        },
-        [setValues],
-    );
-
-    useEffect(() => {
-        if (updateColorPalette.isSuccess) {
-            showToastSuccess({ title: 'Palette updated successfully' });
-            handleSelectPalette(updateColorPalette.data);
-        }
-    }, [
-        updateColorPalette.isSuccess,
-        updateColorPalette.data,
-        showToastSuccess,
-        handleSelectPalette,
-    ]);
+    const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] =
+        useState(false);
 
     const handleSetActive = useCallback(
         (uuid: string) => {
@@ -81,7 +44,7 @@ const AppearanceColorSettings: FC = () => {
 
                 <Button
                     leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setIsPresetModalOpen(true)}
+                    onClick={() => setIsCreatePaletteModalOpen(true)}
                     variant="default"
                     size="xs"
                     sx={{ alignSelf: 'flex-end' }}
@@ -91,20 +54,28 @@ const AppearanceColorSettings: FC = () => {
             </Group>
 
             <Stack spacing="xs">
-                {palettes.map((palette) => (
-                    <PaletteItem
-                        key={palette.colorPaletteUuid}
-                        palette={palette}
-                        isActive={palette.isActive}
-                        onSetActive={handleSetActive}
-                    />
-                ))}
+                {isLoading ? (
+                    <>
+                        <Skeleton height={30} />
+                        <Skeleton height={30} />
+                        <Skeleton height={30} />
+                    </>
+                ) : (
+                    palettes.map((palette) => (
+                        <PaletteItem
+                            key={palette.colorPaletteUuid}
+                            palette={palette}
+                            isActive={palette.isActive}
+                            onSetActive={handleSetActive}
+                        />
+                    ))
+                )}
             </Stack>
 
             <CreatePaletteModal
-                opened={isPresetModalOpen}
+                opened={isCreatePaletteModalOpen}
                 onClose={() => {
-                    setIsPresetModalOpen(false);
+                    setIsCreatePaletteModalOpen(false);
                 }}
             />
         </Stack>

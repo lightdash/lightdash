@@ -158,7 +158,6 @@ const PRESET_COLOR_PALETTES = [
 ];
 
 export async function up(knex: Knex): Promise<void> {
-    // Create new color palettes table
     await knex.schema.createTable(OrganizationColorPaletteTable, (table) => {
         table
             .uuid('color_palette_uuid')
@@ -198,13 +197,12 @@ export async function up(knex: Knex): Promise<void> {
         .from(OrganizationTable);
 
     // Seed preset color palettes for all organizations
-    // Create a flat array of all palette insertions for all organizations
     const paletteInsertions = organizations.flatMap((organization) =>
         PRESET_COLOR_PALETTES.map((palette) => ({
             organization_uuid: organization.organization_uuid,
             name: palette.name,
             colors: palette.colors,
-            is_active: false, // No default as requested
+            is_active: false, // None are active by default
         })),
     );
 

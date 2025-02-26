@@ -3,101 +3,24 @@ import {
     ActionIcon,
     Badge,
     Button,
-    Center,
     ColorSwatch,
     Flex,
     Group,
     Menu,
-    Modal,
     Paper,
-    SimpleGrid,
-    Stack,
     Text,
-    type ModalProps,
 } from '@mantine/core';
 import { IconDotsVertical, IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganizationAppearance';
 import MantineIcon from '../../common/MantineIcon';
+import { DeletePaletteModal } from './DeletePaletteModal';
 import { EditPaletteModal } from './EditPaletteModal';
 
 type PaletteItemProps = {
     palette: OrganizationColorPalette;
     isActive: boolean;
     onSetActive: (uuid: string) => void;
-};
-
-type DeletePaletteModalProps = Pick<ModalProps, 'opened' | 'onClose'> & {
-    palette: OrganizationColorPalette;
-    onConfirm: () => void;
-};
-
-const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
-    palette,
-    opened,
-    onClose,
-    onConfirm,
-}) => {
-    return (
-        <Modal
-            radius="sm"
-            opened={opened}
-            onClose={onClose}
-            title={
-                <Group>
-                    <Paper p="xs" withBorder radius="sm">
-                        <MantineIcon icon={IconTrash} size="sm" color="red" />
-                    </Paper>
-                    <Text color="dark.7" fw={500} fz="md">
-                        Delete "{palette.name}" Palette
-                    </Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: {
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
-                },
-                body: {
-                    padding: 0,
-                },
-            })}
-            size="md"
-        >
-            <Stack p="md" spacing="xs">
-                <Text size="sm" color="gray.6">
-                    Are you sure you want to delete this color palette? This
-                    action cannot be undone.
-                </Text>
-
-                <Center>
-                    <SimpleGrid cols={10} spacing="xs">
-                        {palette.colors.map((color, index) => (
-                            <ColorSwatch
-                                key={color + index}
-                                size={24}
-                                color={color}
-                            />
-                        ))}
-                    </SimpleGrid>
-                </Center>
-            </Stack>
-
-            <Group
-                position="right"
-                p="md"
-                sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[2]}`,
-                })}
-            >
-                <Button variant="default" size="xs" onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button color="red" onClick={onConfirm} size="xs">
-                    Delete Palette
-                </Button>
-            </Group>
-        </Modal>
-    );
 };
 
 export const PaletteItem: FC<PaletteItemProps> = ({
