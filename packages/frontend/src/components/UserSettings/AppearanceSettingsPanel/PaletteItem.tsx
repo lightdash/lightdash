@@ -148,6 +148,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             onClick={() =>
                                 onSetDefault(palette.colorPaletteUuid)
                             }
+                            h={32}
                             sx={() => ({
                                 visibility:
                                     isHovered && !isDefault
