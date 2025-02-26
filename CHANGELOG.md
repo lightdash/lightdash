@@ -1,3 +1,10 @@
+# [0.1519.0](https://github.com/lightdash/lightdash/compare/0.1518.1...0.1519.0) (2025-02-26)
+
+
+### Features
+
+* sort stacked bar charts ([#13815](https://github.com/lightdash/lightdash/issues/13815)) ([1c7ef4c](https://github.com/lightdash/lightdash/commit/1c7ef4ccddd09b630a9d68aced64c5b55a24b836))
+
 ## [0.1518.1](https://github.com/lightdash/lightdash/compare/0.1518.0...0.1518.1) (2025-02-26)
 
 
