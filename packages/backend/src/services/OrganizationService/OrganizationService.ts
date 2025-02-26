@@ -147,6 +147,7 @@ export class OrganizationService extends BaseService {
                 organizationName: org.name,
                 defaultProjectUuid: org.defaultProjectUuid,
                 defaultColourPaletteUpdated:
+                    data.chartColors !== undefined ||
                     data.colorPaletteUuid !== undefined,
                 defaultProjectUuidUpdated:
                     data.defaultProjectUuid !== undefined,
@@ -632,8 +633,6 @@ export class OrganizationService extends BaseService {
         };
     }
 
-    // TODO: Add permissions checks
-
     async createColorPalette(
         user: SessionUser,
         data: CreateColorPalette,
@@ -651,26 +650,14 @@ export class OrganizationService extends BaseService {
         }
 
         // Validate colors array
-        if (!data.colors || data.colors.length === 0) {
-            throw new ParameterError(
-                'Color palette must contain at least one color',
-            );
+        if (!data.colors || data.colors.length < 20) {
+            throw new ParameterError('Color palette must contain 20 colors');
         }
 
         const palette = await this.organizationModel.createColorPalette(
             user.organizationUuid,
             data,
         );
-
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'color_palette.created',
-            properties: {
-                organizationId: user.organizationUuid,
-                paletteId: palette.colorPaletteUuid,
-                colorCount: data.colors.length,
-            },
-        });
 
         return palette;
     }
@@ -702,25 +689,14 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (data.colors && data.colors.length === 0) {
-            throw new ParameterError(
-                'Color palette must contain at least one color',
-            );
+        if (data.colors && data.colors.length < 20) {
+            throw new ParameterError('Color palette must contain 20 colors');
         }
 
         const updatedPalette = await this.organizationModel.updateColorPalette(
             colorPaletteUuid,
             data,
         );
-
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'color_palette.updated',
-            properties: {
-                organizationId: user.organizationUuid,
-                paletteId: colorPaletteUuid,
-            },
-        });
 
         return updatedPalette;
     }
@@ -745,18 +721,9 @@ export class OrganizationService extends BaseService {
             user.organizationUuid,
             colorPaletteUuid,
         );
-
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'color_palette.deleted',
-            properties: {
-                organizationId: user.organizationUuid,
-                paletteId: colorPaletteUuid,
-            },
-        });
     }
 
-    async setDefaultColorPalette(
+    async setActiveColorPalette(
         user: SessionUser,
         colorPaletteUuid: string,
     ): Promise<OrganizationColorPalette> {
@@ -772,19 +739,10 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const palette = await this.organizationModel.setDefaultColorPalette(
+        const palette = await this.organizationModel.setActiveColorPalette(
             user.organizationUuid,
             colorPaletteUuid,
         );
-
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'color_palette.default_set',
-            properties: {
-                organizationId: user.organizationUuid,
-                paletteId: colorPaletteUuid,
-            },
-        });
 
         return palette;
     }

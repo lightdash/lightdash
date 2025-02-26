@@ -10477,6 +10477,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },
+                colorPaletteUuid: { dataType: 'string' },
                 chartColors: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -10514,27 +10515,48 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_Organization.name_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UpdateOrganization: {
+    'Partial_Omit_Organization.organizationUuid-or-needsProject__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                name: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                chartColors: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 colorPaletteUuid: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
                     ],
                 },
                 defaultProjectUuid: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
                     ],
                 },
-                name: { dataType: 'string' },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateOrganization: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Partial_Omit_Organization.organizationUuid-or-needsProject__',
             validators: {},
         },
     },
@@ -11065,7 +11087,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                isDefault: { dataType: 'boolean', required: true },
+                isActive: { dataType: 'boolean', required: true },
                 created_at: { dataType: 'datetime', required: true },
                 colors: {
                     dataType: 'array',
@@ -23956,7 +23978,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsOrganizationController_setDefaultColorPalette: Record<
+    const argsOrganizationController_setActiveColorPalette: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -23969,13 +23991,13 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.post(
-        '/api/v1/org/color-palettes/:colorPaletteUuid/default',
+        '/api/v1/org/color-palettes/:colorPaletteUuid/active',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
         ...fetchMiddlewares<RequestHandler>(
-            OrganizationController.prototype.setDefaultColorPalette,
+            OrganizationController.prototype.setActiveColorPalette,
         ),
 
-        async function OrganizationController_setDefaultColorPalette(
+        async function OrganizationController_setActiveColorPalette(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -23985,7 +24007,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsOrganizationController_setDefaultColorPalette,
+                    args: argsOrganizationController_setActiveColorPalette,
                     request,
                     response,
                 });
@@ -24004,7 +24026,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'setDefaultColorPalette',
+                    methodName: 'setActiveColorPalette',
                     controller,
                     response,
                     next,

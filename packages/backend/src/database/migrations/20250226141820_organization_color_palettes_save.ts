@@ -3,8 +3,6 @@ import { Knex } from 'knex';
 const OrganizationColorPaletteTable = 'organization_color_palettes';
 const OrganizationTable = 'organizations';
 
-// Preset color palettes from frontend/src/components/UserSettings/AppearanceSettingsPanel/palettes.ts
-// Icons are excluded as requested
 const PRESET_COLOR_PALETTES = [
     {
         name: 'Default',
@@ -175,7 +173,7 @@ export async function up(knex: Knex): Promise<void> {
         table.text('name').notNullable();
         table.specificType('colors', 'TEXT[]').notNullable();
         table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
-        table.boolean('is_default').notNullable().defaultTo(false);
+        table.boolean('is_active').notNullable().defaultTo(false);
     });
 
     // Migrate existing chart_colors to new table
@@ -189,7 +187,7 @@ export async function up(knex: Knex): Promise<void> {
                 organization_uuid: palette.organization_uuid,
                 name: 'Default Palette',
                 colors: palette.chart_colors,
-                is_default: true,
+                is_active: true,
             }),
         ),
     );
@@ -206,7 +204,7 @@ export async function up(knex: Knex): Promise<void> {
             organization_uuid: organization.organization_uuid,
             name: palette.name,
             colors: palette.colors,
-            is_default: false, // No default as requested
+            is_active: false, // No default as requested
         })),
     );
 
@@ -229,7 +227,7 @@ export async function up(knex: Knex): Promise<void> {
     // Set initial color palette reference
     const defaultPalettes = await knex(OrganizationColorPaletteTable)
         .select('color_palette_uuid', 'organization_uuid')
-        .where('is_default', true);
+        .where('is_active', true);
 
     await Promise.all(
         defaultPalettes.map((palette) =>

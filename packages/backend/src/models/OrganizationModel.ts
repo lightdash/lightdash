@@ -60,7 +60,7 @@ export class OrganizationModel {
         const [palette] = await this.database(OrganizationColorPaletteTableName)
             .where('color_palette_uuid', org.color_palette_uuid)
             .andWhere('organization_uuid', organizationUuid)
-            .andWhere('is_default', true)
+            .andWhere('is_active', true)
             .select('*');
 
         return OrganizationModel.mapDBObjectToOrganization(org, palette);
@@ -168,7 +168,7 @@ export class OrganizationModel {
                 organization_uuid: organizationUuid,
                 name: data.name,
                 colors: data.colors,
-                is_default: false,
+                is_active: false,
             })
             .returning('*');
 
@@ -223,22 +223,22 @@ export class OrganizationModel {
         });
     }
 
-    async setDefaultColorPalette(
+    async setActiveColorPalette(
         organizationUuid: string,
         colorPaletteUuid: string,
     ): Promise<OrganizationColorPalette> {
         return this.database.transaction(async (trx) => {
-            // Clear existing default
+            // Clear existing active
             await trx('organization_color_palettes')
                 .where('organization_uuid', organizationUuid)
-                .andWhere('is_default', true)
-                .update({ is_default: false });
+                .andWhere('is_active', true)
+                .update({ is_active: false });
 
-            // Set new default
+            // Set new active
             const [palette] = await trx('organization_color_palettes')
                 .where('color_palette_uuid', colorPaletteUuid)
                 .andWhere('organization_uuid', organizationUuid)
-                .update({ is_default: true })
+                .update({ is_active: true })
                 .returning('*');
 
             // Update organization reference
@@ -259,7 +259,7 @@ export class OrganizationModel {
             name: palette.name,
             colors: palette.colors,
             created_at: palette.created_at,
-            isDefault: palette.is_default,
+            isActive: palette.is_active,
         };
     }
 }

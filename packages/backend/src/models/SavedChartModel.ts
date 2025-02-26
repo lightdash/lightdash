@@ -787,7 +787,7 @@ export class SavedChartModel {
                                 `${OrganizationTableName}.organization_uuid`,
                             );
                             this.andOnVal(
-                                `${OrganizationColorPaletteTableName}.is_default`,
+                                `${OrganizationColorPaletteTableName}.is_active`,
                                 true,
                             );
                         },

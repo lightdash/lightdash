@@ -11361,6 +11361,10 @@
                         "type": "boolean",
                         "description": "The organization needs a project if it doesn't have at least one project."
                     },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "description": "The active color palette uuid for all projects in the organization"
+                    },
                     "chartColors": {
                         "items": {
                             "type": "string"
@@ -11410,21 +11414,33 @@
             "CreateOrganization": {
                 "$ref": "#/components/schemas/Pick_Organization.name_"
             },
-            "UpdateOrganization": {
+            "Partial_Omit_Organization.organizationUuid-or-needsProject__": {
                 "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the organization"
+                    },
+                    "chartColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The default color palette for all projects in the organization"
+                    },
                     "colorPaletteUuid": {
                         "type": "string",
-                        "nullable": true
+                        "description": "The active color palette uuid for all projects in the organization"
                     },
                     "defaultProjectUuid": {
                         "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
+                        "description": "The project a user sees when they first log in to the organization"
                     }
                 },
-                "type": "object"
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateOrganization": {
+                "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
             },
             "WarehouseTypes": {
                 "enum": [
@@ -12002,7 +12018,7 @@
             },
             "OrganizationColorPalette": {
                 "properties": {
-                    "isDefault": {
+                    "isActive": {
                         "type": "boolean"
                     },
                     "created_at": {
@@ -12026,7 +12042,7 @@
                     }
                 },
                 "required": [
-                    "isDefault",
+                    "isActive",
                     "created_at",
                     "colors",
                     "name",
@@ -20195,9 +20211,9 @@
                 ]
             }
         },
-        "/api/v1/org/color-palettes/{colorPaletteUuid}/default": {
+        "/api/v1/org/color-palettes/{colorPaletteUuid}/active": {
             "post": {
-                "operationId": "SetDefaultColorPalette",
+                "operationId": "SetActiveColorPalette",
                 "responses": {
                     "200": {
                         "description": "Ok",

@@ -21,6 +21,12 @@ export type Organization = {
      * The default color palette for all projects in the organization
      */
     chartColors?: string[];
+
+    /**
+     * The active color palette uuid for all projects in the organization
+     */
+    colorPaletteUuid?: string;
+
     /**
      * The organization needs a project if it doesn't have at least one project.
      */
@@ -33,11 +39,9 @@ export type Organization = {
 
 export type CreateOrganization = Pick<Organization, 'name'>;
 
-export type UpdateOrganization = {
-    name?: string;
-    defaultProjectUuid?: string | null;
-    colorPaletteUuid?: string | null;
-};
+export type UpdateOrganization = Partial<
+    Omit<Organization, 'organizationUuid' | 'needsProject'>
+>;
 
 export type ApiOrganization = {
     status: 'ok';
@@ -146,7 +150,7 @@ export type OrganizationColorPalette = {
     name: string;
     colors: string[];
     created_at: Date;
-    isDefault: boolean;
+    isActive: boolean;
 };
 
 export type CreateColorPalette = {

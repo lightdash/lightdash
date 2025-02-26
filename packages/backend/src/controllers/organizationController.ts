@@ -478,9 +478,9 @@ export class OrganizationController extends BaseController {
     }
 
     @Middlewares([isAuthenticated, unauthorisedInDemo])
-    @Post('/color-palettes/{colorPaletteUuid}/default')
-    @OperationId('SetDefaultColorPalette')
-    async setDefaultColorPalette(
+    @Post('/color-palettes/{colorPaletteUuid}/active')
+    @OperationId('SetActiveColorPalette')
+    async setActiveColorPalette(
         @Request() req: express.Request,
         @Path() colorPaletteUuid: string,
     ): Promise<ApiColorPaletteResponse> {
@@ -489,7 +489,7 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .setDefaultColorPalette(req.user!, colorPaletteUuid),
+                .setActiveColorPalette(req.user!, colorPaletteUuid),
         };
     }
 }

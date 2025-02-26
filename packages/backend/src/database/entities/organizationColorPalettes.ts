@@ -7,17 +7,17 @@ export type DbOrganizationColorPalette = {
     organization_uuid: string;
     name: string;
     colors: string[];
-    is_default: boolean;
+    is_active: boolean;
     created_at: Date;
 };
 
 export type DbOrganizationColorPaletteIn = Pick<
     DbOrganizationColorPalette,
-    'name' | 'colors' | 'organization_uuid' | 'is_default'
+    'name' | 'colors' | 'organization_uuid' | 'is_active'
 >;
 
 export type DbOrganizationColorPaletteUpdate = Partial<
-    Pick<DbOrganizationColorPalette, 'name' | 'colors' | 'is_default'>
+    Pick<DbOrganizationColorPalette, 'name' | 'colors' | 'is_active'>
 >;
 
 export type OrganizationColorPaletteTable = Knex.CompositeTableType<
