@@ -162,7 +162,8 @@ export async function up(knex: Knex): Promise<void> {
         table
             .uuid('color_palette_uuid')
             .primary()
-            .defaultTo(knex.raw('uuid_generate_v4()'));
+            .defaultTo(knex.raw('uuid_generate_v4()'))
+            .notNullable();
         table
             .uuid('organization_uuid')
             .notNullable()
@@ -173,6 +174,11 @@ export async function up(knex: Knex): Promise<void> {
         table.specificType('colors', 'TEXT[]').notNullable();
         table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
         table.boolean('is_active').notNullable().defaultTo(false);
+
+        // Ensure only one color palette per organization can be active
+        table.unique(['organization_uuid'], {
+            predicate: knex.where('is_active', true),
+        });
     });
 
     // Migrate existing chart_colors to new table
@@ -206,11 +212,11 @@ export async function up(knex: Knex): Promise<void> {
         })),
     );
 
-    // Insert all palettes in a single batch
-    await Promise.all(
-        paletteInsertions.map((insertion) =>
-            knex(OrganizationColorPaletteTable).insert(insertion),
-        ),
+    // Use batchInsert for better performance
+    await knex.batchInsert(
+        OrganizationColorPaletteTable,
+        paletteInsertions,
+        1000,
     );
 
     // Add reference column to organizations

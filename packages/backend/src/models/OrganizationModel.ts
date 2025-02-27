@@ -60,7 +60,6 @@ export class OrganizationModel {
         const [palette] = await this.database(OrganizationColorPaletteTableName)
             .where('color_palette_uuid', org.color_palette_uuid)
             .andWhere('organization_uuid', organizationUuid)
-            .andWhere('is_active', true)
             .select('*');
 
         return OrganizationModel.mapDBObjectToOrganization(org, palette);
@@ -97,6 +96,17 @@ export class OrganizationModel {
             .where('organization_uuid', organizationUuid)
             .update(updateData)
             .returning('*');
+
+        if (org.color_palette_uuid) {
+            const [palette] = await this.database(
+                OrganizationColorPaletteTableName,
+            )
+                .where('color_palette_uuid', org.color_palette_uuid)
+                .andWhere('organization_uuid', organizationUuid)
+                .select('*');
+
+            return OrganizationModel.mapDBObjectToOrganization(org, palette);
+        }
 
         return OrganizationModel.mapDBObjectToOrganization(org);
     }
