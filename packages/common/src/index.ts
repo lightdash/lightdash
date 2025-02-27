@@ -273,6 +273,7 @@ export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/semanticLayer';
 export * from './utils/slugs';
+export * from './utils/subtotals';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/virtualView';

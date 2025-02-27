@@ -110,6 +110,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
     isAndFilterGroup,
@@ -4986,11 +4987,11 @@ export class ProjectService extends BaseService {
         };
 
         const subtotalsPromises = dimensionGroupsToSubtotal.map(
-            async (dimensions) => [
-                dimensions.join(':'), // TODO subtotals - this should be in common
+            async (subtotalDimensions) => [
+                getSubtotalKey(subtotalDimensions),
                 await runQueryAndFormatRaw({
                     ...metricQuery,
-                    dimensions,
+                    dimensions: subtotalDimensions,
                 }),
             ],
         );
