@@ -1,4 +1,5 @@
 import execa from 'execa';
+import path from 'path';
 import * as process from 'process';
 import * as readline from 'readline';
 
@@ -69,6 +70,17 @@ const createMigration = async (): Promise<void> => {
             console.log('Creating OSS migration...');
         }
 
+        let migrationPath: string;
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const srcPath = path.join(__dirname, '..');
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            migrationPath = path.join(srcPath, migrationDir);
+        } catch (error) {
+            console.error('Error getting source path:', error);
+            process.exit(1);
+        }
+
         // Run migration
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
         const { stdout } = await execa('knex', [
@@ -77,7 +89,7 @@ const createMigration = async (): Promise<void> => {
             '--knexfile',
             'src/knexfile.ts',
             '--migrations-directory',
-            `${migrationDir}`,
+            migrationPath,
         ]);
 
         if (stdout) console.log(stdout);
