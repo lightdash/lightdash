@@ -148,7 +148,6 @@ export class OrganizationService extends BaseService {
                 organizationName: org.name,
                 defaultProjectUuid: org.defaultProjectUuid,
                 defaultColourPaletteUpdated:
-                    data.chartColors !== undefined ||
                     data.colorPaletteUuid !== undefined,
                 defaultProjectUuidUpdated:
                     data.defaultProjectUuid !== undefined,
