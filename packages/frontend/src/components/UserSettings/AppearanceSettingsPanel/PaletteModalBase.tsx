@@ -64,6 +64,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
     const handleFormSubmit = form.onSubmit((values) => {
         onSubmit(values);
         onClose();
+        form.reset();
     });
 
     return (
