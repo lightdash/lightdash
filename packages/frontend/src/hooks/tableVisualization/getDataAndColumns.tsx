@@ -145,7 +145,7 @@ const getDataAndColumns = ({
                                         rowAggregatedColumnValues,
                                     ).every(
                                         (dimension) =>
-                                            subtotal[dimension] ===
+                                            subtotal[dimension]?.toString() ===
                                             rowAggregatedColumnValues[
                                                 dimension
                                             ],
