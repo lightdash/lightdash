@@ -1,7 +1,7 @@
 # Section for git-secrets
 if ! command -v git-secrets &> /dev/null
 then
-    echo "git-secrets is not installed. Visit https://github.com/awslabs/git-secrets#installing-git-secrets to learn how to install it."
+    echo "Lightdash repo requires git-secrets to be installed. Visit https://github.com/awslabs/git-secrets#installing-git-secrets to learn how to do it."
     exit 1
 fi
 
