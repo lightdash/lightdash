@@ -725,7 +725,9 @@ export type ApiCalculateTotalResponse = {
     results: Record<string, number>;
 };
 
-export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery;
+export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
+    columnOrder: string[];
+};
 
 export type ApiCalculateSubtotalsResponse = {
     status: 'ok';

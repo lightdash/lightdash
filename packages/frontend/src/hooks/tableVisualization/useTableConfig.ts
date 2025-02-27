@@ -225,6 +225,7 @@ const useTableConfig = (
         metricQuery: resultsData?.metricQuery,
         explore: resultsData?.metricQuery.exploreName,
         showSubtotals,
+        columnOrder,
     });
 
     const { rows, columns, error } = useMemo<{

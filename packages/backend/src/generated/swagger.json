@@ -10140,7 +10140,23 @@
                 "type": "object"
             },
             "CalculateSubtotalsFromQuery": {
-                "$ref": "#/components/schemas/CalculateTotalFromQuery"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
+                    },
+                    {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    }
+                ]
             },
             "DbtExposureType": {
                 "enum": [
