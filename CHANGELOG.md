@@ -1,3 +1,10 @@
+## [0.1519.1](https://github.com/lightdash/lightdash/compare/0.1519.0...0.1519.1) (2025-02-27)
+
+
+### Bug Fixes
+
+* **cli:** create Postgres project with certificates via CLI ([#13823](https://github.com/lightdash/lightdash/issues/13823)) ([37d081e](https://github.com/lightdash/lightdash/commit/37d081e41452431a4603720f9a8f7bae8f1a4a4c))
+
 # [0.1519.0](https://github.com/lightdash/lightdash/compare/0.1518.1...0.1519.0) (2025-02-26)
 
 
