@@ -5,7 +5,6 @@ import {
     useColorPalettes,
     useCreateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { PaletteModalBase, type PaletteFormValues } from './PaletteModalBase';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
@@ -31,32 +30,15 @@ const DEFAULT_COLOR_PALETTE = {
 
 export const CreatePaletteModal: FC<Props> = ({ opened, onClose }) => {
     const { data: palettes = [] } = useColorPalettes();
-    const { showToastSuccess, showToastApiError } = useToaster();
     const createColorPalette = useCreateColorPalette();
 
     const handleCreatePalette = (values: PaletteFormValues) => {
         if (!values.name) return;
 
-        createColorPalette.mutate(
-            {
-                name: values.name,
-                colors: values.colors,
-            },
-            {
-                onSuccess: (newPalette) => {
-                    onClose();
-                    showToastSuccess({
-                        title: `Palette "${newPalette.name}" created successfully`,
-                    });
-                },
-                onError: (error) => {
-                    showToastApiError({
-                        title: 'Failed to create palette',
-                        apiError: error.error,
-                    });
-                },
-            },
-        );
+        createColorPalette.mutate({
+            name: values.name,
+            colors: values.colors,
+        });
     };
 
     return (
