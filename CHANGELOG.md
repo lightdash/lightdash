@@ -1,3 +1,10 @@
+## [0.1520.1](https://github.com/lightdash/lightdash/compare/0.1520.0...0.1520.1) (2025-02-27)
+
+
+### Bug Fixes
+
+* new line processing in results ([#13846](https://github.com/lightdash/lightdash/issues/13846)) ([7e1575e](https://github.com/lightdash/lightdash/commit/7e1575efd3aa9a340b64c75c2e780ed1b59c4fc7))
+
 # [0.1520.0](https://github.com/lightdash/lightdash/compare/0.1519.1...0.1520.0) (2025-02-27)
 
 
