@@ -353,8 +353,11 @@ const UsersView: FC = () => {
     const { classes } = useTableStyles();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const debouncedValue = useMemo(() => {
+        return { search, page };
+    }, [search, page]);
     const [debouncedSearchQueryAndPage] = useDebouncedValue(
-        { search, page },
+        debouncedValue,
         300,
     );
 
