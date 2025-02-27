@@ -122,10 +122,6 @@ const getDataAndColumns = ({
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
                     aggregatedCell: (info) => {
-                        console.log({
-                            som: info.row.getAllCells(),
-                        });
-
                         if (info.row.getIsGrouped()) {
                             const rowAggregatedColumnValues =
                                 Object.fromEntries(
