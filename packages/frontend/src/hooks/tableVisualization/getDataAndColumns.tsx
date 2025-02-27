@@ -5,6 +5,7 @@ import {
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
+    type ResultValue,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import {
@@ -29,7 +30,7 @@ type Args = {
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
     totals?: Record<string, number>;
-    subtotals?: Record<string, number>[];
+    groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
 
 // Adapted from https://stackoverflow.com/a/45337588
@@ -51,7 +52,7 @@ const getDataAndColumns = ({
     getFieldLabelOverride,
     columnOrder,
     totals,
-    subtotals,
+    groupedSubtotals,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -139,19 +140,35 @@ const getDataAndColumns = ({
                                 return null;
                             }
 
-                            const foundSubtotal = subtotals?.find(
-                                (subtotal) => {
-                                    return Object.keys(
-                                        rowAggregatedColumnValues,
-                                    ).every(
-                                        (dimension) =>
-                                            subtotal[dimension]?.toString() ===
-                                            rowAggregatedColumnValues[
-                                                dimension
-                                            ],
-                                    );
-                                },
+                            const groupingValues: Record<
+                                string,
+                                {
+                                    value: ResultValue;
+                                }
+                            > = Object.fromEntries(
+                                groupedDimensions.map((d) => [
+                                    d,
+                                    info.row.getGroupingValue(d) as {
+                                        value: ResultValue;
+                                    }, // TODO: fix this
+                                ]),
                             );
+
+                            const subtotalGroupKey =
+                                groupedDimensions.join(':');
+
+                            const foundSubtotal = groupedSubtotals?.[
+                                subtotalGroupKey
+                            ]?.find((subtotal) => {
+                                return Object.keys(groupingValues).every(
+                                    (key) => {
+                                        return (
+                                            groupingValues[key]?.value.raw ===
+                                            subtotal[key]
+                                        );
+                                    },
+                                );
+                            });
 
                             const subtotalValue =
                                 foundSubtotal?.[info.column.id];

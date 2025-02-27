@@ -10116,10 +10116,19 @@
             "ApiCalculateSubtotalsResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/Record_string.number_"
+                        "properties": {},
+                        "additionalProperties": {
+                            "items": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "object"
+                            },
+                            "type": "array"
                         },
-                        "type": "array"
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -10131,23 +10140,7 @@
                 "type": "object"
             },
             "CalculateSubtotalsFromQuery": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
-                    },
-                    {
-                        "properties": {
-                            "groupedDimensions": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["groupedDimensions"],
-                        "type": "object"
-                    }
-                ]
+                "$ref": "#/components/schemas/CalculateTotalFromQuery"
             },
             "DbtExposureType": {
                 "enum": [

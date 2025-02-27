@@ -225,7 +225,6 @@ const useTableConfig = (
         metricQuery: resultsData?.metricQuery,
         explore: resultsData?.metricQuery.exploreName,
         showSubtotals,
-        groupedDimensions: dimensions.slice(0, -1), // TODO: this should change with the grouped dimensions in each specific row
     });
 
     const { rows, columns, error } = useMemo<{
@@ -257,7 +256,7 @@ const useTableConfig = (
             isColumnFrozen,
             columnOrder,
             totals: totalCalculations,
-            subtotals: subtotalsCalculations,
+            groupedSubtotals: subtotalsCalculations,
         });
     }, [
         columnOrder,
