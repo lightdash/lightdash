@@ -5,6 +5,7 @@ import {
     Organization,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
+    ParameterError,
     UpdateColorPalette,
     UpdateOrganization,
     UserAllowedOrganization,
@@ -391,7 +392,7 @@ export class OrganizationModel {
                 .select('organization_uuid');
 
             if (orgsUsing.length > 0) {
-                throw new Error(
+                throw new ParameterError(
                     'Cannot delete palette currently in use by organizations',
                 );
             }
