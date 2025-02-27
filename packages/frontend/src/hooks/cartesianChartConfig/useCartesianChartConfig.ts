@@ -1,9 +1,12 @@
 import {
+    assertUnreachable,
     CartesianSeriesType,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    XAxisSort,
+    XAxisSortType,
     type ApiQueryResults,
     type CartesianChart,
     type CompleteCartesianChartLayout,
@@ -14,6 +17,7 @@ import {
     type Series,
     type SeriesMetadata,
     type TableCalculationMetadata,
+    type XAxis,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -107,6 +111,35 @@ const applyReferenceLines = (
         };
     });
 };
+
+function getXAxisSortConfig(
+    sort: XAxisSort,
+): Pick<XAxis, 'inverse' | 'sortType'> {
+    switch (sort) {
+        case XAxisSort.ASCENDING:
+            return {
+                inverse: false,
+                sortType: XAxisSortType.DEFAULT,
+            };
+        case XAxisSort.DESCENDING:
+            return {
+                inverse: true,
+                sortType: XAxisSortType.DEFAULT,
+            };
+        case XAxisSort.BAR_TOTALS_ASCENDING:
+            return {
+                inverse: false,
+                sortType: XAxisSortType.BAR_TOTALS,
+            };
+        case XAxisSort.BAR_TOTALS_DESCENDING:
+            return {
+                inverse: true,
+                sortType: XAxisSortType.BAR_TOTALS,
+            };
+        default:
+            return assertUnreachable(sort, `Invalid sort ${sort}`);
+    }
+}
 
 export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
     layout: {},
@@ -313,14 +346,14 @@ const useCartesianChartConfig = ({
             showGridY: show,
         }));
     }, []);
-    const setInverseX = useCallback((inverse: boolean) => {
+    const setXAxisSort = useCallback((sort: XAxisSort) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
-            const x = {
+            const { inverse, sortType } = getXAxisSortConfig(sort);
+            return {
                 ...prevState,
-                xAxis: [{ ...firstAxis, inverse }, ...axes],
+                xAxis: [{ ...firstAxis, inverse, sortType }, ...axes],
             };
-            return x;
         });
     }, []);
     const setXAxisLabelRotation = useCallback((rotation: number) => {
@@ -394,6 +427,15 @@ const useCartesianChartConfig = ({
                             ...series,
                             type,
                             areaStyle: hasAreaStyle ? {} : undefined,
+                        })),
+                        xAxis: prevState?.xAxis?.map((axis) => ({
+                            ...axis,
+                            // If the chart is not a bar chart, and the xAxis is sorted by bar totals, set the sort type to default ( bar totals are not applied to non-bar charts )
+                            sortType:
+                                type !== CartesianSeriesType.BAR &&
+                                axis.sortType === XAxisSortType.BAR_TOTALS
+                                    ? XAxisSortType.DEFAULT
+                                    : axis.sortType,
                         })),
                     },
             );
@@ -926,7 +968,7 @@ const useCartesianChartConfig = ({
         setGrid,
         setShowGridX,
         setShowGridY,
-        setInverseX,
+        setXAxisSort,
         setXAxisLabelRotation,
         updateSeries,
         referenceLines,

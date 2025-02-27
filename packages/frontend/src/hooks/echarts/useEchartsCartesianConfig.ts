@@ -30,6 +30,7 @@ import {
     TableCalculationType,
     timeFrameConfigs,
     TimeFrames,
+    XAxisSortType,
     type ApiQueryResults,
     type CartesianChart,
     type CustomDimension,
@@ -90,7 +91,7 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     }
 };
 
-const getAxisTypeFromField = (
+export const getAxisTypeFromField = (
     item?: ItemsMap[string],
     hasReferenceLine?: boolean,
 ): string => {
@@ -1892,6 +1893,73 @@ const useEchartsCartesianConfig = (
         [itemsMap, validCartesianConfig?.layout.flipAxes],
     );
 
+    const sortedResultsByTotals = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments?.length) return sortedResults;
+
+        const axis = validCartesianConfig?.layout.flipAxes
+            ? axes.yAxis[0]
+            : axes.xAxis[0];
+
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+
+        if (
+            xFieldId &&
+            axis?.type === 'category' &&
+            xAxisConfig?.sortType === XAxisSortType.BAR_TOTALS
+        ) {
+            const stackTotalValueIndex = validCartesianConfig?.layout.flipAxes
+                ? 1
+                : 0;
+
+            const stackTotals = getStackTotalRows(
+                rows,
+                stackedSeriesWithColorAssignments,
+                validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+            );
+
+            // Using entries since we cannot use a map here (cannot index with unknown)
+            // Also grouping by here since when there are no groups in the config we need to calculate the totals for bar
+            const stackTotalEntries: [unknown, number][] = Object.entries(
+                groupBy(stackTotals, (total) => total[stackTotalValueIndex]),
+            ).reduce<[unknown, number][]>((acc, [key, totals]) => {
+                acc.push([
+                    key,
+                    totals.reduce((sum, total) => sum + total[2], 0),
+                ]);
+
+                return acc;
+            }, []);
+
+            return sortedResults.sort((a, b) => {
+                const totalA =
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === a[xFieldId],
+                    )?.[1] ?? 0;
+
+                const totalB =
+                    stackTotalEntries.find(
+                        (entry) => entry[0] === b[xFieldId],
+                    )?.[1] ?? 0;
+
+                return totalA - totalB; // Asc/Desc will be taken care of by inverse config
+            });
+        }
+
+        return sortedResults;
+    }, [
+        stackedSeriesWithColorAssignments,
+        sortedResults,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig.xAxis,
+        axes.yAxis,
+        axes.xAxis,
+        rows,
+        validCartesianConfigLegend,
+    ]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axes.xAxis,
@@ -1906,7 +1974,7 @@ const useEchartsCartesianConfig = (
             ),
             dataset: {
                 id: 'lightdashResults',
-                source: sortedResults,
+                source: sortedResultsByTotals,
             },
             tooltip,
             grid: {
@@ -1931,7 +1999,7 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
             series,
-            sortedResults,
+            sortedResultsByTotals,
             tooltip,
             theme?.other?.chartFont,
         ],
