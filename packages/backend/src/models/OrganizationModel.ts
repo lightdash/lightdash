@@ -4,6 +4,7 @@ import {
     NotFoundError,
     Organization,
     OrganizationColorPalette,
+    OrganizationColorPaletteWithIsActive,
     UpdateColorPalette,
     UpdateOrganization,
     UserAllowedOrganization,
@@ -186,12 +187,21 @@ export class OrganizationModel {
 
     async getColorPalettes(
         organizationUuid: string,
-    ): Promise<OrganizationColorPalette[]> {
+    ): Promise<OrganizationColorPaletteWithIsActive[]> {
         const palettes = await this.database(OrganizationColorPaletteTableName)
             .where('organization_uuid', organizationUuid)
             .select('*');
 
-        return palettes.map(OrganizationModel.mapDBColorPalette);
+        const [organization] = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('*');
+
+        return palettes.map((palette) =>
+            OrganizationModel.mapDBColorPaletteWithIsActive(
+                palette,
+                organization,
+            ),
+        );
     }
 
     async updateColorPalette(
@@ -243,6 +253,12 @@ export class OrganizationModel {
                 .andWhere('organization_uuid', organizationUuid)
                 .returning('*');
 
+            if (!palette) {
+                throw new NotFoundError(
+                    `Color palette not found: ${colorPaletteUuid}`,
+                );
+            }
+
             // Update organization reference
             await trx(OrganizationTableName)
                 .where('organization_uuid', organizationUuid)
@@ -260,7 +276,18 @@ export class OrganizationModel {
             organizationUuid: palette.organization_uuid,
             name: palette.name,
             colors: palette.colors,
-            created_at: palette.created_at,
+            createdAt: palette.created_at,
+        };
+    }
+
+    private static mapDBColorPaletteWithIsActive(
+        palette: DbOrganizationColorPalette,
+        organization: DbOrganization,
+    ): OrganizationColorPaletteWithIsActive {
+        return {
+            ...OrganizationModel.mapDBColorPalette(palette),
+            isActive:
+                palette.color_palette_uuid === organization.color_palette_uuid,
         };
     }
 }

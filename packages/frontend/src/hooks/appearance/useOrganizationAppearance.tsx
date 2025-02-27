@@ -1,7 +1,9 @@
 import {
+    type ApiColorPaletteResponse,
+    type ApiColorPalettesResponse,
+    type ApiCreatedColorPaletteResponse,
     type ApiError,
     type CreateColorPalette,
-    type OrganizationColorPalette,
     type UpdateColorPalette,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,14 +11,14 @@ import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 const createColorPaletteApi = async (data: CreateColorPalette) =>
-    lightdashApi<OrganizationColorPalette>({
+    lightdashApi<ApiCreatedColorPaletteResponse['results']>({
         url: `/org/color-palettes`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 const getColorPalettesApi = async () =>
-    lightdashApi<OrganizationColorPalette[]>({
+    lightdashApi<ApiColorPalettesResponse['results']>({
         url: `/org/color-palettes`,
         method: 'GET',
         body: undefined,
@@ -26,7 +28,7 @@ const updateColorPaletteApi = async (
     colorPaletteUuid: string,
     data: UpdateColorPalette,
 ) =>
-    lightdashApi<OrganizationColorPalette>({
+    lightdashApi<ApiColorPaletteResponse['results']>({
         url: `/org/color-palettes/${colorPaletteUuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -40,7 +42,7 @@ const deleteColorPaletteApi = async (colorPaletteUuid: string) =>
     });
 
 const setActiveColorPaletteApi = async (colorPaletteUuid: string) =>
-    lightdashApi<OrganizationColorPalette>({
+    lightdashApi<ApiColorPaletteResponse['results']>({
         url: `/org/color-palettes/${colorPaletteUuid}/active`,
         method: 'POST',
         body: undefined,
@@ -50,31 +52,32 @@ export const useCreateColorPalette = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
-    return useMutation<OrganizationColorPalette, ApiError, CreateColorPalette>(
-        (data) => createColorPaletteApi(data),
-        {
-            mutationKey: ['create_color_palette'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['color_palettes']);
-                showToastSuccess({
-                    title: 'Color palette created successfully',
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Failed to create color palette',
-                    apiError: error,
-                });
-            },
+    return useMutation<
+        ApiCreatedColorPaletteResponse['results'],
+        ApiError,
+        CreateColorPalette
+    >((data) => createColorPaletteApi(data), {
+        mutationKey: ['create_color_palette'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['color_palettes']);
+            showToastSuccess({
+                title: 'Color palette created successfully',
+            });
         },
-    );
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to create color palette',
+                apiError: error,
+            });
+        },
+    });
 };
 
 export const useColorPalettes = () => {
     return useQuery<
-        OrganizationColorPalette[],
+        ApiColorPalettesResponse['results'],
         ApiError,
-        OrganizationColorPalette[]
+        ApiColorPalettesResponse['results']
     >({
         queryKey: ['color_palettes'],
         queryFn: getColorPalettesApi,
@@ -87,24 +90,25 @@ export const useUpdateColorPalette = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
-    return useMutation<OrganizationColorPalette, ApiError, UpdateColorPalette>(
-        (data) => updateColorPaletteApi(data.uuid, data),
-        {
-            mutationKey: ['update_color_palette'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['color_palettes']);
-                showToastSuccess({
-                    title: 'Color palette updated successfully',
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Failed to update color palette',
-                    apiError: error,
-                });
-            },
+    return useMutation<
+        ApiColorPaletteResponse['results'],
+        ApiError,
+        UpdateColorPalette
+    >((data) => updateColorPaletteApi(data.uuid, data), {
+        mutationKey: ['update_color_palette'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['color_palettes']);
+            showToastSuccess({
+                title: 'Color palette updated successfully',
+            });
         },
-    );
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update color palette',
+                apiError: error,
+            });
+        },
+    });
 };
 
 export const useDeleteColorPalette = () => {
@@ -135,7 +139,7 @@ export const useSetActiveColorPalette = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
-    return useMutation<OrganizationColorPalette, ApiError, string>(
+    return useMutation<ApiColorPaletteResponse['results'], ApiError, string>(
         (colorPaletteUuid) => setActiveColorPaletteApi(colorPaletteUuid),
         {
             mutationKey: ['set_active_color_palette'],

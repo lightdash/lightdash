@@ -16,6 +16,7 @@ import {
     OnbordingRecord,
     Organization,
     OrganizationColorPalette,
+    OrganizationColorPaletteWithIsActive,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
@@ -664,7 +665,7 @@ export class OrganizationService extends BaseService {
 
     async getColorPalettes(
         user: SessionUser,
-    ): Promise<OrganizationColorPalette[]> {
+    ): Promise<OrganizationColorPaletteWithIsActive[]> {
         if (!user.organizationUuid) {
             throw new NotExistsError('Organization not found');
         }

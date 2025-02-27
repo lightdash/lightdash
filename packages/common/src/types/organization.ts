@@ -149,7 +149,11 @@ export type OrganizationColorPalette = {
     organizationUuid: string;
     name: string;
     colors: string[];
-    created_at: Date;
+    createdAt: Date;
+};
+
+export type OrganizationColorPaletteWithIsActive = OrganizationColorPalette & {
+    isActive: boolean;
 };
 
 export type CreateColorPalette = {
@@ -170,7 +174,7 @@ export type ApiColorPaletteResponse = {
 
 export type ApiColorPalettesResponse = {
     status: 'ok';
-    results: OrganizationColorPalette[];
+    results: OrganizationColorPaletteWithIsActive[];
 };
 
 export type ApiCreatedColorPaletteResponse = {
