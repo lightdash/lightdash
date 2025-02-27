@@ -98,6 +98,7 @@ import {
     deepEqual,
     findFieldByIdInExplore,
     findReplaceableCustomMetrics,
+    formatRawRows,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -4933,59 +4934,11 @@ export class ProjectService extends BaseService {
         return results.row;
     }
 
-    async _getCalculateSubtotalsQuery(
-        user: SessionUser,
-        explore: Explore,
-        metricQuery: MetricQuery,
-        groupedDimensions: string[],
-        organizationUuid: string,
-        warehouseClient: WarehouseClient,
-    ) {
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
-
-        // Create a modified query that includes only the grouped dimensions and metrics
-        const subtotalsQuery: MetricQuery = {
-            ...metricQuery,
-            tableCalculations: [],
-            sorts: [],
-            // Keep only the specified grouped dimensions
-            dimensions: metricQuery.dimensions.filter((dim) =>
-                groupedDimensions.includes(dim),
-            ),
-            customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
-        };
-
-        const { query } = await ProjectService._compileQuery(
-            subtotalsQuery,
-            explore,
-            warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-        );
-
-        return { query, subtotalsQuery };
-    }
-
     async _calculateSubtotals(
         user: SessionUser,
         projectUuid: string,
         exploreName: string,
         metricQuery: MetricQuery,
-        groupedDimensions: string[],
         organizationUuid: string,
     ) {
         const explore = await this.getExplore(
@@ -4995,22 +4948,15 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
-        );
+        const dimensionsToSubtotal = metricQuery.dimensions.slice(0, -1);
+        const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
+            (dimension, index) => {
+                if (index === 0) {
+                    return [dimension];
+                }
 
-        const { query } = await this._getCalculateSubtotalsQuery(
-            user,
-            explore,
-            metricQuery,
-            groupedDimensions,
-            organizationUuid,
-            warehouseClient,
+                return [...dimensionsToSubtotal.slice(0, index), dimension];
+            },
         );
 
         const queryTags: RunQueryTags = {
@@ -5021,9 +4967,36 @@ export class ProjectService extends BaseService {
             query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
         };
 
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
-        await sshTunnel.disconnect();
-        return rows;
+        const runQueryAndFormatRaw = async (
+            subtotalMetricQuery: MetricQuery,
+        ) => {
+            const { rows, fields } = await this.runMetricQuery({
+                user,
+                metricQuery: subtotalMetricQuery,
+                explore,
+                queryTags,
+                projectUuid,
+                exploreName,
+                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                csvLimit: null,
+                chartUuid: undefined,
+            });
+
+            return formatRawRows(rows, fields);
+        };
+
+        const subtotalsPromises = dimensionGroupsToSubtotal.map(
+            async (dimensions) => [
+                dimensions.join(':'), // TODO subtotals - this should be in common
+                await runQueryAndFormatRaw({
+                    ...metricQuery,
+                    dimensions,
+                }),
+            ],
+        );
+
+        const subtotalsEntries = await Promise.all(subtotalsPromises);
+        return Object.fromEntries(subtotalsEntries);
     }
 
     async calculateSubtotalsFromQuery(
@@ -5064,7 +5037,6 @@ export class ProjectService extends BaseService {
             projectUuid,
             data.explore,
             data.metricQuery,
-            data.groupedDimensions, // Pass the grouped dimensions as an additional parameter
             organizationUuid,
         );
     }

@@ -41,6 +41,7 @@ import {
 } from './types/personalAccessToken';
 import { type ProjectMemberProfile } from './types/projectMemberProfile';
 import {
+    type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
     type ChartHistory,
     type ChartVersion,
@@ -744,7 +745,8 @@ type ApiResults =
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiMetricsExplorerTotalResults['results']
-    | ApiGetSpotlightTableConfig['results'];
+    | ApiGetSpotlightTableConfig['results']
+    | ApiCalculateSubtotalsResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1142,7 +1144,7 @@ export function itemsInMetricQuery(
           ];
 }
 
-function formatRawValue(
+export function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
     value: AnyType,
 ) {
@@ -1157,6 +1159,26 @@ function formatRawValue(
     }
 
     return value;
+}
+
+// ! We format raw values so we can't use the values directly from the warehouse to compare with subtotals of date dimensions
+export function formatRawRows(
+    rows: { [col: string]: AnyType }[],
+    itemsMap: ItemsMap,
+): Record<string, unknown>[] {
+    return rows.map((row) => {
+        const resultRow: ResultRow = {};
+        const columnNames = Object.keys(row || {});
+
+        for (const columnName of columnNames) {
+            const value = row[columnName];
+            const item = itemsMap[columnName];
+
+            resultRow[columnName] = formatRawValue(item, value);
+        }
+
+        return resultRow;
+    });
 }
 
 export function formatRows(
