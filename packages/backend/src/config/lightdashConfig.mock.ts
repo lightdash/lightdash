@@ -168,6 +168,7 @@ export const lightdashConfigMock: LightdashConfig = {
         contentSecurityPolicy: {
             reportOnly: false,
             allowedDomains: [],
+            frameAncestors: [],
         },
         crossOriginResourceSharingPolicy: {
             enabled: false,

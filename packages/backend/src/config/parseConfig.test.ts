@@ -1,6 +1,7 @@
 import {
     LightdashMode,
     OrganizationMemberRole,
+    ParameterError,
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
@@ -255,5 +256,46 @@ describe('parseOrganizationMemberRoleArray', () => {
         expect(() =>
             parseOrganizationMemberRoleArray('ORGANIZATION_MEMBER_ROLE_ARRAY'),
         ).toThrowError(ParseError);
+    });
+});
+
+describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
+    test('should be empty array if not set', () => {
+        process.env.SECURE_COOKIES = 'true';
+
+        const config = parseConfig();
+        expect(config.security.contentSecurityPolicy.frameAncestors).toEqual([
+            'https://*',
+        ]);
+        expect(config.cookieSameSite).toEqual('lax');
+    });
+
+    test('should parse single domain', () => {
+        process.env.SECURE_COOKIES = 'true';
+        process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS = 'https://example.com';
+        const config = parseConfig();
+        expect(config.security.contentSecurityPolicy.frameAncestors).toEqual([
+            'https://example.com',
+        ]);
+
+        expect(config.cookieSameSite).toEqual('none');
+    });
+
+    test('should parse multiple domains', () => {
+        process.env.SECURE_COOKIES = 'true';
+        process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS =
+            'https://example.com,https://example.org';
+        const config = parseConfig();
+        expect(config.security.contentSecurityPolicy.frameAncestors).toEqual([
+            'https://example.com',
+            'https://example.org',
+        ]);
+        expect(config.cookieSameSite).toEqual('none');
+    });
+
+    test('should throw ParameterError if SECURE_COOKIES is not true', () => {
+        process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS =
+            'https://example.com,https://example.org';
+        expect(() => parseConfig()).toThrowError(ParameterError);
     });
 });
