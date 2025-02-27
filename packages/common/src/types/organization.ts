@@ -150,7 +150,6 @@ export type OrganizationColorPalette = {
     name: string;
     colors: string[];
     created_at: Date;
-    isActive: boolean;
 };
 
 export type CreateColorPalette = {

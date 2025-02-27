@@ -173,12 +173,6 @@ export async function up(knex: Knex): Promise<void> {
         table.text('name').notNullable();
         table.specificType('colors', 'TEXT[]').notNullable();
         table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
-        table.boolean('is_active').notNullable().defaultTo(false);
-
-        // Ensure only one color palette per organization can be active
-        table.unique(['organization_uuid'], {
-            predicate: knex.where('is_active', true),
-        });
     });
 
     // Migrate existing chart_colors to new table
@@ -188,11 +182,17 @@ export async function up(knex: Knex): Promise<void> {
         .whereNotNull('chart_colors');
     await Promise.all(
         existingPalettes.map((palette) =>
+            knex(OrganizationTable)
+                .where('organization_uuid', palette.organization_uuid)
+                .update('color_palette_uuid', palette.color_palette_uuid),
+        ),
+    );
+    await Promise.all(
+        existingPalettes.map((palette) =>
             knex(OrganizationColorPaletteTable).insert({
                 organization_uuid: palette.organization_uuid,
                 name: 'Default Palette',
                 colors: palette.chart_colors,
-                is_active: true,
             }),
         ),
     );
@@ -208,7 +208,6 @@ export async function up(knex: Knex): Promise<void> {
             organization_uuid: organization.organization_uuid,
             name: palette.name,
             colors: palette.colors,
-            is_active: false, // None are active by default
         })),
     );
 
@@ -227,19 +226,6 @@ export async function up(knex: Knex): Promise<void> {
             .inTable(OrganizationColorPaletteTable)
             .onDelete('CASCADE');
     });
-
-    // Set initial color palette reference
-    const defaultPalettes = await knex(OrganizationColorPaletteTable)
-        .select('color_palette_uuid', 'organization_uuid')
-        .where('is_active', true);
-
-    await Promise.all(
-        defaultPalettes.map((palette) =>
-            knex(OrganizationTable)
-                .where('organization_uuid', palette.organization_uuid)
-                .update('color_palette_uuid', palette.color_palette_uuid),
-        ),
-    );
 }
 
 export async function down(knex: Knex): Promise<void> {

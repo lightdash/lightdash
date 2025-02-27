@@ -178,7 +178,6 @@ export class OrganizationModel {
                 organization_uuid: organizationUuid,
                 name: data.name,
                 colors: data.colors,
-                is_active: false,
             })
             .returning('*');
 
@@ -238,23 +237,16 @@ export class OrganizationModel {
         colorPaletteUuid: string,
     ): Promise<OrganizationColorPalette> {
         return this.database.transaction(async (trx) => {
-            // Clear existing active
-            await trx('organization_color_palettes')
-                .where('organization_uuid', organizationUuid)
-                .andWhere('is_active', true)
-                .update({ is_active: false });
-
             // Set new active
             const [palette] = await trx('organization_color_palettes')
                 .where('color_palette_uuid', colorPaletteUuid)
                 .andWhere('organization_uuid', organizationUuid)
-                .update({ is_active: true })
                 .returning('*');
 
             // Update organization reference
             await trx(OrganizationTableName)
                 .where('organization_uuid', organizationUuid)
-                .update({ color_palette_uuid: colorPaletteUuid });
+                .update({ color_palette_uuid: palette.color_palette_uuid });
 
             return OrganizationModel.mapDBColorPalette(palette);
         });
@@ -269,7 +261,6 @@ export class OrganizationModel {
             name: palette.name,
             colors: palette.colors,
             created_at: palette.created_at,
-            isActive: palette.is_active,
         };
     }
 }

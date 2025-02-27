@@ -780,17 +780,8 @@ export class SavedChartModel {
                     )
                     .leftJoin(
                         OrganizationColorPaletteTableName,
-                        function getPalette() {
-                            this.on(
-                                `${OrganizationColorPaletteTableName}.organization_uuid`,
-                                '=',
-                                `${OrganizationTableName}.organization_uuid`,
-                            );
-                            this.andOnVal(
-                                `${OrganizationColorPaletteTableName}.is_active`,
-                                true,
-                            );
-                        },
+                        `${OrganizationTableName}.color_palette_uuid`,
+                        `${OrganizationColorPaletteTableName}.color_palette_uuid`,
                     )
                     .innerJoin(
                         'saved_queries_versions',
