@@ -7,6 +7,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
+import { getSubtotalKey } from '@lightdash/common/src/utils/subtotals';
 import { Text } from '@mantine/core';
 import {
     TableHeaderBoldLabel,
@@ -155,7 +156,7 @@ const getDataAndColumns = ({
                             );
 
                             const subtotalGroupKey =
-                                groupedDimensions.join(':');
+                                getSubtotalKey(groupedDimensions);
 
                             const foundSubtotal = groupedSubtotals?.[
                                 subtotalGroupKey
