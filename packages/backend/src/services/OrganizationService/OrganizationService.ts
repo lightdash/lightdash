@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
     convertProjectRoleToOrganizationRole,
+    CreateColorPalette,
     CreateGroup,
     CreateOrganization,
     ForbiddenError,
@@ -14,6 +15,8 @@ import {
     NotExistsError,
     OnbordingRecord,
     Organization,
+    OrganizationColorPalette,
+    OrganizationColorPaletteWithIsActive,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
@@ -22,6 +25,7 @@ import {
     ParameterError,
     SessionUser,
     UpdateAllowedEmailDomains,
+    UpdateColorPalette,
     UpdateOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
@@ -143,7 +147,8 @@ export class OrganizationService extends BaseService {
                 organizationId: organizationUuid,
                 organizationName: org.name,
                 defaultProjectUuid: org.defaultProjectUuid,
-                defaultColourPaletteUpdated: data.chartColors !== undefined,
+                defaultColourPaletteUpdated:
+                    data.colorPaletteUuid !== undefined,
                 defaultProjectUuidUpdated:
                     data.defaultProjectUuid !== undefined,
             },
@@ -626,5 +631,120 @@ export class OrganizationService extends BaseService {
                 ),
             })),
         };
+    }
+
+    async createColorPalette(
+        user: SessionUser,
+        data: CreateColorPalette,
+    ): Promise<OrganizationColorPalette> {
+        if (
+            !user.organizationUuid ||
+            user.ability.cannot(
+                'update',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Validate colors array
+        if (!data.colors || data.colors.length !== 20) {
+            throw new ParameterError('Color palette must contain 20 colors');
+        }
+
+        const palette = await this.organizationModel.createColorPalette(
+            user.organizationUuid,
+            data,
+        );
+
+        return palette;
+    }
+
+    async getColorPalettes(
+        user: SessionUser,
+    ): Promise<OrganizationColorPaletteWithIsActive[]> {
+        if (!user.organizationUuid) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        return this.organizationModel.getColorPalettes(user.organizationUuid);
+    }
+
+    async updateColorPalette(
+        user: SessionUser,
+        colorPaletteUuid: string,
+        data: UpdateColorPalette,
+    ): Promise<OrganizationColorPalette> {
+        if (
+            !user.organizationUuid ||
+            user.ability.cannot(
+                'update',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (data.colors && data.colors.length !== 20) {
+            throw new ParameterError('Color palette must contain 20 colors');
+        }
+
+        const updatedPalette = await this.organizationModel.updateColorPalette(
+            user.organizationUuid,
+            colorPaletteUuid,
+            data,
+        );
+
+        return updatedPalette;
+    }
+
+    async deleteColorPalette(
+        user: SessionUser,
+        colorPaletteUuid: string,
+    ): Promise<void> {
+        if (
+            !user.organizationUuid ||
+            user.ability.cannot(
+                'update',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.organizationModel.deleteColorPalette(
+            user.organizationUuid,
+            colorPaletteUuid,
+        );
+    }
+
+    async setActiveColorPalette(
+        user: SessionUser,
+        colorPaletteUuid: string,
+    ): Promise<OrganizationColorPalette> {
+        if (
+            !user.organizationUuid ||
+            user.ability.cannot(
+                'update',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const palette = await this.organizationModel.setActiveColorPalette(
+            user.organizationUuid,
+            colorPaletteUuid,
+        );
+
+        return palette;
     }
 }

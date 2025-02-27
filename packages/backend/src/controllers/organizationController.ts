@@ -1,19 +1,23 @@
 import {
+    ApiColorPaletteResponse,
+    ApiColorPalettesResponse,
+    ApiCreatedColorPaletteResponse,
     ApiCreateGroupResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
-    ApiGroupResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
     ApiSuccessEmpty,
+    CreateColorPalette,
     CreateGroup,
     CreateOrganization,
     KnexPaginateArgs,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
+    UpdateColorPalette,
     UpdateOrganization,
     UUID,
 } from '@lightdash/common';
@@ -405,6 +409,87 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results: groups,
+        };
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Post('/color-palettes')
+    @OperationId('CreateColorPalette')
+    async createColorPalette(
+        @Request() req: express.Request,
+        @Body() body: CreateColorPalette,
+    ): Promise<ApiCreatedColorPaletteResponse> {
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .createColorPalette(req.user!, body),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/color-palettes')
+    @OperationId('ListColorPalettes')
+    async getColorPalettes(
+        @Request() req: express.Request,
+    ): Promise<ApiColorPalettesResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .getColorPalettes(req.user!),
+        };
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Patch('/color-palettes/{colorPaletteUuid}')
+    @OperationId('UpdateColorPalette')
+    async updateColorPalette(
+        @Request() req: express.Request,
+        @Path() colorPaletteUuid: string,
+        @Body() body: UpdateColorPalette,
+    ): Promise<ApiColorPaletteResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .updateColorPalette(req.user!, colorPaletteUuid, body),
+        };
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Delete('/color-palettes/{colorPaletteUuid}')
+    @OperationId('DeleteColorPalette')
+    async deleteColorPalette(
+        @Request() req: express.Request,
+        @Path() colorPaletteUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getOrganizationService()
+            .deleteColorPalette(req.user!, colorPaletteUuid);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Post('/color-palettes/{colorPaletteUuid}/active')
+    @OperationId('SetActiveColorPalette')
+    async setActiveColorPalette(
+        @Request() req: express.Request,
+        @Path() colorPaletteUuid: string,
+    ): Promise<ApiColorPaletteResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .setActiveColorPalette(req.user!, colorPaletteUuid),
         };
     }
 }

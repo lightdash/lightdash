@@ -36,7 +36,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 
 export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersion = await getDbtVersion();
-    GlobalState.debug(`> dbt version ${dbtVersion}`);
+    GlobalState.debug(`> dbt version ${dbtVersion.verboseVersion}`);
     const executionId = uuidv4();
     await LightdashAnalytics.track({
         event: 'compile.started',

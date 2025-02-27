@@ -156,6 +156,10 @@ import {
     NotificationsTableName,
 } from '../database/entities/notifications';
 import {
+    OrganizationColorPaletteTable,
+    OrganizationColorPaletteTableName,
+} from '../database/entities/organizationColorPalettes';
+import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
@@ -327,5 +331,6 @@ declare module 'knex/types/tables' {
         [ScimOrganizationAccessTokenTableName]: ScimOrganizationAccessTokenTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
+        [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
     }
 }
