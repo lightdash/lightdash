@@ -651,7 +651,7 @@ export class OrganizationService extends BaseService {
         }
 
         // Validate colors array
-        if (!data.colors || data.colors.length < 20) {
+        if (!data.colors || data.colors.length !== 20) {
             throw new ParameterError('Color palette must contain 20 colors');
         }
 
@@ -690,7 +690,7 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (data.colors && data.colors.length < 20) {
+        if (data.colors && data.colors.length !== 20) {
             throw new ParameterError('Color palette must contain 20 colors');
         }
 
