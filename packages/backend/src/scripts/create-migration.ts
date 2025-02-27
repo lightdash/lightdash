@@ -46,8 +46,6 @@ const createMigration = async (): Promise<void> => {
     const migrationType = await promptUser();
 
     try {
-        const env = { ...process.env };
-
         // Define the migration directory based on user choice
         let migrationDir: string;
 
@@ -72,21 +70,15 @@ const createMigration = async (): Promise<void> => {
         }
 
         // Run migration
-        const { stdout } = await execa(
-            'knex',
-            [
-                'migrate:make',
-                migrationName,
-                '--knexfile',
-                'src/knexfile.ts',
-                '--migrations-directory',
-                `src/${migrationDir}`,
-            ],
-            {
-                env,
-                stdio: 'inherit',
-            },
-        );
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+        const { stdout } = await execa('knex', [
+            'migrate:make',
+            migrationName,
+            '--knexfile',
+            'src/knexfile.ts',
+            '--migrations-directory',
+            `src/${migrationDir}`,
+        ]);
 
         if (stdout) console.log(stdout);
     } catch (error) {
