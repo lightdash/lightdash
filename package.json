@@ -64,6 +64,7 @@
         "backend-fix-lint": "pnpm -F backend fix-lint",
         "backend-fix-format": "pnpm -F backend fix-format",
         "backend-test": "pnpm -F backend test",
+        "backend-test-sequential": "pnpm -F backend test-sequential",
         "frontend-dev": "pnpm -F frontend dev",
         "frontend-build": "pnpm -F frontend build",
         "frontend-build-lib": "pnpm -F frontend build-lib",
