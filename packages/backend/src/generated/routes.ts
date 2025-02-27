@@ -11258,7 +11258,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                created_at: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
                 colors: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -11300,6 +11300,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationColorPaletteWithIsActive: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'OrganizationColorPalette' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        isActive: { dataType: 'boolean', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiColorPalettesResponse: {
         dataType: 'refAlias',
         type: {
@@ -11309,7 +11326,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'OrganizationColorPalette',
+                        ref: 'OrganizationColorPaletteWithIsActive',
                     },
                     required: true,
                 },

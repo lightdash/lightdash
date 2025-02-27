@@ -12117,7 +12117,7 @@
             },
             "OrganizationColorPalette": {
                 "properties": {
-                    "created_at": {
+                    "createdAt": {
                         "type": "string",
                         "format": "date-time"
                     },
@@ -12138,7 +12138,7 @@
                     }
                 },
                 "required": [
-                    "created_at",
+                    "createdAt",
                     "colors",
                     "name",
                     "organizationUuid",
@@ -12175,11 +12175,27 @@
                 "required": ["colors", "name"],
                 "type": "object"
             },
+            "OrganizationColorPaletteWithIsActive": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/OrganizationColorPalette"
+                    },
+                    {
+                        "properties": {
+                            "isActive": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["isActive"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiColorPalettesResponse": {
                 "properties": {
                     "results": {
                         "items": {
-                            "$ref": "#/components/schemas/OrganizationColorPalette"
+                            "$ref": "#/components/schemas/OrganizationColorPaletteWithIsActive"
                         },
                         "type": "array"
                     },
