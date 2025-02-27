@@ -224,8 +224,6 @@ const useTableConfig = (
     const { data: subtotalsCalculations } = useCalculateSubtotals({
         metricQuery: resultsData?.metricQuery,
         explore: resultsData?.metricQuery.exploreName,
-        fieldIds: selectedItemIds,
-        itemsMap,
         showSubtotals,
         groupedDimensions: dimensions.slice(0, -1), // TODO: this should change with the grouped dimensions in each specific row
     });
