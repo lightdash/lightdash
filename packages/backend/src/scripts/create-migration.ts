@@ -77,7 +77,7 @@ const createMigration = async (): Promise<void> => {
             '--knexfile',
             'src/knexfile.ts',
             '--migrations-directory',
-            `src/${migrationDir}`,
+            `${migrationDir}`,
         ]);
 
         if (stdout) console.log(stdout);
