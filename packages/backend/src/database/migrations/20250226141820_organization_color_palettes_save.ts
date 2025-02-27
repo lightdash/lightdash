@@ -176,24 +176,46 @@ export async function up(knex: Knex): Promise<void> {
     });
 
     // Migrate existing chart_colors to new table
-    const existingPalettes = await knex
+    const legacyActiveColors = await knex
         .select('organization_uuid', 'chart_colors')
         .from(OrganizationTable)
         .whereNotNull('chart_colors');
-    await Promise.all(
-        existingPalettes.map((palette) =>
-            knex(OrganizationTable)
-                .where('organization_uuid', palette.organization_uuid)
-                .update('color_palette_uuid', palette.color_palette_uuid),
-        ),
+
+    await knex.batchInsert(
+        OrganizationColorPaletteTable,
+        legacyActiveColors.map((legacyActiveColor) => ({
+            organization_uuid: legacyActiveColor.organization_uuid,
+            name: 'Default Palette',
+            colors: legacyActiveColor.chart_colors,
+        })),
     );
+
+    // Add reference column to organizations
+    await knex.schema.alterTable(OrganizationTable, (table) => {
+        table
+            .uuid('color_palette_uuid')
+            .references('color_palette_uuid')
+            .inTable(OrganizationColorPaletteTable)
+            .onDelete('CASCADE');
+    });
+
+    // These are the legacy color palettes inserted above
+    const legacyColorPalettes = await knex(
+        OrganizationColorPaletteTable,
+    ).select('color_palette_uuid', 'organization_uuid');
+
+    // Update organizations with the legacy color palette uuid
     await Promise.all(
-        existingPalettes.map((palette) =>
-            knex(OrganizationColorPaletteTable).insert({
-                organization_uuid: palette.organization_uuid,
-                name: 'Default Palette',
-                colors: palette.chart_colors,
-            }),
+        legacyColorPalettes.map((legacyColorPalette) =>
+            knex(OrganizationTable)
+                .where(
+                    'organization_uuid',
+                    legacyColorPalette.organization_uuid,
+                )
+                .update(
+                    'color_palette_uuid',
+                    legacyColorPalette.color_palette_uuid,
+                ),
         ),
     );
 
@@ -211,21 +233,11 @@ export async function up(knex: Knex): Promise<void> {
         })),
     );
 
-    // Use batchInsert for better performance
     await knex.batchInsert(
         OrganizationColorPaletteTable,
         paletteInsertions,
         1000,
     );
-
-    // Add reference column to organizations
-    await knex.schema.alterTable(OrganizationTable, (table) => {
-        table
-            .uuid('color_palette_uuid')
-            .references('color_palette_uuid')
-            .inTable(OrganizationColorPaletteTable)
-            .onDelete('CASCADE');
-    });
 }
 
 export async function down(knex: Knex): Promise<void> {
