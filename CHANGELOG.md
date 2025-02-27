@@ -1,3 +1,10 @@
+# [0.1521.0](https://github.com/lightdash/lightdash/compare/0.1520.2...0.1521.0) (2025-02-27)
+
+
+### Features
+
+* allow saving custom color org palettes ([#13834](https://github.com/lightdash/lightdash/issues/13834)) ([ffb2cc5](https://github.com/lightdash/lightdash/commit/ffb2cc551326f97edadb56da07810d58e693bbd9))
+
 ## [0.1520.2](https://github.com/lightdash/lightdash/compare/0.1520.1...0.1520.2) (2025-02-27)
 
 
