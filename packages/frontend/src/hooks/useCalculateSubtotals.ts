@@ -11,21 +11,17 @@ import { convertDateFilters } from '../utils/dateFilter';
 
 const calculateSubtotalsFromQuery = async (
     projectUuid: string,
-    metricQuery?: MetricQuery,
-    explore?: string,
+    explore: string,
+    metricQuery: MetricQuery,
+    columnOrder: string[],
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
-    if (!metricQuery || !explore) {
-        throw new Error(
-            'missing metricQuery and explore on calculateSubtotalsFromQuery',
-        );
-    }
-
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore: explore,
         metricQuery: {
             ...metricQuery,
             filters: convertDateFilters(metricQuery.filters),
         },
+        columnOrder,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/projects/${projectUuid}/calculate-subtotals`,
@@ -38,24 +34,40 @@ export const useCalculateSubtotals = ({
     metricQuery,
     explore,
     showSubtotals,
+    columnOrder,
 }: {
     metricQuery?: MetricQuery;
     explore?: string;
     showSubtotals?: boolean;
+    columnOrder?: string[];
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return useQuery<ApiCalculateSubtotalsResponse['results'], ApiError>({
-        queryKey: ['calculate_subtotals', projectUuid, metricQuery, explore],
+        queryKey: [
+            'calculate_subtotals',
+            projectUuid,
+            metricQuery,
+            explore,
+            columnOrder,
+            showSubtotals,
+        ],
         queryFn: () =>
-            projectUuid
-                ? calculateSubtotalsFromQuery(projectUuid, metricQuery, explore)
+            projectUuid && metricQuery && explore && columnOrder
+                ? calculateSubtotalsFromQuery(
+                      projectUuid,
+                      explore,
+                      metricQuery,
+                      columnOrder,
+                  )
                 : Promise.reject(),
         retry: false,
         enabled:
             showSubtotals === true &&
             metricQuery !== undefined &&
-            metricQuery.metrics.length > 0,
+            metricQuery.metrics.length > 0 &&
+            columnOrder !== undefined &&
+            explore !== undefined,
         onError: (result) =>
             console.error(
                 `Unable to calculate subtotals from query: ${

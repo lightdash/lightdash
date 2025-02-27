@@ -4938,10 +4938,11 @@ export class ProjectService extends BaseService {
     async _calculateSubtotals(
         user: SessionUser,
         projectUuid: string,
-        exploreName: string,
-        metricQuery: MetricQuery,
+        data: CalculateSubtotalsFromQuery,
         organizationUuid: string,
     ) {
+        const { explore: exploreName, metricQuery, columnOrder } = data;
+
         const explore = await this.getExplore(
             user,
             projectUuid,
@@ -4949,7 +4950,17 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        const dimensionsToSubtotal = metricQuery.dimensions.slice(0, -1);
+        // Order dimensions according to columnOrder
+        const orderedDimensions = metricQuery.dimensions.sort((a, b) => {
+            const aIndex = columnOrder.indexOf(a);
+            const bIndex = columnOrder.indexOf(b);
+            // Handle cases where dimension isn't in columnOrder
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            return aIndex - bIndex;
+        });
+
+        const dimensionsToSubtotal = orderedDimensions.slice(0, -1);
         const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
             (dimension, index) => {
                 if (index === 0) {
@@ -5036,8 +5047,7 @@ export class ProjectService extends BaseService {
         return this._calculateSubtotals(
             user,
             projectUuid,
-            data.explore,
-            data.metricQuery,
+            data,
             organizationUuid,
         );
     }
