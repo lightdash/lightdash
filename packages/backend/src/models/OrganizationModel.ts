@@ -367,11 +367,13 @@ export class OrganizationModel {
     }
 
     async updateColorPalette(
+        organizationUuid: string,
         colorPaletteUuid: string,
         data: UpdateColorPalette,
     ): Promise<OrganizationColorPalette> {
         const [palette] = await this.database(OrganizationColorPaletteTableName)
             .where('color_palette_uuid', colorPaletteUuid)
+            .andWhere('organization_uuid', organizationUuid)
             .update({
                 name: data.name,
                 colors: data.colors,

@@ -694,6 +694,7 @@ export class OrganizationService extends BaseService {
         }
 
         const updatedPalette = await this.organizationModel.updateColorPalette(
+            user.organizationUuid,
             colorPaletteUuid,
             data,
         );
