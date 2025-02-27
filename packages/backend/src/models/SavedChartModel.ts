@@ -43,6 +43,7 @@ import {
     DashboardTileChartTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { OrganizationColorPaletteTableName } from '../database/entities/organizationColorPalettes';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -777,6 +778,11 @@ export class SavedChartModel {
                         `${OrganizationTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     )
+                    .leftJoin(
+                        OrganizationColorPaletteTableName,
+                        `${OrganizationTableName}.color_palette_uuid`,
+                        `${OrganizationColorPaletteTableName}.color_palette_uuid`,
+                    )
                     .innerJoin(
                         'saved_queries_versions',
                         `${SavedChartsTableName}.saved_query_id`,
@@ -802,7 +808,7 @@ export class SavedChartModel {
                             space_uuid: string;
                             spaceName: string;
                             dashboardName: string | null;
-                            chart_colors: string[] | null;
+                            color_palette: string[] | null;
                             slug: string;
                         })[]
                     >([
@@ -825,7 +831,7 @@ export class SavedChartModel {
                         'saved_queries_versions.pivot_dimensions',
                         'saved_queries_versions.timezone',
                         `${OrganizationTableName}.organization_uuid`,
-                        `${OrganizationTableName}.chart_colors`,
+                        `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
@@ -1047,7 +1053,7 @@ export class SavedChartModel {
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
                     colorPalette:
-                        savedQuery.chart_colors ?? ECHARTS_DEFAULT_COLORS,
+                        savedQuery.color_palette ?? ECHARTS_DEFAULT_COLORS,
                     slug: savedQuery.slug,
                 };
             },
