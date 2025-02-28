@@ -983,57 +983,65 @@ export class ProjectModel {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
-            async () => {
-                // Get custom explores/virtual views before deleting them
-                const virtualViews = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('project_uuid', projectUuid)
-                    .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+            async () =>
+                this.database.transaction(async (trx) => {
+                    // Get custom explores/virtual views before deleting them
+                    const virtualViews = await trx(CachedExploreTableName)
+                        .select('explore')
+                        .where('project_uuid', projectUuid)
+                        .whereRaw("explore->>'type' = ?", [
+                            ExploreType.VIRTUAL,
+                        ]);
 
-                // delete previous individually cached explores
-                await this.database(CachedExploreTableName)
-                    .where('project_uuid', projectUuid)
-                    .delete();
+                    // Delete previous individually cached explores
+                    await trx(CachedExploreTableName)
+                        .where('project_uuid', projectUuid)
+                        .delete();
 
-                // We don't support multiple explores with the same name at the moment
-                const uniqueExplores = uniqWith(
-                    [...explores, ...virtualViews.map((e) => e.explore)],
-                    (a, b) => a.name === b.name,
-                );
+                    // NOTE: virtual views with the same name as explores will override the explore.
+                    // This isn't new behavior, but it's still a bit of a bug. However, it's
+                    // not clear what a better approach would be at the moment.
+                    const exploresMap = new Map(
+                        explores.map((e) => [e.name, e]),
+                    );
+                    virtualViews.forEach((e) =>
+                        exploresMap.set(e.explore.name, e.explore),
+                    );
+                    const uniqueExplores = Array.from(exploresMap.values());
 
-                if (uniqueExplores.length <= 0) {
-                    throw new ParameterError('No explores to save');
-                }
+                    if (uniqueExplores.length <= 0) {
+                        throw new ParameterError('No explores to save');
+                    }
 
-                // cache explores individually
-                const individualCachedExplores = await this.database
-                    .batchInsert<DbCachedExplore>(
-                        CachedExploreTableName,
-                        uniqueExplores.map((explore) => ({
+                    // Cache explores individually
+                    const individualCachedExplores = await trx
+                        .batchInsert<DbCachedExplore>(
+                            CachedExploreTableName,
+                            uniqueExplores.map((explore) => ({
+                                project_uuid: projectUuid,
+                                name: explore.name,
+                                table_names: Object.keys(explore.tables || {}),
+                                explore: JSON.stringify(explore),
+                            })),
+                        )
+                        .returning('cached_explore_uuid');
+
+                    // Cache explores together
+                    await trx(CachedExploresTableName)
+                        .insert({
                             project_uuid: projectUuid,
-                            name: explore.name,
-                            table_names: Object.keys(explore.tables || {}),
-                            explore: JSON.stringify(explore),
-                        })),
-                    )
-                    .returning('cached_explore_uuid');
+                            explores: JSON.stringify(uniqueExplores),
+                        })
+                        .onConflict('project_uuid')
+                        .merge()
+                        .returning('*');
 
-                // cache explores together
-                await this.database(CachedExploresTableName)
-                    .insert({
-                        project_uuid: projectUuid,
-                        explores: JSON.stringify(uniqueExplores),
-                    })
-                    .onConflict('project_uuid')
-                    .merge()
-                    .returning('*');
-
-                return {
-                    cachedExploreUuids: individualCachedExplores.map(
-                        (explore) => explore.cached_explore_uuid,
-                    ),
-                };
-            },
+                    return {
+                        cachedExploreUuids: individualCachedExplores.map(
+                            (explore) => explore.cached_explore_uuid,
+                        ),
+                    };
+                }),
         );
     }
 
