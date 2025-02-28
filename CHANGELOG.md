@@ -1,3 +1,10 @@
+## [0.1522.2](https://github.com/lightdash/lightdash/compare/0.1522.1...0.1522.2) (2025-02-28)
+
+
+### Bug Fixes
+
+* save explores to cache in a transaction ([#13856](https://github.com/lightdash/lightdash/issues/13856)) ([427088e](https://github.com/lightdash/lightdash/commit/427088ec09485f334f463b6026025d4287ad302b))
+
 ## [0.1522.1](https://github.com/lightdash/lightdash/compare/0.1522.0...0.1522.1) (2025-02-28)
 
 
