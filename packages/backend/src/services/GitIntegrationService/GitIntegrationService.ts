@@ -3,14 +3,14 @@ import {
     AdditionalMetric,
     AnyType,
     ApiGithubDbtWritePreview,
-    DbtModelNode,
+    CustomSqlDimension,
     DbtProjectType,
-    DimensionType,
-    findAndUpdateModelNodes,
     ForbiddenError,
     friendlyName,
     getErrorMessage,
     GitIntegrationConfiguration,
+    insertCustomDimensionsInModelNodes,
+    insertCustomMetricsInModelNodes,
     isUserWithOrg,
     lightdashDbtYamlSchema,
     ParameterError,
@@ -22,6 +22,7 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     VizColumn,
+    YamlSchema,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
@@ -66,30 +67,6 @@ type GithubProps = {
     installationId?: string; // For github requests using the installation id as a bot
     mainBranch: string;
     quoteChar: `"` | `'`;
-};
-// TODO move this to common and refactor cli
-type YamlColumnMeta = {
-    dimension?: {
-        type?: DimensionType;
-    };
-};
-
-type YamlColumn = {
-    name: string;
-    description?: string;
-    meta?: YamlColumnMeta;
-};
-
-export type YamlModel = {
-    name: string;
-    description?: string;
-    columns?: YamlColumn[];
-    meta?: AnyType;
-};
-
-export type YamlSchema = {
-    version?: number;
-    models?: DbtModelNode[];
 };
 
 export class GitIntegrationService extends BaseService {
@@ -338,9 +315,82 @@ Affected charts:
                         token,
                         projectUuid,
                     });
-                const updatedModels = findAndUpdateModelNodes(
+                const updatedModels = insertCustomMetricsInModelNodes(
                     yamlSchema.models!,
                     customMetricsForTable,
+                );
+
+                const updatedYml = yaml.dump(
+                    { ...yamlSchema, models: updatedModels },
+                    {
+                        quotingType: quoteChar,
+                    },
+                );
+
+                const fileUpdated = await updateFile({
+                    owner,
+                    repo,
+                    fileName,
+                    content: updatedYml,
+                    fileSha,
+                    branchName: branch,
+                    token,
+                    message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
+                });
+                Logger.debug(
+                    `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
+                );
+
+                return [...acc, fileName];
+            },
+            Promise.resolve([]),
+        );
+    }
+
+    async updateFileForCustomDimensions({
+        owner,
+        repo,
+        path,
+        projectUuid,
+        customDimensions,
+        token,
+        branch,
+        quoteChar = `'`,
+    }: {
+        owner: string;
+        repo: string;
+        path: string;
+        projectUuid: string;
+        customDimensions: CustomSqlDimension[];
+        branch: string;
+        token: string;
+        quoteChar?: `"` | `'`;
+    }): Promise<void> {
+        if (customDimensions === undefined || customDimensions?.length === 0)
+            throw new Error('No custom dimensions found');
+        const tables = [
+            ...new Set(customDimensions.map((dimension) => dimension.table)),
+        ];
+
+        const fileNames = await tables.reduce<Promise<string[]>>(
+            async (accPromise, table) => {
+                const acc = await accPromise;
+                const customDimensionsForTable = customDimensions.filter(
+                    (dimension) => dimension.table === table,
+                );
+                const { yamlSchema, fileName, fileSha } =
+                    await this.getYamlForTable({
+                        table,
+                        path,
+                        owner,
+                        repo,
+                        branch,
+                        token,
+                        projectUuid,
+                    });
+                const updatedModels = insertCustomDimensionsInModelNodes(
+                    yamlSchema.models!,
+                    customDimensionsForTable,
                 );
 
                 const updatedYml = yaml.dump(
@@ -521,6 +571,92 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 properties: {
                     ...eventProperties,
                     customMetricsCount: customMetrics.length,
+                },
+            });
+            return {
+                prTitle: pullRequest.title,
+                prUrl: pullRequest.html_url,
+            };
+        } catch (e) {
+            this.analytics.track({
+                event: 'write_back.error',
+                userId: user.userUuid,
+                properties: {
+                    ...eventProperties,
+                    error: getErrorMessage(e),
+                },
+            });
+            throw e;
+        }
+    }
+
+    async createPullRequestForCustomDimensions(
+        user: SessionUser,
+        projectUuid: string,
+        customDimensions: CustomSqlDimension[],
+        quoteChar: `"` | `'`,
+    ): Promise<PullRequestCreated> {
+        if (customDimensions.length === 0)
+            throw new ParseError('Missing custom dimensions');
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const githubProps = await this.getGithubProps(
+            user,
+            projectUuid,
+            quoteChar,
+        );
+
+        await GitIntegrationService.createBranch(githubProps);
+        const updatedFiles = await this.updateFileForCustomDimensions({
+            ...githubProps,
+            customDimensions,
+            projectUuid,
+            quoteChar,
+        });
+
+        const customDimensionInfo =
+            customDimensions.length === 1
+                ? `\`${customDimensions[0].name}\` custom dimension`
+                : `${customDimensions.length} custom dimensions`;
+        const eventProperties: WriteBackEvent['properties'] = {
+            name: customDimensionInfo,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid!,
+            context: QueryExecutionContext.EXPLORE,
+        };
+        try {
+            const pullRequest = await createPullRequest({
+                ...githubProps,
+                title: `Adds ${customDimensionInfo}`,
+                body: `Created by Lightdash, this pull request adds ${customDimensionInfo} to the dbt model.
+
+    Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+    > ⚠️ **Note: Do not change the \`label\` or \`id\` of your dimensions in this pull request.** Your custom dimension(s) _will not be replaced_ with YAML dimensions if you change the \`label\` or \`id\` of the dimensions in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom dimensions with YAML dimensions.`,
+                head: githubProps.branch,
+                base: githubProps.mainBranch,
+            });
+            Logger.debug(
+                `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
+            );
+
+            this.analytics.track({
+                event: 'write_back.created',
+                userId: user.userUuid,
+                properties: {
+                    ...eventProperties,
+                    customDimensionsCount: customDimensions.length,
                 },
             });
             return {
