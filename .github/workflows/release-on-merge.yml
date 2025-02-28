@@ -15,15 +15,6 @@ jobs:
                   token: ${{ secrets.CI_GITHUB_TOKEN }}
                   persist-credentials: false
 
-            - name: Set up Git Secrets
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y git
-                  git clone https://github.com/awslabs/git-secrets.git
-                  cd git-secrets
-                  sudo make install
-                  cd ..
-
             - uses: pnpm/action-setup@v4
 
             - uses: actions/setup-node@v4
@@ -43,6 +34,7 @@ jobs:
               id: semantic
               uses: cycjimmy/semantic-release-action@v4
               env:
+                  HUSKY=0
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
                   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
               with:
