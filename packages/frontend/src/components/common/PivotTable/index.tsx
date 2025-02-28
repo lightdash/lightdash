@@ -198,16 +198,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                     getSubtotalKey(groupedDimensions);
 
                                 // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                                const subtotalsGroup = data.groupedSubtotals?.[
+                                const subtotal = data.groupedSubtotals?.[
                                     subtotalGroupKey
-                                ]?.find((subtotal) => {
+                                ]?.find((sub) => {
                                     return (
                                         // All grouping values in the row must match the subtotal values
                                         Object.keys(groupingValues).every(
                                             (key) => {
                                                 return (
                                                     groupingValues[key]?.value
-                                                        .raw === subtotal[key]
+                                                        .raw === sub[key]
                                                 );
                                             },
                                         ) &&
@@ -216,7 +216,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             (key) => {
                                                 return (
                                                     pivotedHeaderValues[key]
-                                                        ?.raw === subtotal[key]
+                                                        ?.raw === sub[key]
                                                 );
                                             },
                                         )
@@ -224,7 +224,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 });
 
                                 const subtotalColumnIds = Object.keys(
-                                    subtotalsGroup ?? {},
+                                    subtotal ?? {},
                                 );
 
                                 // If the subtotal column is not in the subtotalsGroup, return null
@@ -239,7 +239,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 }
 
                                 const subtotalValue =
-                                    subtotalsGroup?.[col.baseId ?? col.fieldId];
+                                    subtotal?.[col.baseId ?? col.fieldId];
 
                                 return (
                                     <Text span fw={600}>
