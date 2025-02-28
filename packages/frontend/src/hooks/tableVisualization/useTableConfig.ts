@@ -1,7 +1,7 @@
 import {
-    FieldType,
     convertFormattedValue,
     getItemLabel,
+    isCustomDimension,
     isDimension,
     isField,
     isFilterableItem,
@@ -180,9 +180,7 @@ const useTableConfig = (
 
         return columnOrder.filter((fieldId) => {
             const item = itemsMap[fieldId];
-            return item && isField(item)
-                ? item.fieldType === FieldType.DIMENSION
-                : false;
+            return item && (isDimension(item) || isCustomDimension(item));
         });
     }, [columnOrder, itemsMap]);
 
