@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AbilityAction,
     CreateSpace,
     ForbiddenError,
     generateSlug,
@@ -77,6 +78,41 @@ export class SpaceService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.pinnedListModel = args.pinnedListModel;
+    }
+
+    /** @internal For unit testing only */
+    async _userCanActionSpace(
+        user: Pick<SessionUser, 'ability' | 'userUuid'>,
+        contentType: 'Space' | 'Dashboard' | 'Chart',
+        space: Pick<
+            SpaceSummary,
+            'organizationUuid' | 'projectUuid' | 'isPrivate' | 'uuid'
+        >,
+        action: AbilityAction,
+        logDiagnostics: boolean = false,
+    ): Promise<boolean> {
+        const userAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
+        const ss = subject(contentType, {
+            organizationUuid: space.organizationUuid,
+            projectUuid: space.projectUuid,
+            isPrivate: space.isPrivate,
+            access: userAccess,
+        });
+        if (logDiagnostics) {
+            const rule = user.ability.relevantRuleFor(action, ss);
+            console.log('action 👇');
+            console.log(action);
+            console.log('subject 👇');
+            console.log(ss);
+            console.log('rule 👇');
+            console.log(rule);
+            console.log(rule?.conditions);
+        }
+
+        return user.ability.can(action, ss);
     }
 
     async getSpace(
