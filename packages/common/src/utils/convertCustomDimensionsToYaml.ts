@@ -38,19 +38,13 @@ function updateModelColumns(
             name: modelNode.columns![0].name,
         }),
     );
-    const columnsByRef = customDimensions.reduce<
-        Record<string, CustomSqlDimension[]>
-    >((acc, dimension) => {
+
+    const columnsByRef = groupBy(customDimensions, (dimension) => {
         const refs = getAllReferences(dimension.sql).map((ref) =>
             convertFieldRefToFieldId(ref),
         );
-        const targetColumnRef = refs[0] ?? firstColumn;
-        const existingDimensions = acc[targetColumnRef] ?? [];
-        return {
-            ...acc,
-            [targetColumnRef]: existingDimensions.concat(dimension),
-        };
-    }, {});
+        return refs[0] ?? firstColumn;
+    });
 
     return modelNode.columns!.map((column) => {
         const dimensions = columnsByRef[column.name];
