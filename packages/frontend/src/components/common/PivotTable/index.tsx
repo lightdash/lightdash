@@ -167,9 +167,6 @@ const PivotTable: FC<PivotTableProps> = ({
                         aggregatedCell: (info) => {
                             if (info.row.getIsGrouped()) {
                                 // TODO: Deduplicate this with the getDataAndColumns code
-                                console.log({
-                                    data,
-                                });
                                 const groupedDimensions = info.row.id
                                     .split('>')
                                     .map(
@@ -204,15 +201,25 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const subtotalsGroup = data.groupedSubtotals?.[
                                     subtotalGroupKey
                                 ]?.find((subtotal) => {
-                                    return Object.keys(groupingValues).every(
-                                        (key) => {
-                                            return (
-                                                groupingValues[key]?.value
-                                                    .raw === subtotal[key] ||
-                                                pivotedHeaderValues[key]
-                                                    ?.raw === subtotal[key]
-                                            );
-                                        },
+                                    return (
+                                        // All grouping values in the row must match the subtotal values
+                                        Object.keys(groupingValues).every(
+                                            (key) => {
+                                                return (
+                                                    groupingValues[key]?.value
+                                                        .raw === subtotal[key]
+                                                );
+                                            },
+                                        ) &&
+                                        // All pivoted header values in the row must match the subtotal values
+                                        Object.keys(pivotedHeaderValues).every(
+                                            (key) => {
+                                                return (
+                                                    pivotedHeaderValues[key]
+                                                        ?.raw === subtotal[key]
+                                                );
+                                            },
+                                        )
                                     );
                                 });
 
@@ -552,7 +559,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 if (item && isDimension(item)) {
                                     const underlyingId = data.indexValues[
                                         rowIndex
-                                    ].find(
+                                    ]?.find(
                                         (indexValue) =>
                                             indexValue.type === 'label',
                                     )?.fieldId;
