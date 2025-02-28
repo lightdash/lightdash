@@ -69,6 +69,7 @@ export type PivotData = {
         allCombinedData: ResultRow[];
         pivotColumnInfo: PivotColumn[];
     };
+    groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
 
 export const getPivotConfig = (

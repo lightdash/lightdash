@@ -29,6 +29,7 @@ type PivotQueryResultsArgs = {
         | 'customDimensions'
     >;
     rows: ResultRow[];
+    groupedSubtotals?: Record<string, Record<string, number>[]>;
     options: {
         maxColumns: number;
     };
@@ -375,6 +376,7 @@ export const pivotQueryResults = ({
     options,
     getField,
     getFieldLabel,
+    groupedSubtotals,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -782,6 +784,7 @@ export const pivotQueryResults = ({
             allCombinedData: [],
             pivotColumnInfo: [],
         },
+        groupedSubtotals,
     };
     return combinedRetrofit(pivotData, getField, getFieldLabel);
 };

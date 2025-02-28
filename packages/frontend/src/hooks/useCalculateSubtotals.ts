@@ -14,6 +14,7 @@ const calculateSubtotalsFromQuery = async (
     explore: string,
     metricQuery: MetricQuery,
     columnOrder: string[],
+    pivotDimensions?: string[],
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore: explore,
@@ -22,6 +23,7 @@ const calculateSubtotalsFromQuery = async (
             filters: convertDateFilters(metricQuery.filters),
         },
         columnOrder,
+        pivotDimensions,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/projects/${projectUuid}/calculate-subtotals`,
@@ -35,11 +37,13 @@ export const useCalculateSubtotals = ({
     explore,
     showSubtotals,
     columnOrder,
+    pivotDimensions,
 }: {
     metricQuery?: MetricQuery;
     explore?: string;
     showSubtotals?: boolean;
     columnOrder?: string[];
+    pivotDimensions?: string[];
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -51,6 +55,7 @@ export const useCalculateSubtotals = ({
             explore,
             columnOrder,
             showSubtotals,
+            pivotDimensions,
         ],
         queryFn: () =>
             projectUuid && metricQuery && explore && columnOrder
@@ -59,6 +64,7 @@ export const useCalculateSubtotals = ({
                       explore,
                       metricQuery,
                       columnOrder,
+                      pivotDimensions,
                   )
                 : Promise.reject(),
         retry: false,

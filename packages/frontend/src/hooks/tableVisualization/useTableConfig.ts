@@ -219,11 +219,12 @@ const useTableConfig = (
               },
     );
 
-    const { data: subtotalsCalculations } = useCalculateSubtotals({
+    const { data: groupedSubtotals } = useCalculateSubtotals({
         metricQuery: resultsData?.metricQuery,
         explore: resultsData?.metricQuery.exploreName,
         showSubtotals,
         columnOrder,
+        pivotDimensions,
     });
 
     const { rows, columns, error } = useMemo<{
@@ -255,7 +256,7 @@ const useTableConfig = (
             isColumnFrozen,
             columnOrder,
             totals: totalCalculations,
-            groupedSubtotals: subtotalsCalculations,
+            groupedSubtotals,
         });
     }, [
         columnOrder,
@@ -268,7 +269,7 @@ const useTableConfig = (
         isColumnFrozen,
         getFieldLabelOverride,
         totalCalculations,
-        subtotalsCalculations,
+        groupedSubtotals,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{
@@ -343,6 +344,7 @@ const useTableConfig = (
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
+                groupedSubtotals,
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,
                 },
@@ -376,6 +378,7 @@ const useTableConfig = (
         tableChartConfig?.showRowCalculation,
         worker,
         pivotTableMaxColumnLimit,
+        groupedSubtotals,
     ]);
 
     // Remove columnProperties from map if the column has been removed from results
@@ -526,7 +529,7 @@ const useTableConfig = (
         setMetricsAsRows,
         isPivotTableEnabled,
         canUseSubtotals,
-        subtotalsCalculations,
+        groupedSubtotals,
     };
 };
 

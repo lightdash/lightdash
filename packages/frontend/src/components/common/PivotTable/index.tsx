@@ -1,13 +1,12 @@
 import {
-    MetricType,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     getItemId,
+    getSubtotalKey,
     isDimension,
     isField,
-    isMetric,
     isNumericItem,
     isSummable,
     type ConditionalFormattingConfig,
@@ -26,14 +25,12 @@ import {
     getExpandedRowModel,
     useReactTable,
     type GroupingState,
-    type Row,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
 import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
-import { getDecimalPrecision } from '../../../hooks/tableVisualization/getDataAndColumns';
 import { formatCellContent } from '../../../hooks/useColumns';
 import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs/utils';
@@ -152,52 +149,6 @@ const PivotTable: FC<PivotTableProps> = ({
 
                 const itemId = col.underlyingId || col.baseId || col.fieldId;
                 const item = itemId ? getField(itemId) : undefined;
-
-                const shouldAggregate =
-                    col.columnType === 'rowTotal' ||
-                    (item &&
-                        isField(item) &&
-                        isMetric(item) &&
-                        [MetricType.SUM, MetricType.COUNT].includes(item.type));
-
-                // TODO: Remove code duplicated from non-pivot table version.
-                const aggregationFunction = shouldAggregate
-                    ? (
-                          columnId: string,
-                          _leafRows: Row<ResultRow>[],
-                          childRows: Row<ResultRow>[],
-                      ) => {
-                          const aggregatedValue = childRows.reduce<
-                              number | null
-                          >((agg, childRow) => {
-                              const cellValue = childRow.getValue(columnId) as
-                                  | ResultRow[number]
-                                  | undefined;
-                              const rawValue = cellValue?.value?.raw;
-
-                              if (rawValue === null) return agg;
-                              const adder = Number(rawValue);
-                              if (isNaN(adder)) return agg;
-
-                              const numericAgg = agg ?? 0;
-                              const precision = getDecimalPrecision(
-                                  adder,
-                                  numericAgg,
-                              );
-                              return (
-                                  (numericAgg * precision + adder * precision) /
-                                  precision
-                              );
-                          }, null);
-
-                          return (
-                              <Text span fw={600}>
-                                  {formatItemValue(item, aggregatedValue)}
-                              </Text>
-                          );
-                      }
-                    : undefined;
-
                 const column: TableColumn = columnHelper.accessor(
                     (row: ResultRow) => {
                         return row[col.fieldId];
@@ -213,12 +164,82 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? finalHeaderInfoForColumns[colIndex]
                                     : undefined,
                         },
-                        aggregationFn: aggregationFunction,
                         aggregatedCell: (info) => {
-                            const value = info.getValue();
-                            const ret = value ?? info.cell.getValue();
-                            const numVal = Number(ret);
-                            return isNaN(numVal) ? ret : numVal;
+                            if (info.row.getIsGrouped()) {
+                                // TODO: Deduplicate this with the getDataAndColumns code
+                                console.log({
+                                    data,
+                                });
+                                const groupedDimensions = info.row.id
+                                    .split('>')
+                                    .map(
+                                        (rowIdParts) =>
+                                            rowIdParts.split(':')[0],
+                                    )
+                                    .filter((d) => d !== undefined);
+
+                                if (!groupedDimensions.length) {
+                                    return null;
+                                }
+
+                                // Get the grouping values for each of the dimensions in the row
+                                const groupingValues = Object.fromEntries(
+                                    groupedDimensions.map((d) => [
+                                        d,
+                                        info.row.getGroupingValue(d) as
+                                            | ResultRow[number]
+                                            | undefined,
+                                    ]),
+                                );
+
+                                // Get the pivoted header values for the column
+                                const pivotedHeaderValues =
+                                    finalHeaderInfoForColumns[colIndex];
+
+                                // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
+                                const subtotalGroupKey =
+                                    getSubtotalKey(groupedDimensions);
+
+                                // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
+                                const subtotalsGroup = data.groupedSubtotals?.[
+                                    subtotalGroupKey
+                                ]?.find((subtotal) => {
+                                    return Object.keys(groupingValues).every(
+                                        (key) => {
+                                            return (
+                                                groupingValues[key]?.value
+                                                    .raw === subtotal[key] ||
+                                                pivotedHeaderValues[key]
+                                                    ?.raw === subtotal[key]
+                                            );
+                                        },
+                                    );
+                                });
+
+                                const subtotalColumnIds = Object.keys(
+                                    subtotalsGroup ?? {},
+                                );
+
+                                // If the subtotal column is not in the subtotalsGroup, return null
+                                // This is needed to prevent showing '-' when processing a value for the last grouped dimension which is not taken into account for subtotals
+                                // This column only exists when we're expanding the last grouped dimension
+                                if (
+                                    !subtotalColumnIds.includes(
+                                        col.baseId ?? col.fieldId,
+                                    )
+                                ) {
+                                    return null;
+                                }
+
+                                const subtotalValue =
+                                    subtotalsGroup?.[col.baseId ?? col.fieldId];
+
+                                return (
+                                    <Text span fw={600}>
+                                        {formatItemValue(item, subtotalValue)}
+                                    </Text>
+                                );
+                            }
                         },
                     },
                 );
@@ -231,14 +252,7 @@ const PivotTable: FC<PivotTableProps> = ({
         if (!hideRowNumbers) newColumns = [rowColumn, ...newColumns];
 
         return { columns: newColumns, columnOrder: newColumnOrder };
-    }, [
-        data.retrofitData.pivotColumnInfo,
-        data.indexValueTypes.length,
-        data.headerValues,
-        data.titleFields,
-        getField,
-        hideRowNumbers,
-    ]);
+    }, [data, hideRowNumbers, getField]);
 
     const table = useReactTable({
         data: data.retrofitData.allCombinedData,
