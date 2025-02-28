@@ -12,6 +12,7 @@ export const IGNORE_ERRORS = [
     'NotFoundError',
     'ForbiddenError',
     'TokenError',
+    'AuthorizationError',
 ];
 
 Sentry.init({
