@@ -563,18 +563,21 @@ export class DashboardService extends BaseService {
             dashboardUuid,
         );
 
-        const canUpdateDashboardInCurrentSpace = user.ability.can(
-            'update',
-            subject('Dashboard', {
-                ...(await this.spaceModel.getSpaceSummary(
-                    existingDashboardDao.spaceUuid,
-                )),
-                access: await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    existingDashboardDao.spaceUuid,
-                ),
-            }),
-        );
+        const ss = subject('Dashboard', {
+            ...(await this.spaceModel.getSpaceSummary(
+                existingDashboardDao.spaceUuid,
+            )),
+            access: await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                existingDashboardDao.spaceUuid,
+            ),
+        });
+        const canUpdateDashboardInCurrentSpace = user.ability.can('update', ss);
+
+        console.log(ss);
+        const rule = user.ability.relevantRuleFor('update', ss);
+        console.log(rule);
+        console.log(rule?.conditions);
 
         if (!canUpdateDashboardInCurrentSpace) {
             throw new ForbiddenError(
