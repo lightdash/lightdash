@@ -23,6 +23,7 @@ export type ChartAsCode = Pick<
     | 'metricQuery'
     | 'chartConfig'
     | 'tableConfig'
+    | 'pivotConfig'
     | 'slug'
     | 'updatedAt' // Not modifiable by user, but useful to know if it has been updated
 > & {

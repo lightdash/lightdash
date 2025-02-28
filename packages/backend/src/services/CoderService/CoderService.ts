@@ -112,12 +112,12 @@ export class CoderService extends BaseService {
             updatedAt: chart.updatedAt,
             metricQuery: chart.metricQuery,
             chartConfig: chart.chartConfig,
+            pivotConfig: chart.pivotConfig,
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
                 : undefined,
             slug: chart.slug,
             tableConfig: chart.tableConfig,
-
             spaceSlug,
             version: currentVersion,
             downloadedAt: new Date(),
