@@ -3,6 +3,18 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { lightdashConfig } from './config/lightdashConfig';
 import { VERSION } from './version';
 
+export const IGNORE_ERRORS = [
+    'WarehouseQueryError',
+    'FieldReferenceError',
+    'NotEnoughResults',
+    'CompileError',
+    'NotExistsError',
+    'NotFoundError',
+    'ForbiddenError',
+    'TokenError',
+    'AuthorizationError',
+];
+
 Sentry.init({
     release: VERSION,
     dsn: lightdashConfig.sentry.backend.dsn,
@@ -24,16 +36,7 @@ Sentry.init({
               ]
             : []),
     ],
-    ignoreErrors: [
-        'WarehouseQueryError',
-        'FieldReferenceError',
-        'NotEnoughResults',
-        'CompileError',
-        'NotExistsError',
-        'NotFoundError',
-        'ForbiddenError',
-        'TokenError',
-    ],
+    ignoreErrors: IGNORE_ERRORS,
     tracesSampler: (context) => {
         if (
             context.request?.url?.endsWith('/status') ||

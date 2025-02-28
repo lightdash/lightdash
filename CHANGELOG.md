@@ -1,3 +1,27 @@
+## [0.1522.1](https://github.com/lightdash/lightdash/compare/0.1522.0...0.1522.1) (2025-02-28)
+
+
+### Bug Fixes
+
+* husky prepare fallback ([#13867](https://github.com/lightdash/lightdash/issues/13867)) ([bb1718e](https://github.com/lightdash/lightdash/commit/bb1718e71c155ca4a08de6af09ad5da045717461))
+
+# [0.1522.0](https://github.com/lightdash/lightdash/compare/0.1521.1...0.1522.0) (2025-02-28)
+
+
+### Features
+
+* put formatting rules delete button in a menu ([#13864](https://github.com/lightdash/lightdash/issues/13864)) ([d85f2ee](https://github.com/lightdash/lightdash/commit/d85f2eefc5fd6eca2b7f04cf7f9dfb29652080b3))
+
+## [0.1521.1](https://github.com/lightdash/lightdash/compare/0.1521.0...0.1521.1) (2025-02-28)
+
+
+### Bug Fixes
+
+* chart as code pivot config ([#13860](https://github.com/lightdash/lightdash/issues/13860)) ([51ee4f0](https://github.com/lightdash/lightdash/commit/51ee4f06cf0b56ebbb1d073e4546adc56062c23f))
+* git secrets release action ([#13861](https://github.com/lightdash/lightdash/issues/13861)) ([0f35839](https://github.com/lightdash/lightdash/commit/0f358390c6448093018af4f71834e17a836c4567))
+* git secrets release action disable husky ([#13862](https://github.com/lightdash/lightdash/issues/13862)) ([e66aa97](https://github.com/lightdash/lightdash/commit/e66aa97e8205bdf1e869637cbb98964bc6a3724b))
+* git secrets release action disable husky env var ([#13865](https://github.com/lightdash/lightdash/issues/13865)) ([f3e0537](https://github.com/lightdash/lightdash/commit/f3e053794296e5ba268614456d761394f49ebdd9))
+
 # [0.1521.0](https://github.com/lightdash/lightdash/compare/0.1520.2...0.1521.0) (2025-02-27)
 
 
