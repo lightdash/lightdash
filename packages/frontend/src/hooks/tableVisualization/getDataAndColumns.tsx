@@ -5,7 +5,6 @@ import {
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
-    type ResultValue,
 } from '@lightdash/common';
 import { getSubtotalKey } from '@lightdash/common/src/utils/subtotals';
 import { Text } from '@mantine/core';
@@ -125,39 +124,30 @@ const getDataAndColumns = ({
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
                     aggregatedCell: (info) => {
                         if (info.row.getIsGrouped()) {
-                            const rowAggregatedColumnValues =
-                                Object.fromEntries(
-                                    // row.id will be like order_status:shipped>order_date:2021-01-01
-                                    info.row.id.split('>').map((expanded) => {
-                                        return expanded.split(':');
-                                    }),
-                                );
-
-                            const groupedDimensions = Object.keys(
-                                rowAggregatedColumnValues,
-                            );
+                            const groupedDimensions = info.row.id
+                                .split('>')
+                                .map((rowIdParts) => rowIdParts.split(':')[0])
+                                .filter((d) => d !== undefined);
 
                             if (!groupedDimensions.length) {
                                 return null;
                             }
 
-                            const groupingValues: Record<
-                                string,
-                                {
-                                    value: ResultValue;
-                                }
-                            > = Object.fromEntries(
+                            // Get the grouping values for each of the dimensions in the row
+                            const groupingValues = Object.fromEntries(
                                 groupedDimensions.map((d) => [
                                     d,
-                                    info.row.getGroupingValue(d) as {
-                                        value: ResultValue;
-                                    }, // TODO: fix this
+                                    info.row.getGroupingValue(d) as
+                                        | ResultRow[number]
+                                        | undefined,
                                 ]),
                             );
 
+                            // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
                             const subtotalGroupKey =
                                 getSubtotalKey(groupedDimensions);
 
+                            // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
                             const foundSubtotal = groupedSubtotals?.[
                                 subtotalGroupKey
                             ]?.find((subtotal) => {
