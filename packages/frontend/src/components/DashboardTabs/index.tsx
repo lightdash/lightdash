@@ -17,7 +17,6 @@ import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
 import EmptyStateNoTiles from '../DashboardTiles/EmptyStateNoTiles';
 import MantineIcon from '../common/MantineIcon';
-import { LockedDashboardModal } from '../common/modal/LockedDashboardModal';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import { TabEditModal } from './EditTabModal';
@@ -81,6 +80,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -100,6 +100,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             return a.y - b.y;
         }
     });
+
+    const tileUsesRequiredFilter = (tile: DashboardTile): boolean => {
+        return dashboardFilters?.dimensions.some(
+            (filter) =>
+                filter.required &&
+                (!filter.values || filter.values.length === 0) &&
+                filter.tileTargets?.[tile.uuid],
+        );
+    };
 
     const isActiveTile = (tile: DashboardTile) => {
         const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
@@ -193,7 +202,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             handleBatchDeleteTiles(tilesToDelete);
         }
     };
-
     return (
         <DragDropContext
             onDragEnd={(result) => {
@@ -359,9 +367,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                             }
                                                         >
                                                             <GridTile
-                                                                locked={
-                                                                    hasRequiredDashboardFiltersToSet
-                                                                }
+                                                                locked={tileUsesRequiredFilter(
+                                                                    tile,
+                                                                )}
                                                                 index={idx}
                                                                 isEditMode={
                                                                     isEditMode
@@ -387,12 +395,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         })}
                                     </ResponsiveGridLayout>
                                 </Group>
-                                <LockedDashboardModal
-                                    opened={
-                                        hasRequiredDashboardFiltersToSet &&
-                                        !!hasDashboardTiles
-                                    }
-                                />
                                 {(!hasDashboardTiles ||
                                     !currentTabHasTiles) && (
                                     <EmptyStateNoTiles
