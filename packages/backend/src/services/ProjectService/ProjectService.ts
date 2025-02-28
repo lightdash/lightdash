@@ -98,6 +98,7 @@ import {
     deepEqual,
     findFieldByIdInExplore,
     findReplaceableCustomMetrics,
+    formatRawRows,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -109,6 +110,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
     isAndFilterGroup,
@@ -126,6 +128,7 @@ import {
     rowsWithoutFormatting,
     snakeCaseName,
     type ApiCreateProjectResults,
+    type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
     type RunQueryTags,
     type SemanticLayerConnectionUpdate,
@@ -4941,6 +4944,128 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
         return results.row;
+    }
+
+    async _calculateSubtotals(
+        user: SessionUser,
+        projectUuid: string,
+        data: CalculateSubtotalsFromQuery,
+        organizationUuid: string,
+    ) {
+        const { explore: exploreName, metricQuery, columnOrder } = data;
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
+        // Order dimensions according to columnOrder
+        const orderedDimensions = metricQuery.dimensions.sort((a, b) => {
+            const aIndex = columnOrder.indexOf(a);
+            const bIndex = columnOrder.indexOf(b);
+            // Handle cases where dimension isn't in columnOrder
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            return aIndex - bIndex;
+        });
+
+        // Remove the last dimension since it will not be used for subtotals, would produce the most detailed row
+        const dimensionsToSubtotal = orderedDimensions.slice(0, -1);
+
+        // Create a list of all the dimension groups to subtotal, starting with the first dimension, then the first two dimensions, then the first three dimensions, etc.
+        const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
+            (dimension, index) => {
+                if (index === 0) {
+                    return [dimension];
+                }
+
+                return [...dimensionsToSubtotal.slice(0, index), dimension];
+            },
+        );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+        };
+
+        // Run the query for each dimension group and format the raw rows, this is needed because we apply raw formatting to date dimensions, and we need to compare values in the same format in the frontend
+        const runQueryAndFormatRaw = async (
+            subtotalMetricQuery: MetricQuery,
+        ) => {
+            const { rows, fields } = await this.runMetricQuery({
+                user,
+                metricQuery: subtotalMetricQuery,
+                explore,
+                queryTags,
+                projectUuid,
+                exploreName,
+                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                csvLimit: null,
+                chartUuid: undefined,
+            });
+
+            return formatRawRows(rows, fields);
+        };
+
+        const subtotalsPromises = dimensionGroupsToSubtotal.map(
+            async (subtotalDimensions) => [
+                getSubtotalKey(subtotalDimensions),
+                await runQueryAndFormatRaw({
+                    ...metricQuery,
+                    dimensions: subtotalDimensions,
+                    sorts: [],
+                }),
+            ],
+        );
+
+        const subtotalsEntries = await Promise.all(subtotalsPromises);
+        return Object.fromEntries(subtotalsEntries);
+    }
+
+    async calculateSubtotalsFromQuery(
+        user: SessionUser,
+        projectUuid: string,
+        data: CalculateSubtotalsFromQuery,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
+        return this._calculateSubtotals(
+            user,
+            projectUuid,
+            data,
+            organizationUuid,
+        );
     }
 
     async getDbtExposures(

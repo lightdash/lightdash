@@ -1,7 +1,7 @@
 import {
-    FieldType,
     convertFormattedValue,
     getItemLabel,
+    isCustomDimension,
     isDimension,
     isField,
     isFilterableItem,
@@ -27,6 +27,7 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -179,9 +180,7 @@ const useTableConfig = (
 
         return columnOrder.filter((fieldId) => {
             const item = itemsMap[fieldId];
-            return item && isField(item)
-                ? item.fieldType === FieldType.DIMENSION
-                : false;
+            return item && (isDimension(item) || isCustomDimension(item));
         });
     }, [columnOrder, itemsMap]);
 
@@ -219,6 +218,14 @@ const useTableConfig = (
                       tableChartConfig?.showColumnCalculation,
               },
     );
+
+    const { data: subtotalsCalculations } = useCalculateSubtotals({
+        metricQuery: resultsData?.metricQuery,
+        explore: resultsData?.metricQuery.exploreName,
+        showSubtotals,
+        columnOrder,
+    });
+
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
         columns: Array<TableColumn | TableHeader>;
@@ -248,6 +255,7 @@ const useTableConfig = (
             isColumnFrozen,
             columnOrder,
             totals: totalCalculations,
+            groupedSubtotals: subtotalsCalculations,
         });
     }, [
         columnOrder,
@@ -260,6 +268,7 @@ const useTableConfig = (
         isColumnFrozen,
         getFieldLabelOverride,
         totalCalculations,
+        subtotalsCalculations,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{
@@ -517,6 +526,7 @@ const useTableConfig = (
         setMetricsAsRows,
         isPivotTableEnabled,
         canUseSubtotals,
+        subtotalsCalculations,
     };
 };
 

@@ -1,15 +1,13 @@
 import {
-    MetricType,
     formatItemValue,
     friendlyName,
     isField,
-    isMetric,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
+import { getSubtotalKey } from '@lightdash/common/src/utils/subtotals';
 import { Text } from '@mantine/core';
-import { type Row } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -32,6 +30,7 @@ type Args = {
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
     totals?: Record<string, number>;
+    groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
 
 // Adapted from https://stackoverflow.com/a/45337588
@@ -53,6 +52,7 @@ const getDataAndColumns = ({
     getFieldLabelOverride,
     columnOrder,
     totals,
+    groupedSubtotals,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -68,46 +68,6 @@ const getDataAndColumns = ({
                 return acc;
             }
             const headerOverride = getFieldLabelOverride(itemId);
-
-            const shouldAggregate =
-                item &&
-                isField(item) &&
-                isMetric(item) &&
-                [MetricType.SUM, MetricType.COUNT].includes(item.type);
-
-            const aggregationFunction = shouldAggregate
-                ? (
-                      columnId: string,
-                      _leafRows: Row<ResultRow>[],
-                      childRows: Row<ResultRow>[],
-                  ) => {
-                      const aggregatedValue = childRows.reduce<number>(
-                          (agg, childRow) => {
-                              const cellValue = childRow.getValue(columnId) as
-                                  | ResultRow[number]
-                                  | undefined;
-                              const rawValue = cellValue?.value?.raw;
-
-                              if (rawValue === null) return agg;
-                              const adder = Number(rawValue);
-                              if (isNaN(adder)) return agg;
-
-                              const precision = getDecimalPrecision(adder, agg);
-                              return (
-                                  (agg * precision + adder * precision) /
-                                  precision
-                              );
-                          },
-                          0,
-                      );
-
-                      return (
-                          <Text span fw={600}>
-                              {formatItemValue(item, aggregatedValue)}
-                          </Text>
-                      );
-                  }
-                : undefined;
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row) => row[itemId],
@@ -153,7 +113,6 @@ const getDataAndColumns = ({
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
                     },
-
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.
                     // For example, setting grouping value here does not work. The workaround is to use
                     // a custom getGroupedRowModel.
@@ -163,13 +122,65 @@ const getDataAndColumns = ({
                     // },
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
-
-                    aggregationFn: aggregationFunction,
                     aggregatedCell: (info) => {
-                        const value = info.getValue();
-                        const ret = value ?? info.cell.getValue();
-                        const numVal = Number(ret);
-                        return isNaN(numVal) ? ret : numVal;
+                        if (info.row.getIsGrouped()) {
+                            const groupedDimensions = info.row.id
+                                .split('>')
+                                .map((rowIdParts) => rowIdParts.split(':')[0])
+                                .filter((d) => d !== undefined);
+
+                            if (!groupedDimensions.length) {
+                                return null;
+                            }
+
+                            // Get the grouping values for each of the dimensions in the row
+                            const groupingValues = Object.fromEntries(
+                                groupedDimensions.map((d) => [
+                                    d,
+                                    info.row.getGroupingValue(d) as
+                                        | ResultRow[number]
+                                        | undefined,
+                                ]),
+                            );
+
+                            // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
+                            const subtotalGroupKey =
+                                getSubtotalKey(groupedDimensions);
+
+                            // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
+                            const subtotalsGroup = groupedSubtotals?.[
+                                subtotalGroupKey
+                            ]?.find((subtotal) => {
+                                return Object.keys(groupingValues).every(
+                                    (key) => {
+                                        return (
+                                            groupingValues[key]?.value.raw ===
+                                            subtotal[key]
+                                        );
+                                    },
+                                );
+                            });
+
+                            const subtotalColumnIds = Object.keys(
+                                subtotalsGroup ?? {},
+                            );
+
+                            // If the subtotal column is not in the subtotalsGroup, return null
+                            // This is needed to prevent showing '-' when processing a value for the last grouped dimension column which is not taken into account for subtotals
+                            // This column only exists when we're expanding the last grouped dimension
+                            if (!subtotalColumnIds.includes(info.column.id)) {
+                                return null;
+                            }
+
+                            const subtotalValue =
+                                subtotalsGroup?.[info.column.id];
+
+                            return (
+                                <Text span fw={600}>
+                                    {formatItemValue(item, subtotalValue)}
+                                </Text>
+                            );
+                        }
                     },
                 },
             );
