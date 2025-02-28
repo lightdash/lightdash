@@ -365,7 +365,7 @@ export class ValidationService extends BaseService {
                     );
 
                     const customMetricFilterErrors = customMetricsFilters
-                        .filter((f) => !!f?.target)
+                        .filter((f) => !!f)
                         .reduce<CreateChartValidation[]>((acc, filter) => {
                             const fieldId = convertFieldRefToFieldId(
                                 filter.target.fieldRef,
