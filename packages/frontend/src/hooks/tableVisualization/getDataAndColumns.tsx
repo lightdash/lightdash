@@ -33,15 +33,6 @@ type Args = {
     groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
 
-// Adapted from https://stackoverflow.com/a/45337588
-const decimalLength = (numStr: number) => {
-    const pieces = numStr.toString().split('.');
-    if (!pieces[1]) return 0;
-    return pieces[1].length;
-};
-export const getDecimalPrecision = (addend1: number, addend2: number) =>
-    Math.pow(10, Math.max(decimalLength(addend1), decimalLength(addend2)));
-
 const getDataAndColumns = ({
     itemsMap,
     selectedItemIds,
@@ -123,6 +114,7 @@ const getDataAndColumns = ({
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
                     aggregatedCell: (info) => {
+                        // TODO: Deduplicate this with the pivotTable code
                         if (info.row.getIsGrouped()) {
                             const groupedDimensions = info.row.id
                                 .split('>')

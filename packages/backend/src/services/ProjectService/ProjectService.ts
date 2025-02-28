@@ -4941,7 +4941,12 @@ export class ProjectService extends BaseService {
         data: CalculateSubtotalsFromQuery,
         organizationUuid: string,
     ) {
-        const { explore: exploreName, metricQuery, columnOrder } = data;
+        const {
+            explore: exploreName,
+            metricQuery,
+            columnOrder,
+            pivotDimensions,
+        } = data;
 
         const explore = await this.getExplore(
             user,
@@ -4960,8 +4965,13 @@ export class ProjectService extends BaseService {
             return aIndex - bIndex;
         });
 
+        // Pivot dimensions always need to be in the query, therefore we need to remove them before calculating the subtotal groupings by order
+        const orderedDimensionsWithoutPivot = orderedDimensions.filter(
+            (dimension) => !pivotDimensions?.includes(dimension),
+        );
+
         // Remove the last dimension since it will not be used for subtotals, would produce the most detailed row
-        const dimensionsToSubtotal = orderedDimensions.slice(0, -1);
+        const dimensionsToSubtotal = orderedDimensionsWithoutPivot.slice(0, -1);
 
         // Create a list of all the dimension groups to subtotal, starting with the first dimension, then the first two dimensions, then the first three dimensions, etc.
         const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
@@ -5006,7 +5016,10 @@ export class ProjectService extends BaseService {
                 getSubtotalKey(subtotalDimensions),
                 await runQueryAndFormatRaw({
                     ...metricQuery,
-                    dimensions: subtotalDimensions,
+                    dimensions: [
+                        ...subtotalDimensions,
+                        ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
+                    ],
                     sorts: [],
                 }),
             ],

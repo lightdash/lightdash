@@ -727,6 +727,7 @@ export type ApiCalculateTotalResponse = {
 
 export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
     columnOrder: string[];
+    pivotDimensions?: string[];
 };
 
 export type ApiCalculateSubtotalsResponse = {
