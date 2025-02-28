@@ -537,10 +537,9 @@ Affected charts:
                 ...githubProps,
                 title: `Adds ${fieldsInfo}`,
                 body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the dbt model.
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
-    Triggered by user ${user.firstName} ${user.lastName} (${user.email})
-
-    > ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`,
+> ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`,
                 head: githubProps.branch,
                 base: githubProps.mainBranch,
             });

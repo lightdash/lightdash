@@ -2,7 +2,6 @@ import groupBy from 'lodash/groupBy';
 import { getAllReferences } from '../compiler/exploreCompiler';
 import type { DbtColumnLightdashDimension } from '../types/dbt';
 import {
-    convertFieldRefToFieldId,
     type CustomSqlDimension,
     friendlyName,
     getFieldRef,
@@ -32,22 +31,22 @@ function updateModelColumns(
     */
 
     // better way to do this?
-    const firstColumn = convertFieldRefToFieldId(
-        getFieldRef({
-            table: modelNode.name,
-            name: modelNode.columns![0].name,
-        }),
-    );
+    const firstColumn = getFieldRef({
+        table: modelNode.name,
+        name: modelNode.columns![0].name,
+    });
 
     const columnsByRef = groupBy(customDimensions, (dimension) => {
-        const refs = getAllReferences(dimension.sql).map((ref) =>
-            convertFieldRefToFieldId(ref),
-        );
+        const refs = getAllReferences(dimension.sql);
         return refs[0] ?? firstColumn;
     });
 
     return modelNode.columns!.map((column) => {
-        const dimensions = columnsByRef[column.name];
+        const columnName = getFieldRef({
+            table: modelNode.name,
+            name: column.name,
+        });
+        const dimensions = columnsByRef[columnName];
         if (dimensions?.length > 0) {
             return {
                 ...column,
