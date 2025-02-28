@@ -63,6 +63,7 @@ export const useCalculateSubtotals = ({
                 : Promise.reject(),
         retry: false,
         enabled:
+            !window.location.pathname.startsWith('/embed/') &&
             showSubtotals === true &&
             metricQuery !== undefined &&
             metricQuery.metrics.length > 0 &&
