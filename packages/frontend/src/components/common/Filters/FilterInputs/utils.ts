@@ -252,3 +252,9 @@ export const getFilterRuleTables = (
         return [field.tableLabel];
     }
 };
+
+export const formatDisplayValue = (value: string): string => {
+    return value
+        .replace(/^\s+|\s+$/g, (match) => '␣'.repeat(match.length))
+        .replace(/\n/g, '↵');
+};
