@@ -4960,7 +4960,10 @@ export class ProjectService extends BaseService {
             return aIndex - bIndex;
         });
 
+        // Remove the last dimension since it will not be used for subtotals, would produce the most detailed row
         const dimensionsToSubtotal = orderedDimensions.slice(0, -1);
+
+        // Create a list of all the dimension groups to subtotal, starting with the first dimension, then the first two dimensions, then the first three dimensions, etc.
         const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
             (dimension, index) => {
                 if (index === 0) {
@@ -4979,6 +4982,7 @@ export class ProjectService extends BaseService {
             query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
         };
 
+        // Run the query for each dimension group and format the raw rows, this is needed because we apply raw formatting to date dimensions, and we need to compare values in the same format in the frontend
         const runQueryAndFormatRaw = async (
             subtotalMetricQuery: MetricQuery,
         ) => {
