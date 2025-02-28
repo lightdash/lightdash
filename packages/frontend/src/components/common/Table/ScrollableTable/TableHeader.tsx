@@ -1,5 +1,5 @@
 import { Draggable } from '@hello-pangea/dnd';
-import { FieldType, isField } from '@lightdash/common';
+import { isCustomDimension, isDimension, isField } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
@@ -32,9 +32,9 @@ const TableHeader: FC<TableHeaderProps> = ({
             const groupedColumns = columns
                 .filter((col) => {
                     const item = col.meta?.item;
-                    return item && isField(item)
-                        ? item.fieldType === FieldType.DIMENSION
-                        : false;
+                    return (
+                        item && (isDimension(item) || isCustomDimension(item))
+                    );
                 })
                 .map((col) => col.id);
 
