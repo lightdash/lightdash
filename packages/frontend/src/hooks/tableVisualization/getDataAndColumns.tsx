@@ -140,21 +140,21 @@ const getDataAndColumns = ({
                                 getSubtotalKey(groupedDimensions);
 
                             // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                            const subtotalsGroup = groupedSubtotals?.[
+                            const subtotal = groupedSubtotals?.[
                                 subtotalGroupKey
-                            ]?.find((subtotal) => {
+                            ]?.find((sub) => {
                                 return Object.keys(groupingValues).every(
                                     (key) => {
                                         return (
                                             groupingValues[key]?.value.raw ===
-                                            subtotal[key]
+                                            sub[key]
                                         );
                                     },
                                 );
                             });
 
                             const subtotalColumnIds = Object.keys(
-                                subtotalsGroup ?? {},
+                                subtotal ?? {},
                             );
 
                             // If the subtotal column is not in the subtotalsGroup, return null
@@ -164,8 +164,7 @@ const getDataAndColumns = ({
                                 return null;
                             }
 
-                            const subtotalValue =
-                                subtotalsGroup?.[info.column.id];
+                            const subtotalValue = subtotal?.[info.column.id];
 
                             return (
                                 <Text span fw={600}>
