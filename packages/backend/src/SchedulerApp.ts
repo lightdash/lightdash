@@ -13,6 +13,7 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -170,7 +171,7 @@ export default class SchedulerApp {
                     ? 'development'
                     : this.lightdashConfig.mode,
             integrations: [],
-            ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
+            ignoreErrors: IGNORE_ERRORS,
         });
     }
 
