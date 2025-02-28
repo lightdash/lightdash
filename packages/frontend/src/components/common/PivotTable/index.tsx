@@ -361,6 +361,7 @@ const PivotTable: FC<PivotTableProps> = ({
             const groupedColumns = data.indexValueTypes.map(
                 (valueType) => valueType.fieldId,
             );
+
             const sortedColumns = table
                 .getState()
                 .columnOrder.reduce<string[]>((acc, sortedId) => {
