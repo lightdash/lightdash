@@ -1,13 +1,9 @@
 import groupBy from 'lodash/groupBy';
-import { type AnyType } from '../types/any';
-import {
-    type DbtColumnLightdashMetric,
-    type DbtModelColumn,
-    type DbtModelNode,
-} from '../types/dbt';
+import type { DbtColumnLightdashMetric } from '../types/dbt';
 import { friendlyName } from '../types/field';
 import { convertMetricFilterToDbt } from '../types/filterGrammarConversion';
 import { type AdditionalMetric } from '../types/metricQuery';
+import type { YamlColumn, YamlModel } from '../types/yamlSchema';
 import { getFormatExpression } from './formatting';
 
 export function convertCustomMetricToDbt(
@@ -25,9 +21,9 @@ export function convertCustomMetricToDbt(
 }
 
 function updateColumnNode(
-    columnNode: DbtModelColumn,
+    columnNode: YamlColumn,
     customMetricsToAdd: AdditionalMetric[],
-): DbtModelColumn {
+): YamlColumn {
     return {
         ...columnNode,
         meta: {
@@ -46,9 +42,9 @@ function updateColumnNode(
 }
 
 function updateModelNode(
-    modelNode: DbtModelNode,
+    modelNode: YamlModel,
     customMetricsToAdd: AdditionalMetric[],
-): DbtModelNode {
+): YamlModel {
     const groupedMetricsByDimension = groupBy(
         customMetricsToAdd,
         (metric) => metric.baseDimensionName,
@@ -56,7 +52,7 @@ function updateModelNode(
 
     return {
         ...modelNode,
-        columns: Object.values(modelNode.columns).map((columnNode) => {
+        columns: Object.values(modelNode.columns || {}).map((columnNode) => {
             if (groupedMetricsByDimension[columnNode.name]) {
                 return updateColumnNode(
                     columnNode,
@@ -64,14 +60,14 @@ function updateModelNode(
                 );
             }
             return columnNode;
-        }) as AnyType,
+        }),
     };
 }
 
-export function findAndUpdateModelNodes(
-    modelNodes: DbtModelNode[],
+export function insertCustomMetricsInModelNodes(
+    modelNodes: YamlModel[],
     customMetricsToAdd: AdditionalMetric[],
-): DbtModelNode[] {
+): YamlModel[] {
     const groupMetricsByTable = groupBy(
         customMetricsToAdd,
         (metric) => metric.table,
