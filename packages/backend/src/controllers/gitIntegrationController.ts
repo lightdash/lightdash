@@ -56,11 +56,14 @@ export class GitIntegrationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .createPullRequestForCustomMetrics(
+                .createPullRequest(
                     req.user!,
                     projectUuid,
-                    body.customMetrics,
                     body.quoteChar || '"',
+                    {
+                        type: 'customMetrics',
+                        fields: body.customMetrics,
+                    },
                 ),
         };
     }
@@ -87,11 +90,14 @@ export class GitIntegrationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .createPullRequestForCustomDimensions(
+                .createPullRequest(
                     req.user!,
                     projectUuid,
-                    body.customDimensions,
                     body.quoteChar || '"',
+                    {
+                        type: 'customDimensions',
+                        fields: body.customDimensions,
+                    },
                 ),
         };
     }

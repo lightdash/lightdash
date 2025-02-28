@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
@@ -274,16 +275,7 @@ Affected charts:
         return { yamlSchema, fileName, fileContent, fileSha };
     }
 
-    async updateFileForCustomMetrics({
-        owner,
-        repo,
-        path,
-        projectUuid,
-        customMetrics,
-        token,
-        branch,
-        quoteChar = `'`,
-    }: {
+    async updateFileForCustomMetrics(args: {
         owner: string;
         repo: string;
         path: string;
@@ -293,70 +285,14 @@ Affected charts:
         token: string;
         quoteChar?: `"` | `'`;
     }): Promise<void> {
-        if (customMetrics === undefined || customMetrics?.length === 0)
-            throw new Error('No custom metrics found');
-        const tables = [
-            ...new Set(customMetrics.map((metric) => metric.table)),
-        ];
-
-        const fileNames = await tables.reduce<Promise<string[]>>(
-            async (accPromise, table) => {
-                const acc = await accPromise;
-                const customMetricsForTable = customMetrics.filter(
-                    (metric) => metric.table === table,
-                );
-                const { yamlSchema, fileName, fileSha } =
-                    await this.getYamlForTable({
-                        table,
-                        path,
-                        owner,
-                        repo,
-                        branch,
-                        token,
-                        projectUuid,
-                    });
-                const updatedModels = insertCustomMetricsInModelNodes(
-                    yamlSchema.models!,
-                    customMetricsForTable,
-                );
-
-                const updatedYml = yaml.dump(
-                    { ...yamlSchema, models: updatedModels },
-                    {
-                        quotingType: quoteChar,
-                    },
-                );
-
-                const fileUpdated = await updateFile({
-                    owner,
-                    repo,
-                    fileName,
-                    content: updatedYml,
-                    fileSha,
-                    branchName: branch,
-                    token,
-                    message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
-                });
-                Logger.debug(
-                    `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
-                );
-
-                return [...acc, fileName];
-            },
-            Promise.resolve([]),
-        );
+        await this.updateFile({
+            ...args,
+            fields: args.customMetrics ?? [],
+            type: 'customMetrics',
+        });
     }
 
-    async updateFileForCustomDimensions({
-        owner,
-        repo,
-        path,
-        projectUuid,
-        customDimensions,
-        token,
-        branch,
-        quoteChar = `'`,
-    }: {
+    async updateFileForCustomDimensions(args: {
         owner: string;
         repo: string;
         path: string;
@@ -366,58 +302,94 @@ Affected charts:
         token: string;
         quoteChar?: `"` | `'`;
     }): Promise<void> {
-        if (customDimensions === undefined || customDimensions?.length === 0)
-            throw new Error('No custom dimensions found');
-        const tables = [
-            ...new Set(customDimensions.map((dimension) => dimension.table)),
-        ];
+        await this.updateFile({
+            ...args,
+            fields: args.customDimensions ?? [],
+            type: 'customDimensions',
+        });
+    }
 
-        const fileNames = await tables.reduce<Promise<string[]>>(
-            async (accPromise, table) => {
-                const acc = await accPromise;
-                const customDimensionsForTable = customDimensions.filter(
-                    (dimension) => dimension.table === table,
-                );
-                const { yamlSchema, fileName, fileSha } =
-                    await this.getYamlForTable({
-                        table,
-                        path,
-                        owner,
-                        repo,
-                        branch,
-                        token,
-                        projectUuid,
-                    });
-                const updatedModels = insertCustomDimensionsInModelNodes(
-                    yamlSchema.models!,
-                    customDimensionsForTable,
-                );
+    async updateFile({
+        owner,
+        repo,
+        path,
+        projectUuid,
+        token,
+        branch,
+        quoteChar = `'`,
+        fields,
+        type,
+    }: {
+        owner: string;
+        repo: string;
+        path: string;
+        projectUuid: string;
+        branch: string;
+        token: string;
+        quoteChar?: `"` | `'`;
+    } & (
+        | {
+              type: 'customDimensions';
+              fields: CustomSqlDimension[];
+          }
+        | {
+              type: 'customMetrics';
+              fields: AdditionalMetric[];
+          }
+    )): Promise<void> {
+        const itemName =
+            type === 'customDimensions'
+                ? 'custom dimensions'
+                : 'custom metrics';
 
-                const updatedYml = yaml.dump(
-                    { ...yamlSchema, models: updatedModels },
-                    {
-                        quotingType: quoteChar,
-                    },
-                );
+        if (fields === undefined || fields?.length === 0)
+            throw new Error(`No custom ${itemName}s found`);
+        const tables = [...new Set(fields.map((item) => item.table))];
 
-                const fileUpdated = await updateFile({
+        for (const table of tables) {
+            const itemsForTable = fields.filter((item) => item.table === table);
+            const { yamlSchema, fileName, fileSha } =
+                await this.getYamlForTable({
+                    table,
+                    path,
                     owner,
                     repo,
-                    fileName,
-                    content: updatedYml,
-                    fileSha,
-                    branchName: branch,
+                    branch,
                     token,
-                    message: `Updated file ${fileName} with ${customMetricsForTable?.length} custom metrics from table ${table}`,
+                    projectUuid,
                 });
-                Logger.debug(
-                    `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
-                );
+            const updatedModels =
+                type === 'customDimensions'
+                    ? insertCustomDimensionsInModelNodes(
+                          yamlSchema.models!,
+                          itemsForTable as CustomSqlDimension[],
+                      )
+                    : insertCustomMetricsInModelNodes(
+                          yamlSchema.models!,
+                          itemsForTable as AdditionalMetric[],
+                      );
 
-                return [...acc, fileName];
-            },
-            Promise.resolve([]),
-        );
+            const updatedYml = yaml.dump(
+                { ...yamlSchema, models: updatedModels },
+                {
+                    quotingType: quoteChar,
+                },
+            );
+
+            await updateFile({
+                owner,
+                repo,
+                fileName,
+                content: updatedYml,
+                fileSha,
+                branchName: branch,
+                token,
+                message: `Updated file ${fileName} with ${itemsForTable?.length} custom ${itemName} from table ${table}`,
+            });
+            Logger.debug(
+                `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
+            );
+        }
     }
 
     async getProjectRepo(projectUuid: string) {
@@ -504,14 +476,25 @@ Affected charts:
         return githubProps;
     }
 
-    async createPullRequestForCustomMetrics(
+    async createPullRequest(
         user: SessionUser,
         projectUuid: string,
-        customMetrics: AdditionalMetric[],
         quoteChar: `"` | `'`,
+        args:
+            | {
+                  type: 'customDimensions';
+                  fields: CustomSqlDimension[];
+              }
+            | {
+                  type: 'customMetrics';
+                  fields: AdditionalMetric[];
+              },
     ): Promise<PullRequestCreated> {
-        if (customMetrics.length === 0)
-            throw new ParseError('Missing custom metrics');
+        const { type, fields } = args;
+        const typeName =
+            type === 'customDimensions' ? 'custom dimension' : 'custom metric';
+
+        if (fields.length === 0) throw new ParseError(`Missing ${typeName}s`);
 
         if (
             user.ability.cannot(
@@ -532,19 +515,19 @@ Affected charts:
         );
 
         await GitIntegrationService.createBranch(githubProps);
-        const updatedFiles = await this.updateFileForCustomMetrics({
+        await this.updateFile({
             ...githubProps,
-            customMetrics,
+            ...args,
             projectUuid,
             quoteChar,
         });
 
-        const customMetricInfo =
-            customMetrics.length === 1
-                ? `\`${customMetrics[0].name}\` custom metric`
-                : `${customMetrics.length} custom metrics`;
+        const fieldsInfo =
+            fields.length === 1
+                ? `\`${fields[0].name}\` ${typeName}`
+                : `${fields.length} ${typeName}s`;
         const eventProperties: WriteBackEvent['properties'] = {
-            name: customMetricInfo,
+            name: fieldsInfo,
             projectId: projectUuid,
             organizationId: user.organizationUuid!,
             context: QueryExecutionContext.EXPLORE,
@@ -552,98 +535,12 @@ Affected charts:
         try {
             const pullRequest = await createPullRequest({
                 ...githubProps,
-                title: `Adds ${customMetricInfo}`,
-                body: `Created by Lightdash, this pull request adds ${customMetricInfo} to the dbt model.
-
-Triggered by user ${user.firstName} ${user.lastName} (${user.email})
-
-> ⚠️ **Note: Do not change the \`label\` or \`id\` of your metrics in this pull request.** Your custom metric(s) _will not be replaced_ with YAML metrics if you change the \`label\` or \`id\` of the metrics in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom metrics with YAML metrics.`,
-                head: githubProps.branch,
-                base: githubProps.mainBranch,
-            });
-            Logger.debug(
-                `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
-            );
-
-            this.analytics.track({
-                event: 'write_back.created',
-                userId: user.userUuid,
-                properties: {
-                    ...eventProperties,
-                    customMetricsCount: customMetrics.length,
-                },
-            });
-            return {
-                prTitle: pullRequest.title,
-                prUrl: pullRequest.html_url,
-            };
-        } catch (e) {
-            this.analytics.track({
-                event: 'write_back.error',
-                userId: user.userUuid,
-                properties: {
-                    ...eventProperties,
-                    error: getErrorMessage(e),
-                },
-            });
-            throw e;
-        }
-    }
-
-    async createPullRequestForCustomDimensions(
-        user: SessionUser,
-        projectUuid: string,
-        customDimensions: CustomSqlDimension[],
-        quoteChar: `"` | `'`,
-    ): Promise<PullRequestCreated> {
-        if (customDimensions.length === 0)
-            throw new ParseError('Missing custom dimensions');
-
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const githubProps = await this.getGithubProps(
-            user,
-            projectUuid,
-            quoteChar,
-        );
-
-        await GitIntegrationService.createBranch(githubProps);
-        const updatedFiles = await this.updateFileForCustomDimensions({
-            ...githubProps,
-            customDimensions,
-            projectUuid,
-            quoteChar,
-        });
-
-        const customDimensionInfo =
-            customDimensions.length === 1
-                ? `\`${customDimensions[0].name}\` custom dimension`
-                : `${customDimensions.length} custom dimensions`;
-        const eventProperties: WriteBackEvent['properties'] = {
-            name: customDimensionInfo,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid!,
-            context: QueryExecutionContext.EXPLORE,
-        };
-        try {
-            const pullRequest = await createPullRequest({
-                ...githubProps,
-                title: `Adds ${customDimensionInfo}`,
-                body: `Created by Lightdash, this pull request adds ${customDimensionInfo} to the dbt model.
+                title: `Adds ${fieldsInfo}`,
+                body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the dbt model.
 
     Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
-    > ⚠️ **Note: Do not change the \`label\` or \`id\` of your dimensions in this pull request.** Your custom dimension(s) _will not be replaced_ with YAML dimensions if you change the \`label\` or \`id\` of the dimensions in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom dimensions with YAML dimensions.`,
+    > ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`,
                 head: githubProps.branch,
                 base: githubProps.mainBranch,
             });
@@ -656,7 +553,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 userId: user.userUuid,
                 properties: {
                     ...eventProperties,
-                    customDimensionsCount: customDimensions.length,
+                    customDimensionsCount: fields.length,
                 },
             });
             return {
