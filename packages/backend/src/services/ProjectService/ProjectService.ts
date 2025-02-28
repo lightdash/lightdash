@@ -5007,6 +5007,7 @@ export class ProjectService extends BaseService {
                 await runQueryAndFormatRaw({
                     ...metricQuery,
                     dimensions: subtotalDimensions,
+                    sorts: [],
                 }),
             ],
         );
