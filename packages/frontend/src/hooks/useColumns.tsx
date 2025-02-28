@@ -1,6 +1,5 @@
 import {
     formatItemValue,
-    friendlyName,
     getFormattedWithFallback,
     getItemMap,
     isAdditionalMetric,
@@ -197,29 +196,39 @@ export const useColumns = (): TableColumn[] => {
                 (row) => row[fieldId],
                 {
                     id: fieldId,
-                    header: () => (
-                        <TableHeaderLabelContainer>
-                            {isField(item) ? (
-                                <>
-                                    {hasJoins && (
-                                        <TableHeaderRegularLabel>
-                                            {item.tableLabel}{' '}
-                                        </TableHeaderRegularLabel>
-                                    )}
+                    header: () => {
+                        console.log(item);
 
+                        return (
+                            <TableHeaderLabelContainer>
+                                {isField(item) ? (
+                                    <>
+                                        {hasJoins && (
+                                            <TableHeaderRegularLabel>
+                                                {item.tableLabel}{' '}
+                                            </TableHeaderRegularLabel>
+                                        )}
+
+                                        <TableHeaderBoldLabel>
+                                            {item.label}
+                                        </TableHeaderBoldLabel>
+                                    </>
+                                ) : isCustomDimension(item) ? (
+                                    <>
+                                        <TableHeaderBoldLabel>
+                                            {item.name}
+                                        </TableHeaderBoldLabel>
+                                    </>
+                                ) : (
                                     <TableHeaderBoldLabel>
-                                        {item.label}
+                                        {item && 'displayName' in item
+                                            ? item.displayName
+                                            : 'Undefined'}
                                     </TableHeaderBoldLabel>
-                                </>
-                            ) : (
-                                <TableHeaderBoldLabel>
-                                    {('displayName' in item &&
-                                        item.displayName) ||
-                                        friendlyName(item.name)}
-                                </TableHeaderBoldLabel>
-                            )}
-                        </TableHeaderLabelContainer>
-                    ),
+                                )}
+                            </TableHeaderLabelContainer>
+                        );
+                    },
                     cell: getFormattedValueCell,
                     footer: () =>
                         totals?.[fieldId]

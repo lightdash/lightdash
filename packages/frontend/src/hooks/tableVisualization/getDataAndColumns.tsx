@@ -1,7 +1,7 @@
 import {
     MetricType,
     formatItemValue,
-    friendlyName,
+    isCustomDimension,
     isField,
     isMetric,
     type ApiQueryResults,
@@ -131,13 +131,15 @@ const getDataAndColumns = ({
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
+                            ) : isCustomDimension(item) ? (
+                                <TableHeaderBoldLabel>
+                                    {item.name}
+                                </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
-                                    {item === undefined
-                                        ? 'Undefined'
-                                        : 'displayName' in item
+                                    {item && 'displayName' in item
                                         ? item.displayName
-                                        : friendlyName(item.name)}
+                                        : 'Undefined'}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>
