@@ -4,7 +4,6 @@ import {
     defineUserAbility,
     OrganizationMemberRole,
     ProjectMemberRole,
-    SessionUser,
     SpaceMemberRole,
 } from '@lightdash/common';
 
