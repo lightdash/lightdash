@@ -29,6 +29,11 @@ type TestAccessParams = {
     groupSpaceRole?: SpaceMemberRole | null;
     groupSpaceRoles?: SpaceMemberRole[];
     isPrivate?: boolean;
+    spaceUuid?: string;
+    userUuid?: string;
+    organizationRole?: OrganizationMemberRole;
+    projectRole?: ProjectMemberRole;
+    projectGroupRoles?: ProjectMemberRole[];
 };
 
 export const createTestUser = ({
@@ -79,7 +84,7 @@ export const createSpaceAccessResponse = ({
     groupSpaceRoles,
     projectGroupRoles = [],
     isPrivate = true,
-}: TestUserParams & TestAccessParams = {}) => ({
+}: TestAccessParams = {}) => ({
     space_uuid: spaceUuid,
     user_uuid: userUuid,
     first_name: 'Test',
