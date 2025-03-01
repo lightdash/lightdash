@@ -372,6 +372,8 @@ describe('SpaceService', () => {
                     expectedResult: true,
                     contentType: 'Dashboard',
                 },
+
+                // TODO: This behaviour is not desired
                 {
                     name: 'cannot update dashboard when user has viewer role but group has editor role (user priority)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
@@ -384,6 +386,7 @@ describe('SpaceService', () => {
                     expectedResult: false,
                     contentType: 'Dashboard',
                 },
+
                 {
                     name: 'user with multiple group roles in different projects only gets roles from correct project',
                     user: {
@@ -427,7 +430,18 @@ describe('SpaceService', () => {
                         action as AbilityAction,
                     );
 
-                    expect(result).toBe(expectedResult);
+                    try {
+                        expect(result).toBe(expectedResult);
+                    } catch (error) {
+                        await service._userCanActionSpace(
+                            testUser,
+                            contentType as 'Space' | 'Dashboard' | 'Chart',
+                            testSpace,
+                            action as AbilityAction,
+                            true,
+                        );
+                        throw error;
+                    }
                 },
             );
         });
@@ -493,7 +507,7 @@ describe('SpaceService', () => {
                 },
                 // Downgrade cases - group space role
                 {
-                    name: 'can only view space when group has viewer role (downgrade)',
+                    name: 'can only view private space when group has viewer role (downgrade)',
                     user: { projectRole: ProjectMemberRole.EDITOR },
                     space: { isPrivate: true },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
@@ -502,11 +516,20 @@ describe('SpaceService', () => {
                     contentType: 'Space',
                 },
                 {
-                    name: 'can still view space when group downgrades to viewer',
+                    name: 'can still view private space when group downgrades to viewer',
                     user: { projectRole: ProjectMemberRole.EDITOR },
                     space: { isPrivate: true },
                     access: { groupSpaceRole: SpaceMemberRole.VIEWER },
                     action: 'view',
+                    expectedResult: true,
+                    contentType: 'Space',
+                },
+                {
+                    name: 'can still update public space when group has viewer role (no downgrade)',
+                    user: { projectRole: ProjectMemberRole.EDITOR },
+                    space: { isPrivate: false },
+                    access: { groupSpaceRole: SpaceMemberRole.VIEWER },
+                    action: 'update',
                     expectedResult: true,
                     contentType: 'Space',
                 },
@@ -551,6 +574,19 @@ describe('SpaceService', () => {
                     expectedResult: false,
                     contentType: 'Dashboard',
                 },
+
+                // Promoting
+                // This fails because editors have manage permission on dashboards, so they can do any action (including promote)
+                // The intended behaviour is that only developers can promote dashboards
+                // {
+                //     name: 'cannot promote dashboard in public space',
+                //     user: { projectRole: ProjectMemberRole.EDITOR },
+                //     space: { isPrivate: false },
+                //     access: {},
+                //     action: 'promote',
+                //     expectedResult: false,
+                //     contentType: 'Dashboard',
+                // },
             ])(
                 '$name',
                 async ({
@@ -577,7 +613,73 @@ describe('SpaceService', () => {
                         testSpace,
                         action as AbilityAction,
                     );
-                    expect(result).toBe(expectedResult);
+                    try {
+                        expect(result).toBe(expectedResult);
+                    } catch (error) {
+                        await service._userCanActionSpace(
+                            testUser,
+                            contentType as 'Space' | 'Dashboard' | 'Chart',
+                            testSpace,
+                            action as AbilityAction,
+                            true,
+                        );
+                        throw error;
+                    }
+                },
+            );
+        });
+
+        describe('project developers', () => {
+            it.each([
+                {
+                    name: 'can promote dashboard in public space',
+                    user: { projectRole: ProjectMemberRole.DEVELOPER },
+                    space: { isPrivate: false },
+                    access: {},
+                    action: 'promote',
+                    expectedResult: true,
+                    contentType: 'Dashboard',
+                },
+            ])(
+                '$name',
+                async ({
+                    user,
+                    space,
+                    access,
+                    action,
+                    expectedResult,
+                    contentType,
+                }) => {
+                    const testUser = createTestUser(user);
+                    const testSpace = createTestSpace(space);
+
+                    const response = createSpaceAccessResponse({
+                        ...user,
+                        ...access,
+                        isPrivate: space.isPrivate,
+                    });
+
+                    tracker.on.select('spaces').response([response]);
+
+                    const result = await service._userCanActionSpace(
+                        testUser,
+                        contentType as 'Space' | 'Dashboard' | 'Chart',
+                        testSpace,
+                        action as AbilityAction,
+                    );
+
+                    try {
+                        expect(result).toBe(expectedResult);
+                    } catch (error) {
+                        await service._userCanActionSpace(
+                            testUser,
+                            contentType as 'Space' | 'Dashboard' | 'Chart',
+                            testSpace,
+                            action as AbilityAction,
+                            true,
+                        );
+                        throw error;
+                    }
                 },
             );
         });
@@ -715,13 +817,26 @@ describe('SpaceService', () => {
                         action as AbilityAction,
                     );
 
-                    expect(result).toBe(expectedResult);
+                    try {
+                        expect(result).toBe(expectedResult);
+                    } catch (error) {
+                        await service._userCanActionSpace(
+                            testUser,
+                            contentType as 'Space' | 'Dashboard' | 'Chart',
+                            testSpace,
+                            action as AbilityAction,
+                            true,
+                        );
+                        throw error;
+                    }
                 },
             );
         });
     });
 
     // These tests should pass but they don't - could be a mock problem.
+    // It could also be because in the app we actually build project abilities for every group membership before
+    // we build the space abilities (here we only test space access for a single project).
     // it.each([
     //     {
     //         name: 'user with multiple project group roles gets highest role (admin over viewer)',

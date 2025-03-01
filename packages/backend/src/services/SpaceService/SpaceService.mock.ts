@@ -1,5 +1,3 @@
-// mocks
-
 import {
     defineUserAbility,
     OrganizationMemberRole,
@@ -42,6 +40,7 @@ export const createTestUser = ({
     organizationRole = OrganizationMemberRole.MEMBER,
     projectUuid = 'test-project-uuid',
     projectRole,
+    projectGroupRoles = [],
 }: TestUserParams = {}) => ({
     userUuid,
     ability: defineUserAbility(
@@ -50,15 +49,16 @@ export const createTestUser = ({
             role: organizationRole,
             organizationUuid,
         },
-        projectRole
-            ? [
-                  {
-                      projectUuid,
-                      role: projectRole,
-                      userUuid,
-                  },
-              ]
-            : [],
+        [
+            ...(projectGroupRoles?.map((role) => ({
+                projectUuid,
+                role,
+                userUuid,
+            })) || []),
+            ...(projectRole
+                ? [{ projectUuid, role: projectRole, userUuid }]
+                : []),
+        ],
     ),
 });
 
