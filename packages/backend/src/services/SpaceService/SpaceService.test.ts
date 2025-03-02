@@ -69,6 +69,7 @@ describe('SpaceService', () => {
                         ...user,
                         ...access,
                         isPrivate: space.isPrivate,
+                        organizationUuid: space.organizationUuid,
                     }),
                 ]);
 
@@ -111,6 +112,7 @@ describe('SpaceService', () => {
                         ...user,
                         ...access,
                         isPrivate: space.isPrivate,
+                        projectUuid: space.projectUuid,
                     }),
                 ]);
 
@@ -361,7 +363,7 @@ describe('SpaceService', () => {
                     contentType: 'Dashboard',
                 },
                 {
-                    name: 'can update dashboard when user has editor role but group has viewer role (user has priority)',
+                    name: 'can update dashboard when user has editor role but group has viewer role (highest role wins)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
                     space: { isPrivate: true },
                     access: {
@@ -372,10 +374,8 @@ describe('SpaceService', () => {
                     expectedResult: true,
                     contentType: 'Dashboard',
                 },
-
-                // TODO: This behaviour is not desired
                 {
-                    name: 'cannot update dashboard when user has viewer role but group has editor role (user priority)',
+                    name: 'can update dashboard when user has viewer role but group has editor role (highest role wins)',
                     user: { projectRole: ProjectMemberRole.INTERACTIVE_VIEWER },
                     space: { isPrivate: true },
                     access: {
@@ -383,7 +383,7 @@ describe('SpaceService', () => {
                         groupSpaceRole: SpaceMemberRole.EDITOR,
                     },
                     action: 'update',
-                    expectedResult: false,
+                    expectedResult: true,
                     contentType: 'Dashboard',
                 },
 
@@ -420,6 +420,7 @@ describe('SpaceService', () => {
                             ...user,
                             ...access,
                             isPrivate: space.isPrivate,
+                            projectUuid: space.projectUuid,
                         }),
                     ]);
 

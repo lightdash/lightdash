@@ -604,6 +604,53 @@ export class SpaceModel {
         );
     }
 
+    async getSpaceAccess(spaceUuid: string) {
+        const row = await this.database
+            .table('spaces')
+            .leftJoin('projects', 'projects.project_id', 'spaces.project_id')
+            .leftJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('space_uuid', spaceUuid)
+            .first(
+                'is_private',
+                'projects.project_uuid',
+                'organizations.organization_uuid',
+                this.database.raw(
+                    `
+                    SELECT jsonb_agg(jsonb_build_object('userUuid', user_uuid, 'role', space_role))
+                    FROM ${SpaceUserAccessTableName}
+                    WHERE ${SpaceUserAccessTableName}.space_uuid = ${SpaceTableName}.space_uuid
+                    AS user_access
+                    `,
+                ),
+                this.database.raw(
+                    `
+                    SELECT jsonb_agg(jsonb_build_object('groupUuid', group_uuid, 'role', space_role))
+                    FROM ${SpaceGroupAccessTableName}
+                    WHERE ${SpaceGroupAccessTableName}.space_uuid = ${SpaceTableName}.space_uuid
+                    AS group_access
+                    `,
+                ),
+            );
+
+        if (!row) {
+            throw new NotFoundError(
+                `Space with spaceUuid ${spaceUuid} does not exist`,
+            );
+        }
+
+        return {
+            isPrivate: row.is_private,
+            userSpaceAccess: row.user_access,
+            groupSpaceAccess: row.group_access,
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+        };
+    }
+
     private async _getSpaceAccess(
         spaceUuids: string[],
         filters?: { userUuid?: string },

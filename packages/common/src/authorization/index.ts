@@ -6,6 +6,8 @@ import applyOrganizationMemberAbilities, {
 } from './organizationMemberAbility';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { type MemberAbility } from './types';
+// import { type ProjectMemberRole } from '../types/projectMemberRole';
+// import { type OrganizationMemberRole } from '../types/organizationMemberProfile';
 
 type UserAbilityBuilderArgs = {
     user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>;
@@ -14,13 +16,22 @@ type UserAbilityBuilderArgs = {
         'projectUuid' | 'role' | 'userUuid'
     >[];
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
+    // organizationRole: OrganizationMemberRole | null;
+    groupMemberships: { groupUuid: string }[];
+    // projectMemberships: {
+    //     projectId: number;
+    //     role: ProjectMemberRole;
+    // }[];
 };
 
 export const getUserAbilityBuilder = ({
     user,
     projectProfiles,
     permissionsConfig,
-}: UserAbilityBuilderArgs) => {
+    // organizationRole,
+    groupMemberships,
+}: // projectMemberships,
+UserAbilityBuilderArgs) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (user.role && user.organizationUuid) {
         applyOrganizationMemberAbilities({
@@ -36,6 +47,7 @@ export const getUserAbilityBuilder = ({
             projectMemberAbilities[projectProfile.role](
                 projectProfile,
                 builder,
+                groupMemberships,
             );
         });
     }
@@ -49,10 +61,12 @@ export const defineUserAbility = (
         ProjectMemberProfile,
         'projectUuid' | 'role' | 'userUuid'
     >[],
+    groupMemberships: { groupUuid: string }[] = [],
 ): MemberAbility => {
     const builder = getUserAbilityBuilder({
         user,
         projectProfiles,
+        groupMemberships,
         permissionsConfig: {
             pat: {
                 enabled: false,
