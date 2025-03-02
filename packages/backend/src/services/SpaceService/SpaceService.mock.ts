@@ -32,6 +32,8 @@ type TestAccessParams = {
     organizationRole?: OrganizationMemberRole;
     projectRole?: ProjectMemberRole;
     projectGroupRoles?: ProjectMemberRole[];
+    organizationUuid?: string;
+    projectUuid?: string;
 };
 
 export const createTestUser = ({
@@ -59,6 +61,11 @@ export const createTestUser = ({
                 ? [{ projectUuid, role: projectRole, userUuid }]
                 : []),
         ],
+        [
+            { groupUuid: 'test-group-uuid-1' },
+            { groupUuid: 'test-group-uuid-2' },
+            { groupUuid: 'test-group-uuid-3' }
+        ],
     ),
 });
 
@@ -82,25 +89,21 @@ export const createSpaceAccessResponse = ({
     spaceRole = null,
     groupSpaceRole = null,
     groupSpaceRoles,
+    organizationUuid = 'test-org-uuid',
+    projectUuid = 'test-project-uuid',
     projectGroupRoles = [],
     isPrivate = true,
 }: TestAccessParams = {}) => ({
-    space_uuid: spaceUuid,
-    user_uuid: userUuid,
-    first_name: 'Test',
-    last_name: 'User',
-    email: 'test@lightdash.com',
     is_private: isPrivate,
-    space_role: spaceRole,
-    // Have to copy logic from the select query waaaah
-    user_with_direct_access:
-        spaceRole !== null ||
-        groupSpaceRole !== null ||
-        groupSpaceRoles?.length,
-    // end biz logic
-    project_role: projectRole,
-    organization_role: organizationRole,
-    group_roles: projectGroupRoles,
-    space_group_roles:
-        groupSpaceRoles || (groupSpaceRole ? [groupSpaceRole] : []),
+    project_uuid: projectUuid,
+    organization_uuid: organizationUuid,
+    user_access: spaceRole ? [{ userUuid, role: spaceRole }] : [],
+    group_access: [
+        ...(groupSpaceRole ? [{ groupUuid: 'test-group-uuid-1', role: groupSpaceRole }] : []),
+        ...(groupSpaceRoles?.map((role, i) => ({ 
+            groupUuid: `test-group-uuid-${i + 1}`, 
+            role,
+        })) || []),
+
+    ],
 });

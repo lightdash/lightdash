@@ -46,23 +46,6 @@ export const hasDirectAccessToSpace = (
     return hasAccess;
 };
 
-export const hasViewAccessToSpace = (
-    user: SessionUser,
-    space: Pick<
-        Space | SpaceSummary,
-        'projectUuid' | 'organizationUuid' | 'isPrivate'
-    >,
-    access: SpaceShare[],
-): boolean =>
-    user.ability.can(
-        'view',
-        subject('Space', {
-            organizationUuid: space.organizationUuid,
-            projectUuid: space.projectUuid,
-            isPrivate: space.isPrivate,
-            access,
-        }),
-    );
 export class SpaceService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
@@ -91,15 +74,13 @@ export class SpaceService extends BaseService {
         action: AbilityAction,
         logDiagnostics: boolean = false,
     ): Promise<boolean> {
-        const userAccess = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            space.uuid,
-        );
+        const spaceAccess = await this.spaceModel.getSpaceAccess(space.uuid);
         const ss = subject(contentType, {
-            organizationUuid: space.organizationUuid,
-            projectUuid: space.projectUuid,
-            isPrivate: space.isPrivate,
-            access: userAccess,
+            organizationUuid: spaceAccess.organizationUuid,
+            projectUuid: spaceAccess.projectUuid,
+            isPrivate: spaceAccess.isPrivate,
+            userSpaceAccess: spaceAccess.userSpaceAccess,
+            groupSpaceAccess: spaceAccess.groupSpaceAccess,
         });
         if (logDiagnostics) {
             const rule = user.ability.relevantRuleFor(action, ss);

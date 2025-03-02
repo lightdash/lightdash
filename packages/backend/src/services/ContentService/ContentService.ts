@@ -18,7 +18,6 @@ import {
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
     analytics: LightdashAnalytics;
@@ -71,23 +70,16 @@ export class ContentService extends BaseService {
             ? intersection(filters.projectUuids, projectUuids)
             : projectUuids; // todo: move this filter to project model query
 
-        const spaces = await this.spaceModel.find({
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
             projectUuids: allowedProjectUuids,
             spaceUuids: filters.spaceUuids,
         });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((p) => p.uuid),
-        );
-        const allowedSpaceUuids = spaces
-            .filter((space) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
+
+        const allowedSpaceUuids = spacesAccess
+            .filter((spaceAccess) =>
+                user.ability.can('view', subject('Space', spaceAccess)),
             )
-            .map((space) => space.uuid);
+            .map((spaceAccess) => spaceAccess.spaceUuid);
 
         return this.contentModel.findSummaryContents(
             {

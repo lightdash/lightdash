@@ -41,7 +41,7 @@ import {
     DbPasswordLoginIn,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
-import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
+import { DbPersonalAccessToken, PersonalAccessTokenTableName } from '../database/entities/personalAccessTokens';
 import {
     DbUser,
     DbUserIn,
@@ -91,15 +91,38 @@ export const mapDbUserDetailsToLightdashUser = (
     updatedAt: user.updated_at,
 });
 
-const userDetailsQueryBuilder = (
-    db: Knex,
-): Knex.QueryBuilder<DbUserDetails[]> =>
-    db('users')
+type UserDetailsQueryBuilderArgs = {
+    db: Knex;
+    userUuid?: string;
+    organizationUuid?: string;
+    userId?: number;
+    email?: string;
+    personalAccessTokenHash?: string;
+    openId?: {
+        issuer: string;
+        subject: string;
+    };
+};
+const userDetailsQueryBuilder = ({
+    db,
+    userUuid,
+    organizationUuid,
+    userId,
+    email,
+    personalAccessTokenHash,
+    openId,
+}: UserDetailsQueryBuilderArgs): Knex.QueryBuilder<DbUserDetails> => {
+    if (!userUuid && !userId && !email && !personalAccessTokenHash && !openId) {
+        throw new ParameterError('Cannot fetch a user data with a filter');
+    }
+    const query = db<DbUserDetails[]>('users')
+        .first('*', 'organizations.created_at as organization_created_at')
         .joinRaw(
             'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',
         )
-        // TODO remove this org join, we should do this in the service
         .leftJoin(
+            // The org id should be required and included as an andOn clause
+            // But service still assumes user is in a single organization
             'organization_memberships',
             'users.user_id',
             'organization_memberships.user_id',
@@ -109,6 +132,40 @@ const userDetailsQueryBuilder = (
             'organization_memberships.organization_id',
             'organizations.organization_id',
         );
+    if (userUuid) {
+        query.where('users.user_uuid', userUuid);
+    }
+    if (organizationUuid) {
+        query.where('organizations.organization_uuid', organizationUuid);
+    }
+    if (userId) {
+        query.where('users.user_id', userId);
+    }
+    if (email) {
+        query.where('emails.email', email);
+    }
+    if (personalAccessTokenHash) {
+        query.innerJoin('personal_access_tokens', (b) => {
+            b.on(
+                'users.user_id',
+                '=',
+                'personal_access_tokens.created_by_user_id',
+            ).andOn(
+                'personal_access_tokens.token_hash',
+                '=',
+                personalAccessTokenHash,
+            );
+        });
+    }
+    if (openId) {
+        query.innerJoin('openid_identities', (b) => {
+            b.on('users.user_id', '=', 'openid_identities.user_id')
+                .andOn('openid_identities.issuer', '=', openId.issuer)
+                .andOn('openid_identities.subject', '=', openId.subject);
+        });
+    }
+    return query;
+};
 
 type UserModelArguments = {
     database: Knex;
@@ -276,14 +333,15 @@ export class UserModel {
     }
 
     async hasUsers(): Promise<boolean> {
-        const results = await userDetailsQueryBuilder(this.database);
-        return results.length > 0;
+        const results = await this.database(UserTableName).first();
+        return results !== undefined;
     }
 
     async getUserDetailsByUuid(userUuid: string): Promise<LightdashUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .where('user_uuid', userUuid)
-            .select('*', 'organizations.created_at as organization_created_at');
+        const user = await userDetailsQueryBuilder({
+            db: this.database,
+            userUuid,
+        });
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
@@ -295,9 +353,10 @@ export class UserModel {
     }
 
     async getUserDetailsById(userId: number): Promise<LightdashUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .where('user_id', userId)
-            .select('*', 'organizations.created_at as organization_created_at');
+        const user = await userDetailsQueryBuilder({
+            db: this.database,
+            userId,
+        });
         if (user === undefined) {
             throw new NotFoundError('Cannot find user');
         }
@@ -311,17 +370,14 @@ export class UserModel {
         email: string,
         password: string,
     ): Promise<LightdashUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .leftJoin(
-                'password_logins',
-                'users.user_id',
-                'password_logins.user_id',
-            )
-            .where('email', email)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+        const user = await userDetailsQueryBuilder({
+            db: this.database,
+            email,
+        }).leftJoin(
+            'password_logins',
+            'users.user_id',
+            'password_logins.user_id',
+        );
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with email ${email} and password`,
@@ -359,17 +415,14 @@ export class UserModel {
         userUuid: string,
         password: string,
     ): Promise<LightdashUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .leftJoin(
-                'password_logins',
-                'users.user_id',
-                'password_logins.user_id',
-            )
-            .where('users.user_uuid', userUuid)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+        const user = await userDetailsQueryBuilder({
+            db: this.database,
+            userUuid,
+        }).leftJoin(
+            'password_logins',
+            'users.user_id',
+            'password_logins.user_id',
+        );
         if (user === undefined) {
             throw new NotFoundError(`No user found with uuid ${userUuid}`);
         }
@@ -435,6 +488,56 @@ export class UserModel {
             .delete();
     }
 
+    private async getUserPermissions(
+        userId: number,
+        organizationId: number,
+    ): Promise<{
+        organizationRole: OrganizationMemberRole | null;
+        groupMemberships: { groupUuid: string }[];
+        projectMemberships: {
+            projectId: number;
+            role: ProjectMemberRole;
+        }[];
+    }> {
+        const userPermissions = await this
+            // Check user is a member of the organization
+            .database('organization_memberships')
+            .where('organization_memberships.user_id', userId)
+            .andWhere(
+                'organization_memberships.organization_id',
+                organizationId,
+            )
+
+            .first(
+                // Get the organization role
+                'organization_memberships.role as organization_role',
+                // Get the user's groups and project memberships
+                this.database.raw(`
+                    (
+                        SELECT COALESCE(jsonb_agg(jsonb_build_object('groupUuid', group_uuid)), '[]'::jsonb)
+                        FROM group_memberships
+                        WHERE group_memberships.user_id = organization_memberships.user_id
+                        AND group_memberships.organization_id = organization_memberships.organization_id
+                    ) as group_memberships`),
+
+                // Get project memberships
+                this.database.raw(`
+                    (
+                        SELECT COALESCE(jsonb_agg(jsonb_build_object('projectId', project_id, 'role', role)), '[]'::jsonb)
+                        FROM project_memberships
+                        JOIN projects ON projects.project_id = project_memberships.project_id
+                        WHERE project_memberships.user_id = organization_memberships.user_id
+                        AND projects.organization_id = organization_memberships.organization_id
+                    ) as project_memberships`),
+            );
+
+        return {
+            organizationRole: userPermissions?.organization_role ?? null,
+            groupMemberships: userPermissions?.group_memberships ?? [],
+            projectMemberships: userPermissions?.project_memberships ?? [],
+        };
+    }
+
     private async getUserProjectRoles(
         userId: number,
         userUuid: string,
@@ -487,27 +590,38 @@ export class UserModel {
         }));
     }
 
-    async findSessionUserByOpenId(
-        issuer: string,
-        subject: string,
-    ): Promise<SessionUser | undefined> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .leftJoin(
-                'openid_identities',
-                'users.user_id',
-                'openid_identities.user_id',
-            )
-            .where('openid_identities.issuer', issuer)
-            .andWhere('openid_identities.subject', subject)
-            .select<DbUserDetails[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+    async findSessionUser({
+        organizationUuid,
+        userUuid,
+        openId,
+        email,
+        personalAccessTokenHash,
+    }: Pick<
+        UserDetailsQueryBuilderArgs,
+        | 'userUuid'
+        | 'openId'
+        | 'organizationUuid'
+        | 'email'
+        | 'personalAccessTokenHash'
+    >): Promise<SessionUser | undefined> {
+        // TODO: should also enforce an organizationUuid is provided
+        if (!userUuid || !openId || !email || !personalAccessTokenHash) {
+            throw new ParameterError('Cannot fetch user without an identifier');
+        }
+        const user = await userDetailsQueryBuilder({
+            db: this.database,
+            userUuid,
+            openId,
+            organizationUuid,
+            email,
+            personalAccessTokenHash,
+        });
         if (user === undefined) {
-            return user;
+            return undefined;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(
             user,
+            // TODO: can't we get this in the initial query for a user?
             await this.hasAuthentication(user.user_uuid),
         );
         const projectRoles = await this.getUserProjectRoles(
@@ -519,20 +633,36 @@ export class UserModel {
             user.organization_id,
             user.user_uuid,
         );
+        const permissions = await this.getUserPermissions(
+            user.user_id,
+            user.organization_id,
+        );
         const abilityBuilder = getUserAbilityBuilder({
             user: lightdashUser,
             projectProfiles: [...projectRoles, ...groupProjectRoles],
             permissionsConfig: {
                 pat: this.lightdashConfig.auth.pat,
             },
+            ...permissions,
         });
-
         return {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             ...lightdashUser,
         };
+    }
+
+    async findSessionUserByOpenId(
+        issuer: string,
+        subject: string,
+    ): Promise<SessionUser | undefined> {
+        return this.findSessionUser({
+            openId: {
+                issuer,
+                subject,
+            },
+        });
     }
 
     async createPendingUser(
@@ -663,119 +793,41 @@ export class UserModel {
      * @deprecated
      */
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .where('user_uuid', userUuid)
-            .select('*', 'organizations.created_at as organization_created_at');
+        const user = await this.findSessionUser({
+            userUuid,
+        });
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(
-            user,
-            await this.hasAuthentication(user.user_uuid),
-        );
-        const projectRoles = await this.getUserProjectRoles(
-            user.user_id,
-            user.user_uuid,
-        );
-        const groupProjectRoles = await this.getUserGroupProjectRoles(
-            user.user_id,
-            user.organization_id,
-            user.user_uuid,
-        );
-        const abilityBuilder = getUserAbilityBuilder({
-            user: lightdashUser,
-            projectProfiles: [...projectRoles, ...groupProjectRoles],
-            permissionsConfig: {
-                pat: this.lightdashConfig.auth.pat,
-            },
-        });
-        return {
-            ...lightdashUser,
-            userId: user.user_id,
-            abilityRules: abilityBuilder.rules,
-            ability: abilityBuilder.build(),
-        };
+        return user;
     }
 
     async findSessionUserAndOrgByUuid(
         userUuid: string,
         organizationUuid: string,
     ): Promise<SessionUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .where('user_uuid', userUuid)
-            .andWhere('organizations.organization_uuid', organizationUuid) // We filter organizationUuid here
-            .select('*', 'organizations.created_at as organization_created_at');
-
+        const user = await this.findSessionUser({
+            userUuid,
+            organizationUuid,
+        });
         if (user === undefined) {
             throw new InvalidUser(
                 `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
             );
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(
-            user,
-            await this.hasAuthentication(user.user_uuid),
-        );
-        const projectRoles = await this.getUserProjectRoles(
-            user.user_id,
-            user.user_uuid,
-        );
-        const groupProjectRoles = await this.getUserGroupProjectRoles(
-            user.user_id,
-            user.organization_id,
-            user.user_uuid,
-        );
-        const abilityBuilder = getUserAbilityBuilder({
-            user: lightdashUser,
-            projectProfiles: [...projectRoles, ...groupProjectRoles],
-            permissionsConfig: {
-                pat: this.lightdashConfig.auth.pat,
-            },
-        });
-        return {
-            ...lightdashUser,
-            userId: user.user_id,
-            abilityRules: abilityBuilder.rules,
-            ability: abilityBuilder.build(),
-        };
+        return user;
     }
 
     async findSessionUserByPrimaryEmail(
         email: string,
     ): Promise<SessionUser | undefined> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .where('email', email)
-            .andWhere('emails.is_primary', true)
-            .select('*', 'organizations.created_at as organization_created_at');
+        const user = await this.findSessionUser({
+            email,
+        });
         if (user === undefined) {
             return undefined;
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(
-            user,
-            await this.hasAuthentication(user.user_uuid),
-        );
-        const projectRoles = await this.getUserProjectRoles(
-            user.user_id,
-            user.user_uuid,
-        );
-        const groupProjectRoles = await this.getUserGroupProjectRoles(
-            user.user_id,
-            user.organization_id,
-            user.user_uuid,
-        );
-        const abilityBuilder = getUserAbilityBuilder({
-            user: lightdashUser,
-            projectProfiles: [...projectRoles, ...groupProjectRoles],
-            permissionsConfig: {
-                pat: this.lightdashConfig.auth.pat,
-            },
-        });
-
-        return {
-            ...lightdashUser,
-            abilityRules: abilityBuilder.rules,
-            ability: abilityBuilder.build(),
-            userId: user.user_id,
-        };
+        return user;
     }
 
     static lightdashUserFromSession(
@@ -786,9 +838,10 @@ export class UserModel {
     }
 
     async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
-        const [user] = await userDetailsQueryBuilder(this.database)
-            .where('email', email)
-            .select('*', 'organizations.created_at as organization_created_at');
+        const user = await userDetailsQueryBuilder({
+            db: this.database,
+            email,
+        });
         return user
             ? mapDbUserDetailsToLightdashUser(
                   user,
@@ -821,52 +874,24 @@ export class UserModel {
         | undefined
     > {
         const tokenHash = PersonalAccessTokenModel._hash(token);
-        const [row] = await userDetailsQueryBuilder(this.database)
-            .innerJoin(
-                'personal_access_tokens',
-                'personal_access_tokens.created_by_user_id',
-                'users.user_id',
-            )
-            .where('token_hash', tokenHash)
-            .select<(DbUserDetails & DbPersonalAccessToken)[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
-        if (row === undefined) {
+        const user = await this.findSessionUser({
+            personalAccessTokenHash: tokenHash,
+        });
+        if (user === undefined) {
             return undefined;
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(
-            row,
-            await this.hasAuthentication(row.user_uuid),
-        );
-        const projectRoles = await this.getUserProjectRoles(
-            row.user_id,
-            row.user_uuid,
-        );
-        const groupProjectRoles = await this.getUserGroupProjectRoles(
-            row.user_id,
-            row.organization_id,
-            row.user_uuid,
-        );
-        const abilityBuilder = getUserAbilityBuilder({
-            user: lightdashUser,
-            projectProfiles: [...projectRoles, ...groupProjectRoles],
-            permissionsConfig: {
-                pat: this.lightdashConfig.auth.pat,
-            },
-        });
+        const personalAccessToken = await this.database(
+            PersonalAccessTokenTableName,
+        )
+            .where('token_hash', tokenHash)
+            .select('*')
+            .first<DbPersonalAccessToken>();
         return {
-            user: {
-                ...mapDbUserDetailsToLightdashUser(
-                    row,
-                    await this.hasAuthentication(row.user_uuid),
-                ),
-                abilityRules: abilityBuilder.rules,
-                ability: abilityBuilder.build(),
-                userId: row.user_id,
-            },
+            user,
             personalAccessToken:
-                PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
+                PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(
+                    personalAccessToken,
+                ),
         };
     }
 

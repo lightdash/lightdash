@@ -57,7 +57,6 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
@@ -172,12 +171,8 @@ export class SavedChartService extends BaseService {
         spaceUuid: string,
     ): Promise<boolean> {
         try {
-            const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                space.uuid,
-            );
-            return hasViewAccessToSpace(user, space, access);
+            const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+            return user.ability.can('view', subject('Space', spaceAccess));
         } catch (e) {
             return false;
         }
