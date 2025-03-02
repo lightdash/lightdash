@@ -88,6 +88,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
                             showSubtotals={showSubtotals}
+                            {...rest}
                         />
                         {showResultsTotal && (
                             <Flex justify="flex-end" pt="xxs" align="center">
