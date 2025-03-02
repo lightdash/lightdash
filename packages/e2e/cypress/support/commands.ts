@@ -24,21 +24,20 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import {
-ApiChartSummaryListResponse,
-CreateChartInSpace,
-CreateWarehouseCredentials,
-DashboardBasicDetails,
-OrganizationProject,
-SavedChart,
-SEED_ORG_1_ADMIN_EMAIL,
-SEED_ORG_1_ADMIN_PASSWORD,
-SEED_ORG_2_ADMIN_EMAIL,
-SEED_ORG_2_ADMIN_PASSWORD,
-SEED_PROJECT,
+    ApiChartSummaryListResponse,
+    CreateChartInSpace,
+    CreateWarehouseCredentials,
+    DashboardBasicDetails,
+    OrganizationProject,
+    SavedChart,
+    SEED_ORG_1_ADMIN_EMAIL,
+    SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_ORG_2_ADMIN_EMAIL,
+    SEED_ORG_2_ADMIN_PASSWORD,
+    SEED_PROJECT,
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
-
 
 declare global {
     namespace Cypress {
@@ -469,7 +468,6 @@ Cypress.Commands.add(
                 const draggable = Cypress.$(dragSelector)[0]; // Pick up this
                 const droppable = Cypress.$(dropSelector)[0]; // Drop over this
 
-                // Store the original HTML content of the dragContainer for verification
                 const draggableId = draggable.getAttribute(
                     'data-rfd-drag-handle-draggable-id',
                 );
@@ -478,7 +476,7 @@ Cypress.Commands.add(
                 cy.window().then((win) => {
                     return new Cypress.Promise((resolve) => {
                         // Define the drag and drop function in the browser context
-                        const simulateReactDragDrop = (
+                        const simulateDragAndDrop = (
                             dragElement: HTMLElement,
                             dropElement: HTMLElement,
                         ) => {
@@ -559,7 +557,7 @@ Cypress.Commands.add(
                             }, 50);
                         };
 
-                        simulateReactDragDrop(draggable, droppable);
+                        simulateDragAndDrop(draggable, droppable);
                     });
                 });
 
