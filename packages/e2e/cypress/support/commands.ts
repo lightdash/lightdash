@@ -473,8 +473,7 @@ Cypress.Commands.add(
                 );
 
                 // Execute the drag and drop operation in the browser context
-                cy.window().then((win) => {
-                    return new Cypress.Promise((resolve) => {
+                cy.window().then((win) => new Cypress.Promise((resolve) => {
                         // Define the drag and drop function in the browser context
                         const simulateDragAndDrop = (
                             dragElement: HTMLElement,
@@ -558,8 +557,7 @@ Cypress.Commands.add(
                         };
 
                         simulateDragAndDrop(draggable, droppable);
-                    });
-                });
+                    }));
 
                 // Check that an element with the draggable ID now exists inside the drop target
                 if (draggableId) {
