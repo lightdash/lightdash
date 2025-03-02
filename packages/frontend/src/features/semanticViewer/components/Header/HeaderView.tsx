@@ -49,15 +49,6 @@ export const HeaderView: FC<Props> = ({
         ? [chart.space.userAccess]
         : [];
 
-    const canManageSemanticViewer = user.data?.ability?.can(
-        'manage',
-        subject('SemanticViewer', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-            access: savedChartSpaceUserAccess,
-        }),
-    );
-
     const canManageChart = user.data?.ability?.can(
         'manage',
         subject('SavedChart', {
@@ -103,7 +94,7 @@ export const HeaderView: FC<Props> = ({
                     </Stack>
 
                     <Group spacing="md">
-                        {canManageSemanticViewer && canManageChart && (
+                        {canManageChart && (
                             <Button
                                 size="xs"
                                 variant="default"
@@ -147,12 +138,7 @@ export const HeaderView: FC<Props> = ({
                                         />
                                     }
                                     color="red"
-                                    disabled={
-                                        !(
-                                            canManageSemanticViewer &&
-                                            canManageChart
-                                        )
-                                    }
+                                    disabled={!canManageChart}
                                     onClick={openDeleteModal}
                                 >
                                     Delete
