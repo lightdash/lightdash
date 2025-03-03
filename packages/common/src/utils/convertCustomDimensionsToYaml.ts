@@ -22,15 +22,6 @@ function updateModelColumns(
     modelNode: YamlModel,
     customDimensions: CustomSqlDimension[],
 ): YamlColumn[] {
-    /*
-      Write in the column of the first dimension referenced in the customDimension.sql
-      If there are no dimensions listed/referenced in the SQL, we write back the additional dimension to the first dimension in the model.
-
-      If no models?
-      If no columns?
-    */
-
-    // better way to do this?
     const firstColumn = getFieldRef({
         table: modelNode.name,
         name: modelNode.columns![0].name,
