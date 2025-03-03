@@ -1,7 +1,9 @@
 import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
+import { parseAllReferences } from '../../compiler/exploreCompiler';
+import { type CustomSqlDimension } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
-import { convertCustomMetricToDbt } from '../../utils/convertToDbt';
-
+import { convertCustomDimensionToDbt } from '../../utils/convertCustomDimensionsToYaml';
+import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml';
 /**
  * Class to edit dbt schema files(YAML)
  * Methods can be chained and the final schema can be obtained as a string.
@@ -45,6 +47,16 @@ export default class DbtSchemaEditor {
         );
     }
 
+    private findFirstColumnFromModelByName(name: string) {
+        const model = this.findModelByName(name);
+        if (!model) {
+            return undefined;
+        }
+        return model.getIn(['columns', 0]) as
+            | YAMLMap<unknown, unknown>
+            | undefined;
+    }
+
     hasModels() {
         const models = this.doc.get('models');
         return isSeq(models) && models.items.length > 0;
@@ -84,6 +96,66 @@ export default class DbtSchemaEditor {
                 convertCustomMetricToDbt(metric),
             );
         });
+        return this;
+    }
+
+    addCustomDimensions(
+        customDimensionsToAdd: CustomSqlDimension[],
+    ): DbtSchemaEditor {
+        customDimensionsToAdd.forEach((dimension) => {
+            this.addCustomDimension(dimension);
+        });
+        return this;
+    }
+
+    addCustomDimension(customDimension: CustomSqlDimension): DbtSchemaEditor {
+        const model = this.findModelByName(customDimension.table);
+        if (!model) {
+            throw new Error(`Model ${customDimension.table} not found`);
+        }
+
+        const refs = parseAllReferences(
+            customDimension.sql,
+            customDimension.table,
+        );
+        let firstRefFromSameTable = refs.find(
+            (ref) =>
+                !!this.findColumnByName(customDimension.table, ref.refName),
+        )?.refName;
+
+        if (!firstRefFromSameTable) {
+            firstRefFromSameTable = this.findFirstColumnFromModelByName(
+                customDimension.table,
+            )?.get('name') as string;
+            if (!firstRefFromSameTable) {
+                throw new Error(
+                    `No columns found in model ${customDimension.table}`,
+                );
+            }
+        }
+
+        const additionalDimension =
+            convertCustomDimensionToDbt(customDimension);
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        const index = model
+            .getIn(['columns'])
+            // @ts-expect-error
+            ?.items.findIndex(
+                // @ts-expect-error
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                (item) => item.get('name') === firstRefFromSameTable,
+            );
+
+        model.setIn(
+            [
+                'columns',
+                index,
+                'additional_dimensions',
+                additionalDimension.name,
+            ],
+            additionalDimension,
+        );
         return this;
     }
 
