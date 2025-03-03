@@ -8,7 +8,9 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { GitIntegrationService } from './GitIntegrationService';
 import {
+    CUSTOM_DIMENSION,
     CUSTOM_METRIC,
+    EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
     GITHUB_APP_MODEL,
     INVALID_SCHEMA_YML,
@@ -62,14 +64,15 @@ describe('GitIntegrationService', () => {
         });
     });
 
-    describe('updateFileForCustomMetrics', () => {
+    describe('updateFile', () => {
         it('should update the file for custom metrics', async () => {
-            await service.updateFileForCustomMetrics({
+            await service.updateFile({
                 owner: 'owner',
                 repo: 'repo',
                 path: 'path',
                 projectUuid: 'projectUuid',
-                customMetrics: [CUSTOM_METRIC],
+                type: 'customMetrics',
+                fields: [CUSTOM_METRIC],
                 branch: 'branch',
                 token: 'token',
                 quoteChar: `'`,
@@ -79,6 +82,24 @@ describe('GitIntegrationService', () => {
                 expect.objectContaining({
                     content: EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
                 }),
+            );
+        });
+        it('should update the file for custom dimensions', async () => {
+            await service.updateFile({
+                owner: 'owner',
+                repo: 'repo',
+                path: 'path',
+                projectUuid: 'projectUuid',
+                type: 'customDimensions',
+                fields: [CUSTOM_DIMENSION],
+                branch: 'branch',
+                token: 'token',
+                quoteChar: `'`,
+            });
+            expect(updateFile).toHaveBeenCalledTimes(1);
+            // @ts-expect-error
+            expect(updateFile.mock.calls[0][0].content).toEqual(
+                EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
             );
         });
     });

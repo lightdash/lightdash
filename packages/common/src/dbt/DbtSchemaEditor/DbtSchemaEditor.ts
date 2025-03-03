@@ -148,7 +148,12 @@ export default class DbtSchemaEditor {
             );
 
         model.setIn(
-            ['columns', index, 'additional_dimensions'],
+            [
+                'columns',
+                index,
+                'additional_dimensions',
+                additionalDimension.name,
+            ],
             additionalDimension,
         );
         return this;
