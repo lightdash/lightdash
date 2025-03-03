@@ -1,6 +1,13 @@
 import Ajv from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
-import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
+import {
+    isMap,
+    isSeq,
+    parseDocument,
+    YAMLSeq,
+    type Document,
+    type YAMLMap,
+} from 'yaml';
 import { parseAllReferences } from '../../compiler/exploreCompiler';
 import lightdashDbtYamlSchema from '../../schemas/json/lightdash-dbt-2.0.json';
 import { type DeepPartialNullable } from '../../types/deepPartial';
@@ -145,7 +152,15 @@ export default class DbtSchemaEditor {
                 `Column ${column.name} already exists in model ${modelName}`,
             );
         }
-        model.setIn(['columns'], column);
+
+        // If columns doesn't exist, create a new YAMLSeq
+        if (!isSeq(model.get('columns'))) {
+            model.set('columns', new YAMLSeq());
+        }
+
+        // Add the new column
+        model.addIn(['columns'], column);
+
         return this;
     }
 
