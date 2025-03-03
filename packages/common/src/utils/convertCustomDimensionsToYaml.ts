@@ -36,9 +36,21 @@ function updateModelColumns(
         name: modelNode.columns![0].name,
     });
 
+    const columnNames = modelNode.columns!.map((column) =>
+        getFieldRef({
+            table: modelNode.name,
+            name: column.name,
+        }),
+    );
+
     const columnsByRef = groupBy(customDimensions, (dimension) => {
         const refs = getAllReferences(dimension.sql);
-        return refs[0] ?? firstColumn;
+
+        const firstRefFromSameTable = refs.find((ref) =>
+            columnNames.includes(ref),
+        );
+
+        return firstRefFromSameTable ?? firstColumn;
     });
 
     return modelNode.columns!.map((column) => {
