@@ -4984,6 +4984,21 @@ export class ProjectService extends BaseService {
             },
         );
 
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'query.subtotal',
+            properties: {
+                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                exploreName,
+                subtotalDimensionGroups: dimensionGroupsToSubtotal.map(
+                    (group) => group.join(','),
+                ),
+                subtotalQueryCount: dimensionGroupsToSubtotal.length,
+            },
+        });
+
         const queryTags: RunQueryTags = {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
