@@ -817,8 +817,8 @@ export type HealthState = {
         version?: string;
     };
     rudder: {
-        writeKey: string;
-        dataPlaneUrl: string;
+        writeKey: string | undefined;
+        dataPlaneUrl: string | undefined;
     };
     sentry: Pick<
         SentryConfig,
