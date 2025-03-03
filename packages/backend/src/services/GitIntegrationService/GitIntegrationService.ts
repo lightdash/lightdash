@@ -276,40 +276,6 @@ Affected charts:
         return { yamlSchema, fileName, fileContent, fileSha };
     }
 
-    async updateFileForCustomMetrics(args: {
-        owner: string;
-        repo: string;
-        path: string;
-        projectUuid: string;
-        customMetrics: AdditionalMetric[] | undefined;
-        branch: string;
-        token: string;
-        quoteChar?: `"` | `'`;
-    }): Promise<void> {
-        await this.updateFile({
-            ...args,
-            fields: args.customMetrics ?? [],
-            type: 'customMetrics',
-        });
-    }
-
-    async updateFileForCustomDimensions(args: {
-        owner: string;
-        repo: string;
-        path: string;
-        projectUuid: string;
-        customDimensions: CustomSqlDimension[];
-        branch: string;
-        token: string;
-        quoteChar?: `"` | `'`;
-    }): Promise<void> {
-        await this.updateFile({
-            ...args,
-            fields: args.customDimensions ?? [],
-            type: 'customDimensions',
-        });
-    }
-
     async updateFile({
         owner,
         repo,
