@@ -93,10 +93,13 @@ export default class DbtSchemaEditor {
             /**
              * Use 'single quote' rather than "double quote" where applicable.
              * Set to `false` to disable single quotes completely.
+             * Set to `null` to keep the original quotes.
              *
-             * Default: `null`
+             * Once we allow the user to set the quote char in the UI, we can enforce the quote char for the entire file.
+             * Until then, we try to keep the original quotes by defaulting to null.
              */
-            singleQuote: options?.quoteChar ? options.quoteChar === `'` : null,
+            singleQuote:
+                options?.quoteChar && options.quoteChar === `'` ? true : null,
         });
     }
 

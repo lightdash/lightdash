@@ -305,7 +305,7 @@ Affected charts:
         customMetrics,
         token,
         branch,
-        quoteChar = `'`,
+        quoteChar,
     }: {
         owner: string;
         repo: string;
