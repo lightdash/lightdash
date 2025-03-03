@@ -1,14 +1,7 @@
-import groupBy from 'lodash/groupBy';
-import { getAllReferences } from '../compiler/exploreCompiler';
 import type { DbtColumnLightdashDimension } from '../types/dbt';
-import {
-    type CustomSqlDimension,
-    friendlyName,
-    getFieldRef,
-} from '../types/field';
-import type { YamlColumn, YamlModel } from '../types/yamlSchema';
+import { type CustomSqlDimension, friendlyName } from '../types/field';
 
-const convertCustomDimensionToDbt = (
+export const convertCustomDimensionToDbt = (
     field: CustomSqlDimension,
 ): DbtColumnLightdashDimension => ({
     label: friendlyName(field.name),
@@ -17,79 +10,3 @@ const convertCustomDimensionToDbt = (
     type: field.dimensionType,
     sql: field.sql,
 });
-
-function updateModelColumns(
-    modelNode: YamlModel,
-    customDimensions: CustomSqlDimension[],
-): YamlColumn[] {
-    const firstColumn = getFieldRef({
-        table: modelNode.name,
-        name: modelNode.columns![0].name,
-    });
-
-    const columnNames = modelNode.columns!.map((column) =>
-        getFieldRef({
-            table: modelNode.name,
-            name: column.name,
-        }),
-    );
-
-    const columnsByRef = groupBy(customDimensions, (dimension) => {
-        const refs = getAllReferences(dimension.sql);
-
-        const firstRefFromSameTable = refs.find((ref) =>
-            columnNames.includes(ref),
-        );
-
-        return firstRefFromSameTable ?? firstColumn;
-    });
-
-    return modelNode.columns!.map((column) => {
-        const columnName = getFieldRef({
-            table: modelNode.name,
-            name: column.name,
-        });
-        const dimensions = columnsByRef[columnName];
-        if (dimensions?.length > 0) {
-            return {
-                ...column,
-                meta: {
-                    ...column.meta,
-                    additional_dimensions: dimensions.reduce<
-                        Record<string, DbtColumnLightdashDimension>
-                    >((acc, dimension) => {
-                        const dbtDimension =
-                            convertCustomDimensionToDbt(dimension);
-                        acc[dbtDimension.name!] = dbtDimension;
-                        return acc;
-                    }, {}),
-                },
-            };
-        }
-        return column;
-    });
-}
-
-export function insertCustomDimensionsInModelNodes(
-    modelNodes: YamlModel[],
-    customDimensions: CustomSqlDimension[],
-): YamlModel[] {
-    const groupDimensionsByTable = groupBy(
-        customDimensions,
-        (dimension) => dimension.table,
-    );
-
-    return modelNodes.map((modelNode) => {
-        if (!groupDimensionsByTable[modelNode.name]) {
-            return modelNode;
-        }
-
-        return {
-            ...modelNode,
-            columns: updateModelColumns(
-                modelNode,
-                groupDimensionsByTable[modelNode.name],
-            ),
-        };
-    });
-}

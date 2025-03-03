@@ -331,13 +331,12 @@ Affected charts:
             }
 
             let updatedYml: string;
-
             if (type === 'customDimensions') {
-                // updatedModels = insertCustomDimensionsInModelNodes(
-                //     yamlSchema.models!,
-                //     fieldsForTable as CustomSqlDimension[],
-                // );
-                updatedYml = 'TODO';
+                updatedYml = yamlSchema
+                    .addCustomDimensions(fieldsForTable as CustomSqlDimension[])
+                    .toString({
+                        quoteChar,
+                    });
             } else if (type === 'customMetrics') {
                 updatedYml = yamlSchema
                     .addCustomMetrics(fieldsForTable as AdditionalMetric[])
