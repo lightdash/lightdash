@@ -523,7 +523,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 userId: user.userUuid,
                 properties: {
                     ...eventProperties,
-                    customDimensionsCount: fields.length,
+                    [`${type}Count`]: fields.length,
                 },
             });
             return {
