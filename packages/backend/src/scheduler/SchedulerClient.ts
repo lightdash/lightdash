@@ -208,7 +208,6 @@ export class SchedulerClient {
                     },
                 );
 
-                // span.setAttribute('messaging.message.job.id', id);
                 return id;
             },
         );
@@ -269,11 +268,7 @@ export class SchedulerClient {
     ) {
         const graphileClient = await this.graphileUtils;
 
-        const payload: ScheduledDeliveryPayload = schedulerUuid
-            ? {
-                  schedulerUuid,
-              }
-            : scheduler;
+        const payload: ScheduledDeliveryPayload = scheduler;
 
         let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
         if (
