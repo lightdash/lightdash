@@ -314,9 +314,14 @@ const PivotTable: FC<PivotTableProps> = ({
             visibleCells.forEach((cell, cellIndex) => {
                 if (cell.column.columnDef.meta?.type === 'indexValue') {
                     if (cell.column.columnDef.id) {
-                        const fullValue = cell.getValue() as ResultRow[0];
-                        underlyingValues[cell.column.columnDef.id] =
-                            fullValue.value;
+                        const fullValue = cell.getValue() as
+                            | ResultRow[0]
+                            | undefined;
+
+                        if (fullValue) {
+                            underlyingValues[cell.column.columnDef.id] =
+                                fullValue.value;
+                        }
                     }
                 } else if (cell.column.columnDef.meta?.type === 'label') {
                     const info = data.indexValues[rowIndex].find(
