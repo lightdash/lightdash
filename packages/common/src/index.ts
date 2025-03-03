@@ -1145,7 +1145,7 @@ export function itemsInMetricQuery(
           ];
 }
 
-export function formatRawValue(
+function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
     value: AnyType,
 ) {
