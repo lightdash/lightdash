@@ -364,23 +364,21 @@ export class ValidationService extends BaseService {
                         [],
                     );
 
-                    const customMetricFilterErrors =
-                        customMetricsFilters.reduce<CreateChartValidation[]>(
-                            (acc, filter) => {
-                                const fieldId = convertFieldRefToFieldId(
-                                    filter.target.fieldRef,
-                                );
-                                return containsFieldId({
-                                    acc,
-                                    fieldIds: allItemIdsAvailableInChart,
-                                    fieldId,
-                                    error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
-                                    errorType: ValidationErrorType.CustomMetric,
-                                    fieldName: fieldId,
-                                });
-                            },
-                            [],
-                        );
+                    const customMetricFilterErrors = customMetricsFilters
+                        .filter((f) => !!f)
+                        .reduce<CreateChartValidation[]>((acc, filter) => {
+                            const fieldId = convertFieldRefToFieldId(
+                                filter.target.fieldRef,
+                            );
+                            return containsFieldId({
+                                acc,
+                                fieldIds: allItemIdsAvailableInChart,
+                                fieldId,
+                                error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
+                                errorType: ValidationErrorType.CustomMetric,
+                                fieldName: fieldId,
+                            });
+                        }, []);
 
                     const sortErrors = sorts.reduce<CreateChartValidation[]>(
                         (acc, field) =>
