@@ -127,7 +127,6 @@ export default class DbtSchemaEditor {
             .map<YamlColumn>((column) => column.toJSON());
     }
 
-    // TODO: the class should be the one converting the model to YamlModel
     addModel(model: YamlModel): DbtSchemaEditor {
         const models = this.doc.get('models');
         if (!isSeq(models)) {
@@ -140,7 +139,6 @@ export default class DbtSchemaEditor {
         return this;
     }
 
-    // Todo: the class should be the one converting the column to YamlColumn
     addColumn(modelName: string, column: YamlColumn): DbtSchemaEditor {
         const model = this.findModelByName(modelName);
         if (!model) {
