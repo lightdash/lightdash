@@ -312,15 +312,6 @@ export default class DbtSchemaEditor {
         );
     }
 
-    updateColumnDimensionType(
-        modelName: string,
-        columnName: string,
-        type: string,
-    ) {
-        const column = this.getColumnByName(modelName, columnName);
-        column.setIn(['meta', 'dimension', 'type'], type);
-    }
-
     // Returns the updated schema as a string(YAML)
     toString(options?: { quoteChar?: `'` | `"` }): string {
         return this.doc.toString({
