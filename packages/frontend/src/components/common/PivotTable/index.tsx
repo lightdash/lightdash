@@ -167,21 +167,17 @@ const PivotTable: FC<PivotTableProps> = ({
                         aggregatedCell: (info) => {
                             if (info.row.getIsGrouped()) {
                                 // TODO: Deduplicate this with the getDataAndColumns code
-                                const groupedDimensions = info.row.id
-                                    .split('>')
-                                    .map(
-                                        (rowIdParts) =>
-                                            rowIdParts.split(':')[0],
-                                    )
-                                    .filter((d) => d !== undefined);
+                                const groupingDimensions = info.table
+                                    .getState()
+                                    .grouping.slice(0, info.row.depth + 1);
 
-                                if (!groupedDimensions.length) {
+                                if (!groupingDimensions.length) {
                                     return null;
                                 }
 
                                 // Get the grouping values for each of the dimensions in the row
                                 const groupingValues = Object.fromEntries(
-                                    groupedDimensions.map((d) => [
+                                    groupingDimensions.map((d) => [
                                         d,
                                         info.row.getGroupingValue(d) as
                                             | ResultRow[number]
@@ -195,7 +191,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
                                 const subtotalGroupKey =
-                                    getSubtotalKey(groupedDimensions);
+                                    getSubtotalKey(groupingDimensions);
 
                                 // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
                                 const subtotal = data.groupedSubtotals?.[
