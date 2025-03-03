@@ -11,8 +11,6 @@ import {
     friendlyName,
     getErrorMessage,
     GitIntegrationConfiguration,
-    insertCustomDimensionsInModelNodes,
-    insertCustomMetricsInModelNodes,
     isUserWithOrg,
     lightdashDbtYamlSchema,
     ParameterError,
