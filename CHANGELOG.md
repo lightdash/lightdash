@@ -1,3 +1,10 @@
+## [0.1522.4](https://github.com/lightdash/lightdash/compare/0.1522.3...0.1522.4) (2025-03-03)
+
+
+### Bug Fixes
+
+* revert format rows frontend ([#13888](https://github.com/lightdash/lightdash/issues/13888)) ([6cd6eab](https://github.com/lightdash/lightdash/commit/6cd6eaba678eb07a34a741f9a256ff4563dc8b26))
+
 ## [0.1522.3](https://github.com/lightdash/lightdash/compare/0.1522.2...0.1522.3) (2025-03-03)
 
 
