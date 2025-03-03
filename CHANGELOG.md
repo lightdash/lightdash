@@ -1,3 +1,10 @@
+## [0.1522.3](https://github.com/lightdash/lightdash/compare/0.1522.2...0.1522.3) (2025-03-03)
+
+
+### Bug Fixes
+
+* check if custom metric filter exists before validating ([#13873](https://github.com/lightdash/lightdash/issues/13873)) ([bcae72d](https://github.com/lightdash/lightdash/commit/bcae72d4680b60b199b770acfe6a289340fbb415))
+
 ## [0.1522.2](https://github.com/lightdash/lightdash/compare/0.1522.1...0.1522.2) (2025-02-28)
 
 
