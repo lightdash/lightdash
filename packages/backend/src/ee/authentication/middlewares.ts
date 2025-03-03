@@ -18,7 +18,9 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
         // split the token into an array
         const tokenParts = scimToken.split(' ');
         if (tokenParts.length !== 2) {
-            throw new Error('Invalid SCIM token');
+            throw new Error(
+                'Invalid SCIM token. Token should be in the format "Bearer <token>"',
+            );
         }
         // extract the token from the array
         const token = tokenParts[1];
@@ -39,7 +41,7 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
             req.serviceAccount = serviceAccount;
             next();
         } else {
-            throw new Error('Invalid SCIM token');
+            throw new Error('Invalid SCIM token. Authentication failed.');
         }
     } catch (error) {
         next(
