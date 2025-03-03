@@ -41,22 +41,6 @@ describe('GitIntegrationService', () => {
         jest.clearAllMocks();
     });
 
-<<<<<<< HEAD
-    describe('loadYamlSchema', () => {
-        it('should load the yaml schema', async () => {
-            const result = await TestGitIntegrationService.loadYamlSchema(
-                SCHEMA_YML,
-            );
-            expect(result.toJS()).toEqual(SCHEMA_JSON);
-        });
-
-        it('should throw error with invalid yaml schema', async () => {
-            await expect(
-                TestGitIntegrationService.loadYamlSchema(INVALID_SCHEMA_YML),
-            ).rejects.toThrowError(ParseError);
-        });
-    });
-
     describe('updateFile', () => {
         it('should update the file for custom metrics', async () => {
             await service.updateFile({
