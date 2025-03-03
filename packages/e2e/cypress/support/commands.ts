@@ -473,70 +473,61 @@ Cypress.Commands.add(
                 );
 
                 // Execute the drag and drop operation in the browser context
-                cy.window().then((win) => new Cypress.Promise((resolve) => {
-                        // Define the drag and drop function in the browser context
-                        const simulateDragAndDrop = (
-                            dragElement: HTMLElement,
-                            dropElement: HTMLElement,
-                        ) => {
-                            // Get element positions
-                            const dragRect =
-                                dragElement.getBoundingClientRect();
-                            const dropRect =
-                                dropElement.getBoundingClientRect();
+                cy.window().then(
+                    (win) =>
+                        new Cypress.Promise((resolve) => {
+                            // Define the drag and drop function in the browser context
+                            const simulateDragAndDrop = (
+                                dragElement: HTMLElement,
+                                dropElement: HTMLElement,
+                            ) => {
+                                // Get element positions
+                                const dragRect =
+                                    dragElement.getBoundingClientRect();
+                                const dropRect =
+                                    dropElement.getBoundingClientRect();
 
-                            const startPoint = {
-                                x: dragRect.left + dragRect.width / 2,
-                                y: dragRect.top + dragRect.height / 2,
-                            };
+                                const startPoint = {
+                                    x: dragRect.left + dragRect.width / 2,
+                                    y: dragRect.top + dragRect.height / 2,
+                                };
 
-                            const endPoint = {
-                                x: dropRect.left + dropRect.width / 2,
-                                y: dropRect.top + dropRect.height / 2,
-                            };
+                                const endPoint = {
+                                    x: dropRect.left + dropRect.width / 2,
+                                    y: dropRect.top + dropRect.height / 2,
+                                };
 
-                            // 1. Mouse down on the draggable
-                            const mouseDownEvent = new MouseEvent('mousedown', {
-                                bubbles: true,
-                                cancelable: true,
-                                view: win,
-                                clientX: startPoint.x,
-                                clientY: startPoint.y,
-                            });
-                            dragElement.dispatchEvent(mouseDownEvent);
-
-                            // 2. One small mouse move to trigger drag detection
-                            setTimeout(() => {
-                                const mouseMoveStart = new MouseEvent(
-                                    'mousemove',
+                                // 1. Mouse down on the draggable
+                                const mouseDownEvent = new MouseEvent(
+                                    'mousedown',
                                     {
                                         bubbles: true,
                                         cancelable: true,
                                         view: win,
-                                        clientX: startPoint.x + 5,
-                                        clientY: startPoint.y + 5,
+                                        clientX: startPoint.x,
+                                        clientY: startPoint.y,
                                     },
                                 );
-                                win.document.dispatchEvent(mouseMoveStart);
+                                dragElement.dispatchEvent(mouseDownEvent);
 
-                                // 3. Move directly to the drop location
+                                // 2. One small mouse move to trigger drag detection
                                 setTimeout(() => {
-                                    const mouseMoveFinal = new MouseEvent(
+                                    const mouseMoveStart = new MouseEvent(
                                         'mousemove',
                                         {
                                             bubbles: true,
                                             cancelable: true,
                                             view: win,
-                                            clientX: endPoint.x,
-                                            clientY: endPoint.y,
+                                            clientX: startPoint.x + 5,
+                                            clientY: startPoint.y + 5,
                                         },
                                     );
-                                    win.document.dispatchEvent(mouseMoveFinal);
+                                    win.document.dispatchEvent(mouseMoveStart);
 
-                                    // 4. Mouse up at the drop location
+                                    // 3. Move directly to the drop location
                                     setTimeout(() => {
-                                        const mouseUpEvent = new MouseEvent(
-                                            'mouseup',
+                                        const mouseMoveFinal = new MouseEvent(
+                                            'mousemove',
                                             {
                                                 bubbles: true,
                                                 cancelable: true,
@@ -546,18 +537,35 @@ Cypress.Commands.add(
                                             },
                                         );
                                         win.document.dispatchEvent(
-                                            mouseUpEvent,
+                                            mouseMoveFinal,
                                         );
 
-                                        // On complete, allow a little time for React to update the DOM
-                                        setTimeout(resolve, 200);
+                                        // 4. Mouse up at the drop location
+                                        setTimeout(() => {
+                                            const mouseUpEvent = new MouseEvent(
+                                                'mouseup',
+                                                {
+                                                    bubbles: true,
+                                                    cancelable: true,
+                                                    view: win,
+                                                    clientX: endPoint.x,
+                                                    clientY: endPoint.y,
+                                                },
+                                            );
+                                            win.document.dispatchEvent(
+                                                mouseUpEvent,
+                                            );
+
+                                            // On complete, allow a little time for React to update the DOM
+                                            setTimeout(resolve, 200);
+                                        }, 50);
                                     }, 50);
                                 }, 50);
-                            }, 50);
-                        };
+                            };
 
-                        simulateDragAndDrop(draggable, droppable);
-                    }));
+                            simulateDragAndDrop(draggable, droppable);
+                        }),
+                );
 
                 // Check that an element with the draggable ID now exists inside the drop target
                 if (draggableId) {
