@@ -2,10 +2,16 @@ import Ajv from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
 import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
 import { parseAllReferences } from '../../compiler/exploreCompiler';
-import { type CustomSqlDimension } from '../../types/field';
 import lightdashDbtYamlSchema from '../../schemas/json/lightdash-dbt-2.0.json';
+import { type DeepPartial } from '../../types/deepPartial';
 import { ParseError } from '../../types/errors';
+import { type CustomSqlDimension } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
+import {
+    type YamlColumn,
+    type YamlModel,
+    type YamlSchema,
+} from '../../types/yamlSchema';
 import { convertCustomDimensionToDbt } from '../../utils/convertCustomDimensionsToYaml';
 import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml';
 /**
@@ -21,8 +27,9 @@ export default class DbtSchemaEditor {
     constructor(doc: string = '') {
         this.doc = parseDocument(doc);
         const ajvCompiler = new Ajv({ coerceTypes: true });
-        // todo: change generic to YamlSchema once it is moved from backend to common
-        const validate = ajvCompiler.compile<unknown>(lightdashDbtYamlSchema);
+        const validate = ajvCompiler.compile<YamlSchema>(
+            lightdashDbtYamlSchema,
+        );
         const schemaFile: unknown = this.doc.toJS();
         if (schemaFile && !validate(schemaFile)) {
             const errors = betterAjvErrors(
@@ -108,11 +115,13 @@ export default class DbtSchemaEditor {
             // node is not an array
             return undefined;
         }
-        return columns.items.filter(isMap).map((column) => column.toJSON());
+        return columns.items
+            .filter(isMap)
+            .map<YamlColumn>((column) => column.toJSON());
     }
 
-    // Todo: amend type once YamlModel is moved from backend to common
-    addModel(model: unknown): DbtSchemaEditor {
+    // TODO: the class should be the one converting the model to YamlModel
+    addModel(model: YamlModel): DbtSchemaEditor {
         const models = this.doc.get('models');
         if (!isSeq(models)) {
             // create models array
@@ -124,11 +133,8 @@ export default class DbtSchemaEditor {
         return this;
     }
 
-    // Todo: amend type once types are moved from backend to common
-    addColumn(
-        modelName: string,
-        column: { name: string } & Record<string, unknown>,
-    ): DbtSchemaEditor {
+    // Todo: the class should be the one converting the column to YamlColumn
+    addColumn(modelName: string, column: YamlColumn): DbtSchemaEditor {
         const model = this.findModelByName(modelName);
         if (!model) {
             // model not found
@@ -252,7 +258,7 @@ export default class DbtSchemaEditor {
     }: {
         modelName: string;
         columnName: string;
-        properties?: Record<string, unknown>;
+        properties?: DeepPartial<YamlColumn>;
     }) {
         const column = this.getColumnByName(modelName, columnName);
         // Update schema properties recursively if value is an object
