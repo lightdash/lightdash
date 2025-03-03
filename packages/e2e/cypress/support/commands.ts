@@ -90,6 +90,10 @@ declare global {
                 projectUuid: string,
                 body: CreateChartInSpace,
             ): Chainable<SavedChart>;
+            dragAndDrop(
+                dragSelector: string,
+                dropSelector: string,
+            ): Chainable<Element>;
         }
     }
 }
@@ -450,5 +454,130 @@ Cypress.Commands.add(
             cy.log(`Created chart ${body.name} with uuid ${chart.uuid}`);
             cy.wrap(chart);
         });
+    },
+);
+
+Cypress.Commands.add(
+    'dragAndDrop',
+    (dragSelector: string, dropSelector: string) => {
+        cy.get(dragSelector)
+            .should('exist')
+            .get(dropSelector)
+            .should('exist')
+            .then(() => {
+                const draggable = Cypress.$(dragSelector)[0]; // Pick up this
+                const droppable = Cypress.$(dropSelector)[0]; // Drop over this
+
+                const draggableId = draggable.getAttribute(
+                    'data-rfd-drag-handle-draggable-id',
+                );
+
+                // Execute the drag and drop operation in the browser context
+                cy.window().then(
+                    (win) =>
+                        new Cypress.Promise((resolve) => {
+                            // Define the drag and drop function in the browser context
+                            const simulateDragAndDrop = (
+                                dragElement: HTMLElement,
+                                dropElement: HTMLElement,
+                            ) => {
+                                // Get element positions
+                                const dragRect =
+                                    dragElement.getBoundingClientRect();
+                                const dropRect =
+                                    dropElement.getBoundingClientRect();
+
+                                const startPoint = {
+                                    x: dragRect.left + dragRect.width / 2,
+                                    y: dragRect.top + dragRect.height / 2,
+                                };
+
+                                const endPoint = {
+                                    x: dropRect.left + dropRect.width / 2,
+                                    y: dropRect.top + dropRect.height / 2,
+                                };
+
+                                // 1. Mouse down on the draggable
+                                const mouseDownEvent = new MouseEvent(
+                                    'mousedown',
+                                    {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        view: win,
+                                        clientX: startPoint.x,
+                                        clientY: startPoint.y,
+                                    },
+                                );
+                                dragElement.dispatchEvent(mouseDownEvent);
+
+                                // 2. One small mouse move to trigger drag detection
+                                setTimeout(() => {
+                                    const mouseMoveStart = new MouseEvent(
+                                        'mousemove',
+                                        {
+                                            bubbles: true,
+                                            cancelable: true,
+                                            view: win,
+                                            clientX: startPoint.x + 5,
+                                            clientY: startPoint.y + 5,
+                                        },
+                                    );
+                                    win.document.dispatchEvent(mouseMoveStart);
+
+                                    // 3. Move directly to the drop location
+                                    setTimeout(() => {
+                                        const mouseMoveFinal = new MouseEvent(
+                                            'mousemove',
+                                            {
+                                                bubbles: true,
+                                                cancelable: true,
+                                                view: win,
+                                                clientX: endPoint.x,
+                                                clientY: endPoint.y,
+                                            },
+                                        );
+                                        win.document.dispatchEvent(
+                                            mouseMoveFinal,
+                                        );
+
+                                        // 4. Mouse up at the drop location
+                                        setTimeout(() => {
+                                            const mouseUpEvent = new MouseEvent(
+                                                'mouseup',
+                                                {
+                                                    bubbles: true,
+                                                    cancelable: true,
+                                                    view: win,
+                                                    clientX: endPoint.x,
+                                                    clientY: endPoint.y,
+                                                },
+                                            );
+                                            win.document.dispatchEvent(
+                                                mouseUpEvent,
+                                            );
+
+                                            // On complete, allow a little time for React to update the DOM
+                                            setTimeout(resolve, 200);
+                                        }, 50);
+                                    }, 50);
+                                }, 50);
+                            };
+
+                            simulateDragAndDrop(draggable, droppable);
+                        }),
+                );
+
+                // Check that an element with the draggable ID now exists inside the drop target
+                if (draggableId) {
+                    cy.get(dropSelector)
+                        .find(`[data-rfd-draggable-id="${draggableId}"]`)
+                        .should('exist')
+                        .then(() => {
+                            cy.log(
+                                `Successfully moved ${draggableId} to drop target`,
+                            );
+                        });
+                }
+            });
     },
 );
