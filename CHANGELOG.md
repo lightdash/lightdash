@@ -1,3 +1,10 @@
+# [0.1525.0](https://github.com/lightdash/lightdash/compare/0.1524.0...0.1525.0) (2025-03-03)
+
+
+### Features
+
+* **backend:** customSqlDimension write-back ([#13875](https://github.com/lightdash/lightdash/issues/13875)) ([a6bf1d2](https://github.com/lightdash/lightdash/commit/a6bf1d2bc714ab5c4b1ecc4cb64641db06f17f49))
+
 # [0.1524.0](https://github.com/lightdash/lightdash/compare/0.1523.1...0.1524.0) (2025-03-03)
 
 
