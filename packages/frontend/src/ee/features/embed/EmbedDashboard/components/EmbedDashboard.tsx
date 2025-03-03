@@ -208,6 +208,7 @@ const EmbedDashboard: FC<{
                                 onDelete={() => {}}
                                 onEdit={() => {}}
                                 tileIndex={index}
+                                dashboardSlug={dashboard.slug}
                             />
                         ) : tile.type === DashboardTileTypes.LOOM ? (
                             <LoomTile

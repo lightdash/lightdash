@@ -1,3 +1,24 @@
+# [0.1524.0](https://github.com/lightdash/lightdash/compare/0.1523.1...0.1524.0) (2025-03-03)
+
+
+### Features
+
+* preserve YAML formatting and comments on dbt write back ([#13894](https://github.com/lightdash/lightdash/issues/13894)) ([e70570c](https://github.com/lightdash/lightdash/commit/e70570ca1ad10dca78c6b3cebe627ac2a801fbf0))
+
+## [0.1523.1](https://github.com/lightdash/lightdash/compare/0.1523.0...0.1523.1) (2025-03-03)
+
+
+### Bug Fixes
+
+* whitespace handling ([#13772](https://github.com/lightdash/lightdash/issues/13772)) ([e1f72ef](https://github.com/lightdash/lightdash/commit/e1f72efd31e2142abafda2ae90872de5a2f97e4f))
+
+# [0.1523.0](https://github.com/lightdash/lightdash/compare/0.1522.4...0.1523.0) (2025-03-03)
+
+
+### Features
+
+* add a flag to disable telemetry ([#13866](https://github.com/lightdash/lightdash/issues/13866)) ([2326ee5](https://github.com/lightdash/lightdash/commit/2326ee5706fc150d9aab45c9f8d16ba8ff9a4dc4))
+
 ## [0.1522.4](https://github.com/lightdash/lightdash/compare/0.1522.3...0.1522.4) (2025-03-03)
 
 
