@@ -121,24 +121,6 @@ export class GitIntegrationService extends BaseService {
         };
     }
 
-    protected static async loadYamlSchema(
-        content: AnyType,
-    ): Promise<DbtSchemaEditor> {
-        const schemaFile = parse(content);
-        const ajvCompiler = new Ajv({ coerceTypes: true });
-
-        const validate = ajvCompiler.compile<YamlSchema>(
-            lightdashDbtYamlSchema,
-        );
-        if (schemaFile === undefined) {
-            return new DbtSchemaEditor(`version: 2`);
-        }
-        if (!validate(schemaFile)) {
-            throw new ParseError(`Not valid schema ${validate}`);
-        }
-        return new DbtSchemaEditor(content);
-    }
-
     static async createBranch({
         owner,
         repo,
@@ -263,9 +245,7 @@ Affected charts:
             token,
         });
 
-        const yamlSchema = await GitIntegrationService.loadYamlSchema(
-            fileContent,
-        );
+        const yamlSchema = new DbtSchemaEditor(fileContent);
 
         if (!yamlSchema.hasModels()) {
             throw new Error(`No models found in ${fileName}`);

@@ -1,4 +1,3 @@
-import { ParseError } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { updateFile } from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -13,10 +12,8 @@ import {
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
     GITHUB_APP_MODEL,
-    INVALID_SCHEMA_YML,
     PROJECT_MODEL,
     SAVED_CHART_MODEL,
-    SCHEMA_JSON,
     SCHEMA_YML,
     SPACE_MODEL,
 } from './GitIntegrationService.mock';
@@ -28,11 +25,6 @@ jest.mock('../../clients/github/Github.ts', () => ({
     })),
     updateFile: jest.fn().mockImplementation(() => undefined),
 }));
-
-// Mock the GitIntegrationService class and expose protected methods
-class TestGitIntegrationService extends GitIntegrationService {
-    static loadYamlSchema = GitIntegrationService.loadYamlSchema;
-}
 
 describe('GitIntegrationService', () => {
     const service = new GitIntegrationService({
@@ -49,6 +41,7 @@ describe('GitIntegrationService', () => {
         jest.clearAllMocks();
     });
 
+<<<<<<< HEAD
     describe('loadYamlSchema', () => {
         it('should load the yaml schema', async () => {
             const result = await TestGitIntegrationService.loadYamlSchema(

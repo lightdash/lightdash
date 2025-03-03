@@ -1,6 +1,10 @@
+import Ajv from 'ajv';
+import betterAjvErrors from 'better-ajv-errors';
 import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
 import { parseAllReferences } from '../../compiler/exploreCompiler';
 import { type CustomSqlDimension } from '../../types/field';
+import lightdashDbtYamlSchema from '../../schemas/json/lightdash-dbt-2.0.json';
+import { ParseError } from '../../types/errors';
 import { type AdditionalMetric } from '../../types/metricQuery';
 import { convertCustomDimensionToDbt } from '../../utils/convertCustomDimensionsToYaml';
 import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml';
@@ -14,11 +18,24 @@ import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml
 export default class DbtSchemaEditor {
     private readonly doc: Document;
 
-    constructor(doc: string) {
+    constructor(doc: string = '') {
         this.doc = parseDocument(doc);
+        const ajvCompiler = new Ajv({ coerceTypes: true });
+        // todo: change generic to YamlSchema once it is moved from backend to common
+        const validate = ajvCompiler.compile<unknown>(lightdashDbtYamlSchema);
+        const schemaFile: unknown = this.doc.toJS();
+        if (schemaFile && !validate(schemaFile)) {
+            const errors = betterAjvErrors(
+                lightdashDbtYamlSchema,
+                schemaFile,
+                validate.errors || [],
+                { indent: 2 },
+            );
+            throw new ParseError(`Invalid schema file: ${errors}`);
+        }
     }
 
-    private findModelByName(name: string) {
+    findModelByName(name: string) {
         const node = this.doc.get('models');
         if (!isSeq(node)) {
             // node is not an array
@@ -30,7 +47,15 @@ export default class DbtSchemaEditor {
         );
     }
 
-    private findColumnByName(modelName: string, columnName: string) {
+    getModelByName(name: string) {
+        const model = this.findModelByName(name);
+        if (!model) {
+            throw new Error(`Model ${name} not found`);
+        }
+        return model;
+    }
+
+    findColumnByName(modelName: string, columnName: string) {
         const model = this.findModelByName(modelName);
         if (!model) {
             // model not found
@@ -57,9 +82,33 @@ export default class DbtSchemaEditor {
             | undefined;
     }
 
+    getColumnByName(modelName: string, columnName: string) {
+        const column = this.findColumnByName(modelName, columnName);
+        if (!column) {
+            throw new Error(
+                `Column ${columnName} not found in model ${modelName}`,
+            );
+        }
+        return column;
+    }
+
     hasModels() {
         const models = this.doc.get('models');
         return isSeq(models) && models.items.length > 0;
+    }
+
+    getModelColumns(modelName: string) {
+        const model = this.findModelByName(modelName);
+        if (!model) {
+            // model not found
+            return undefined;
+        }
+        const columns = model.getIn(['columns']);
+        if (!isSeq(columns)) {
+            // node is not an array
+            return undefined;
+        }
+        return columns.items.filter(isMap).map((column) => column.toJSON());
     }
 
     // Todo: amend type once YamlModel is moved from backend to common
@@ -72,6 +121,43 @@ export default class DbtSchemaEditor {
             // add model to existing models
             models.items.push(model);
         }
+        return this;
+    }
+
+    // Todo: amend type once types are moved from backend to common
+    addColumn(
+        modelName: string,
+        column: { name: string } & Record<string, unknown>,
+    ): DbtSchemaEditor {
+        const model = this.findModelByName(modelName);
+        if (!model) {
+            // model not found
+            throw new Error(`Model ${modelName} not found`);
+        }
+        if (this.findColumnByName(modelName, column.name)) {
+            throw new Error(
+                `Column ${column.name} already exists in model ${modelName}`,
+            );
+        }
+        model.setIn(['columns'], column);
+        return this;
+    }
+
+    removeColumns(modelName: string, columnNames: string[]): DbtSchemaEditor {
+        const model = this.getModelByName(modelName);
+        const columns = model.getIn(['columns']);
+        if (!isSeq(columns)) {
+            throw new Error(`Model ${modelName} has invalid columns array`);
+        }
+        columnNames.forEach((columnName) => {
+            const index = columns.items.findIndex(
+                (item): item is YAMLMap<unknown, unknown> =>
+                    isMap(item) && item.get('name') === columnName,
+            );
+            if (index !== -1) {
+                model.deleteIn(['columns', index]);
+            }
+        });
         return this;
     }
 
@@ -157,6 +243,44 @@ export default class DbtSchemaEditor {
             additionalDimension,
         );
         return this;
+    }
+
+    updateColumn({
+        modelName,
+        columnName,
+        properties = {},
+    }: {
+        modelName: string;
+        columnName: string;
+        properties?: Record<string, unknown>;
+    }) {
+        const column = this.getColumnByName(modelName, columnName);
+        // Update schema properties recursively if value is an object
+        function applyUpdates(path: string[], value: unknown) {
+            if (typeof value === 'object' && value !== null) {
+                const existingValue = column.getIn(path);
+                if (existingValue && typeof existingValue === 'object') {
+                    Object.entries(value).forEach(([key, val]) =>
+                        applyUpdates([...path, key], val),
+                    );
+                    return;
+                }
+            }
+            column.setIn(path, value);
+        }
+
+        Object.entries(properties).forEach(([key, value]) =>
+            applyUpdates([key], value),
+        );
+    }
+
+    updateColumnDimensionType(
+        modelName: string,
+        columnName: string,
+        type: string,
+    ) {
+        const column = this.getColumnByName(modelName, columnName);
+        column.setIn(['meta', 'dimension', 'type'], type);
     }
 
     // Returns the updated schema as a string(YAML)
