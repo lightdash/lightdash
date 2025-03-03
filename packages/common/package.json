@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1522.2",
+    "version": "0.1524.0",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -33,6 +33,7 @@
         "sanitize-html": "^2.12.1",
         "type-fest": "^4.32.0",
         "uuid": "^11.0.3",
+        "yaml": "^2.7.0",
         "zod": "^3.22.4"
     },
     "scripts": {

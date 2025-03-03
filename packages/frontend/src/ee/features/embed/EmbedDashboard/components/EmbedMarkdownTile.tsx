@@ -1,3 +1,5 @@
+import { mergeExisting } from '@lightdash/common';
+import { produce } from 'immer';
 import { useMemo } from 'react';
 import DashboardMarkdownTile, {
     type Props as MarkdownTileProps,
@@ -5,33 +7,21 @@ import DashboardMarkdownTile, {
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
 export const EmbedMarkdownTile: React.FC<
-    MarkdownTileProps & { tileIndex: number }
-> = ({ tileIndex, ...props }) => {
-    const { t } = useEmbed();
+    MarkdownTileProps & { tileIndex: number; dashboardSlug: string }
+> = ({ tileIndex, dashboardSlug, ...props }) => {
+    const { languageMap } = useEmbed();
 
-    const { properties: tileProperties } = props.tile;
+    const translatedTile = useMemo(() => {
+        if (!languageMap) return props.tile;
 
-    const translatedTile = useMemo(
-        () => ({
-            ...props.tile,
-            properties: {
-                ...props.tile.properties,
-                title:
-                    t(`tiles.${tileIndex}.properties.title`) ??
-                    tileProperties.title,
-                content:
-                    t(`tiles.${tileIndex}.properties.content`) ??
-                    tileProperties.content,
-            },
-        }),
-        [
-            props.tile,
-            tileProperties.title,
-            tileProperties.content,
-            t,
-            tileIndex,
-        ],
-    );
+        return produce(props.tile, (draft) => {
+            draft.properties = mergeExisting(
+                draft.properties,
+                languageMap.dashboard?.[dashboardSlug]?.tiles?.[tileIndex]
+                    .properties,
+            );
+        });
+    }, [props.tile, languageMap, tileIndex, dashboardSlug]);
 
     return <DashboardMarkdownTile {...props} tile={translatedTile} />;
 };

@@ -334,7 +334,6 @@ export type LightdashConfig = {
     contentAsCode: {
         maxDownloads: number;
     };
-    skipBackendFormatting: boolean;
 };
 
 export type SlackConfig = {
@@ -371,8 +370,8 @@ type PylonConfig = {
 };
 
 export type RudderConfig = {
-    writeKey: string;
-    dataPlaneUrl: string;
+    writeKey: string | undefined;
+    dataPlaneUrl: string | undefined;
 };
 
 export type PosthogConfig = {
@@ -589,12 +588,15 @@ export const parseConfig = (): LightdashConfig => {
             : undefined,
         rudder: {
             writeKey:
-                process.env.RUDDERSTACK_WRITE_KEY === undefined
-                    ? '1vqkSlWMVtYOl70rk3QSE0v1fqY'
-                    : process.env.RUDDERSTACK_WRITE_KEY,
+                process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
+                    ? undefined
+                    : process.env.RUDDERSTACK_WRITE_KEY ||
+                      '1vqkSlWMVtYOl70rk3QSE0v1fqY',
             dataPlaneUrl:
-                process.env.RUDDERSTACK_DATA_PLANE_URL ||
-                'https://analytics.lightdash.com',
+                process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
+                    ? undefined
+                    : process.env.RUDDERSTACK_DATA_PLANE_URL ||
+                      'https://analytics.lightdash.com',
         },
         sentry: {
             backend: {
@@ -920,6 +922,5 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
                 100,
         },
-        skipBackendFormatting: process.env.SKIP_BACKEND_FORMATTING === 'true',
     };
 };
