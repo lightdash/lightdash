@@ -72,6 +72,7 @@ describe('GitIntegrationService', () => {
                 customMetrics: [CUSTOM_METRIC],
                 branch: 'branch',
                 token: 'token',
+                quoteChar: `'`,
             });
             expect(updateFile).toHaveBeenCalledTimes(1);
             expect(updateFile).toHaveBeenCalledWith(
