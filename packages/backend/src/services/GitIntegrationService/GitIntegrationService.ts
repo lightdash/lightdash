@@ -5,8 +5,8 @@ import {
     ApiGithubDbtWritePreview,
     DbtModelNode,
     DbtProjectType,
+    DbtSchemaEditor,
     DimensionType,
-    findAndUpdateModelNodes,
     ForbiddenError,
     friendlyName,
     getErrorMessage,
@@ -24,8 +24,8 @@ import {
     VizColumn,
 } from '@lightdash/common';
 import Ajv from 'ajv';
-import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
+import { parse } from 'yaml';
 import {
     LightdashAnalytics,
     WriteBackEvent,
@@ -144,23 +144,22 @@ export class GitIntegrationService extends BaseService {
         };
     }
 
-    private static async loadYamlSchema(content: AnyType): Promise<YamlSchema> {
-        const schemaFile = yaml.load(content);
-
+    protected static async loadYamlSchema(
+        content: AnyType,
+    ): Promise<DbtSchemaEditor> {
+        const schemaFile = parse(content);
         const ajvCompiler = new Ajv({ coerceTypes: true });
 
         const validate = ajvCompiler.compile<YamlSchema>(
             lightdashDbtYamlSchema,
         );
         if (schemaFile === undefined) {
-            return {
-                version: 2,
-            };
+            return new DbtSchemaEditor(`version: 2`);
         }
         if (!validate(schemaFile)) {
             throw new ParseError(`Not valid schema ${validate}`);
         }
-        return schemaFile;
+        return new DbtSchemaEditor(content);
     }
 
     static async createBranch({
@@ -291,8 +290,9 @@ Affected charts:
             fileContent,
         );
 
-        if (!yamlSchema.models)
-            throw new Error(`Models not found ${yamlSchema}`);
+        if (!yamlSchema.hasModels()) {
+            throw new Error(`No models found in ${fileName}`);
+        }
 
         return { yamlSchema, fileName, fileContent, fileSha };
     }
@@ -338,17 +338,16 @@ Affected charts:
                         token,
                         projectUuid,
                     });
-                const updatedModels = findAndUpdateModelNodes(
-                    yamlSchema.models!,
-                    customMetricsForTable,
-                );
 
-                const updatedYml = yaml.dump(
-                    { ...yamlSchema, models: updatedModels },
-                    {
-                        quotingType: quoteChar,
-                    },
-                );
+                if (!yamlSchema.hasModels()) {
+                    throw new Error(`No models found in ${fileName}`);
+                }
+
+                const updatedYml = yamlSchema
+                    .addCustomMetrics(customMetricsForTable)
+                    .toString({
+                        quoteChar,
+                    });
 
                 const fileUpdated = await updateFile({
                     owner,
@@ -606,29 +605,23 @@ ${sql}
         );
         await checkFileDoesNotExist({ ...githubProps, path: fileName });
 
-        const content = yaml.dump(
-            {
-                version: 2,
-                models: [
-                    {
-                        name: snakeCaseName(name),
-                        label: friendlyName(name),
-                        description: `SQL model for ${friendlyName(name)}`,
-                        columns: columns.map((c) => ({
-                            name: c.reference,
-                            meta: {
-                                dimension: {
-                                    type: c.type,
-                                },
-                            },
-                        })),
+        const content = new DbtSchemaEditor(`version: 2`)
+            .addModel({
+                name: snakeCaseName(name),
+                label: friendlyName(name),
+                description: `SQL model for ${friendlyName(name)}`,
+                columns: columns.map((c) => ({
+                    name: c.reference,
+                    meta: {
+                        dimension: {
+                            type: c.type,
+                        },
                     },
-                ],
-            },
-            {
-                quotingType: githubProps.quoteChar,
-            },
-        );
+                })),
+            })
+            .toString({
+                quoteChar: githubProps.quoteChar,
+            });
 
         return createFile({
             ...githubProps,
