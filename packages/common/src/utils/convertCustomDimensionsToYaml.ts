@@ -55,8 +55,9 @@ function updateModelColumns(
                     additional_dimensions: dimensions.reduce<
                         Record<string, DbtColumnLightdashDimension>
                     >((acc, dimension) => {
-                        acc[dimension.name] =
+                        const dbtDimension =
                             convertCustomDimensionToDbt(dimension);
+                        acc[dbtDimension.name!] = dbtDimension;
                         return acc;
                     }, {}),
                 },
