@@ -23,6 +23,7 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     VizColumn,
+    YamlModel,
     YamlSchema,
 } from '@lightdash/common';
 import Ajv from 'ajv';
@@ -337,17 +338,17 @@ Affected charts:
               fields: AdditionalMetric[];
           }
     )): Promise<void> {
-        const itemName =
-            type === 'customDimensions'
-                ? 'custom dimensions'
-                : 'custom metrics';
+        const fieldsType =
+            type === 'customDimensions' ? 'custom dimension' : 'custom metric';
 
         if (fields === undefined || fields?.length === 0)
-            throw new Error(`No custom ${itemName}s found`);
+            throw new Error(`No custom ${fieldsType}s found`);
         const tables = [...new Set(fields.map((item) => item.table))];
 
         for (const table of tables) {
-            const itemsForTable = fields.filter((item) => item.table === table);
+            const fieldsForTable = fields.filter(
+                (item) => item.table === table,
+            );
             const { yamlSchema, fileName, fileSha } =
                 await this.getYamlForTable({
                     table,
@@ -358,16 +359,20 @@ Affected charts:
                     token,
                     projectUuid,
                 });
-            const updatedModels =
-                type === 'customDimensions'
-                    ? insertCustomDimensionsInModelNodes(
-                          yamlSchema.models!,
-                          itemsForTable as CustomSqlDimension[],
-                      )
-                    : insertCustomMetricsInModelNodes(
-                          yamlSchema.models!,
-                          itemsForTable as AdditionalMetric[],
-                      );
+            let updatedModels: YamlModel[];
+            if (type === 'customDimensions') {
+                updatedModels = insertCustomDimensionsInModelNodes(
+                    yamlSchema.models!,
+                    fieldsForTable as CustomSqlDimension[],
+                );
+            } else if (type === 'customMetrics') {
+                updatedModels = insertCustomMetricsInModelNodes(
+                    yamlSchema.models!,
+                    fieldsForTable as AdditionalMetric[],
+                );
+            } else {
+                throw new ParameterError(`Unknown type: ${type}`);
+            }
 
             const updatedYml = yaml.dump(
                 { ...yamlSchema, models: updatedModels },
@@ -384,7 +389,7 @@ Affected charts:
                 fileSha,
                 branchName: branch,
                 token,
-                message: `Updated file ${fileName} with ${itemsForTable?.length} custom ${itemName} from table ${table}`,
+                message: `Updated file ${fileName} with ${fieldsForTable?.length} custom ${fieldsType} from table ${table}`,
             });
             Logger.debug(
                 `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
