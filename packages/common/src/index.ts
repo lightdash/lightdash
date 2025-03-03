@@ -1180,24 +1180,6 @@ export function formatRows(
     });
 }
 
-export function rowsWithoutFormatting(rows: { [col: string]: AnyType }[]) {
-    return rows.map((row) => {
-        const resultRow: ResultRow = {};
-        const columnNames = Object.keys(row || {});
-
-        for (const columnName of columnNames) {
-            const value = row[columnName];
-            resultRow[columnName] = {
-                value: {
-                    raw: value,
-                    formatted: null,
-                },
-            };
-        }
-        return resultRow;
-    });
-}
-
 const isObject = (object: AnyType) =>
     object != null && typeof object === 'object';
 export const removeEmptyProperties = (object: Record<string, AnyType>) => {

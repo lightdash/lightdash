@@ -9,7 +9,6 @@ import {
     getAxisName,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
-    getFormattedWithFallback,
     getItemLabelWithoutTableName,
     getItemType,
     getResultValueArray,
@@ -829,7 +828,7 @@ const getLongestLabel = ({
     return (
         axisId &&
         resultsData?.rows
-            .map((row) => getFormattedWithFallback(row[axisId]?.value))
+            .map((row) => row[axisId]?.value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',

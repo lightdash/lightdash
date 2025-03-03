@@ -334,7 +334,6 @@ export type LightdashConfig = {
     contentAsCode: {
         maxDownloads: number;
     };
-    skipBackendFormatting: boolean;
 };
 
 export type SlackConfig = {
@@ -920,6 +919,5 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
                 100,
         },
-        skipBackendFormatting: process.env.SKIP_BACKEND_FORMATTING === 'true',
     };
 };
