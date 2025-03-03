@@ -1,3 +1,10 @@
+## [0.1523.1](https://github.com/lightdash/lightdash/compare/0.1523.0...0.1523.1) (2025-03-03)
+
+
+### Bug Fixes
+
+* whitespace handling ([#13772](https://github.com/lightdash/lightdash/issues/13772)) ([e1f72ef](https://github.com/lightdash/lightdash/commit/e1f72efd31e2142abafda2ae90872de5a2f97e4f))
+
 # [0.1523.0](https://github.com/lightdash/lightdash/compare/0.1522.4...0.1523.0) (2025-03-03)
 
 
