@@ -3,7 +3,7 @@ import betterAjvErrors from 'better-ajv-errors';
 import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
 import { parseAllReferences } from '../../compiler/exploreCompiler';
 import lightdashDbtYamlSchema from '../../schemas/json/lightdash-dbt-2.0.json';
-import { type DeepPartial } from '../../types/deepPartial';
+import { type DeepPartialNullable } from '../../types/deepPartial';
 import { ParseError } from '../../types/errors';
 import { type CustomSqlDimension } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
@@ -251,6 +251,22 @@ export default class DbtSchemaEditor {
         return this;
     }
 
+    /**
+     * Update column properties(deep) in the schema.
+     * Null values can be used to remove properties.
+     * Undefined values are ignored.
+     * Usage:
+     * editor.updateColumn({
+     *  modelName: 'my_model',
+     *  columnName: 'my_column',
+     *  properties: {
+     *    description: 'new description',
+     *    meta: {
+     *      type: 'string',
+     *      label: null, // remove label
+     *    }
+     *  }
+     */
     updateColumn({
         modelName,
         columnName,
@@ -258,11 +274,14 @@ export default class DbtSchemaEditor {
     }: {
         modelName: string;
         columnName: string;
-        properties?: DeepPartial<YamlColumn>;
+        properties?: DeepPartialNullable<YamlColumn>;
     }) {
         const column = this.getColumnByName(modelName, columnName);
         // Update schema properties recursively if value is an object
         function applyUpdates(path: string[], value: unknown) {
+            if (value === undefined) {
+                return;
+            }
             if (typeof value === 'object' && value !== null) {
                 const existingValue = column.getIn(path);
                 if (existingValue && typeof existingValue === 'object') {
