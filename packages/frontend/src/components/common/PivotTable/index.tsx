@@ -4,7 +4,6 @@ import {
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     getItemId,
-    getSubtotalKey,
     isDimension,
     isField,
     isNumericItem,
@@ -31,6 +30,10 @@ import isEqual from 'lodash/isEqual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
 import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    getGroupingValuesAndSubtotalKey,
+    getSubtotalValueFromGroup,
+} from '../../../hooks/tableVisualization/getDataAndColumns';
 import { formatCellContent } from '../../../hooks/useColumns';
 import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs/utils';
@@ -166,32 +169,19 @@ const PivotTable: FC<PivotTableProps> = ({
                         },
                         aggregatedCell: (info) => {
                             if (info.row.getIsGrouped()) {
-                                // TODO: Deduplicate this with the getDataAndColumns code
-                                const groupingDimensions = info.table
-                                    .getState()
-                                    .grouping.slice(0, info.row.depth + 1);
+                                const groupingValuesAndSubtotalKey =
+                                    getGroupingValuesAndSubtotalKey(info);
 
-                                if (!groupingDimensions.length) {
+                                if (!groupingValuesAndSubtotalKey) {
                                     return null;
                                 }
 
-                                // Get the grouping values for each of the dimensions in the row
-                                const groupingValues = Object.fromEntries(
-                                    groupingDimensions.map((d) => [
-                                        d,
-                                        info.row.getGroupingValue(d) as
-                                            | ResultRow[number]
-                                            | undefined,
-                                    ]),
-                                );
+                                const { groupingValues, subtotalGroupKey } =
+                                    groupingValuesAndSubtotalKey;
 
                                 // Get the pivoted header values for the column
                                 const pivotedHeaderValues =
                                     finalHeaderInfoForColumns[colIndex];
-
-                                // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
-                                const subtotalGroupKey =
-                                    getSubtotalKey(groupingDimensions);
 
                                 // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
                                 const subtotal = data.groupedSubtotals?.[
@@ -219,23 +209,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                     );
                                 });
 
-                                const subtotalColumnIds = Object.keys(
-                                    subtotal ?? {},
+                                const subtotalValue = getSubtotalValueFromGroup(
+                                    subtotal,
+                                    col.baseId ?? col.fieldId,
                                 );
 
-                                // If the subtotal column is not in the subtotalsGroup, return null
-                                // This is needed to prevent showing '-' when processing a value for the last grouped dimension which is not taken into account for subtotals
-                                // This column only exists when we're expanding the last grouped dimension
-                                if (
-                                    !subtotalColumnIds.includes(
-                                        col.baseId ?? col.fieldId,
-                                    )
-                                ) {
+                                if (subtotalValue === null) {
                                     return null;
                                 }
-
-                                const subtotalValue =
-                                    subtotal?.[col.baseId ?? col.fieldId];
 
                                 return (
                                     <Text span fw={600}>

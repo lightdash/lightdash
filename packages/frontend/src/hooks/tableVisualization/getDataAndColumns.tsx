@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { getSubtotalKey } from '@lightdash/common/src/utils/subtotals';
 import { Text } from '@mantine/core';
+import type { CellContext } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -32,6 +33,47 @@ type Args = {
     totals?: Record<string, number>;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
+
+export function getGroupingValuesAndSubtotalKey(
+    info: CellContext<ResultRow, ResultRow[string]>,
+) {
+    const groupingDimensions = info.table
+        .getState()
+        .grouping.slice(0, info.row.depth + 1);
+
+    if (!groupingDimensions.length) {
+        return;
+    }
+
+    // Get the grouping values for each of the dimensions in the row
+    const groupingValues = Object.fromEntries(
+        groupingDimensions.map((d) => [
+            d,
+            info.row.getGroupingValue(d) as ResultRow[number] | undefined,
+        ]),
+    );
+
+    // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
+    const subtotalGroupKey = getSubtotalKey(groupingDimensions);
+
+    return { groupingValues, subtotalGroupKey };
+}
+
+export function getSubtotalValueFromGroup(
+    subtotal: Record<string, number> | undefined,
+    columnId: string,
+) {
+    const subtotalColumnIds = Object.keys(subtotal ?? {});
+
+    // If the subtotal column is not in the subtotalsGroup, return null
+    // This is needed to prevent showing '-' when processing a value for the last grouped dimension column which is not taken into account for subtotals
+    // This column only exists when we're expanding the last grouped dimension
+    if (!subtotalColumnIds.includes(columnId)) {
+        return null;
+    }
+
+    return subtotal?.[columnId];
+}
 
 const getDataAndColumns = ({
     itemsMap,
@@ -114,29 +156,16 @@ const getDataAndColumns = ({
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
                     aggregatedCell: (info) => {
-                        // TODO: Deduplicate this with the pivotTable code
                         if (info.row.getIsGrouped()) {
-                            const groupingDimensions = info.table
-                                .getState()
-                                .grouping.slice(0, info.row.depth + 1);
+                            const groupingValuesAndSubtotalKey =
+                                getGroupingValuesAndSubtotalKey(info);
 
-                            if (!groupingDimensions.length) {
+                            if (!groupingValuesAndSubtotalKey) {
                                 return null;
                             }
 
-                            // Get the grouping values for each of the dimensions in the row
-                            const groupingValues = Object.fromEntries(
-                                groupingDimensions.map((d) => [
-                                    d,
-                                    info.row.getGroupingValue(d) as
-                                        | ResultRow[number]
-                                        | undefined,
-                                ]),
-                            );
-
-                            // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
-                            const subtotalGroupKey =
-                                getSubtotalKey(groupingDimensions);
+                            const { groupingValues, subtotalGroupKey } =
+                                groupingValuesAndSubtotalKey;
 
                             // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
                             const subtotal = groupedSubtotals?.[
@@ -152,18 +181,14 @@ const getDataAndColumns = ({
                                 );
                             });
 
-                            const subtotalColumnIds = Object.keys(
-                                subtotal ?? {},
+                            const subtotalValue = getSubtotalValueFromGroup(
+                                subtotal,
+                                info.column.id,
                             );
 
-                            // If the subtotal column is not in the subtotalsGroup, return null
-                            // This is needed to prevent showing '-' when processing a value for the last grouped dimension column which is not taken into account for subtotals
-                            // This column only exists when we're expanding the last grouped dimension
-                            if (!subtotalColumnIds.includes(info.column.id)) {
+                            if (subtotalValue === null) {
                                 return null;
                             }
-
-                            const subtotalValue = subtotal?.[info.column.id];
 
                             return (
                                 <Text span fw={600}>
