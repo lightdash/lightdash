@@ -1,6 +1,5 @@
 import {
     getCustomLabelsFromTableConfig,
-    getFormattedWithFallback,
     getHiddenTableFields,
     getItemMap,
     isField,
@@ -63,7 +62,7 @@ const pivotResultsAsCsv = (
         (acc, row, i) => {
             const values = row.map((header) =>
                 'value' in header
-                    ? getFormattedWithFallback(header.value)
+                    ? header.value.formatted
                     : getFieldLabel(header.fieldId),
             );
             const fields = pivotedResults.titleFields[i];
