@@ -46,10 +46,6 @@ export enum JobPriority {
     LOW = 2, // Background jobs (scheduled deliveries, sheets sync)
 }
 
-type ReplaceCustomFieldsTaskType = 'replaceCustomFields';
-export const ReplaceCustomFieldsTask: ReplaceCustomFieldsTaskType =
-    'replaceCustomFields';
-
 export enum ThresholdOperator {
     GREATER_THAN = 'greaterThan',
     LESS_THAN = 'lessThan',

@@ -157,8 +157,6 @@ export const isSemanticLayerTimeDimension = (
 
 // Semantic Layer Scheduler Job
 
-export const semanticLayerQueryJob = 'semanticLayer';
-
 export type SemanticLayerJobStatusSuccessDetails = {
     fileUrl: string;
     columns: string[];

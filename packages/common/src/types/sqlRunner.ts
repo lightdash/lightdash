@@ -54,9 +54,6 @@ export type SqlRunnerPivotQueryBody = SqlRunnerBody &
 
 export type SqlRunnerResults = RawResultRow[];
 
-export const sqlRunnerJob = 'sqlRunner';
-export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
-
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
     columns: VizColumn[];

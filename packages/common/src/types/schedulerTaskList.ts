@@ -1,7 +1,4 @@
-import {
-    indexCatalogJob,
-    type SchedulerIndexCatalogJobPayload,
-} from './catalog';
+import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
 import {
     type CompileProjectPayload,
@@ -9,21 +6,15 @@ import {
     type EmailNotificationPayload,
     type GsheetsNotificationPayload,
     type ReplaceCustomFieldsPayload,
-    ReplaceCustomFieldsTask,
     type ScheduledDeliveryPayload,
     type SchedulerCreateProjectWithCompilePayload,
     type SlackNotificationPayload,
     type TraceTaskBase,
     type ValidateProjectPayload,
 } from './scheduler';
+import { type SemanticLayerQueryPayload } from './semanticLayer';
 import {
-    semanticLayerQueryJob,
-    type SemanticLayerQueryPayload,
-} from './semanticLayer';
-import {
-    sqlRunnerJob,
     type SqlRunnerPayload,
-    sqlRunnerPivotQueryJob,
     type SqlRunnerPivotQueryPayload,
 } from './sqlRunner';
 
@@ -38,11 +29,11 @@ export const SCHEDULER_TASKS = {
     COMPILE_PROJECT: 'compileProject',
     CREATE_PROJECT_WITH_COMPILE: 'createProjectWithCompile',
     TEST_AND_COMPILE_PROJECT: 'testAndCompileProject',
-    SEMANTIC_LAYER_QUERY: semanticLayerQueryJob,
-    SQL_RUNNER: sqlRunnerJob,
-    SQL_RUNNER_PIVOT_QUERY: sqlRunnerPivotQueryJob,
-    REPLACE_CUSTOM_FIELDS: ReplaceCustomFieldsTask,
-    INDEX_CATALOG: indexCatalogJob,
+    SEMANTIC_LAYER_QUERY: 'semanticLayer',
+    SQL_RUNNER: 'sqlRunner',
+    SQL_RUNNER_PIVOT_QUERY: 'sqlRunnerPivotQuery',
+    REPLACE_CUSTOM_FIELDS: 'replaceCustomFields',
+    INDEX_CATALOG: 'indexCatalog',
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
 } as const;
 
@@ -67,12 +58,4 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: ReplaceCustomFieldsPayload;
     [SCHEDULER_TASKS.INDEX_CATALOG]: SchedulerIndexCatalogJobPayload;
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
-}
-
-export function isValidTaskName(
-    taskName: string,
-): taskName is SchedulerTaskName {
-    return Object.values(SCHEDULER_TASKS).includes(
-        taskName as SchedulerTaskName,
-    );
 }
