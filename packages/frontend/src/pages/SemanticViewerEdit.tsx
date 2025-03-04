@@ -103,15 +103,6 @@ const SemanticViewerEditorPageWithStore = () => {
             ? [chartQuery.data.space.userAccess]
             : [];
 
-    const canManageSemanticViewer = user.data?.ability?.can(
-        'manage',
-        subject('SemanticViewer', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-            access: savedChartSpaceUserAccess,
-        }),
-    );
-
     const canSaveChart = user.data?.ability?.can(
         'create',
         subject('SavedChart', {
@@ -223,11 +214,7 @@ const SemanticViewerEditorPageWithStore = () => {
             noContentPadding
             withSidebarBorder
             noSidebarPadding
-            sidebar={
-                <SemanticViewer.Sidebar
-                    shouldShowSave={canManageSemanticViewer && canSaveChart}
-                />
-            }
+            sidebar={<SemanticViewer.Sidebar shouldShowSave={canSaveChart} />}
         >
             <SemanticViewer.Content />
         </Page>

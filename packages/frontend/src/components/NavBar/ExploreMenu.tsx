@@ -93,7 +93,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             semanticLayerInfoQuery.isSuccess &&
                             semanticLayerInfoQuery.data !== null && (
                                 <Can
-                                    I="manage"
+                                    I="view"
                                     this={subject('SemanticViewer', {
                                         organizationUuid:
                                             user.data?.organizationUuid,
