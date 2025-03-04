@@ -1,3 +1,10 @@
+## [0.1526.1](https://github.com/lightdash/lightdash/compare/0.1526.0...0.1526.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* force github login on project form ([#13914](https://github.com/lightdash/lightdash/issues/13914)) ([f3f6b8b](https://github.com/lightdash/lightdash/commit/f3f6b8bf48f398ddf4018e5b9150eb1858369ff9))
+
 # [0.1526.0](https://github.com/lightdash/lightdash/compare/0.1525.1...0.1526.0) (2025-03-04)
 
 
