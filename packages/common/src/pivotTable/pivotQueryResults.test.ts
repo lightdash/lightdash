@@ -586,6 +586,7 @@ describe('Should pivot data', () => {
             rowTotals: true,
         };
         const expected = {
+            groupedSubtotals: undefined,
             headerValueTypes: [{ type: 'dimension', fieldId: 'site' }],
             headerValues: [
                 [
