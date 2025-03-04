@@ -2,7 +2,6 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
-    AnyType,
     ApiGithubDbtWritePreview,
     CustomSqlDimension,
     DbtProjectType,
@@ -12,7 +11,6 @@ import {
     getErrorMessage,
     GitIntegrationConfiguration,
     isUserWithOrg,
-    lightdashDbtYamlSchema,
     ParameterError,
     ParseError,
     PullRequestCreated,
@@ -22,11 +20,8 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     VizColumn,
-    YamlSchema,
 } from '@lightdash/common';
-import Ajv from 'ajv';
 import { nanoid } from 'nanoid';
-import { parse } from 'yaml';
 import {
     LightdashAnalytics,
     WriteBackEvent,
@@ -590,8 +585,10 @@ ${sql}
         const content = new DbtSchemaEditor(`version: 2`)
             .addModel({
                 name: snakeCaseName(name),
-                label: friendlyName(name),
                 description: `SQL model for ${friendlyName(name)}`,
+                meta: {
+                    label: friendlyName(name),
+                },
                 columns: columns.map((c) => ({
                     name: c.reference,
                     meta: {

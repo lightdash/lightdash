@@ -135,8 +135,10 @@ models:
 
 export const NEW_MODEL = {
     name: 'new_model',
-    label: 'New model',
     description: `SQL model for testing`,
+    meta: {
+        label: 'New model',
+    },
     columns: [
         {
             name: 'new_column',
@@ -155,8 +157,9 @@ export const EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL = {
 
 export const EXPECTED_SCHEMA_YML_WITH_NEW_MODEL = `models:
   - name: new_model
-    label: New model
     description: SQL model for testing
+    meta:
+      label: New model
     columns:
       - name: new_column
         meta:
