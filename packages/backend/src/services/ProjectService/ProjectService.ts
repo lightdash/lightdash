@@ -5028,17 +5028,27 @@ export class ProjectService extends BaseService {
         };
 
         const subtotalsPromises = dimensionGroupsToSubtotal.map(
-            async (subtotalDimensions) => [
-                getSubtotalKey(subtotalDimensions),
-                await runQueryAndFormatRaw({
-                    ...metricQuery,
-                    dimensions: [
-                        ...subtotalDimensions,
-                        ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
-                    ],
-                    sorts: [],
-                }),
-            ],
+            async (subtotalDimensions) => {
+                let subtotals: Record<string, unknown>[] = [];
+
+                try {
+                    subtotals = await runQueryAndFormatRaw({
+                        ...metricQuery,
+                        dimensions: [
+                            ...subtotalDimensions,
+                            ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
+                        ],
+                    });
+                } catch (e) {
+                    this.logger.error(
+                        `Error running subtotal query for dimensions ${subtotalDimensions.join(
+                            ',',
+                        )}`,
+                    );
+                }
+
+                return [getSubtotalKey(subtotalDimensions), subtotals];
+            },
         );
 
         const subtotalsEntries = await Promise.all(subtotalsPromises);
