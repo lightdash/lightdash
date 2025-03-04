@@ -1166,8 +1166,8 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0
       '@types/snowflake-sdk':
-        specifier: ^1.6.20
-        version: 1.6.20
+        specifier: ^1.6.24
+        version: 1.6.24
       '@types/ssh2':
         specifier: ^1.11.15
         version: 1.11.15
@@ -4616,8 +4616,8 @@ packages:
   '@types/sizzle@2.3.3':
     resolution: {integrity: sha512-JYM8x9EGF163bEyhdJBpR2QX1R5naCJHC8ucJylJ3w9/CVBaskdQ8WqBf8MmQrd1kRvp/a4TS8HJ+bxzR7ZJYQ==}
 
-  '@types/snowflake-sdk@1.6.20':
-    resolution: {integrity: sha512-Dr7oIXrWthlk9wVWpZgpm49BT8cFFXz43u7SkJKyiZK3WHiHQo4b+m2/p3WIpkYzZCcOZZ/t1B09XMd7+u1Wjw==}
+  '@types/snowflake-sdk@1.6.24':
+    resolution: {integrity: sha512-CgRp971LQJr970YSySCeIoNfX/29s9ZUnwhVjl8uL62kC7UoTNdNRwwyGCQ7Ca/fECRu8nK47pZpw8xmVWDn9Q==}
 
   '@types/ssh2@1.11.15':
     resolution: {integrity: sha512-QFPpT9Gamh+oOKWH6uDUxe8izo8NaCJaN5HdYcbCIiS3hs7fB65KAfyGWBVXaXxXLj7IhFam5Q/ZxQ4eIPc/1Q==}
@@ -17444,7 +17444,7 @@ snapshots:
 
   '@types/sizzle@2.3.3': {}
 
-  '@types/snowflake-sdk@1.6.20':
+  '@types/snowflake-sdk@1.6.24':
     dependencies:
       '@types/node': 22.13.1
       generic-pool: 3.9.0
