@@ -86,10 +86,15 @@ export class GdriveService extends BaseService {
             );
         }
 
+        const { organizationUuid } = await this.projectService.getProject(
+            gsheetOptions.projectUuid,
+            user,
+        );
+
         const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
             userUuid: user.userUuid,
-            organizationUuid: user.organizationUuid,
+            organizationUuid,
         };
 
         const { jobId } = await this.schedulerClient.uploadGsheetFromQueryJob(

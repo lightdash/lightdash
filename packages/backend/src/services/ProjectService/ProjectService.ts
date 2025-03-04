@@ -578,6 +578,9 @@ export class ProjectService extends BaseService {
 
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
@@ -585,6 +588,7 @@ export class ProjectService extends BaseService {
         return this.schedulerClient.indexCatalog({
             projectUuid,
             userUuid,
+            organizationUuid,
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,
             prevMetricTreeEdges,
@@ -731,6 +735,8 @@ export class ProjectService extends BaseService {
             requestMethod: method,
             jobUuid: job.jobUuid,
             data: encryptedData,
+            userUuid: user.userUuid,
+            projectUuid: undefined,
         });
         return { jobUuid: job.jobUuid };
     }
@@ -891,7 +897,7 @@ export class ProjectService extends BaseService {
             userUuid: user.userUuid,
             projectUuid,
             context: 'cli',
-            organizationUuid: user.organizationUuid,
+            organizationUuid,
         });
     }
 
@@ -949,6 +955,7 @@ export class ProjectService extends BaseService {
                 requestMethod: method,
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
+                userUuid: user.userUuid,
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -3277,6 +3284,7 @@ export class ProjectService extends BaseService {
             requestMethod,
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
+            userUuid: user.userUuid,
         });
 
         return { jobUuid: job.jobUuid };

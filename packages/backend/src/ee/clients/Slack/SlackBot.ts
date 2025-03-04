@@ -258,6 +258,10 @@ export class CommercialSlackBot extends SlackBot {
 
                             await this.schedulerClient.slackAiPrompt({
                                 slackPromptUuid,
+                                userUuid,
+                                projectUuid: prevSlackPrompt.projectUuid,
+                                organizationUuid:
+                                    prevSlackPrompt.organizationUuid,
                             });
                         }
                     }
@@ -359,6 +363,9 @@ export class CommercialSlackBot extends SlackBot {
 
         await this.schedulerClient.slackAiPrompt({
             slackPromptUuid,
+            userUuid,
+            projectUuid: '', // TODO: add project uuid
+            organizationUuid,
         });
     }
 }

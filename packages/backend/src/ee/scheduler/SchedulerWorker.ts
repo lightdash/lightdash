@@ -1,7 +1,8 @@
 import { AnyType, SlackPromptJobPayload } from '@lightdash/common';
-import { JobHelpers, TaskList } from 'graphile-worker';
+import { JobHelpers } from 'graphile-worker';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
 import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
+import { TypedTask, TypedTaskList } from '../../scheduler/types';
 import { AiService } from '../services/AiService/AiService';
 
 type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
@@ -16,10 +17,12 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiService = args.aiService;
     }
 
-    protected getTaskList(): TaskList {
+    protected getTaskList(): TypedTaskList & {
+        aiPrompt: TypedTask<SlackPromptJobPayload>;
+    } {
         return {
             ...super.getTaskList(),
-            aiPrompt: async (payload: AnyType, helpers: JobHelpers) => {
+            aiPrompt: async (payload, helpers) => {
                 await this.aiPrompt(
                     helpers.job.id,
                     helpers.job.run_at,
