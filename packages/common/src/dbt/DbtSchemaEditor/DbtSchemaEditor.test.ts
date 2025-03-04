@@ -2,8 +2,9 @@ import { ParseError } from '../../types/errors';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
     CUSTOM_METRIC,
+    CUSTOM_SQL_DIMENSION,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
-    EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
+    EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
     EXPECTED_SCHEMA_YML_WITH_NEW_MODEL,
     INVALID_SCHEMA_YML,
     NEW_MODEL,
@@ -26,14 +27,15 @@ describe('DbtSchemaEditor', () => {
         );
     });
 
-    it('should update the file for custom metrics', () => {
+    it('should update a model with custom metrics and custom dimensions', () => {
         const editor = new DbtSchemaEditor(SCHEMA_YML);
         // confirms it has models
         expect(editor.hasModels()).toEqual(true);
         // adds custom metrics
         editor.addCustomMetrics([CUSTOM_METRIC]);
+        editor.addCustomDimensions([CUSTOM_SQL_DIMENSION]);
         expect(editor.toString()).toEqual(
-            EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
+            EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
         );
     });
 

@@ -242,23 +242,17 @@ export default class DbtSchemaEditor {
         const additionalDimension =
             convertCustomDimensionToDbt(customDimension);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        const index = model
-            .getIn(['columns'])
-            // @ts-expect-error
-            ?.items.findIndex(
-                // @ts-expect-error
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-                (item) => item.get('name') === firstRefFromSameTable,
+        const column = this.findColumnByName(
+            customDimension.table,
+            firstRefFromSameTable,
+        );
+        if (!column) {
+            throw new Error(
+                `Column ${firstRefFromSameTable} not found in model ${customDimension.table}`,
             );
-
-        model.setIn(
-            [
-                'columns',
-                index,
-                'additional_dimensions',
-                additionalDimension.name,
-            ],
+        }
+        column.setIn(
+            ['meta', 'additional_dimensions', additionalDimension.name],
             additionalDimension,
         );
         return this;

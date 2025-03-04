@@ -1,5 +1,10 @@
 // Mock schema file with comments, different multi-line strings, different types of quotes, different types of arrays
-import { DimensionType, MetricType } from '../../types/field';
+import {
+    CustomDimensionType,
+    type CustomSqlDimension,
+    DimensionType,
+    MetricType,
+} from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
 
 export const SCHEMA_YML = `# comment at the top
@@ -96,7 +101,17 @@ export const CUSTOM_METRIC: AdditionalMetric = {
     baseDimensionName: 'dim_a',
 };
 
-export const EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC = `# comment at the top
+export const CUSTOM_SQL_DIMENSION: CustomSqlDimension = {
+    id: 'id',
+    name: 'sql_dimension',
+    table: 'table_a',
+    type: CustomDimensionType.SQL,
+    sql: '${table_a.dim_a} || "suffix"',
+    dimensionType: DimensionType.STRING,
+};
+
+// eslint-disable-next-line no-useless-escape
+export const EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS = `# comment at the top
 version: 2
 models:
   - name: table_a
@@ -119,6 +134,13 @@ models:
               description: description
               type: average
               format: "#,##0.000"
+          additional_dimensions:
+            id:
+              label: Sql dimension
+              name: id
+              description: ""
+              type: string
+              sql: \${table_a.dim_a} || "suffix"
   - name: table_b
     description: >-
       # Description This table has basic information
