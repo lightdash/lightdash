@@ -19,9 +19,12 @@ describe('Custom dimensions', () => {
 
         cy.findByText('Create').click();
 
-        // Select metric
-        cy.findByText('Orders').click();
-        cy.findByText('Total order amount').click();
+        cy.get('.mantine-ScrollArea-root').within(() => {
+            // Select metric
+            cy.findByText('Orders').click();
+            // Select metric
+            cy.findByText('Total order amount').click();
+        });
         cy.get('button').contains('Run query').click();
 
         // Check valid results
@@ -60,8 +63,10 @@ describe('Custom dimensions', () => {
         cy.contains('Number').click();
         cy.findByText('Create').click();
 
-        // Select metric
-        cy.findByText('Total revenue').click();
+        cy.get('.mantine-ScrollArea-root').within(() => {
+            // Select metric
+            cy.findByText('Total revenue').click();
+        });
         cy.get('button').contains('Run query').click();
 
         // Show SQL
@@ -94,8 +99,10 @@ describe('Custom dimensions', () => {
         // Defaults to string
         cy.findByText('Create').click();
 
-        // Select metric
-        cy.findByText('Total revenue').click();
+        cy.get('.mantine-ScrollArea-root').within(() => {
+            // Select metric
+            cy.findByText('Total revenue').click();
+        });
         cy.get('button').contains('Run query').click();
 
         // Check results
@@ -133,16 +140,18 @@ describe('Custom dimensions', () => {
 
         // Create custom metric
         cy.get('.tabler-icon-dots').click();
-        cy.findByText('Max').click();
-        cy.findByText('Create').click();
+        cy.findByRole('menuitem', { name: 'Max' }).click();
+        cy.findByRole('button', { name: 'Create' }).click();
 
-        // Deselect custom metric
-        cy.findByText('discounted amount').click();
-        // Select dimension
-        cy.findByText('Payment method').click();
+        cy.get('.mantine-ScrollArea-root').within(() => {
+            // Select dimension
+            cy.findByText('Payment method').click();
+            // Select metric
+            cy.findByText('Total revenue').click();
+            // Deselect custom dimension
+            cy.findByText('discounted amount').click();
+        });
 
-        // Select metric
-        cy.findByText('Total revenue').click();
         cy.get('button').contains('Run query').click();
 
         // Check results
