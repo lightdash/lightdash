@@ -1,6 +1,7 @@
 import {
     DbtDoc,
     DbtModelNode,
+    DbtSchemaEditor,
     DimensionType,
     ParseError,
     patchPathParts,
@@ -11,7 +12,7 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { YamlSchema, searchForModel } from './schema';
+import { searchForModel } from './schema';
 
 type CompiledModel = {
     name: string;
@@ -149,7 +150,7 @@ export const findAndUpdateModelYaml = async ({
     projectName,
     assumeYes,
 }: FindAndUpdateModelYamlArgs): Promise<{
-    updatedYml: YamlSchema;
+    updatedYml: DbtSchemaEditor;
     outputFilePath: string;
 }> => {
     const generatedModel = generateModelYml({
@@ -194,29 +195,20 @@ export const findAndUpdateModelYaml = async ({
         filenames,
     });
     if (match) {
+        const { schemaEditor } = match;
         const docsNames = Object.values(docs).map((doc) => doc.name);
-        const existingModel = match.doc.models[match.modelIndex];
-        const existingColumns = existingModel.columns || [];
+        const existingColumns = schemaEditor.getModelColumns(model.name) ?? [];
+        const existingColumnNames = existingColumns.map((c) => c.name);
 
-        const existingColumnsUpdated = [];
+        // Update existing columns description and dimension type
         for (const column of existingColumns) {
             const hasDoc = docsNames.includes(column.name);
             const newDescription = hasDoc ? `{{doc('${column.name}')}}` : '';
             const existingDescription = column.description;
             const existingDimensionType = column.meta?.dimension?.type;
-            const dimensionType =
-                existingDimensionType ||
-                (table[column.name] as DimensionType | undefined);
-            let { meta } = column;
-            if (includeMeta && dimensionType) {
-                meta = {
-                    ...(meta || {}),
-                    dimension: {
-                        ...(meta?.dimension || {}),
-                        type: dimensionType,
-                    },
-                };
-            }
+            const dimensionType = table[column.name] as
+                | DimensionType
+                | undefined;
 
             // eslint-disable-next-line no-await-in-loop
             const description = await askOverwriteDescription(
@@ -226,22 +218,40 @@ export const findAndUpdateModelYaml = async ({
                 assumeYes,
             );
 
-            existingColumnsUpdated.push({
-                ...column,
-                name: column.name,
-                description,
-                ...(meta !== undefined ? { meta } : {}),
+            // Update meta if dimension type is different
+            const meta =
+                includeMeta &&
+                dimensionType &&
+                existingDimensionType !== dimensionType
+                    ? {
+                          dimension: {
+                              type: dimensionType,
+                          },
+                      }
+                    : undefined;
+
+            schemaEditor.updateColumn({
+                modelName: model.name,
+                columnName: column.name,
+                properties: {
+                    description,
+                    meta,
+                },
             });
         }
 
-        const existingColumnNames = existingColumns.map((c) => c.name);
+        // Add columns that don't exist in the model
         const newColumns = generatedModel.columns.filter(
             (c) => !existingColumnNames.includes(c.name),
         );
+        newColumns.forEach((column) => {
+            schemaEditor.addColumn(model.name, column);
+        });
+
+        // Delete columns that no longer exist in the warehouse
         const deletedColumnNames = existingColumnNames.filter(
             (c) => !generatedModel.columns.map((gc) => gc.name).includes(c),
         );
-        let updatedColumns = [...existingColumnsUpdated, ...newColumns];
         if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
             let answers = { isConfirm: assumeYes };
 
@@ -268,35 +278,18 @@ export const findAndUpdateModelYaml = async ({
             }
 
             if (answers.isConfirm) {
-                updatedColumns = updatedColumns.filter(
-                    (column) => !deletedColumnNames.includes(column.name),
-                );
+                schemaEditor.removeColumns(model.name, deletedColumnNames);
             }
         }
-        const updatedModel = {
-            ...existingModel,
-            columns: updatedColumns,
-        };
-        const updatedYml: YamlSchema = {
-            ...match.doc,
-            models: [
-                ...match.doc.models.slice(0, match.modelIndex),
-                updatedModel,
-                ...match.doc.models.slice(match.modelIndex + 1),
-            ],
-        };
+
         return {
-            updatedYml,
+            updatedYml: schemaEditor,
             outputFilePath: match.filename,
         };
     }
-    const updatedYml = {
-        version: 2 as const,
-        models: [generatedModel],
-    };
 
     return {
-        updatedYml,
+        updatedYml: new DbtSchemaEditor().addModel(generatedModel),
         outputFilePath,
     };
 };

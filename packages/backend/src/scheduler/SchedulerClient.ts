@@ -458,9 +458,22 @@ export class SchedulerClient {
             );
 
             Logger.info(
-                `Creating ${promises.length} scheduled delivery jobs for scheduler ${scheduler.schedulerUuid}`,
+                `Creating ${
+                    promises.length
+                } scheduled delivery jobs for scheduler ${
+                    scheduler.schedulerUuid
+                }. Cron: ${scheduler.cron} Timezone: ${
+                    scheduler.timezone || defaultTimezone
+                } Since: ${startingDateTime || '(now)'}`,
             );
             const jobs = await Promise.all(promises);
+            Logger.info(
+                `Created ${
+                    promises.length
+                } scheduled delivery jobs for scheduler ${
+                    scheduler.schedulerUuid
+                }. Job IDs: ${jobs.map((j) => j.jobId)}`,
+            );
             jobs.map(async ({ jobId, date }) => {
                 await this.schedulerModel.logSchedulerJob({
                     task: 'handleScheduledDelivery',

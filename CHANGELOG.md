@@ -1,3 +1,29 @@
+## [0.1526.1](https://github.com/lightdash/lightdash/compare/0.1526.0...0.1526.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* force github login on project form ([#13914](https://github.com/lightdash/lightdash/issues/13914)) ([f3f6b8b](https://github.com/lightdash/lightdash/commit/f3f6b8bf48f398ddf4018e5b9150eb1858369ff9))
+
+# [0.1526.0](https://github.com/lightdash/lightdash/compare/0.1525.1...0.1526.0) (2025-03-04)
+
+
+### Bug Fixes
+
+* CLI login ([#13915](https://github.com/lightdash/lightdash/issues/13915)) ([be9002c](https://github.com/lightdash/lightdash/commit/be9002cb941436c167dffcc00c900250cdb2442b))
+
+
+### Features
+
+* preserve YAML formatting and comments when running `lightdash generate` command ([#13901](https://github.com/lightdash/lightdash/issues/13901)) ([c9c5043](https://github.com/lightdash/lightdash/commit/c9c5043817c81d79334cc825018deb0ab0eb2ece))
+
+## [0.1525.1](https://github.com/lightdash/lightdash/compare/0.1525.0...0.1525.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* fix dynamic height virtual table ([#13904](https://github.com/lightdash/lightdash/issues/13904)) ([d6d932f](https://github.com/lightdash/lightdash/commit/d6d932f068e30631bb3ef2625dade80532a891ee))
+
 # [0.1525.0](https://github.com/lightdash/lightdash/compare/0.1524.0...0.1525.0) (2025-03-03)
 
 

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.1525.0",
+    "version": "0.1526.1",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -14,14 +14,13 @@
         "lodash": "^4.17.21",
         "pg": "^8.13.1",
         "pg-cursor": "^2.10.0",
-        "snowflake-sdk": "~2.0.0",
+        "snowflake-sdk": "~2.0.2",
         "ssh2": "^1.14.0",
         "trino-client": "0.2.6"
     },
     "devDependencies": {
         "@types/pg": "^8.11.10",
         "@types/pg-cursor": "^2.7.0",
-        "@types/snowflake-sdk": "^1.6.20",
         "@types/ssh2": "^1.11.15",
         "copyfiles": "^2.4.1"
     },

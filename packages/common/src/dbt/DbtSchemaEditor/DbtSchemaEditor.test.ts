@@ -1,9 +1,11 @@
+import { ParseError } from '../../types/errors';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
     CUSTOM_METRIC,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
     EXPECTED_SCHEMA_YML_WITH_NEW_MODEL,
+    INVALID_SCHEMA_YML,
     NEW_MODEL,
     SCHEMA_JSON,
     SCHEMA_YML,
@@ -16,6 +18,12 @@ describe('DbtSchemaEditor', () => {
         expect(editor.toJS()).toEqual(SCHEMA_JSON);
         // can convert back to string
         expect(editor.toString()).toEqual(SCHEMA_YML);
+    });
+
+    it('should throw error with invalid yaml schema', () => {
+        expect(() => new DbtSchemaEditor(INVALID_SCHEMA_YML)).toThrowError(
+            ParseError,
+        );
     });
 
     it('should update the file for custom metrics', () => {
