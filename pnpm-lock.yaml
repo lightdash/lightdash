@@ -1165,9 +1165,6 @@ importers:
       '@types/pg-cursor':
         specifier: ^2.7.0
         version: 2.7.0
-      '@types/snowflake-sdk':
-        specifier: ^1.6.24
-        version: 1.6.24
       '@types/ssh2':
         specifier: ^1.11.15
         version: 1.11.15
@@ -4616,9 +4613,6 @@ packages:
   '@types/sizzle@2.3.3':
     resolution: {integrity: sha512-JYM8x9EGF163bEyhdJBpR2QX1R5naCJHC8ucJylJ3w9/CVBaskdQ8WqBf8MmQrd1kRvp/a4TS8HJ+bxzR7ZJYQ==}
 
-  '@types/snowflake-sdk@1.6.24':
-    resolution: {integrity: sha512-CgRp971LQJr970YSySCeIoNfX/29s9ZUnwhVjl8uL62kC7UoTNdNRwwyGCQ7Ca/fECRu8nK47pZpw8xmVWDn9Q==}
-
   '@types/ssh2@1.11.15':
     resolution: {integrity: sha512-QFPpT9Gamh+oOKWH6uDUxe8izo8NaCJaN5HdYcbCIiS3hs7fB65KAfyGWBVXaXxXLj7IhFam5Q/ZxQ4eIPc/1Q==}
 
@@ -4998,7 +4992,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -17443,11 +17436,6 @@ snapshots:
   '@types/sinonjs__fake-timers@8.1.1': {}
 
   '@types/sizzle@2.3.3': {}
-
-  '@types/snowflake-sdk@1.6.24':
-    dependencies:
-      '@types/node': 22.13.1
-      generic-pool: 3.9.0
 
   '@types/ssh2@1.11.15':
     dependencies:

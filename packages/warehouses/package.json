@@ -21,7 +21,6 @@
     "devDependencies": {
         "@types/pg": "^8.11.10",
         "@types/pg-cursor": "^2.7.0",
-        "@types/snowflake-sdk": "^1.6.24",
         "@types/ssh2": "^1.11.15",
         "copyfiles": "^2.4.1"
     },
