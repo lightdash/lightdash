@@ -2038,6 +2038,7 @@ export class ProjectService extends BaseService {
                                     ),
                                 'runWarehouseQuery',
                                 this.logger,
+                                context,
                             );
                         } catch (e) {
                             this.logger.warn(
