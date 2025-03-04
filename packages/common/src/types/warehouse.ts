@@ -47,6 +47,19 @@ export type WarehouseResults = {
     rows: Record<string, AnyType>[];
 };
 
+export type WarehousePaginateQueryArgs =
+    | ({ sql: string } | { queryId: string }) & {
+          page: number;
+          pageSize: number;
+          tags: Record<string, string>;
+          timezone?: string;
+          values?: AnyType[];
+      };
+
+export type WarehousePaginatedResults = WarehouseResults & {
+    queryId: string;
+};
+
 export interface WarehouseClient {
     credentials: CreateWarehouseCredentials;
     getCatalog: (
@@ -66,6 +79,10 @@ export interface WarehouseClient {
             timezone?: string;
         },
     ): Promise<void>;
+
+    getPaginatedResults(
+        args: WarehousePaginateQueryArgs,
+    ): Promise<WarehousePaginatedResults>;
 
     /**
      * Runs a query and returns all the results

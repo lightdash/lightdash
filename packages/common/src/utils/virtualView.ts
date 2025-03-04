@@ -91,6 +91,11 @@ export const createTemporaryVirtualView = (
         },
         getCatalog: async () => ({}),
         streamQuery: async () => {},
+        getPaginatedResults: async () => ({
+            fields: {},
+            rows: [],
+            queryId: '',
+        }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},
         getStartOfWeek: () => WeekDay.MONDAY,

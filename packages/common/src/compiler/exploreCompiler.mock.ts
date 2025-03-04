@@ -38,6 +38,7 @@ export const warehouseClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    getPaginatedResults: async () => ({ rows: [], fields: {}, queryId: '' }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
