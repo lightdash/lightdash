@@ -1,3 +1,17 @@
+## [0.1527.1](https://github.com/lightdash/lightdash/compare/0.1527.0...0.1527.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* newlines in cells issue with react removeChild ([#13922](https://github.com/lightdash/lightdash/issues/13922)) ([dbd5cf7](https://github.com/lightdash/lightdash/commit/dbd5cf7e7abef0672836cfec434896fef4ba0ffe))
+
+# [0.1527.0](https://github.com/lightdash/lightdash/compare/0.1526.1...0.1527.0) (2025-03-04)
+
+
+### Features
+
+* calculate subtotals in the backend ([#13847](https://github.com/lightdash/lightdash/issues/13847)) ([ee7d1f3](https://github.com/lightdash/lightdash/commit/ee7d1f3cfa93799fc59eb376522097a0eda40806))
+
 ## [0.1526.1](https://github.com/lightdash/lightdash/compare/0.1526.0...0.1526.1) (2025-03-04)
 
 

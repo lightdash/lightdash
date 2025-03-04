@@ -1,7 +1,7 @@
 import {
-    FieldType,
     convertFormattedValue,
     getItemLabel,
+    isCustomDimension,
     isDimension,
     isField,
     isFilterableItem,
@@ -27,6 +27,7 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -179,9 +180,7 @@ const useTableConfig = (
 
         return columnOrder.filter((fieldId) => {
             const item = itemsMap[fieldId];
-            return item && isField(item)
-                ? item.fieldType === FieldType.DIMENSION
-                : false;
+            return item && (isDimension(item) || isCustomDimension(item));
         });
     }, [columnOrder, itemsMap]);
 
@@ -219,6 +218,15 @@ const useTableConfig = (
                       tableChartConfig?.showColumnCalculation,
               },
     );
+
+    const { data: groupedSubtotals } = useCalculateSubtotals({
+        metricQuery: resultsData?.metricQuery,
+        explore: resultsData?.metricQuery.exploreName,
+        showSubtotals,
+        columnOrder,
+        pivotDimensions,
+    });
+
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
         columns: Array<TableColumn | TableHeader>;
@@ -248,6 +256,7 @@ const useTableConfig = (
             isColumnFrozen,
             columnOrder,
             totals: totalCalculations,
+            groupedSubtotals,
         });
     }, [
         columnOrder,
@@ -260,6 +269,7 @@ const useTableConfig = (
         isColumnFrozen,
         getFieldLabelOverride,
         totalCalculations,
+        groupedSubtotals,
     ]);
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{
@@ -334,6 +344,7 @@ const useTableConfig = (
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
+                groupedSubtotals,
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,
                 },
@@ -367,6 +378,7 @@ const useTableConfig = (
         tableChartConfig?.showRowCalculation,
         worker,
         pivotTableMaxColumnLimit,
+        groupedSubtotals,
     ]);
 
     // Remove columnProperties from map if the column has been removed from results
@@ -517,6 +529,7 @@ const useTableConfig = (
         setMetricsAsRows,
         isPivotTableEnabled,
         canUseSubtotals,
+        groupedSubtotals,
     };
 };
 

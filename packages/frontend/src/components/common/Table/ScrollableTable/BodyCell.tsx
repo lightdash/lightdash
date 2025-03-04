@@ -1,4 +1,4 @@
-import { type RawResultRow, type ResultRow } from '@lightdash/common';
+import { isField, type RawResultRow, type ResultRow } from '@lightdash/common';
 import { getHotkeyHandler, useClipboard, useDisclosure } from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -8,7 +8,6 @@ import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
-import RichBodyCell from './RichBodyCell';
 
 interface CommonBodyCellProps {
     cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
@@ -51,6 +50,8 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 
     const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
+    const item = cell.column.columnDef.meta?.item;
+    const hasUrls = isField(item) ? item.urls && item.urls.length > 0 : false;
 
     const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
     const shouldRenderTooltip =
@@ -108,9 +109,15 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 onMouseEnter={canHaveTooltip ? openTooltip : undefined}
                 onMouseLeave={canHaveTooltip ? closeTooltip : undefined}
             >
-                <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
+                <span
+                    style={{
+                        textDecoration: hasUrls ? 'underline' : 'none',
+                        textDecorationStyle: 'dotted',
+                        whiteSpace: 'pre-line',
+                    }}
+                >
                     {children}
-                </RichBodyCell>
+                </span>
             </Td>
 
             {shouldRenderMenu ? (

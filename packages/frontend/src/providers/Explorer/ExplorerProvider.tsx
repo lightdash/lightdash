@@ -193,6 +193,10 @@ function reducer(
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     tableName: action.payload,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        exploreName: action.payload,
+                    },
                 },
             };
         }
