@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
-import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -16,7 +15,6 @@ import {
     getCompiledModels,
     getWarehouseTableForModel,
 } from '../dbt/models';
-import { getFileHeadComments } from '../dbt/schema';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { CompileHandlerOptions } from './compile';
@@ -138,13 +136,6 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     }
                 }
 
-                const existingHeadComments = await getFileHeadComments(
-                    outputFilePath,
-                );
-                const ymlString = yaml.dump(updatedYml, {
-                    quotingType: '"',
-                });
-
                 const outputDirPath = path.dirname(outputFilePath);
                 // Create a directory if it doesn't exist
                 try {
@@ -155,9 +146,9 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
 
                 await fs.writeFile(
                     outputFilePath,
-                    existingHeadComments
-                        ? `${existingHeadComments}\n${ymlString}`
-                        : ymlString,
+                    updatedYml.toString({
+                        quoteChar: '"',
+                    }),
                 );
             } catch (e) {
                 const msg = getErrorMessage(e);

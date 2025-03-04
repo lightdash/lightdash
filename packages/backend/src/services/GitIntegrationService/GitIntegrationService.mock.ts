@@ -48,59 +48,6 @@ models:
               type: sum
 `;
 
-export const SCHEMA_JSON = {
-    version: 2,
-    models: [
-        {
-            name: 'table_a',
-            description: '# Description\nThis table has basic information\n',
-            columns: [
-                {
-                    name: 'dim_a',
-                    tests: ['unique', 'not_null'],
-                    meta: {
-                        metrics: {
-                            metric_a: {
-                                type: 'count_distinct',
-                            },
-                            metric_b: {
-                                type: 'sum',
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            name: 'table_b',
-            description: '# Description This table has basic information',
-            columns: [
-                {
-                    name: 'dim_a',
-                    tests: ['unique', 'not_null'],
-                    meta: {
-                        metrics: {
-                            metric_a: {
-                                type: 'count_distinct',
-                            },
-                            metric_b: {
-                                type: 'sum',
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-    ],
-};
-
-// invalid schema: models require a `name` field
-export const INVALID_SCHEMA_YML = `
-version: 2
-models:
- - label: table_a
-`;
-
 export const CUSTOM_METRIC: AdditionalMetric = {
     name: 'new_metric',
     description: 'description',
