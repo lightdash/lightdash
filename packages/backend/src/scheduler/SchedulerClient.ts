@@ -263,9 +263,22 @@ export class SchedulerClient {
     async addScheduledDeliveryJob(
         date: Date,
         scheduler: ScheduledDeliveryPayload,
-        schedulerUuid: string | undefined,
+        schedulerUuid: string | undefined, // This detects if a scheduled delivery is to be sent "now"
     ) {
         const graphileClient = await this.graphileUtils;
+
+        const traceProperties: TraceTaskBase = {
+            organizationUuid: scheduler.organizationUuid,
+            projectUuid: scheduler.projectUuid,
+            userUuid: scheduler.userUuid,
+        };
+
+        const payload: ScheduledDeliveryPayload = schedulerUuid
+            ? {
+                  schedulerUuid,
+                  ...traceProperties,
+              }
+            : scheduler;
 
         let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
         if (
@@ -279,7 +292,7 @@ export class SchedulerClient {
         const id = await SchedulerClient.addJob(
             graphileClient,
             SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
-            scheduler,
+            payload,
             date,
             JobPriority.LOW,
             maxAttempts,
