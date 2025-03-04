@@ -9,7 +9,11 @@ import {
     WarehouseResults,
     WeekDay,
 } from '@lightdash/common';
-import { WarehouseClient } from '../types';
+import {
+    type WarehouseClient,
+    type WarehousePaginateQueryArgs,
+    type WarehousePaginatedResults,
+} from '../types';
 import { getDefaultMetricSql } from '../utils/sql';
 
 export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
@@ -51,6 +55,12 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             timezone?: string;
         },
     ): Promise<void> {
+        throw new Error('Warehouse method not implemented.');
+    }
+
+    async getPaginatedResults(
+        args: WarehousePaginateQueryArgs,
+    ): Promise<WarehousePaginatedResults> {
         throw new Error('Warehouse method not implemented.');
     }
 

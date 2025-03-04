@@ -19,10 +19,16 @@ import {
     ConnectionOptions,
     createConnection,
     SnowflakeError,
+    type FileAndStageBindStatement,
+    type RowStatement,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
-import { WarehouseCatalog } from '../types';
+import {
+    WarehouseCatalog,
+    type WarehousePaginatedResults,
+    type WarehousePaginateQueryArgs,
+} from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 const assertIsSnowflakeLoggingLevel = (
@@ -191,6 +197,136 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         };
     }
 
+    private async getConnection(
+        connectionOptionsOverrides?: Partial<ConnectionOptions>,
+    ) {
+        let connection: Connection;
+        try {
+            connection = createConnection({
+                ...this.connectionOptions,
+                ...connectionOptionsOverrides,
+            });
+            await Util.promisify(connection.connect.bind(connection))();
+        } catch (e: unknown) {
+            throw new WarehouseConnectionError(
+                `Snowflake error: ${getErrorMessage(e)}`,
+            );
+        }
+        return connection;
+    }
+
+    private async prepareWarehouse(
+        connection: Connection,
+        options?: {
+            timezone?: string;
+            tags?: Record<string, string>;
+        },
+    ) {
+        if (this.connectionOptions.warehouse) {
+            // eslint-disable-next-line no-console
+            console.debug(
+                `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
+            );
+            await this.executeStatement(
+                connection,
+                `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
+            );
+        }
+        if (isWeekDay(this.startOfWeek)) {
+            const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
+            await this.executeStatement(
+                connection,
+                `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
+            );
+        }
+        if (options?.tags) {
+            await this.executeStatement(
+                connection,
+                `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(
+                    options?.tags,
+                )}';`,
+            );
+        }
+        const timezoneQuery = options?.timezone || 'UTC';
+        console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
+        await this.executeStatement(
+            connection,
+            `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
+        );
+
+        /**
+         * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
+         * between Snowflake <> Lightdash
+         */
+        console.debug(
+            'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
+        );
+        await this.executeStatement(
+            connection,
+            `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
+        );
+    }
+
+    async getPaginatedResults({
+        timezone,
+        tags,
+        ...queryArgs
+    }: WarehousePaginateQueryArgs): Promise<WarehousePaginatedResults> {
+        const connection = await this.getConnection();
+        let sql: string = '';
+
+        try {
+            await this.prepareWarehouse(connection, {
+                timezone,
+                tags,
+            });
+
+            const start = (queryArgs.page - 1) * queryArgs.pageSize;
+            const end = start + queryArgs.pageSize;
+
+            let currentQueryId: string;
+
+            if ('sql' in queryArgs) {
+                currentQueryId = await this.executeAsyncStatement(
+                    connection,
+                    queryArgs.sql,
+                );
+            } else if ('queryId' in queryArgs) {
+                currentQueryId = queryArgs.queryId;
+            } else {
+                throw new WarehouseQueryError('Invalid query');
+            }
+
+            const { rows, fields, sqlText } =
+                await this.getAsyncStatementResults(
+                    connection,
+                    currentQueryId,
+                    start,
+                    end,
+                );
+
+            sql = sqlText;
+
+            return {
+                fields,
+                rows,
+                queryId: currentQueryId,
+            };
+        } catch (e) {
+            const error = e as SnowflakeError;
+            throw this.parseError(error, sql);
+        } finally {
+            await new Promise((resolve, reject) => {
+                connection.destroy((err, conn) => {
+                    if (err) {
+                        reject(new WarehouseConnectionError(err.message));
+                    }
+                    resolve(conn);
+                });
+            });
+        }
+    }
+
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
@@ -200,62 +336,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             timezone?: string;
         },
     ): Promise<void> {
-        let connection: Connection;
-        try {
-            connection = createConnection(this.connectionOptions);
-            await Util.promisify(connection.connect.bind(connection))();
-        } catch (e: unknown) {
-            throw new WarehouseConnectionError(
-                `Snowflake error: ${getErrorMessage(e)}`,
-            );
-        }
-        try {
-            if (this.connectionOptions.warehouse) {
-                // eslint-disable-next-line no-console
-                console.debug(
-                    `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
-                );
-                await this.executeStatement(
-                    connection,
-                    `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
-                );
-            }
-            if (isWeekDay(this.startOfWeek)) {
-                const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
-                await this.executeStatement(
-                    connection,
-                    `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
-                );
-            }
-            if (options?.tags) {
-                await this.executeStatement(
-                    connection,
-                    `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(
-                        options?.tags,
-                    )}';`,
-                );
-            }
-            const timezoneQuery = options?.timezone || 'UTC';
-            console.debug(
-                `Setting Snowflake session timezone to ${timezoneQuery}`,
-            );
-            await this.executeStatement(
-                connection,
-                `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
-            );
+        const connection = await this.getConnection();
 
-            /**
-             * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
-             * between Snowflake <> Lightdash
-             */
-            console.debug(
-                'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
-            );
-            await this.executeStatement(
-                connection,
-                `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
-            );
-
+        try {
+            await this.prepareWarehouse(connection, options);
             await this.executeStreamStatement(
                 connection,
                 sql,
@@ -277,6 +361,87 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
     }
 
+    private getFieldsFromStatement(
+        stmt: RowStatement | FileAndStageBindStatement,
+    ) {
+        const columns = stmt.getColumns();
+        return columns
+            ? columns.reduce(
+                  (acc, column) => ({
+                      ...acc,
+                      [column.getName()]: {
+                          type: mapFieldType(column.getType().toUpperCase()),
+                      },
+                  }),
+                  {},
+              )
+            : {};
+    }
+
+    private async executeAsyncStatement(
+        connection: Connection,
+        sql: string,
+        options?: {
+            values?: AnyType[];
+        },
+    ) {
+        return new Promise<string>((resolve, reject) => {
+            connection.execute({
+                sqlText: sql,
+                binds: options?.values,
+                asyncExec: true,
+                complete: (err, stmt) => {
+                    if (err) {
+                        reject(err);
+                    }
+
+                    resolve(stmt.getQueryId());
+                },
+            });
+        });
+    }
+
+    private async getAsyncStatementResults(
+        connection: Connection,
+        queryId: string,
+        start: number,
+        end: number,
+    ): Promise<{
+        fields: Record<string, { type: DimensionType }>;
+        rows: Record<string, AnyType>[];
+        sqlText: string;
+    }> {
+        const statement = await connection.getResultsFromQueryId({
+            sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
+            queryId,
+        });
+
+        const fields = this.getFieldsFromStatement(statement);
+
+        // only consume at most the last 5 rows in the result
+        const rows: Record<string, AnyType>[] = [];
+        statement
+            .streamRows({
+                start,
+                end,
+            })
+            .on('error', (err) => {
+                console.error('Unable to consume requested rows');
+            })
+            .on('data', (row) => {
+                rows.push(parseRow(row));
+            })
+            .on('end', () => {
+                console.log(`Number of rows consumed: ${rows.length}`);
+            });
+
+        return {
+            fields,
+            rows,
+            sqlText: statement.getSqlText(),
+        };
+    }
+
     private async executeStreamStatement(
         connection: Connection,
         sqlText: string,
@@ -295,20 +460,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(err);
                     }
 
-                    const columns = stmt.getColumns();
-                    const fields = columns
-                        ? columns.reduce(
-                              (acc, column) => ({
-                                  ...acc,
-                                  [column.getName()]: {
-                                      type: mapFieldType(
-                                          column.getType().toUpperCase(),
-                                      ),
-                                  },
-                              }),
-                              {},
-                          )
-                        : {};
+                    const fields = this.getFieldsFromStatement(stmt);
 
                     pipeline(
                         stmt.streamRows(),
@@ -380,20 +532,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         schema: string,
         table: string,
     ) {
-        let connection: Connection;
         const sqlText = `SHOW COLUMNS IN TABLE ${table}`;
-        try {
-            connection = createConnection({
-                ...this.connectionOptions,
-                schema,
-                database,
-            });
-            await Util.promisify(connection.connect.bind(connection))();
-        } catch (e: unknown) {
-            throw new WarehouseConnectionError(
-                `Snowflake error: ${getErrorMessage(e)}`,
-            );
-        }
+        const connection = await this.getConnection({
+            schema,
+            database,
+        });
+
         try {
             return await this.executeStatement(connection, sqlText);
         } catch (e) {
