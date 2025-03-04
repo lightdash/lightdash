@@ -212,7 +212,15 @@ const TableRow: FC<TableRowProps> = ({
         </Tr>
     );
 };
-
+const getMaxRowHeight = (row: Row<ResultRow>) => {
+    return row.getVisibleCells().reduce((acc, cell) => {
+        const lines = (
+            cell.getValue() as ResultRow[0] | undefined
+        )?.value?.formatted?.split('\n');
+        if (!lines) return acc;
+        return Math.max(acc, lines?.length * ROW_HEIGHT_PX);
+    }, ROW_HEIGHT_PX);
+};
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ tableContainerRef }) => {
@@ -223,7 +231,14 @@ const VirtualizedTableBody: FC<{
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
-        estimateSize: () => ROW_HEIGHT_PX,
+        estimateSize: (index) => {
+            try {
+                return getMaxRowHeight(rows[index]);
+            } catch (e) {
+                console.error('Error getting row height', e);
+                return ROW_HEIGHT_PX;
+            }
+        },
         overscan: 25,
     });
 
