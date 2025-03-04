@@ -1,6 +1,5 @@
 import {
     formatItemValue,
-    friendlyName,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -181,11 +180,15 @@ export const useColumns = (): TableColumn[] => {
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
+                            ) : isCustomDimension(item) ? (
+                                <TableHeaderBoldLabel>
+                                    {item.name}
+                                </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
-                                    {('displayName' in item &&
-                                        item.displayName) ||
-                                        friendlyName(item.name)}
+                                    {item && 'displayName' in item
+                                        ? item.displayName
+                                        : 'Undefined'}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>
