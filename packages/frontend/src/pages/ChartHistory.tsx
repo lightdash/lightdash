@@ -268,7 +268,7 @@ const ChartHistory = () => {
                             customDimension: {
                                 isOpen: false,
                             },
-                            additionalMetricWriteBack: {
+                            writeBack: {
                                 isOpen: false,
                             },
                         },

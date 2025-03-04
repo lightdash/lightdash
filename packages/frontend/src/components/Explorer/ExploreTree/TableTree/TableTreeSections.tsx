@@ -68,13 +68,17 @@ const TableTreeSections: FC<Props> = ({
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
-    const toggleAdditionalMetricWriteBackModal = useExplorerContext(
-        (context) => context.actions.toggleAdditionalMetricWriteBackModal,
+    const toggleWriteBackModal = useExplorerContext(
+        (context) => context.actions.toggleWriteBackModal,
     );
 
     const allAdditionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const allCustomDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
     );
 
     const dimensions = useMemo(() => {
@@ -325,7 +329,7 @@ const TableTreeSections: FC<Props> = ({
                             }}
                         />
                     </Group>
-                    {isCustomSqlEnabled && (
+                    {isCustomSqlEnabled && hasCustomMetrics && (
                         <Tooltip label="Write back custom metrics">
                             <ActionIcon
                                 onClick={() => {
@@ -343,12 +347,12 @@ const TableTreeSections: FC<Props> = ({
                                                 customMetricsCount:
                                                     allAdditionalMetrics?.length ||
                                                     0,
+                                                customDimensionsCount: 0,
                                             },
                                         });
                                     }
-                                    toggleAdditionalMetricWriteBackModal({
-                                        items: allAdditionalMetrics || [],
-                                        multiple: true,
+                                    toggleWriteBackModal({
+                                        items: allAdditionalMetrics,
                                     });
                                 }}
                             >
@@ -385,26 +389,59 @@ const TableTreeSections: FC<Props> = ({
                 getSearchResults(customDimensionsMap, searchQuery).size === 0
             ) ? (
                 <Group position="apart" mt="sm" mb="xs" pr="sm">
-                    <Text fw={600} color="blue.9">
-                        Custom dimensions
-                    </Text>
+                    <Group>
+                        <Text fw={600} color="blue.9">
+                            Custom dimensions
+                        </Text>
 
-                    <DocumentationHelpButton
-                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
-                        tooltipProps={{
-                            label: (
-                                <>
-                                    Add custom dimensions by hovering over the
-                                    dimension of your choice & selecting the
-                                    three-dot Action Menu.{' '}
-                                    <Text component="span" fw={600}>
-                                        Click to view docs.
-                                    </Text>
-                                </>
-                            ),
-                            multiline: true,
-                        }}
-                    />
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
+                            tooltipProps={{
+                                label: (
+                                    <>
+                                        Add custom dimensions by hovering over
+                                        the dimension of your choice & selecting
+                                        the three-dot Action Menu.{' '}
+                                        <Text component="span" fw={600}>
+                                            Click to view docs.
+                                        </Text>
+                                    </>
+                                ),
+                                multiline: true,
+                            }}
+                        />
+                    </Group>
+                    {isCustomSqlEnabled && hasCustomDimensions && (
+                        <Tooltip label="Write back custom dimensions">
+                            <ActionIcon
+                                onClick={() => {
+                                    if (
+                                        projectUuid &&
+                                        user.data?.organizationUuid
+                                    ) {
+                                        track({
+                                            name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_HEADER_CLICKED,
+                                            properties: {
+                                                userId: user.data.userUuid,
+                                                projectId: projectUuid,
+                                                organizationId:
+                                                    user.data.organizationUuid,
+                                                customMetricsCount: 0,
+                                                customDimensionsCount:
+                                                    allCustomDimensions?.length ||
+                                                    0,
+                                            },
+                                        });
+                                    }
+                                    toggleWriteBackModal({
+                                        items: allCustomDimensions || [],
+                                    });
+                                }}
+                            >
+                                <MantineIcon icon={IconCode} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </Group>
             ) : null}
 
