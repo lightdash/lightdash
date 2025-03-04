@@ -439,7 +439,7 @@ Affected charts:
         args:
             | {
                   type: 'customDimensions';
-                  fields: CustomSqlDimension[];
+                  fields: CustomDimension[];
               }
             | {
                   type: 'customMetrics';
