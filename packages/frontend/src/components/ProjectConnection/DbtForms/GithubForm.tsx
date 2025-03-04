@@ -202,6 +202,21 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     >
                         Sign in with GitHub
                     </Button>
+                    <TextInput
+                        label="Repository"
+                        description={`Login first in order to be able to select a repository`}
+                        required
+                        sx={(theme) => ({
+                            // Make it look disabled
+                            input: {
+                                backgroundColor: theme.colors.gray[1],
+                                cursor: 'not-allowed',
+                                pointerEvents: 'none',
+                            },
+                        })}
+                        autoComplete="off"
+                        value="" // Don't allow writting in this field
+                    />
                 </>
             )}
         </>

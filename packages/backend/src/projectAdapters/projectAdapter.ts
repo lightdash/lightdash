@@ -5,6 +5,7 @@ import {
     DbtVersionOption,
     DbtVersionOptionLatest,
     getLatestSupportDbtVersion,
+    ParameterError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
@@ -78,6 +79,18 @@ export const projectAdapterFromConfig = async (
                 config.authorization_method === 'installation_id'
                     ? await getInstallationToken(config.installation_id)
                     : config.personal_access_token;
+            if (githubToken === undefined) {
+                throw new ParameterError(
+                    `Missing github token for authorization method: ${
+                        config.authorization_method || 'personal access token'
+                    }`,
+                );
+            }
+            if (!config.repository) {
+                throw new ParameterError(
+                    `Missing repository for GitHub project`,
+                );
+            }
             return new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,
