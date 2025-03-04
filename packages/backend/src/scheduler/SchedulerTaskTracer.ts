@@ -146,7 +146,7 @@ export const traceTask = <T extends SchedulerTaskName>(
 
                 if ('user.uuid' in payloadTags) {
                     Sentry.setUser({
-                        id: payloadTags.userUuid,
+                        id: payloadTags['user.uuid'],
                     });
                 }
 
