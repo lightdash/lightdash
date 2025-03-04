@@ -48,28 +48,13 @@ export const getItemBgColor = (
 };
 
 export const formatCellContent = (data?: { value: ResultValue }) => {
-    if (!data) return '-';
-
-    const { value } = data;
-
-    if (typeof value?.formatted === 'string') {
-        const lines = value?.formatted.split('\n') ?? [];
-        return lines.length > 1
-            ? lines.map((line, index, array) => (
-                  <Fragment key={index}>
-                      {line}
-                      {index < array.length - 1 && <br />}
-                  </Fragment>
-              ))
-            : value?.formatted ?? value?.raw;
-    }
-
-    return value?.formatted ?? value?.raw;
+    if (!data?.value) return '-';
+    return data.value.formatted ?? String(data.value.raw);
 };
 
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
-) => <span>{formatCellContent(info.getValue())}</span>;
+) => formatCellContent(info.getValue());
 
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
