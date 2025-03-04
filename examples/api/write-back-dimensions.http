@@ -1,0 +1,24 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Create a pull request with custom dimensions
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/pull-requests/custom-dimensions
+Content-Type: application/json
+
+{
+    "customDimensions": [{
+            "id": "amount_size",
+            "name": "amount size",
+            "type": "sql",
+            "table": "payments",
+            "sql": "CASE\n    WHEN ${payments.amount} < 10 THEN 'S'\n    WHEN ${payments.amount} BETWEEN 10 AND 20 THEN 'M'\n    WHEN ${payments.amount} > 20 THEN 'L'\nEND",
+            "dimensionType": "string"
+        }]
+}

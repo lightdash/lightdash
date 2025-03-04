@@ -212,7 +212,23 @@ const TableRow: FC<TableRowProps> = ({
         </Tr>
     );
 };
-
+/**
+ * Get the maximum height of a row, by calculating the max height of each cell
+ * This method will only take new lines (`\n`) into account, this will not work for long text that is broken down into multiple lines
+ * By calculating the max row height, we can fix the flickering issue when scrolling and some rows are big
+ * See issue: https://github.com/lightdash/lightdash/issues/13882
+ * @param row - The row to calculate the height for
+ * @returns The maximum height of the row
+ */
+const getMaxRowHeight = (row: Row<ResultRow>) => {
+    return row.getVisibleCells().reduce((acc, cell) => {
+        const lines = (
+            cell.getValue() as ResultRow[0] | undefined
+        )?.value?.formatted?.split('\n');
+        if (!lines) return acc;
+        return Math.max(acc, lines?.length * ROW_HEIGHT_PX);
+    }, ROW_HEIGHT_PX);
+};
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ tableContainerRef }) => {
@@ -223,7 +239,14 @@ const VirtualizedTableBody: FC<{
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
-        estimateSize: () => ROW_HEIGHT_PX,
+        estimateSize: (index) => {
+            try {
+                return getMaxRowHeight(rows[index]);
+            } catch (e) {
+                console.error('Error getting row height', e);
+                return ROW_HEIGHT_PX;
+            }
+        },
         overscan: 25,
     });
 

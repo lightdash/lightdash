@@ -68,7 +68,7 @@ type DbtLightdashFieldTags = {
     tags?: string | string[];
 };
 
-type DbtModelMetadata = DbtModelLightdashConfig & {};
+export type DbtModelMetadata = DbtModelLightdashConfig & {};
 
 type DbtModelLightdashConfig = {
     label?: string;
@@ -111,7 +111,7 @@ type DbtModelJoin = {
     fields?: string[];
     always?: boolean;
 };
-type DbtColumnMetadata = DbtColumnLightdashConfig & {};
+export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {
     dimension?: DbtColumnLightdashDimension;
     additional_dimensions?: {

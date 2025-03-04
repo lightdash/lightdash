@@ -756,7 +756,7 @@ describe('Project member permissions', () => {
             it('can use the SemanticViewer', () => {
                 expect(
                     ability.can(
-                        'manage',
+                        'view',
                         subject('SemanticViewer', { projectUuid }),
                     ),
                 ).toEqual(true);
@@ -780,7 +780,7 @@ describe('Project member permissions', () => {
             it('can use the SemanticViewer', () => {
                 expect(
                     ability.can(
-                        'manage',
+                        'view',
                         subject('SemanticViewer', { projectUuid }),
                     ),
                 ).toEqual(true);

@@ -1,3 +1,29 @@
+# [0.1526.0](https://github.com/lightdash/lightdash/compare/0.1525.1...0.1526.0) (2025-03-04)
+
+
+### Bug Fixes
+
+* CLI login ([#13915](https://github.com/lightdash/lightdash/issues/13915)) ([be9002c](https://github.com/lightdash/lightdash/commit/be9002cb941436c167dffcc00c900250cdb2442b))
+
+
+### Features
+
+* preserve YAML formatting and comments when running `lightdash generate` command ([#13901](https://github.com/lightdash/lightdash/issues/13901)) ([c9c5043](https://github.com/lightdash/lightdash/commit/c9c5043817c81d79334cc825018deb0ab0eb2ece))
+
+## [0.1525.1](https://github.com/lightdash/lightdash/compare/0.1525.0...0.1525.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* fix dynamic height virtual table ([#13904](https://github.com/lightdash/lightdash/issues/13904)) ([d6d932f](https://github.com/lightdash/lightdash/commit/d6d932f068e30631bb3ef2625dade80532a891ee))
+
+# [0.1525.0](https://github.com/lightdash/lightdash/compare/0.1524.0...0.1525.0) (2025-03-03)
+
+
+### Features
+
+* **backend:** customSqlDimension write-back ([#13875](https://github.com/lightdash/lightdash/issues/13875)) ([a6bf1d2](https://github.com/lightdash/lightdash/commit/a6bf1d2bc714ab5c4b1ecc4cb64641db06f17f49))
+
 # [0.1524.0](https://github.com/lightdash/lightdash/compare/0.1523.1...0.1524.0) (2025-03-03)
 
 
