@@ -175,25 +175,6 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
-        can('promote', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('promote', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
         });
