@@ -1,11 +1,14 @@
+import { warehouseClientMock } from '../../compiler/exploreCompiler.mock';
 import { ParseError } from '../../types/errors';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
     CUSTOM_METRIC,
+    CUSTOM_RANGE_BIN_DIMENSION,
     CUSTOM_SQL_DIMENSION,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
     EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
     EXPECTED_SCHEMA_YML_WITH_NEW_MODEL,
+    FIXED_WIDTH_BIN_DIMENSION,
     INVALID_SCHEMA_YML,
     NEW_MODEL,
     SCHEMA_JSON,
@@ -33,7 +36,14 @@ describe('DbtSchemaEditor', () => {
         expect(editor.hasModels()).toEqual(true);
         // adds custom metrics
         editor.addCustomMetrics([CUSTOM_METRIC]);
-        editor.addCustomDimensions([CUSTOM_SQL_DIMENSION]);
+        editor.addCustomDimensions(
+            [
+                CUSTOM_SQL_DIMENSION,
+                FIXED_WIDTH_BIN_DIMENSION,
+                CUSTOM_RANGE_BIN_DIMENSION,
+            ],
+            warehouseClientMock,
+        );
         expect(editor.toString()).toEqual(
             EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
         );

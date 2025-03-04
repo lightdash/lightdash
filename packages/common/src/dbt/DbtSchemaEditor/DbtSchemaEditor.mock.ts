@@ -1,5 +1,7 @@
 // Mock schema file with comments, different multi-line strings, different types of quotes, different types of arrays
 import {
+    BinType,
+    type CustomBinDimension,
     CustomDimensionType,
     type CustomSqlDimension,
     DimensionType,
@@ -110,6 +112,35 @@ export const CUSTOM_SQL_DIMENSION: CustomSqlDimension = {
     dimensionType: DimensionType.STRING,
 };
 
+export const FIXED_WIDTH_BIN_DIMENSION: CustomBinDimension = {
+    id: 'fixed_width_id',
+    name: 'fixed width name',
+    table: 'table_a',
+    dimensionId: 'table_a_dim_a',
+    type: CustomDimensionType.BIN,
+    binType: BinType.FIXED_WIDTH,
+    binWidth: 10,
+};
+
+export const CUSTOM_RANGE_BIN_DIMENSION: CustomBinDimension = {
+    id: 'range_id',
+    name: 'range name',
+    table: 'table_a',
+    dimensionId: 'table_a_dim_a',
+    type: CustomDimensionType.BIN,
+    binType: BinType.CUSTOM_RANGE,
+    customRange: [
+        {
+            from: 0,
+            to: 10,
+        },
+        {
+            from: 11,
+            to: 20,
+        },
+    ],
+};
+
 // eslint-disable-next-line no-useless-escape
 export const EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS = `# comment at the top
 version: 2
@@ -137,10 +168,28 @@ models:
           additional_dimensions:
             id:
               label: Sql dimension
-              name: id
               description: ""
               type: string
               sql: \${table_a.dim_a} || "suffix"
+            fixed_width_id:
+              label: Fixed width name
+              description: ""
+              type: string
+              sql: CONCAT(FLOOR(\${TABLE}.dim_a / 10) * 10, ' - ', (FLOOR(\${TABLE}.dim_a / 10)
+                + 1) * 10 - 1)
+            range_id:
+              label: Range name
+              description: ""
+              type: string
+              sql: >-
+                CASE
+                            WHEN \${TABLE}.dim_a IS NULL THEN NULL
+                WHEN \${TABLE}.dim_a >= 0 AND \${TABLE}.dim_a < 10 THEN CONCAT(0,
+                '-', 10)
+
+                WHEN \${TABLE}.dim_a >= 11 AND \${TABLE}.dim_a < 20 THEN
+                CONCAT(11, '-', 20)
+                            END
   - name: table_b
     description: >-
       # Description This table has basic information

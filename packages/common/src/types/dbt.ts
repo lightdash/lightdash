@@ -140,7 +140,7 @@ export type DbtColumnLightdashDimension = {
     required_attributes?: Record<string, string | string[]>;
 } & DbtLightdashFieldTags;
 
-type DbtColumnLightdashAdditionalDimension = Omit<
+export type DbtColumnLightdashAdditionalDimension = Omit<
     DbtColumnLightdashDimension,
     'name'
 >;
