@@ -476,6 +476,7 @@ export type SmtpConfig = {
     port: number;
     secure: boolean;
     allowInvalidCertificate: boolean;
+    useAuth: boolean;
     auth: {
         user: string;
         pass: string | undefined;
@@ -561,9 +562,10 @@ export const parseConfig = (): LightdashConfig => {
             ? {
                   host: process.env.EMAIL_SMTP_HOST,
                   port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
-                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // default to true
+                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // defaults to true
                   allowInvalidCertificate:
                       process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
+                  useAuth: process.env.EMAIL_SMTP_USE_AUTH !== 'false', // defaults to true
                   auth: {
                       user: process.env.EMAIL_SMTP_USER || '',
                       pass: process.env.EMAIL_SMTP_PASSWORD,
