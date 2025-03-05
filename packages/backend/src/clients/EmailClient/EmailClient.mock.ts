@@ -26,6 +26,7 @@ const smtpBase: SmtpConfig = {
     host: 'host',
     secure: true,
     port: 587,
+    useAuth: true,
     auth: {
         user: 'user',
         pass: 'pass',
