@@ -190,6 +190,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import type { PaginateQueryArgs } from './types';
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1763,17 +1764,12 @@ export class ProjectService extends BaseService {
         dateZoomGranularity,
         context = QueryExecutionContext.EXPLORE,
         ...rest
-    }: (
-        | { metricQuery: MetricQuery; csvLimit: number | null | undefined }
-        | { queryId: string; fields: ItemsMap }
-    ) & {
+    }: PaginateQueryArgs & {
         user: SessionUser;
         projectUuid: string;
         exploreName: string;
         dateZoomGranularity?: DateGranularity;
         context?: QueryExecutionContext;
-        page: number;
-        pageSize: number;
     }): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2197,10 +2193,7 @@ export class ProjectService extends BaseService {
             pageSize,
             queryTags,
             ...rest
-        }: (
-            | { metricQuery: MetricQuery; csvLimit: number | null | undefined }
-            | { queryId: string; fields: ItemsMap }
-        ) & {
+        }: PaginateQueryArgs & {
             user: SessionUser;
             projectUuid: string;
             exploreName: string;
@@ -2210,8 +2203,6 @@ export class ProjectService extends BaseService {
             granularity?: DateGranularity;
             chartUuid: string | undefined; // for analytics
             queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
-            page: number;
-            pageSize: number;
         },
         rowFormatter?: (
             row: Record<string, unknown>,
