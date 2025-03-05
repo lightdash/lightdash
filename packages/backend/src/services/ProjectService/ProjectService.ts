@@ -2375,6 +2375,7 @@ export class ProjectService extends BaseService {
                     return {
                         rows: results.rows as TFormattedRow[],
                         pageCount: results.pageCount,
+                        queryId: results.queryId,
                         fields: fieldsMap,
                     };
                 } catch (e) {

@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -143,6 +144,7 @@ export class RunViewChartQueryController extends BaseController {
         };
     }
 
+    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/explores/{exploreName}/runPaginatedQuery')
