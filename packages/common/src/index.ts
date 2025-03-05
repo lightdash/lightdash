@@ -462,6 +462,13 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
+export type ApiPaginatedQueryResults = {
+    rows: ResultRow[];
+    // TODO paginate: fields is only returned for the first page, we need to implement a way to return fields for all pages, possibly storing it in a metadata table
+    fields?: ItemsMap;
+    pageCount: number;
+};
+
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;

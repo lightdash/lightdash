@@ -8377,6 +8377,90 @@
                 ],
                 "type": "object"
             },
+            "ResultValue": {
+                "properties": {
+                    "formatted": {
+                        "type": "string"
+                    },
+                    "raw": {}
+                },
+                "required": ["formatted", "raw"],
+                "type": "object"
+            },
+            "Record_string._value-ResultValue__": {
+                "properties": {},
+                "additionalProperties": {
+                    "properties": {
+                        "value": {
+                            "$ref": "#/components/schemas/ResultValue"
+                        }
+                    },
+                    "required": ["value"],
+                    "type": "object"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultRow": {
+                "$ref": "#/components/schemas/Record_string._value-ResultValue__"
+            },
+            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/components/schemas/Field"
+                        },
+                        {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        {
+                            "$ref": "#/components/schemas/Metric"
+                        }
+                    ]
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ItemsMap": {
+                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
+            },
+            "ApiPaginatedQueryResults": {
+                "properties": {
+                    "pageCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultRow"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["pageCount", "rows"],
+                "type": "object"
+            },
+            "ApiPaginatedRunQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiPaginatedQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
                 "properties": {
                     "createdAt": {
@@ -12584,30 +12668,6 @@
                 ],
                 "type": "object",
                 "additionalProperties": true
-            },
-            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
-                "properties": {},
-                "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/components/schemas/Field"
-                        },
-                        {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Metric"
-                        }
-                    ]
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ItemsMap": {
-                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
             "MetricExploreDataPoint": {
                 "properties": {
@@ -17453,6 +17513,94 @@
                             "schema": {
                                 "$ref": "#/components/schemas/MetricQueryRequest",
                                 "description": "metricQuery for the chart to run"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/explores/{exploreName}/runPaginatedQuery": {
+            "post": {
+                "operationId": "RunPaginatedQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPaginatedRunQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Exploring"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "exploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "anyOf": [
+                                            {
+                                                "$ref": "#/components/schemas/MetricQueryRequest"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "queryId": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": ["queryId"],
+                                                "type": "object"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "properties": {
+                                            "pageSize": {
+                                                "type": "number",
+                                                "format": "double"
+                                            },
+                                            "page": {
+                                                "type": "number",
+                                                "format": "double"
+                                            }
+                                        },
+                                        "required": ["pageSize", "page"],
+                                        "type": "object"
+                                    }
+                                ]
                             }
                         }
                     }
