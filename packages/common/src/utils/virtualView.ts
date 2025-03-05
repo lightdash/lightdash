@@ -95,6 +95,7 @@ export const createTemporaryVirtualView = (
             fields: {},
             rows: [],
             queryId: '',
+            pageCount: 1,
         }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},

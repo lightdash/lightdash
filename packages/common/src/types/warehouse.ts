@@ -58,6 +58,7 @@ export type WarehousePaginateQueryArgs =
 
 export type WarehousePaginatedResults = WarehouseResults & {
     queryId: string;
+    pageCount: number;
 };
 
 export interface WarehouseClient {
