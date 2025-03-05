@@ -4,7 +4,6 @@ import {
     AdditionalMetric,
     ApiGithubDbtWritePreview,
     CustomDimension,
-    CustomSqlDimension,
     DbtProjectType,
     DbtSchemaEditor,
     ForbiddenError,

@@ -1,8 +1,8 @@
 import {
-    convertCustomDimensionToDbt,
     convertCustomMetricToDbt,
     isAdditionalMetric,
     isCustomDimension,
+    previewConvertCustomDimensionToDbt,
     type AdditionalMetric,
     type CustomDimension,
 } from '@lightdash/common';
@@ -28,7 +28,7 @@ export const convertToDbt = (item: CustomDimension | AdditionalMetric) => {
 
     const value = match(
         item,
-        (i) => convertCustomDimensionToDbt(i),
+        (i) => previewConvertCustomDimensionToDbt(i),
         (i) => convertCustomMetricToDbt(i),
     );
 

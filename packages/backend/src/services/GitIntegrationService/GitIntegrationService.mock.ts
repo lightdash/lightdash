@@ -128,7 +128,6 @@ models:
           additional_dimensions:
             amount_size:
               label: Amount size
-              description: ''
               type: string
               sql: \${table_a.dim_a}
   - name: table_b
