@@ -10,6 +10,7 @@ import {
     MetricQueryResponse,
     QueryExecutionContext,
     type ApiPaginatedQueryResults,
+    type ItemsMap,
 } from '@lightdash/common';
 import {
     Body,
@@ -148,7 +149,7 @@ export class RunViewChartQueryController extends BaseController {
     @OperationId('RunPaginatedQuery')
     async runPaginatedQuery(
         @Body()
-        body: (MetricQueryRequest | { queryId: string }) & {
+        body: (MetricQueryRequest | { queryId: string; fields: ItemsMap }) & {
             page: number;
             pageSize: number;
         },
@@ -160,6 +161,7 @@ export class RunViewChartQueryController extends BaseController {
             'queryId' in body
                 ? {
                       queryId: body.queryId,
+                      fields: body.fields,
                   }
                 : {
                       metricQuery: {

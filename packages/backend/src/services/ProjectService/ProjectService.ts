@@ -99,6 +99,7 @@ import {
     findFieldByIdInExplore,
     findReplaceableCustomMetrics,
     formatRawRows,
+    formatRow,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -1764,7 +1765,7 @@ export class ProjectService extends BaseService {
         ...rest
     }: (
         | { metricQuery: MetricQuery; csvLimit: number | null | undefined }
-        | { queryId: string }
+        | { queryId: string; fields: ItemsMap }
     ) & {
         user: SessionUser;
         projectUuid: string;
@@ -1798,18 +1799,22 @@ export class ProjectService extends BaseService {
         };
 
         if ('queryId' in rest) {
-            return this.paginateMetricQuery({
-                user,
-                projectUuid,
-                exploreName,
-                queryId: rest.queryId,
-                page: rest.page,
-                pageSize: rest.pageSize,
-                context,
-                chartUuid: undefined,
-                granularity: dateZoomGranularity,
-                queryTags,
-            });
+            return this.paginateMetricQuery(
+                {
+                    user,
+                    projectUuid,
+                    exploreName,
+                    queryId: rest.queryId,
+                    page: rest.page,
+                    pageSize: rest.pageSize,
+                    context,
+                    chartUuid: undefined,
+                    granularity: dateZoomGranularity,
+                    queryTags,
+                    fields: rest.fields,
+                },
+                formatRow,
+            );
         }
 
         const { metricQuery, csvLimit } = rest;
@@ -1833,20 +1838,23 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        return this.paginateMetricQuery({
-            user,
-            metricQuery,
-            projectUuid,
-            exploreName,
-            explore,
-            csvLimit,
-            context: QueryExecutionContext.EXPLORE,
-            queryTags,
-            granularity: dateZoomGranularity,
-            chartUuid: undefined,
-            page: rest.page,
-            pageSize: rest.pageSize,
-        });
+        return this.paginateMetricQuery(
+            {
+                user,
+                metricQuery,
+                projectUuid,
+                exploreName,
+                explore,
+                csvLimit,
+                context: QueryExecutionContext.EXPLORE,
+                queryTags,
+                granularity: dateZoomGranularity,
+                chartUuid: undefined,
+                page: rest.page,
+                pageSize: rest.pageSize,
+            },
+            formatRow,
+        );
     }
 
     private async runQueryAndFormatRows({
@@ -2175,35 +2183,41 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async paginateMetricQuery({
-        user,
-        projectUuid,
-        exploreName,
-        context,
-        invalidateCache,
-        explore: loadedExplore,
-        granularity,
-        chartUuid,
-        page,
-        pageSize,
-        queryTags,
-        ...rest
-    }: (
-        | { metricQuery: MetricQuery; csvLimit: number | null | undefined }
-        | { queryId: string }
-    ) & {
-        user: SessionUser;
-        projectUuid: string;
-        exploreName: string;
-        context: QueryExecutionContext;
-        invalidateCache?: boolean;
-        explore?: Explore;
-        granularity?: DateGranularity;
-        chartUuid: string | undefined; // for analytics
-        queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
-        page: number;
-        pageSize: number;
-    }) {
+    async paginateMetricQuery<TFormattedRow extends Record<string, unknown>>(
+        {
+            user,
+            projectUuid,
+            exploreName,
+            context,
+            invalidateCache,
+            explore: loadedExplore,
+            granularity,
+            chartUuid,
+            page,
+            pageSize,
+            queryTags,
+            ...rest
+        }: (
+            | { metricQuery: MetricQuery; csvLimit: number | null | undefined }
+            | { queryId: string; fields: ItemsMap }
+        ) & {
+            user: SessionUser;
+            projectUuid: string;
+            exploreName: string;
+            context: QueryExecutionContext;
+            invalidateCache?: boolean;
+            explore?: Explore;
+            granularity?: DateGranularity;
+            chartUuid: string | undefined; // for analytics
+            queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
+            page: number;
+            pageSize: number;
+        },
+        rowFormatter?: (
+            row: Record<string, unknown>,
+            fields: ItemsMap,
+        ) => TFormattedRow,
+    ) {
         return wrapSentryTransaction(
             'ProjectService.runMetricQuery',
             {},
@@ -2254,7 +2268,7 @@ export class ProjectService extends BaseService {
                     );
 
                     let sql = '';
-                    let fields: ItemsMap | undefined;
+                    let fieldsMap: ItemsMap = {};
 
                     if ('metricQuery' in rest) {
                         const { metricQuery } = rest;
@@ -2313,9 +2327,12 @@ export class ProjectService extends BaseService {
                                 ),
                             );
 
+                        fieldsMap = fieldsWithOverrides;
                         sql = query;
-                        fields = fieldsWithOverrides;
+
                         span.setAttribute('generatedSql', query);
+                    } else if ('queryId' in rest) {
+                        fieldsMap = rest.fields;
                     }
 
                     const onboardingRecord =
@@ -2332,16 +2349,22 @@ export class ProjectService extends BaseService {
                         );
                     }
 
+                    const formatter = (row: Record<string, unknown>) =>
+                        rowFormatter ? rowFormatter(row, fieldsMap) : row;
+
                     const results = await measureTime(
                         () =>
-                            warehouseClient.getPaginatedResults({
-                                ...('metricQuery' in rest
-                                    ? { sql }
-                                    : { queryId: rest.queryId }),
-                                page,
-                                pageSize,
-                                tags: queryTags,
-                            }),
+                            warehouseClient.getPaginatedResults(
+                                {
+                                    ...('metricQuery' in rest
+                                        ? { sql }
+                                        : { queryId: rest.queryId }),
+                                    page,
+                                    pageSize,
+                                    tags: queryTags,
+                                },
+                                formatter,
+                            ),
                         'getPaginatedResults',
                         this.logger,
                         context,
@@ -2350,9 +2373,9 @@ export class ProjectService extends BaseService {
                     await sshTunnel.disconnect();
 
                     return {
-                        rows: results.rows,
+                        rows: results.rows as TFormattedRow[],
                         pageCount: results.pageCount,
-                        fields,
+                        fields: fieldsMap,
                     };
                 } catch (e) {
                     span.setStatus({
