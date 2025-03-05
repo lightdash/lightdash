@@ -1,11 +1,12 @@
-import type { DbtColumnLightdashAdditionalDimension, DbtColumnLightdashDimension } from '../types/dbt';
+import type { DbtColumnLightdashAdditionalDimension } from '../types/dbt';
 import { NotImplementedError } from '../types/errors';
 import {
     BinType,
-    type CustomBinDimension, type CustomDimension,
-    type CustomSqlDimension,
+    type CustomBinDimension,
+    type CustomDimension,
     DimensionType,
-    friendlyName, isCustomBinDimension,
+    friendlyName,
+    isCustomBinDimension,
 } from '../types/field';
 import { type WarehouseClient } from '../types/warehouse';
 import {
@@ -15,7 +16,7 @@ import {
 
 export const convertCustomDimensionToDbt = (
     field: CustomDimension,
-): DbtColumnLightdashDimension => {
+): DbtColumnLightdashAdditionalDimension => {
     if (isCustomBinDimension(field)) {
         throw new NotImplementedError(
             'Custom bin dimensions are not supported yet',
@@ -23,7 +24,6 @@ export const convertCustomDimensionToDbt = (
     }
     return {
         label: friendlyName(field.name),
-        name: field.id,
         type: field.dimensionType,
         sql: field.sql,
     };
