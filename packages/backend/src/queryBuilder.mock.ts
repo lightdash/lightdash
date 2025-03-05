@@ -41,6 +41,12 @@ export const warehouseClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    getPaginatedResults: async () => ({
+        fields: {},
+        rows: [],
+        queryId: '',
+        pageCount: 1,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
@@ -105,6 +111,12 @@ export const bigqueryClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    getPaginatedResults: async () => ({
+        fields: {},
+        rows: [],
+        queryId: '',
+        pageCount: 1,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
