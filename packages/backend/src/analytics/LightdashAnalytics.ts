@@ -254,6 +254,18 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
+type SubtotalQueryEvent = BaseTrack & {
+    event: 'query.subtotal';
+    properties: {
+        context: QueryExecutionContext.CALCULATE_SUBTOTAL;
+        organizationId: string;
+        projectId: string;
+        exploreName: string;
+        subtotalDimensionGroups: string[];
+        subtotalQueryCount: number;
+    };
+};
+
 type CreateOrganizationEvent = BaseTrack & {
     event: 'organization.created';
     properties: {
@@ -1247,7 +1259,8 @@ type TypedEvent =
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
     | CategoriesAppliedEvent
-    | CustomFieldsReplaced;
+    | CustomFieldsReplaced
+    | SubtotalQueryEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 

@@ -1,15 +1,14 @@
 import {
-    MetricType,
     formatItemValue,
-    friendlyName,
+    isCustomDimension,
     isField,
-    isMetric,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
+import { getSubtotalKey } from '@lightdash/common/src/utils/subtotals';
 import { Text } from '@mantine/core';
-import { type Row } from '@tanstack/react-table';
+import type { CellContext } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
@@ -32,16 +31,49 @@ type Args = {
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
     totals?: Record<string, number>;
+    groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
 
-// Adapted from https://stackoverflow.com/a/45337588
-const decimalLength = (numStr: number) => {
-    const pieces = numStr.toString().split('.');
-    if (!pieces[1]) return 0;
-    return pieces[1].length;
-};
-export const getDecimalPrecision = (addend1: number, addend2: number) =>
-    Math.pow(10, Math.max(decimalLength(addend1), decimalLength(addend2)));
+export function getGroupingValuesAndSubtotalKey(
+    info: CellContext<ResultRow, ResultRow[string]>,
+) {
+    const groupingDimensions = info.table
+        .getState()
+        .grouping.slice(0, info.row.depth + 1);
+
+    if (!groupingDimensions.length) {
+        return;
+    }
+
+    // Get the grouping values for each of the dimensions in the row
+    const groupingValues = Object.fromEntries(
+        groupingDimensions.map((d) => [
+            d,
+            info.row.getGroupingValue(d) as ResultRow[number] | undefined,
+        ]),
+    );
+
+    // Calculate the subtotal key for the row, this is used to find the subtotal in the groupedSubtotals object
+    const subtotalGroupKey = getSubtotalKey(groupingDimensions);
+
+    return { groupingValues, subtotalGroupKey };
+}
+
+export function getSubtotalValueFromGroup(
+    subtotal: Record<string, number> | undefined,
+    columnId: string,
+) {
+    const subtotalColumnIds = Object.keys(subtotal ?? {});
+
+    // If the subtotal column is not in the subtotalsGroup, return null
+    // This is needed to prevent showing '-' when processing a value for the last grouped dimension column which is not taken into account for subtotals
+    // This column only exists when we're expanding the last grouped dimension
+    if (!subtotalColumnIds.includes(columnId)) {
+        return null;
+    }
+
+    return subtotal?.[columnId];
+}
 
 const getDataAndColumns = ({
     itemsMap,
@@ -53,6 +85,7 @@ const getDataAndColumns = ({
     getFieldLabelOverride,
     columnOrder,
     totals,
+    groupedSubtotals,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -68,46 +101,6 @@ const getDataAndColumns = ({
                 return acc;
             }
             const headerOverride = getFieldLabelOverride(itemId);
-
-            const shouldAggregate =
-                item &&
-                isField(item) &&
-                isMetric(item) &&
-                [MetricType.SUM, MetricType.COUNT].includes(item.type);
-
-            const aggregationFunction = shouldAggregate
-                ? (
-                      columnId: string,
-                      _leafRows: Row<ResultRow>[],
-                      childRows: Row<ResultRow>[],
-                  ) => {
-                      const aggregatedValue = childRows.reduce<number>(
-                          (agg, childRow) => {
-                              const cellValue = childRow.getValue(columnId) as
-                                  | ResultRow[number]
-                                  | undefined;
-                              const rawValue = cellValue?.value?.raw;
-
-                              if (rawValue === null) return agg;
-                              const adder = Number(rawValue);
-                              if (isNaN(adder)) return agg;
-
-                              const precision = getDecimalPrecision(adder, agg);
-                              return (
-                                  (agg * precision + adder * precision) /
-                                  precision
-                              );
-                          },
-                          0,
-                      );
-
-                      return (
-                          <Text span fw={600}>
-                              {formatItemValue(item, aggregatedValue)}
-                          </Text>
-                      );
-                  }
-                : undefined;
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row) => row[itemId],
@@ -131,13 +124,15 @@ const getDataAndColumns = ({
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
+                            ) : isCustomDimension(item) ? (
+                                <TableHeaderBoldLabel>
+                                    {item.name}
+                                </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
-                                    {item === undefined
-                                        ? 'Undefined'
-                                        : 'displayName' in item
+                                    {item && 'displayName' in item
                                         ? item.displayName
-                                        : friendlyName(item.name)}
+                                        : 'Undefined'}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>
@@ -153,7 +148,6 @@ const getDataAndColumns = ({
                         isVisible: isColumnVisible(itemId),
                         frozen: isColumnFrozen(itemId),
                     },
-
                     // Some features work in the TanStack Table demos but not here, for unknown reasons.
                     // For example, setting grouping value here does not work. The workaround is to use
                     // a custom getGroupedRowModel.
@@ -163,13 +157,47 @@ const getDataAndColumns = ({
                     // },
                     // aggregationFn: 'sum', // Not working.
                     // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
-
-                    aggregationFn: aggregationFunction,
                     aggregatedCell: (info) => {
-                        const value = info.getValue();
-                        const ret = value ?? info.cell.getValue();
-                        const numVal = Number(ret);
-                        return isNaN(numVal) ? ret : numVal;
+                        if (info.row.getIsGrouped()) {
+                            const groupingValuesAndSubtotalKey =
+                                getGroupingValuesAndSubtotalKey(info);
+
+                            if (!groupingValuesAndSubtotalKey) {
+                                return null;
+                            }
+
+                            const { groupingValues, subtotalGroupKey } =
+                                groupingValuesAndSubtotalKey;
+
+                            // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
+                            const subtotal = groupedSubtotals?.[
+                                subtotalGroupKey
+                            ]?.find((sub) => {
+                                return Object.keys(groupingValues).every(
+                                    (key) => {
+                                        return (
+                                            groupingValues[key]?.value.raw ===
+                                            sub[key]
+                                        );
+                                    },
+                                );
+                            });
+
+                            const subtotalValue = getSubtotalValueFromGroup(
+                                subtotal,
+                                info.column.id,
+                            );
+
+                            if (subtotalValue === null) {
+                                return null;
+                            }
+
+                            return (
+                                <Text span fw={600}>
+                                    {formatItemValue(item, subtotalValue)}
+                                </Text>
+                            );
+                        }
                     },
                 },
             );

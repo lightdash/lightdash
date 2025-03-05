@@ -1,6 +1,5 @@
 import {
     formatItemValue,
-    friendlyName,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -48,28 +47,13 @@ export const getItemBgColor = (
 };
 
 export const formatCellContent = (data?: { value: ResultValue }) => {
-    if (!data) return '-';
-
-    const { value } = data;
-
-    if (typeof value?.formatted === 'string') {
-        const lines = value?.formatted.split('\n') ?? [];
-        return lines.length > 1
-            ? lines.map((line, index, array) => (
-                  <Fragment key={index}>
-                      {line}
-                      {index < array.length - 1 && <br />}
-                  </Fragment>
-              ))
-            : value?.formatted ?? value?.raw;
-    }
-
-    return value?.formatted ?? value?.raw;
+    if (!data?.value) return '-';
+    return data.value.formatted ?? String(data.value.raw);
 };
 
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
-) => <span>{formatCellContent(info.getValue())}</span>;
+) => formatCellContent(info.getValue());
 
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
@@ -196,11 +180,15 @@ export const useColumns = (): TableColumn[] => {
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
+                            ) : isCustomDimension(item) ? (
+                                <TableHeaderBoldLabel>
+                                    {item.name}
+                                </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
-                                    {('displayName' in item &&
-                                        item.displayName) ||
-                                        friendlyName(item.name)}
+                                    {item && 'displayName' in item
+                                        ? item.displayName
+                                        : 'Undefined'}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>

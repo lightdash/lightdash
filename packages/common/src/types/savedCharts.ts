@@ -725,6 +725,20 @@ export type ApiCalculateTotalResponse = {
     results: Record<string, number>;
 };
 
+export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
+    columnOrder: string[];
+    pivotDimensions?: string[];
+};
+
+export type ApiCalculateSubtotalsResponse = {
+    status: 'ok';
+    results: {
+        [subtotalDimensions: string]: {
+            [key: string]: number;
+        }[];
+    };
+};
+
 export type ReplaceableFieldMatchMap = {
     [fieldId: string]: {
         fieldId: string;

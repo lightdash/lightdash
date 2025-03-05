@@ -1,3 +1,4 @@
+import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
@@ -27,7 +28,11 @@ const isMobile = window.innerWidth < 768;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
-const router = createBrowserRouter([
+// Sentry wrapper for createBrowserRouter
+const sentryCreateBrowserRouter =
+    wrapCreateBrowserRouterV7(createBrowserRouter);
+
+const router = sentryCreateBrowserRouter([
     {
         path: '/',
         element: (

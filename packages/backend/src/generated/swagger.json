@@ -10106,6 +10106,57 @@
                 "required": ["explore", "metricQuery"],
                 "type": "object"
             },
+            "ApiCalculateSubtotalsResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "items": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CalculateSubtotalsFromQuery": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
+                    },
+                    {
+                        "properties": {
+                            "pivotDimensions": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    }
+                ]
+            },
             "DbtExposureType": {
                 "enum": [
                     "dashboard",
@@ -18493,6 +18544,55 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/calculate-subtotals": {
+            "post": {
+                "operationId": "CalculateSubtotalsFromQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCalculateSubtotalsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CalculateSubtotalsFromQuery"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/user-credentials": {
             "get": {
                 "operationId": "getUserWarehouseCredentialsPreference",
@@ -21607,7 +21707,7 @@
                                     },
                                     "customDimensions": {
                                         "items": {
-                                            "$ref": "#/components/schemas/CustomSqlDimension"
+                                            "$ref": "#/components/schemas/CustomDimension"
                                         },
                                         "type": "array"
                                     }

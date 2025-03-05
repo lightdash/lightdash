@@ -1,3 +1,38 @@
+# [0.1528.0](https://github.com/lightdash/lightdash/compare/0.1527.2...0.1528.0) (2025-03-05)
+
+
+### Features
+
+* **API:** write back bin dimensions ([#13925](https://github.com/lightdash/lightdash/issues/13925)) ([a8d51fc](https://github.com/lightdash/lightdash/commit/a8d51fca995199ff333d440f585fb77354e4a9cf))
+
+## [0.1527.2](https://github.com/lightdash/lightdash/compare/0.1527.1...0.1527.2) (2025-03-04)
+
+
+### Bug Fixes
+
+* custom dimension table labels ([#13874](https://github.com/lightdash/lightdash/issues/13874)) ([87e785a](https://github.com/lightdash/lightdash/commit/87e785a7e9e68cd62fbeb529b98d3b35aaf9cd3e))
+
+## [0.1527.1](https://github.com/lightdash/lightdash/compare/0.1527.0...0.1527.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* newlines in cells issue with react removeChild ([#13922](https://github.com/lightdash/lightdash/issues/13922)) ([dbd5cf7](https://github.com/lightdash/lightdash/commit/dbd5cf7e7abef0672836cfec434896fef4ba0ffe))
+
+# [0.1527.0](https://github.com/lightdash/lightdash/compare/0.1526.1...0.1527.0) (2025-03-04)
+
+
+### Features
+
+* calculate subtotals in the backend ([#13847](https://github.com/lightdash/lightdash/issues/13847)) ([ee7d1f3](https://github.com/lightdash/lightdash/commit/ee7d1f3cfa93799fc59eb376522097a0eda40806))
+
+## [0.1526.1](https://github.com/lightdash/lightdash/compare/0.1526.0...0.1526.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* force github login on project form ([#13914](https://github.com/lightdash/lightdash/issues/13914)) ([f3f6b8b](https://github.com/lightdash/lightdash/commit/f3f6b8bf48f398ddf4018e5b9150eb1858369ff9))
+
 # [0.1526.0](https://github.com/lightdash/lightdash/compare/0.1525.1...0.1526.0) (2025-03-04)
 
 
