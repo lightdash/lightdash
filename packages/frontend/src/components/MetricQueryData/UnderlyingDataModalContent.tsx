@@ -320,7 +320,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 onlyRaw,
                 showTableNames: true,
                 columnOrder: [],
-                pivotColumns: undefined, // underlying data is always unpivoted
+                pivotConfig: undefined, // underlying data is always unpivoted
             });
         } else {
             throw new Error('Project UUID is missing');
