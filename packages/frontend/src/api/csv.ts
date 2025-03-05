@@ -4,6 +4,7 @@ import {
     type ApiScheduledDownloadCsv,
     type DashboardFilters,
     type MetricQuery,
+    type PivotConfig,
 } from '@lightdash/common';
 
 import { lightdashApi } from '../api';
@@ -20,7 +21,7 @@ export const downloadCsv = async ({
     customLabels,
     hiddenFields,
     chartName,
-    pivotColumns,
+    pivotConfig,
 }: {
     projectUuid: string;
     tableId: string;
@@ -32,7 +33,7 @@ export const downloadCsv = async ({
     customLabels?: Record<string, string>;
     hiddenFields?: string[];
     chartName?: string;
-    pivotColumns?: string[];
+    pivotConfig?: PivotConfig;
 }) => {
     const timezoneFixQuery = {
         ...query,
@@ -51,7 +52,7 @@ export const downloadCsv = async ({
             hiddenFields,
             chartName,
             timezone: query.timezone ?? undefined,
-            pivotColumns,
+            pivotConfig,
         }),
     });
 };
@@ -62,6 +63,7 @@ export const downloadCsvFromSavedChart = async ({
     tileUuid,
     csvLimit,
     onlyRaw,
+    metricsAsRows,
 }: {
     chartUuid: string;
     dashboardFilters?: DashboardFilters;
@@ -69,6 +71,7 @@ export const downloadCsvFromSavedChart = async ({
     // Csv properties
     onlyRaw: boolean;
     csvLimit: number | null | undefined;
+    metricsAsRows?: boolean;
 }) => {
     /* TODO fix dashboardFilters timezone 
     const timezoneFixQuery = {
@@ -83,6 +86,7 @@ export const downloadCsvFromSavedChart = async ({
             tileUuid,
             csvLimit,
             onlyRaw,
+            metricsAsRows,
         }),
     });
 };

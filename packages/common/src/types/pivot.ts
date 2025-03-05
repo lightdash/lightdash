@@ -79,7 +79,8 @@ export const getPivotConfig = (
     savedChart.pivotConfig !== undefined
         ? {
               pivotDimensions: savedChart.pivotConfig.columns,
-              metricsAsRows: false,
+              metricsAsRows:
+                  savedChart.chartConfig.config?.metricsAsRows ?? false,
               hiddenMetricFieldIds: getHiddenTableFields(
                   savedChart.chartConfig,
               ),
