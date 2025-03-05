@@ -1,3 +1,10 @@
+# [0.1528.0](https://github.com/lightdash/lightdash/compare/0.1527.2...0.1528.0) (2025-03-05)
+
+
+### Features
+
+* **API:** write back bin dimensions ([#13925](https://github.com/lightdash/lightdash/issues/13925)) ([a8d51fc](https://github.com/lightdash/lightdash/commit/a8d51fca995199ff333d440f585fb77354e4a9cf))
+
 ## [0.1527.2](https://github.com/lightdash/lightdash/compare/0.1527.1...0.1527.2) (2025-03-04)
 
 
