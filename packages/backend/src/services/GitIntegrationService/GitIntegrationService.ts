@@ -3,6 +3,7 @@ import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
     ApiGithubDbtWritePreview,
+    CustomDimension,
     CustomSqlDimension,
     DbtProjectType,
     DbtSchemaEditor,
@@ -270,7 +271,7 @@ Affected charts:
     } & (
         | {
               type: 'customDimensions';
-              fields: CustomSqlDimension[];
+              fields: CustomDimension[];
           }
         | {
               type: 'customMetrics';
@@ -305,8 +306,19 @@ Affected charts:
 
             let updatedYml: string;
             if (type === 'customDimensions') {
+                const warehouseCredentials =
+                    await this.projectModel.getWarehouseCredentialsForProject(
+                        projectUuid,
+                    );
+                const warehouseClient =
+                    this.projectModel.getWarehouseClientFromCredentials(
+                        warehouseCredentials,
+                    );
                 updatedYml = yamlSchema
-                    .addCustomDimensions(fieldsForTable as CustomSqlDimension[])
+                    .addCustomDimensions(
+                        fieldsForTable as CustomDimension[],
+                        warehouseClient,
+                    )
                     .toString({
                         quoteChar,
                     });
@@ -427,7 +439,7 @@ Affected charts:
         args:
             | {
                   type: 'customDimensions';
-                  fields: CustomSqlDimension[];
+                  fields: CustomDimension[];
               }
             | {
                   type: 'customMetrics';

@@ -1,12 +1,11 @@
 import {
     AdditionalMetric,
     ApiErrorPayload,
-    CustomSqlDimension,
+    CustomDimension,
     PullRequestCreated,
 } from '@lightdash/common';
 import {
     Body,
-    Get,
     Middlewares,
     OperationId,
     Path,
@@ -80,7 +79,7 @@ export class GitIntegrationController extends BaseController {
         @Path() projectUuid: string,
         @Body()
         body: {
-            customDimensions: CustomSqlDimension[];
+            customDimensions: CustomDimension[];
             quoteChar?: `"` | `'`; // to be used in the yml dump options
         },
         @Request() req: express.Request,
