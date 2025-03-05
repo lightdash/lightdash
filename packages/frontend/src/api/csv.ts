@@ -63,7 +63,6 @@ export const downloadCsvFromSavedChart = async ({
     tileUuid,
     csvLimit,
     onlyRaw,
-    metricsAsRows,
 }: {
     chartUuid: string;
     dashboardFilters?: DashboardFilters;
@@ -71,7 +70,6 @@ export const downloadCsvFromSavedChart = async ({
     // Csv properties
     onlyRaw: boolean;
     csvLimit: number | null | undefined;
-    metricsAsRows?: boolean;
 }) => {
     /* TODO fix dashboardFilters timezone 
     const timezoneFixQuery = {
@@ -86,7 +84,6 @@ export const downloadCsvFromSavedChart = async ({
             tileUuid,
             csvLimit,
             onlyRaw,
-            metricsAsRows,
         }),
     });
 };

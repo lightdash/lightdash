@@ -126,7 +126,6 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             tileUuid,
             onlyRaw,
             csvLimit,
-            metricsAsRows: true,
         });
     };
 
