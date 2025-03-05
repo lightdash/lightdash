@@ -297,7 +297,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 throw new WarehouseQueryError('Invalid query');
             }
 
-            const { rows, fields, sqlText } =
+            const { rows, fields, sqlText, numRows } =
                 await this.getAsyncStatementResults(
                     connection,
                     currentQueryId,
@@ -311,6 +311,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 fields,
                 rows,
                 queryId: currentQueryId,
+                pageCount: Math.ceil(numRows / queryArgs.pageSize),
             };
         } catch (e) {
             const error = e as SnowflakeError;
@@ -410,6 +411,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         fields: Record<string, { type: DimensionType }>;
         rows: Record<string, AnyType>[];
         sqlText: string;
+        numRows: number;
     }> {
         const statement = await connection.getResultsFromQueryId({
             sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
@@ -417,6 +419,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         const fields = this.getFieldsFromStatement(statement);
+        const numRows = await statement.getNumRows();
         const rows: Record<string, AnyType>[] = [];
 
         await new Promise<void>((resolve, reject) => {
@@ -436,10 +439,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     resolve();
                 });
         });
+
         return {
             fields,
             rows,
             sqlText: statement.getSqlText(),
+            numRows,
         };
     }
 

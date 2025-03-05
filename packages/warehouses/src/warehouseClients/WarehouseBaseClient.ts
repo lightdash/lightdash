@@ -61,6 +61,18 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     async getPaginatedResults(
         args: WarehousePaginateQueryArgs,
     ): Promise<WarehousePaginatedResults> {
+        // When there's no method implemented, we use the run query method and just return the results
+        if ('sql' in args) {
+            const { fields, rows } = await this.runQuery(
+                args.sql,
+                args.tags,
+                args.timezone,
+                args.values,
+            );
+
+            return { fields, rows, queryId: '', pageCount: 1 };
+        }
+
         throw new Error('Warehouse method not implemented.');
     }
 
