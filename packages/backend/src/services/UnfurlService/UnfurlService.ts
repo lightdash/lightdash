@@ -14,7 +14,6 @@ import {
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
@@ -761,6 +760,7 @@ export class UnfurlService extends BaseService {
                         fullPage: true,
                         animations: 'disabled',
                     });
+
                     return imageBuffer;
                 } catch (e) {
                     const errorMessage = getErrorMessage(e);
@@ -813,7 +813,6 @@ export class UnfurlService extends BaseService {
                         });
                     }
 
-                    Sentry.captureException(e);
                     hasError = true;
                     span.addEvent(getErrorMessage(e));
                     span.setAttributes({

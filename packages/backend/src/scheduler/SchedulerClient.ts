@@ -8,28 +8,29 @@ import {
     GsheetsNotificationPayload,
     JobPriority,
     NotificationPayloadBase,
+    QueueTraceProperties,
     ReplaceCustomFieldsPayload,
-    ReplaceCustomFieldsTask,
+    SCHEDULER_TASKS,
     ScheduledDeliveryPayload,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerTaskName,
     SemanticLayerQueryPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    TaskPayloadMap,
+    TraceTaskBase,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     getSchedulerTargetUuid,
     getSchedulerUuid,
     hasSchedulerUuid,
-    indexCatalogJob,
+    isCreateScheduler,
     isCreateSchedulerSlackTarget,
-    semanticLayerQueryJob,
-    sqlRunnerJob,
-    sqlRunnerPivotQueryJob,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -105,14 +106,16 @@ export class SchedulerClient {
             });
     }
 
-    static async processJob(
-        task: string,
+    static async processJob<T extends SchedulerTaskName>(
+        task: T,
         jobId: string,
         runAt: Date,
-        payload: AnyType,
+        payload: TaskPayloadMap[T],
         funct: () => Promise<void>,
     ) {
-        const { traceHeader, baggageHeader, sentryMessageId } = payload;
+        const { traceHeader, baggageHeader, sentryMessageId } =
+            payload as unknown as QueueTraceProperties;
+
         const latency = Date.now() - runAt.getTime();
         return new Promise<void>((resolve, reject) => {
             Sentry.continueTrace(
@@ -121,6 +124,7 @@ export class SchedulerClient {
                     await Sentry.startSpan(
                         {
                             name: 'queue_consumer_transaction',
+                            op: task,
                         },
                         async (parent) => {
                             await Sentry.startSpan(
@@ -137,7 +141,7 @@ export class SchedulerClient {
                                         'messaging.message.receive.latency':
                                             latency,
                                         'messaging.message.retry.count': 0,
-                                        'messaging.message.job.id': jobId,
+                                        'messaging.message.job.id': `${jobId}`,
                                     },
                                 },
                                 async (span) => {
@@ -168,10 +172,10 @@ export class SchedulerClient {
         });
     }
 
-    private static async addJob(
+    private static async addJob<T extends SchedulerTaskName>(
         graphileClient: WorkerUtils,
-        identifier: string,
-        payload: AnyType,
+        identifier: T,
+        payload: TaskPayloadMap[T],
         scheduledAt: Date,
         priority: JobPriority,
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
@@ -192,7 +196,8 @@ export class SchedulerClient {
             async (span) => {
                 const traceHeader = Sentry.spanToTraceHeader(span);
                 const baggageHeader = Sentry.spanToBaggageHeader(span);
-                const payloadWithSentryHeaders = {
+                const payloadWithSentryHeaders: TaskPayloadMap[T] &
+                    QueueTraceProperties = {
                     ...payload,
                     traceHeader,
                     baggageHeader,
@@ -208,7 +213,6 @@ export class SchedulerClient {
                     },
                 );
 
-                // span.setAttribute('messaging.message.job.id', id);
                 return id;
             },
         );
@@ -264,19 +268,27 @@ export class SchedulerClient {
 
     async addScheduledDeliveryJob(
         date: Date,
-        scheduler: Scheduler | CreateSchedulerAndTargets,
-        schedulerUuid: string | undefined,
+        scheduler: ScheduledDeliveryPayload,
+        schedulerUuid: string | undefined, // This detects if a scheduled delivery is to be sent "now"
     ) {
         const graphileClient = await this.graphileUtils;
+
+        const traceProperties: TraceTaskBase = {
+            organizationUuid: scheduler.organizationUuid,
+            projectUuid: scheduler.projectUuid,
+            userUuid: scheduler.userUuid,
+        };
 
         const payload: ScheduledDeliveryPayload = schedulerUuid
             ? {
                   schedulerUuid,
+                  ...traceProperties,
               }
             : scheduler;
 
         let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
         if (
+            isCreateScheduler(scheduler) &&
             scheduler.format === SchedulerFormat.IMAGE &&
             !!scheduler.dashboardUuid
         ) {
@@ -285,14 +297,14 @@ export class SchedulerClient {
 
         const id = await SchedulerClient.addJob(
             graphileClient,
-            'handleScheduledDelivery',
+            SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
             payload,
             date,
             JobPriority.LOW,
             maxAttempts,
         );
         await this.schedulerModel.logSchedulerJob({
-            task: 'handleScheduledDelivery',
+            task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
             schedulerUuid,
             jobGroup: id,
             jobId: id,
@@ -315,6 +327,7 @@ export class SchedulerClient {
         date: Date,
         jobGroup: string,
         scheduler: Scheduler,
+        traceProperties: TraceTaskBase,
     ) {
         const graphileClient = await this.graphileUtils;
 
@@ -322,10 +335,11 @@ export class SchedulerClient {
             schedulerUuid: scheduler.schedulerUuid,
             jobGroup,
             scheduledTime: date,
+            ...traceProperties,
         };
         const id = await SchedulerClient.addJob(
             graphileClient,
-            'uploadGsheets',
+            SCHEDULER_TASKS.UPLOAD_GSHEETS,
             payload,
             date,
             JobPriority.LOW,
@@ -353,6 +367,7 @@ export class SchedulerClient {
         target: CreateSchedulerTarget | undefined,
         targetUuid: string | undefined,
         page: NotificationPayloadBase['page'] | undefined,
+        traceProperties: TraceTaskBase,
     ) {
         if (!target) {
             throw new Error('Missing target for slack or email notification');
@@ -371,7 +386,7 @@ export class SchedulerClient {
         const schedulerUuid = getSchedulerUuid(scheduler);
 
         const getIdentifierAndPayload = (): {
-            identifier: string;
+            identifier: SchedulerTaskName;
             type: 'slack' | 'email';
             payload: SlackNotificationPayload | EmailNotificationPayload;
         } => {
@@ -387,6 +402,7 @@ export class SchedulerClient {
                         schedulerSlackTargetUuid: targetUuid,
                         scheduler,
                         channel: target.channel,
+                        ...traceProperties,
                     },
                 };
             }
@@ -402,6 +418,7 @@ export class SchedulerClient {
                     schedulerEmailTargetUuid: targetUuid,
                     scheduler,
                     recipient: target.recipient,
+                    ...traceProperties,
                 },
             };
         };
@@ -432,6 +449,7 @@ export class SchedulerClient {
 
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
+        traceProperties: TraceTaskBase,
         defaultTimezone: string,
         // startingDateTime specifies that time after which to generate jobs.
         // If not provided, it will generate job after now, which is the desired
@@ -452,7 +470,10 @@ export class SchedulerClient {
             const promises = dates.map((date: Date) =>
                 this.addScheduledDeliveryJob(
                     date,
-                    scheduler,
+                    {
+                        ...scheduler,
+                        ...traceProperties,
+                    },
                     scheduler.schedulerUuid,
                 ),
             );
@@ -476,7 +497,7 @@ export class SchedulerClient {
             );
             jobs.map(async ({ jobId, date }) => {
                 await this.schedulerModel.logSchedulerJob({
-                    task: 'handleScheduledDelivery',
+                    task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                     schedulerUuid: scheduler.schedulerUuid,
                     jobGroup: jobId,
                     jobId,
@@ -498,6 +519,7 @@ export class SchedulerClient {
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
         page: NotificationPayloadBase['page'] | undefined,
         parentJobId: string,
+        traceProperties: TraceTaskBase,
     ) {
         const schedulerUuid = getSchedulerUuid(scheduler);
 
@@ -515,6 +537,7 @@ export class SchedulerClient {
                     scheduledTime,
                     parentJobId,
                     scheduler,
+                    traceProperties,
                 );
                 return [{ ...job, target: undefined }];
             }
@@ -526,6 +549,7 @@ export class SchedulerClient {
                     target,
                     getSchedulerTargetUuid(target),
                     page,
+                    traceProperties,
                 ),
             );
             Logger.info(
@@ -546,14 +570,14 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            'downloadCsv',
+            SCHEDULER_TASKS.DOWNLOAD_CSV,
             payload,
             now,
             JobPriority.HIGH,
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: 'downloadCsv',
+            task: SCHEDULER_TASKS.DOWNLOAD_CSV,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -573,14 +597,14 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            'uploadGsheetFromQuery',
+            SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
             payload,
             now,
             JobPriority.LOW,
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: 'uploadGsheetFromQuery',
+            task: SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -600,14 +624,14 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            'validateProject',
+            SCHEDULER_TASKS.VALIDATE_PROJECT,
             payload,
             now,
             JobPriority.MEDIUM,
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: 'validateProject',
+            task: SCHEDULER_TASKS.VALIDATE_PROJECT,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -627,13 +651,13 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            semanticLayerQueryJob,
+            SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
             payload,
             now,
             JobPriority.HIGH,
         );
         await this.schedulerModel.logSchedulerJob({
-            task: semanticLayerQueryJob,
+            task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -650,13 +674,13 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            sqlRunnerJob,
+            SCHEDULER_TASKS.SQL_RUNNER,
             payload,
             now,
             JobPriority.HIGH,
         );
         await this.schedulerModel.logSchedulerJob({
-            task: sqlRunnerJob,
+            task: SCHEDULER_TASKS.SQL_RUNNER,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -673,14 +697,14 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            sqlRunnerPivotQueryJob,
+            SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY,
             payload,
             now,
             JobPriority.HIGH,
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: sqlRunnerPivotQueryJob,
+            task: SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -697,7 +721,7 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            'compileProject',
+            SCHEDULER_TASKS.COMPILE_PROJECT,
             payload,
             now,
             JobPriority.HIGH,
@@ -705,7 +729,7 @@ export class SchedulerClient {
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: 'compileProject',
+            task: SCHEDULER_TASKS.COMPILE_PROJECT,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -730,14 +754,14 @@ export class SchedulerClient {
 
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            'createProjectWithCompile',
+            SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
             payload,
             now,
             1,
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: 'createProjectWithCompile',
+            task: SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -757,7 +781,7 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            'testAndCompileProject',
+            SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
             payload,
             now,
             JobPriority.HIGH,
@@ -765,7 +789,7 @@ export class SchedulerClient {
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: 'testAndCompileProject',
+            task: SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
@@ -787,7 +811,7 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            ReplaceCustomFieldsTask,
+            SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
             payload,
             now,
             JobPriority.LOW,
@@ -795,12 +819,12 @@ export class SchedulerClient {
         );
 
         await this.schedulerModel.logSchedulerJob({
-            task: ReplaceCustomFieldsTask,
+            task: SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
             details: {
-                createdByUserUuid: payload.createdByUserUuid,
+                userUuid: payload.userUuid,
                 organizationUuid: payload.organizationUuid,
                 projectUuid: payload.projectUuid,
             },
@@ -815,13 +839,13 @@ export class SchedulerClient {
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            indexCatalogJob,
+            SCHEDULER_TASKS.INDEX_CATALOG,
             payload,
             now,
             JobPriority.MEDIUM,
         );
         await this.schedulerModel.logSchedulerJob({
-            task: indexCatalogJob,
+            task: SCHEDULER_TASKS.INDEX_CATALOG,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

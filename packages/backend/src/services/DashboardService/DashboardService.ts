@@ -1026,6 +1026,11 @@ export class DashboardService extends BaseService {
 
         await this.schedulerClient.generateDailyJobsForScheduler(
             scheduler,
+            {
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            },
             defaultTimezone,
         );
         return scheduler;
