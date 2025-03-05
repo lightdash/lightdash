@@ -402,3 +402,17 @@ export class NotImplementedError extends LightdashError {
 }
 export const getErrorMessage = (e: unknown) =>
     e instanceof Error ? e.message : `Unknown ${typeof e} error`;
+
+export class ScreenshotError extends LightdashError {
+    constructor(
+        message = 'Error capturing screenshot',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'ScreenshotError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
