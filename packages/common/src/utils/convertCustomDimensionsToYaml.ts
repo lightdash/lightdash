@@ -1,5 +1,5 @@
 import type { DbtColumnLightdashAdditionalDimension } from '../types/dbt';
-import { ParameterError } from '../types/errors';
+import { NotImplementedError } from '../types/errors';
 import {
     BinType,
     type CustomBinDimension,
@@ -35,7 +35,6 @@ export const convertCustomBinDimensionToYaml = ({
         case BinType.CUSTOM_RANGE:
             return {
                 label: friendlyName(customDimension.name),
-                description: '',
                 type: DimensionType.STRING,
                 sql: getCustomRangeSelectSql({
                     binRanges: customDimension.customRange || [],
@@ -46,7 +45,6 @@ export const convertCustomBinDimensionToYaml = ({
         case BinType.FIXED_WIDTH:
             return {
                 label: friendlyName(customDimension.name),
-                description: '',
                 type: DimensionType.STRING,
                 sql: getFixedWidthBinSelectSql({
                     binWidth: customDimension.binWidth || 1,
@@ -55,7 +53,9 @@ export const convertCustomBinDimensionToYaml = ({
                 }),
             };
         case BinType.FIXED_NUMBER:
-            throw new ParameterError('Fixed number bin type not supported');
+            throw new NotImplementedError(
+                'Fixed number bin type not supported',
+            );
         default:
             const never: never = customDimension.binType;
             throw new Error(`Unknown bin type ${never}`);
