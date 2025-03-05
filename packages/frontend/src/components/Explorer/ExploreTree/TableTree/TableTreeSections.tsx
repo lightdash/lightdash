@@ -7,6 +7,7 @@ import {
     type CompiledTable,
     type CustomDimension,
 } from '@lightdash/common';
+import { isCustomSqlDimension } from '@lightdash/common/dist';
 import {
     ActionIcon,
     Button,
@@ -134,6 +135,14 @@ const TableTreeSections: FC<Props> = ({
     const isCustomSqlEnabled = useFeatureFlagEnabled(
         FeatureFlags.CustomSQLEnabled,
     );
+    const isWriteBackCustomBinDimensionsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.WriteBackCustomBinDimensions,
+    );
+    const customDimensionsToWriteBack = isWriteBackCustomBinDimensionsEnabled
+        ? allCustomDimensions
+        : allCustomDimensions?.filter(isCustomSqlDimension);
+    const hasCustomDimensionsToWriteBack =
+        customDimensionsToWriteBack && customDimensionsToWriteBack.length > 0;
 
     const customMetricsIssues: {
         [id: string]: {
@@ -411,7 +420,7 @@ const TableTreeSections: FC<Props> = ({
                             }}
                         />
                     </Group>
-                    {isCustomSqlEnabled && hasCustomDimensions && (
+                    {isCustomSqlEnabled && hasCustomDimensionsToWriteBack && (
                         <Tooltip label="Write back custom dimensions">
                             <ActionIcon
                                 onClick={() => {
@@ -428,13 +437,14 @@ const TableTreeSections: FC<Props> = ({
                                                     user.data.organizationUuid,
                                                 customMetricsCount: 0,
                                                 customDimensionsCount:
-                                                    allCustomDimensions?.length ||
+                                                    customDimensionsToWriteBack?.length ||
                                                     0,
                                             },
                                         });
                                     }
                                     toggleWriteBackModal({
-                                        items: allCustomDimensions || [],
+                                        items:
+                                            customDimensionsToWriteBack || [],
                                     });
                                 }}
                             >
