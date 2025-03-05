@@ -99,6 +99,7 @@ import {
     findFieldByIdInExplore,
     findReplaceableCustomMetrics,
     formatRawRows,
+    formatRow,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -113,7 +114,6 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
-    isAndFilterGroup,
     isCustomSqlDimension,
     isDateItem,
     isDimension,
@@ -121,12 +121,12 @@ import {
     isFilterRule,
     isFilterableDimension,
     isNotNull,
-    isOrFilterGroup,
     isUserWithOrg,
     maybeReplaceFieldsInChartVersion,
     replaceDimensionInExplore,
     snakeCaseName,
     type ApiCreateProjectResults,
+    type ApiPaginatedQueryResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
     type RunQueryTags,
@@ -190,6 +190,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import type { PaginateQueryArgs } from './types';
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1756,6 +1757,102 @@ export class ProjectService extends BaseService {
         });
     }
 
+    async runPaginatedExploreQuery({
+        user,
+        projectUuid,
+        exploreName,
+        dateZoomGranularity,
+        context = QueryExecutionContext.EXPLORE,
+        ...rest
+    }: PaginateQueryArgs & {
+        user: SessionUser;
+        projectUuid: string;
+        exploreName: string;
+        dateZoomGranularity?: DateGranularity;
+        context?: QueryExecutionContext;
+    }): Promise<ApiPaginatedQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: context,
+        };
+
+        if ('queryId' in rest) {
+            return this.paginateMetricQuery(
+                {
+                    user,
+                    projectUuid,
+                    exploreName,
+                    queryId: rest.queryId,
+                    page: rest.page,
+                    pageSize: rest.pageSize,
+                    context,
+                    chartUuid: undefined,
+                    granularity: dateZoomGranularity,
+                    queryTags,
+                    fields: rest.fields,
+                },
+                formatRow,
+            );
+        }
+
+        const { metricQuery, csvLimit } = rest;
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
+        return this.paginateMetricQuery(
+            {
+                user,
+                metricQuery,
+                projectUuid,
+                exploreName,
+                explore,
+                csvLimit,
+                context: QueryExecutionContext.EXPLORE,
+                queryTags,
+                granularity: dateZoomGranularity,
+                chartUuid: undefined,
+                page: rest.page,
+                pageSize: rest.pageSize,
+            },
+            formatRow,
+        );
+    }
+
     private async runQueryAndFormatRows({
         user,
         metricQuery,
@@ -2078,6 +2175,211 @@ export class ProjectService extends BaseService {
                     rows: warehouseResults.rows,
                     cacheMetadata: { cacheHit: false },
                 };
+            },
+        );
+    }
+
+    async paginateMetricQuery<TFormattedRow extends Record<string, unknown>>(
+        {
+            user,
+            projectUuid,
+            exploreName,
+            context,
+            invalidateCache,
+            explore: loadedExplore,
+            granularity,
+            chartUuid,
+            page,
+            pageSize,
+            queryTags,
+            ...rest
+        }: PaginateQueryArgs & {
+            user: SessionUser;
+            projectUuid: string;
+            exploreName: string;
+            context: QueryExecutionContext;
+            invalidateCache?: boolean;
+            explore?: Explore;
+            granularity?: DateGranularity;
+            chartUuid: string | undefined; // for analytics
+            queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
+        },
+        rowFormatter?: (
+            row: Record<string, unknown>,
+            fields: ItemsMap,
+        ) => TFormattedRow,
+    ) {
+        return wrapSentryTransaction(
+            'ProjectService.runMetricQuery',
+            {},
+            async (span) => {
+                try {
+                    if (!isUserWithOrg(user)) {
+                        throw new ForbiddenError(
+                            'User is not part of an organization',
+                        );
+                    }
+
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
+
+                    const explore =
+                        loadedExplore ??
+                        (await this.getExplore(user, projectUuid, exploreName));
+
+                    const { warehouseClient, sshTunnel } =
+                        await this._getWarehouseClient(
+                            projectUuid,
+                            await this.getWarehouseCredentials(
+                                projectUuid,
+                                user.userUuid,
+                            ),
+                            {
+                                snowflakeVirtualWarehouse: explore.warehouse,
+                                databricksCompute: explore.databricksCompute,
+                            },
+                        );
+
+                    span.setAttribute('lightdash.projectUuid', projectUuid);
+                    span.setAttribute(
+                        'warehouse.type',
+                        warehouseClient.credentials.type,
+                    );
+
+                    let sql = '';
+                    let fieldsMap: ItemsMap = {};
+
+                    if ('metricQuery' in rest) {
+                        const { metricQuery } = rest;
+                        const userAttributes =
+                            await this.userAttributesModel.getAttributeValuesForOrgMember(
+                                {
+                                    organizationUuid,
+                                    userUuid: user.userUuid,
+                                },
+                            );
+
+                        const emailStatus =
+                            await this.emailModel.getPrimaryEmailStatus(
+                                user.userUuid,
+                            );
+                        const intrinsicUserAttributes = emailStatus.isVerified
+                            ? getIntrinsicUserAttributes(user)
+                            : {};
+
+                        const metricQueryWithLimit = this.metricQueryWithLimit(
+                            metricQuery,
+                            rest.csvLimit,
+                        );
+
+                        const fullQuery = await ProjectService._compileQuery(
+                            metricQueryWithLimit,
+                            explore,
+                            warehouseClient,
+                            intrinsicUserAttributes,
+                            userAttributes,
+                            this.lightdashConfig.query.timezone || 'UTC',
+                            granularity,
+                        );
+
+                        const { query, fields: fieldsFromQuery } = fullQuery;
+
+                        const fieldsWithOverrides: ItemsMap =
+                            Object.fromEntries(
+                                Object.entries(fieldsFromQuery).map(
+                                    ([key, value]) => {
+                                        if (
+                                            metricQuery.metricOverrides &&
+                                            metricQuery.metricOverrides[key]
+                                        ) {
+                                            return [
+                                                key,
+                                                {
+                                                    ...value,
+                                                    ...metricQuery
+                                                        .metricOverrides[key],
+                                                },
+                                            ];
+                                        }
+                                        return [key, value];
+                                    },
+                                ),
+                            );
+
+                        // TODO paginate: fields is only calculated for the first page, we need to implement metadata table to store fields so we can use them when there's no metricQuery and we're using the QueryId
+                        fieldsMap = fieldsWithOverrides;
+                        sql = query;
+
+                        span.setAttribute('generatedSql', query);
+                    } else if ('queryId' in rest) {
+                        // TODO paginate: in this case fields is being sent in the request, but it's not being generated in the backend because we don't have a metricQuery
+                        fieldsMap = rest.fields;
+                    }
+
+                    const onboardingRecord =
+                        await this.onboardingModel.getByOrganizationUuid(
+                            user.organizationUuid,
+                        );
+
+                    if (!onboardingRecord.ranQueryAt) {
+                        await this.onboardingModel.update(
+                            user.organizationUuid,
+                            {
+                                ranQueryAt: new Date(),
+                            },
+                        );
+                    }
+
+                    const formatter = (row: Record<string, unknown>) =>
+                        rowFormatter ? rowFormatter(row, fieldsMap) : row;
+
+                    const results = await measureTime(
+                        () =>
+                            warehouseClient.getPaginatedResults(
+                                {
+                                    ...('metricQuery' in rest
+                                        ? { sql }
+                                        : { queryId: rest.queryId }),
+                                    page,
+                                    pageSize,
+                                    tags: queryTags,
+                                },
+                                formatter,
+                            ),
+                        'getPaginatedResults',
+                        this.logger,
+                        context,
+                    );
+
+                    await sshTunnel.disconnect();
+
+                    return {
+                        rows: results.rows as TFormattedRow[],
+                        pageCount: results.pageCount,
+                        queryId: results.queryId,
+                        fields: fieldsMap,
+                    };
+                } catch (e) {
+                    span.setStatus({
+                        code: 2, // ERROR
+                        message: getErrorMessage(e),
+                    });
+                    throw e;
+                } finally {
+                    span.end();
+                }
             },
         );
     }

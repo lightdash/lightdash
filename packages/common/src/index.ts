@@ -461,6 +461,13 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
+export type ApiPaginatedQueryResults = {
+    queryId: string;
+    rows: ResultRow[];
+    fields?: ItemsMap;
+    pageCount: number;
+};
+
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;
@@ -750,7 +757,8 @@ type ApiResults =
     | ApiGetMetricsTree['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
-    | ApiCalculateSubtotalsResponse['results'];
+    | ApiCalculateSubtotalsResponse['results']
+    | ApiPaginatedQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1183,6 +1191,28 @@ export function formatRawRows(
 
         return resultRow;
     });
+}
+
+export function formatRow(
+    row: { [col: string]: AnyType },
+    itemsMap: ItemsMap,
+): ResultRow {
+    const resultRow: ResultRow = {};
+    const columnNames = Object.keys(row || {});
+
+    for (const columnName of columnNames) {
+        const value = row[columnName];
+        const item = itemsMap[columnName];
+
+        resultRow[columnName] = {
+            value: {
+                raw: formatRawValue(item, value),
+                formatted: formatItemValue(item, value),
+            },
+        };
+    }
+
+    return resultRow;
 }
 
 export function formatRows(

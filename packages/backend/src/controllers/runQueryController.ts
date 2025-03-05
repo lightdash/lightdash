@@ -8,9 +8,13 @@ import {
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
+    QueryExecutionContext,
+    type ApiPaginatedQueryResults,
+    type ItemsMap,
 } from '@lightdash/common';
 import {
     Body,
+    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -34,6 +38,11 @@ export type ApiRunQueryResponse = {
         rows: AnyType[];
         fields?: Record<string, Item | AdditionalMetric>;
     };
+};
+
+export type ApiPaginatedRunQueryResponse = {
+    status: 'ok';
+    results: ApiPaginatedQueryResults;
 };
 
 @Route('/api/v1/projects/{projectUuid}')
@@ -129,6 +138,64 @@ export class RunViewChartQueryController extends BaseController {
                 getContextFromHeader(req),
             );
         this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/explores/{exploreName}/runPaginatedQuery')
+    @OperationId('RunPaginatedQuery')
+    async runPaginatedQuery(
+        @Body()
+        body: (MetricQueryRequest | { queryId: string; fields: ItemsMap }) & {
+            page: number;
+            pageSize: number;
+        },
+        @Path() projectUuid: string,
+        @Path() exploreName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPaginatedRunQueryResponse> {
+        const queryParams =
+            'queryId' in body
+                ? {
+                      queryId: body.queryId,
+                      fields: body.fields,
+                  }
+                : {
+                      metricQuery: {
+                          exploreName: body.exploreName,
+                          dimensions: body.dimensions,
+                          metrics: body.metrics,
+                          filters: body.filters,
+                          sorts: body.sorts,
+                          limit: body.limit,
+                          tableCalculations: body.tableCalculations,
+                          additionalMetrics: body.additionalMetrics,
+                          customDimensions: body.customDimensions,
+                          timezone: body.timezone,
+                          metricOverrides: body.metricOverrides,
+                      },
+                      csvLimit: body.csvLimit,
+                  };
+
+        const results = await this.services
+            .getProjectService()
+            .runPaginatedExploreQuery({
+                user: req.user!,
+                projectUuid,
+                exploreName,
+                page: body.page,
+                pageSize: body.pageSize,
+                context: getContextFromHeader(req),
+                ...queryParams,
+            });
+
+        this.setStatus(200);
+
         return {
             status: 'ok',
             results,

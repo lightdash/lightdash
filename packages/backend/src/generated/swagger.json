@@ -8377,6 +8377,93 @@
                 ],
                 "type": "object"
             },
+            "ResultValue": {
+                "properties": {
+                    "formatted": {
+                        "type": "string"
+                    },
+                    "raw": {}
+                },
+                "required": ["formatted", "raw"],
+                "type": "object"
+            },
+            "Record_string._value-ResultValue__": {
+                "properties": {},
+                "additionalProperties": {
+                    "properties": {
+                        "value": {
+                            "$ref": "#/components/schemas/ResultValue"
+                        }
+                    },
+                    "required": ["value"],
+                    "type": "object"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultRow": {
+                "$ref": "#/components/schemas/Record_string._value-ResultValue__"
+            },
+            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/components/schemas/Field"
+                        },
+                        {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        {
+                            "$ref": "#/components/schemas/Metric"
+                        }
+                    ]
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ItemsMap": {
+                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
+            },
+            "ApiPaginatedQueryResults": {
+                "properties": {
+                    "pageCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultRow"
+                        },
+                        "type": "array"
+                    },
+                    "queryId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["pageCount", "rows", "queryId"],
+                "type": "object"
+            },
+            "ApiPaginatedRunQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiPaginatedQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
                 "properties": {
                     "createdAt": {
@@ -12584,30 +12671,6 @@
                 ],
                 "type": "object",
                 "additionalProperties": true
-            },
-            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
-                "properties": {},
-                "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/components/schemas/Field"
-                        },
-                        {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Metric"
-                        }
-                    ]
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ItemsMap": {
-                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
             "MetricExploreDataPoint": {
                 "properties": {
