@@ -8,6 +8,8 @@ import {
     WarehouseCatalog,
     WarehouseResults,
     WeekDay,
+    type ItemsMap,
+    type ResultRow,
 } from '@lightdash/common';
 import {
     type WarehouseClient,
@@ -58,16 +60,30 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         throw new Error('Warehouse method not implemented.');
     }
 
-    async getPaginatedResults(
-        args: WarehousePaginateQueryArgs,
-    ): Promise<WarehousePaginatedResults> {
+    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
+        { tags, timezone, values, ...args }: WarehousePaginateQueryArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
         // When there's no method implemented, we use the run query method and just return the results
         if ('sql' in args) {
-            const { fields, rows } = await this.runQuery(
+            let fields: WarehouseResults['fields'] = {};
+            const rows: TFormattedRow[] = [];
+
+            await this.streamQuery(
                 args.sql,
-                args.tags,
-                args.timezone,
-                args.values,
+                (data) => {
+                    fields = data.fields;
+                    rows.push(
+                        ...((rowFormatter
+                            ? data.rows.map(rowFormatter)
+                            : data.rows) as TFormattedRow[]),
+                    );
+                },
+                {
+                    values,
+                    tags,
+                    timezone,
+                },
             );
 
             return { fields, rows, queryId: '', pageCount: 1 };

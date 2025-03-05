@@ -267,11 +267,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
     }
 
-    async getPaginatedResults({
-        timezone,
-        tags,
-        ...queryArgs
-    }: WarehousePaginateQueryArgs): Promise<WarehousePaginatedResults> {
+    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
+        { timezone, tags, ...queryArgs }: WarehousePaginateQueryArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
         const connection = await this.getConnection();
         let sql: string = '';
 
@@ -306,6 +305,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     currentQueryId,
                     start,
                     end,
+                    rowFormatter,
                 );
 
             return {
@@ -409,14 +409,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
     }
 
-    private async getAsyncStatementResults(
+    private async getAsyncStatementResults<
+        TFormattedRow extends Record<string, unknown>,
+    >(
         connection: Connection,
         queryId: string,
         start: number,
         end: number,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
     ): Promise<{
         fields: Record<string, { type: DimensionType }>;
-        rows: Record<string, AnyType>[];
+        rows: TFormattedRow[];
         numRows: number;
     }> {
         const statement = await connection.getResultsFromQueryId({
@@ -424,7 +427,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             queryId,
         });
 
-        const rows: Record<string, AnyType>[] = [];
+        const rows: TFormattedRow[] = [];
 
         await new Promise<void>((resolve, reject) => {
             statement
@@ -436,7 +439,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     reject(err);
                 })
                 .on('data', (row) => {
-                    rows.push(parseRow(row));
+                    const parsedRow = parseRow(row);
+                    const formattedRow = rowFormatter
+                        ? rowFormatter(parsedRow)
+                        : (parsedRow as TFormattedRow);
+
+                    rows.push(formattedRow);
                 })
                 .on('end', () => {
                     resolve();
