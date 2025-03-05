@@ -301,6 +301,12 @@ export type TraceTaskBase = {
     schedulerUuid?: string;
 };
 
+export type QueueTraceProperties = {
+    traceHeader?: string;
+    baggageHeader?: string;
+    sentryMessageId?: string;
+};
+
 // Scheduler task types
 export type ScheduledDeliveryPayload = TraceTaskBase &
     (CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>);

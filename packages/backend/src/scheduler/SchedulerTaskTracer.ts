@@ -1,4 +1,5 @@
 import {
+    QueueTraceProperties,
     SCHEDULER_TASKS,
     SchedulerTaskName,
     TaskPayloadMap,
@@ -125,109 +126,121 @@ export const traceTask = <T extends SchedulerTaskName>(
     task: TypedTask<TaskPayloadMap[T]>,
 ) => {
     const tracedTask: (
-        payload: TaskPayloadMap[T],
+        payload: TaskPayloadMap[T] & QueueTraceProperties,
         helpers: JobHelpers,
     ) => void = async (payload, helpers) => {
-        await Sentry.startSpan(
-            {
-                name: `worker.task.${taskName}`,
-                attributes: {
-                    'scheduler.task': taskName,
-                    'job.id': helpers.job.id,
-                    'job.queue': helpers.job.queue_name || 'unknown',
-                    'job.attempts': helpers.job.attempts,
-                    'job.max_attempts': helpers.job.max_attempts,
-                },
-            },
-            async (span) => {
-                const { job } = helpers;
+        const { traceHeader, baggageHeader } = payload;
 
-                const payloadTags = getTagsFromPayload(taskName, payload);
-
-                if ('user.uuid' in payloadTags) {
-                    Sentry.setUser({
-                        id: payloadTags['user.uuid'],
-                    });
-                }
-
-                Sentry.setTags({
-                    'scheduler.task': taskName,
-                    'worker.task.name': taskName,
-                    'job.id': job.id,
-                    'worker.id': job.locked_by,
-                    'worker.job.id': job.id,
-                    'worker.job.task_identifier': job.task_identifier,
-                    'worker.job.attempts': job.attempts,
-                    'worker.job.max_attempts': job.max_attempts,
-                    ...(job.locked_at && {
-                        'worker.job.locked_at': moment(
-                            job.locked_at,
-                        ).toISOString(),
-                    }),
-                    ...(job.created_at && {
-                        'worker.job.created_at': job.created_at.toISOString(),
-                    }),
-                    ...(job.locked_by && {
-                        'worker.job.locked_by': job.locked_by,
-                    }),
-                    ...(job.key && {
-                        'worker.job.key': job.key,
-                    }),
-                    ...('organizationUuid' in payloadTags &&
-                        typeof payloadTags.organizationUuid === 'string' && {
-                            'worker.task.organization_id':
-                                payloadTags.organizationUuid,
-                        }),
-                    ...payloadTags,
-                });
-
-                try {
-                    const executionContext: ExecutionContextInfo = {
-                        worker: {
-                            id: job.locked_by,
+        await Sentry.continueTrace(
+            { sentryTrace: traceHeader, baggage: baggageHeader },
+            async () => {
+                await Sentry.startSpan(
+                    {
+                        name: `worker.task.${taskName}`,
+                        attributes: {
+                            'scheduler.task': taskName,
+                            'job.id': helpers.job.id,
+                            'job.queue': helpers.job.queue_name || 'unknown',
+                            'job.attempts': helpers.job.attempts,
+                            'job.max_attempts': helpers.job.max_attempts,
                         },
-                        job: {
-                            id: job.id,
-                            queue_name: job.queue_name,
-                            task_identifier: job.task_identifier,
-                            priority: job.priority,
-                            attempts: job.attempts,
-                        },
-                    };
-                    await ExecutionContext.run(
-                        () => task(payload, helpers),
-                        executionContext,
-                    );
-                } catch (e) {
-                    span.setStatus({
-                        code: 2, // Error
-                    });
+                    },
+                    async (span) => {
+                        const { job } = helpers;
 
-                    // Add breadcrumb for worker context
-                    Sentry.addBreadcrumb({
-                        category: 'worker',
-                        message: `Error occurred in scheduler worker context - ${taskName}`,
-                        level: 'error',
-                        data: {
+                        const payloadTags = getTagsFromPayload(
                             taskName,
-                            jobId: String(job.id),
-                            workerInstance: job.locked_by,
-                        },
-                    });
+                            payload,
+                        );
 
-                    // Capture the error with additional fingerprinting
-                    Sentry.withScope((scope) => {
-                        scope.setFingerprint([
-                            'scheduler_worker',
-                            taskName,
-                            (e as Error).name || 'Error',
-                            (e as Error).message || 'Unknown error',
-                        ]);
-                        Sentry.captureException(e);
-                    });
+                        if ('user.uuid' in payloadTags) {
+                            Sentry.setUser({
+                                id: payloadTags['user.uuid'],
+                            });
+                        }
 
-                    throw e;
-                }
+                        Sentry.setTags({
+                            'scheduler.task': taskName,
+                            'worker.task.name': taskName,
+                            'job.id': job.id,
+                            'worker.id': job.locked_by,
+                            'worker.job.id': job.id,
+                            'worker.job.task_identifier': job.task_identifier,
+                            'worker.job.attempts': job.attempts,
+                            'worker.job.max_attempts': job.max_attempts,
+                            ...(job.locked_at && {
+                                'worker.job.locked_at': moment(
+                                    job.locked_at,
+                                ).toISOString(),
+                            }),
+                            ...(job.created_at && {
+                                'worker.job.created_at':
+                                    job.created_at.toISOString(),
+                            }),
+                            ...(job.locked_by && {
+                                'worker.job.locked_by': job.locked_by,
+                            }),
+                            ...(job.key && {
+                                'worker.job.key': job.key,
+                            }),
+                            ...('organizationUuid' in payloadTags &&
+                                typeof payloadTags.organizationUuid ===
+                                    'string' && {
+                                    'worker.task.organization_id':
+                                        payloadTags.organizationUuid,
+                                }),
+                            ...payloadTags,
+                        });
+
+                        try {
+                            const executionContext: ExecutionContextInfo = {
+                                worker: {
+                                    id: job.locked_by,
+                                },
+                                job: {
+                                    id: job.id,
+                                    queue_name: job.queue_name,
+                                    task_identifier: job.task_identifier,
+                                    priority: job.priority,
+                                    attempts: job.attempts,
+                                },
+                            };
+                            await ExecutionContext.run(
+                                () => task(payload, helpers),
+                                executionContext,
+                            );
+                        } catch (e) {
+                            span.setStatus({
+                                code: 2, // Error
+                            });
+
+                            // Add breadcrumb for worker context
+                            Sentry.addBreadcrumb({
+                                category: 'worker',
+                                message: `Error occurred in scheduler worker context - ${taskName}`,
+                                level: 'error',
+                                data: {
+                                    taskName,
+                                    jobId: String(job.id),
+                                    workerInstance: job.locked_by,
+                                },
+                            });
+
+                            // Capture the error with additional fingerprinting
+                            Sentry.withScope((scope) => {
+                                scope.setFingerprint([
+                                    'scheduler_worker',
+                                    taskName,
+                                    (e as Error).name || 'Error',
+                                    (e as Error).message || 'Unknown error',
+                                ]);
+                                Sentry.captureException(e);
+                            });
+
+                            throw e;
+                        }
+                    },
+                );
             },
         );
     };

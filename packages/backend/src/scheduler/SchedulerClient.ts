@@ -8,6 +8,7 @@ import {
     GsheetsNotificationPayload,
     JobPriority,
     NotificationPayloadBase,
+    QueueTraceProperties,
     ReplaceCustomFieldsPayload,
     SCHEDULER_TASKS,
     ScheduledDeliveryPayload,
@@ -16,10 +17,12 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerTaskName,
     SemanticLayerQueryPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    TaskPayloadMap,
     TraceTaskBase,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
@@ -103,14 +106,16 @@ export class SchedulerClient {
             });
     }
 
-    static async processJob(
-        task: string,
+    static async processJob<T extends SchedulerTaskName>(
+        task: T,
         jobId: string,
         runAt: Date,
-        payload: AnyType,
+        payload: TaskPayloadMap[T],
         funct: () => Promise<void>,
     ) {
-        const { traceHeader, baggageHeader, sentryMessageId } = payload;
+        const { traceHeader, baggageHeader, sentryMessageId } =
+            payload as unknown as QueueTraceProperties;
+
         const latency = Date.now() - runAt.getTime();
         return new Promise<void>((resolve, reject) => {
             Sentry.continueTrace(
@@ -167,10 +172,10 @@ export class SchedulerClient {
         });
     }
 
-    private static async addJob(
+    private static async addJob<T extends SchedulerTaskName>(
         graphileClient: WorkerUtils,
-        identifier: string,
-        payload: AnyType,
+        identifier: T,
+        payload: TaskPayloadMap[T],
         scheduledAt: Date,
         priority: JobPriority,
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
@@ -191,7 +196,8 @@ export class SchedulerClient {
             async (span) => {
                 const traceHeader = Sentry.spanToTraceHeader(span);
                 const baggageHeader = Sentry.spanToBaggageHeader(span);
-                const payloadWithSentryHeaders = {
+                const payloadWithSentryHeaders: TaskPayloadMap[T] &
+                    QueueTraceProperties = {
                     ...payload,
                     traceHeader,
                     baggageHeader,
@@ -380,7 +386,7 @@ export class SchedulerClient {
         const schedulerUuid = getSchedulerUuid(scheduler);
 
         const getIdentifierAndPayload = (): {
-            identifier: string;
+            identifier: SchedulerTaskName;
             type: 'slack' | 'email';
             payload: SlackNotificationPayload | EmailNotificationPayload;
         } => {
