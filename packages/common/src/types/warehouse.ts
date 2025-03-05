@@ -47,14 +47,16 @@ export type WarehouseResults = {
     rows: Record<string, AnyType>[];
 };
 
-export type WarehousePaginateQueryArgs =
-    | ({ sql: string } | { queryId: string }) & {
-          page: number;
-          pageSize: number;
-          tags: Record<string, string>;
-          timezone?: string;
-          values?: AnyType[];
-      };
+export type WarehousePaginationArgs = {
+    page: number;
+    pageSize: number;
+};
+
+export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
+    tags: Record<string, string>;
+    timezone?: string;
+    values?: AnyType[];
+} & ({ sql: string } | { queryId: string });
 
 export type WarehousePaginatedResults<
     TFormattedRow extends Record<string, unknown>,
