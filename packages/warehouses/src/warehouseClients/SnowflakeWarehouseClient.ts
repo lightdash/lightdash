@@ -417,24 +417,25 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         const fields = this.getFieldsFromStatement(statement);
-
-        // only consume at most the last 5 rows in the result
         const rows: Record<string, AnyType>[] = [];
-        statement
-            .streamRows({
-                start,
-                end,
-            })
-            .on('error', (err) => {
-                console.error('Unable to consume requested rows');
-            })
-            .on('data', (row) => {
-                rows.push(parseRow(row));
-            })
-            .on('end', () => {
-                console.log(`Number of rows consumed: ${rows.length}`);
-            });
 
+        await new Promise<void>((resolve, reject) => {
+            statement
+                .streamRows({
+                    start,
+                    end,
+                })
+                .on('error', (err) => {
+                    reject(err);
+                })
+                .on('data', (row) => {
+                    console.log('row', row);
+                    rows.push(parseRow(row));
+                })
+                .on('end', () => {
+                    resolve();
+                });
+        });
         return {
             fields,
             rows,
