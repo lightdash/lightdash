@@ -145,5 +145,7 @@ export enum EventName {
     // Write back to dbt
     WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED = 'write_back_from_custom_metric.clicked',
     WRITE_BACK_FROM_CUSTOM_METRIC_HEADER_CLICKED = 'write_back_from_custom_metric_header.clicked',
+    WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED = 'write_back_from_custom_dimension.clicked',
+    WRITE_BACK_FROM_CUSTOM_DIMENSION_HEADER_CLICKED = 'write_back_from_custom_dimension_header.clicked',
     CUSTOM_FIELDS_REPLACEMENT_APPLIED = 'custom_fields_replacement.applied',
 }

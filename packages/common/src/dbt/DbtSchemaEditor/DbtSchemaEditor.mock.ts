@@ -168,7 +168,6 @@ models:
           additional_dimensions:
             id:
               label: Sql dimension
-              description: ""
               type: string
               sql: \${table_a.dim_a} || "suffix"
             fixed_width_id:

@@ -28,8 +28,8 @@ import {
     type YamlSchema,
 } from '../../types/yamlSchema';
 import {
-    convertCustomBinDimensionToYaml,
-    convertCustomDimensionToDbt,
+    convertCustomBinDimensionToDbt,
+    convertCustomSqlDimensionToDbt,
 } from '../../utils/convertCustomDimensionsToYaml';
 import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml';
 
@@ -267,7 +267,7 @@ export default class DbtSchemaEditor {
 
         column.setIn(
             ['meta', 'additional_dimensions', customDimension.id],
-            convertCustomBinDimensionToYaml({
+            convertCustomBinDimensionToDbt({
                 customDimension,
                 baseDimensionSql,
                 warehouseClient,
@@ -305,7 +305,7 @@ export default class DbtSchemaEditor {
         }
 
         const additionalDimension =
-            convertCustomDimensionToDbt(customDimension);
+            convertCustomSqlDimensionToDbt(customDimension);
 
         const column = this.findColumnByName(
             customDimension.table,
