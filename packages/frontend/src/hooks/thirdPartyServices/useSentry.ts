@@ -44,7 +44,6 @@ const useSentry = (
                     return sentryConfig.tracesSampleRate;
                 },
                 replaysOnErrorSampleRate: 1.0,
-                debug: true,
             });
             setIsSentryLoaded(true);
         }
