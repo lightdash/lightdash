@@ -282,30 +282,31 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             });
 
             const start = (queryArgs.page - 1) * queryArgs.pageSize;
-            const end = start + queryArgs.pageSize;
+            const end = start + queryArgs.pageSize - 1;
 
             let currentQueryId: string;
 
             if ('sql' in queryArgs) {
-                currentQueryId = await this.executeAsyncStatement(
+                const { queryId, sqlText } = await this.executeAsyncStatement(
                     connection,
                     queryArgs.sql,
                 );
+
+                sql = sqlText;
+                currentQueryId = queryId;
             } else if ('queryId' in queryArgs) {
                 currentQueryId = queryArgs.queryId;
             } else {
                 throw new WarehouseQueryError('Invalid query');
             }
 
-            const { rows, fields, sqlText, numRows } =
+            const { rows, fields, numRows } =
                 await this.getAsyncStatementResults(
                     connection,
                     currentQueryId,
                     start,
                     end,
                 );
-
-            sql = sqlText;
 
             return {
                 fields,
@@ -386,7 +387,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values?: AnyType[];
         },
     ) {
-        return new Promise<string>((resolve, reject) => {
+        return new Promise<{
+            queryId: string;
+            sqlText: string;
+        }>((resolve, reject) => {
             connection.execute({
                 sqlText: sql,
                 binds: options?.values,
@@ -396,7 +400,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(err);
                     }
 
-                    resolve(stmt.getQueryId());
+                    resolve({
+                        queryId: stmt.getQueryId(),
+                        sqlText: stmt.getSqlText(),
+                    });
                 },
             });
         });
@@ -410,7 +417,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): Promise<{
         fields: Record<string, { type: DimensionType }>;
         rows: Record<string, AnyType>[];
-        sqlText: string;
         numRows: number;
     }> {
         const statement = await connection.getResultsFromQueryId({
@@ -418,8 +424,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             queryId,
         });
 
-        const fields = this.getFieldsFromStatement(statement);
-        const numRows = await statement.getNumRows();
         const rows: Record<string, AnyType>[] = [];
 
         await new Promise<void>((resolve, reject) => {
@@ -432,7 +436,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     reject(err);
                 })
                 .on('data', (row) => {
-                    console.log('row', row);
                     rows.push(parseRow(row));
                 })
                 .on('end', () => {
@@ -441,10 +444,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         return {
-            fields,
             rows,
-            sqlText: statement.getSqlText(),
-            numRows,
+            fields: this.getFieldsFromStatement(statement),
+            numRows: statement.getNumRows(),
         };
     }
 
