@@ -173,13 +173,11 @@ models:
               sql: \${table_a.dim_a} || "suffix"
             fixed_width_id:
               label: Fixed width name
-              description: ""
               type: string
               sql: CONCAT(FLOOR(\${TABLE}.dim_a / 10) * 10, ' - ', (FLOOR(\${TABLE}.dim_a / 10)
                 + 1) * 10 - 1)
             range_id:
               label: Range name
-              description: ""
               type: string
               sql: >-
                 CASE
