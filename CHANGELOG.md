@@ -1,3 +1,10 @@
+# [0.1529.0](https://github.com/lightdash/lightdash/compare/0.1528.0...0.1529.0) (2025-03-05)
+
+
+### Features
+
+* **frontend:** Custom dimensions write back ([#13917](https://github.com/lightdash/lightdash/issues/13917)) ([c0aa312](https://github.com/lightdash/lightdash/commit/c0aa312f1d622fefa8c10e59a187a5622478ec4e))
+
 # [0.1528.0](https://github.com/lightdash/lightdash/compare/0.1527.2...0.1528.0) (2025-03-05)
 
 
