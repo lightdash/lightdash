@@ -56,9 +56,12 @@ export type WarehousePaginateQueryArgs =
           values?: AnyType[];
       };
 
-export type WarehousePaginatedResults = WarehouseResults & {
+export type WarehousePaginatedResults<
+    TFormattedRow extends Record<string, unknown>,
+> = WarehouseResults & {
     queryId: string;
     pageCount: number;
+    rows: TFormattedRow[];
 };
 
 export interface WarehouseClient {
@@ -81,9 +84,10 @@ export interface WarehouseClient {
         },
     ): Promise<void>;
 
-    getPaginatedResults(
+    getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
         args: WarehousePaginateQueryArgs,
-    ): Promise<WarehousePaginatedResults>;
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehousePaginatedResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results

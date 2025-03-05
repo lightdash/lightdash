@@ -1192,6 +1192,28 @@ export function formatRawRows(
     });
 }
 
+export function formatRow(
+    row: { [col: string]: AnyType },
+    itemsMap: ItemsMap,
+): ResultRow {
+    const resultRow: ResultRow = {};
+    const columnNames = Object.keys(row || {});
+
+    for (const columnName of columnNames) {
+        const value = row[columnName];
+        const item = itemsMap[columnName];
+
+        resultRow[columnName] = {
+            value: {
+                raw: formatRawValue(item, value),
+                formatted: formatItemValue(item, value),
+            },
+        };
+    }
+
+    return resultRow;
+}
+
 export function formatRows(
     rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
