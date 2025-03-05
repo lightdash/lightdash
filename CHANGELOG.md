@@ -1,3 +1,10 @@
+## [0.1529.1](https://github.com/lightdash/lightdash/compare/0.1529.0...0.1529.1) (2025-03-05)
+
+
+### Bug Fixes
+
+*  disable calculate series color ([#13923](https://github.com/lightdash/lightdash/issues/13923)) ([d2744b2](https://github.com/lightdash/lightdash/commit/d2744b2f90b9f1a8e98b6091c9df04ab33f25f6a))
+
 # [0.1529.0](https://github.com/lightdash/lightdash/compare/0.1528.0...0.1529.0) (2025-03-05)
 
 
