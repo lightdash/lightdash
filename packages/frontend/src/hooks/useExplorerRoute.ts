@@ -250,9 +250,8 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                         customDimension: {
                             isOpen: false,
                         },
-                        additionalMetricWriteBack: {
+                        writeBack: {
                             isOpen: false,
-                            item: undefined,
                         },
                     },
                 };

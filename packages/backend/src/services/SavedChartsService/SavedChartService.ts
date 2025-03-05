@@ -1058,6 +1058,11 @@ export class SavedChartService extends BaseService {
 
         await this.schedulerClient.generateDailyJobsForScheduler(
             scheduler,
+            {
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            },
             defaultTimezone,
         );
 

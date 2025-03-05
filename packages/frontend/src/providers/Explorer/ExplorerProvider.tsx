@@ -88,7 +88,7 @@ const defaultState: ExplorerReduceState = {
         customDimension: {
             isOpen: false,
         },
-        additionalMetricWriteBack: {
+        writeBack: {
             isOpen: false,
         },
     },
@@ -799,13 +799,13 @@ function reducer(
                 },
             };
         }
-        case ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL: {
+        case ActionType.TOGGLE_WRITE_BACK_MODAL: {
             return {
                 ...state,
                 modals: {
                     ...state.modals,
-                    additionalMetricWriteBack: {
-                        isOpen: !state.modals.additionalMetricWriteBack.isOpen,
+                    writeBack: {
+                        isOpen: !state.modals.writeBack.isOpen,
                         ...(action.payload && { ...action.payload }),
                     },
                 },
@@ -1296,10 +1296,10 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const toggleAdditionalMetricWriteBackModal = useCallback(
-        (args?: { items?: AdditionalMetric[]; multiple?: boolean }) => {
+    const toggleWriteBackModal = useCallback(
+        (args?: { items?: CustomDimension[] | AdditionalMetric[] }) => {
             dispatch({
-                type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
+                type: ActionType.TOGGLE_WRITE_BACK_MODAL,
                 payload: args,
             });
         },
@@ -1594,7 +1594,7 @@ const ExplorerProvider: FC<
             editAdditionalMetric,
             removeAdditionalMetric,
             toggleAdditionalMetricModal,
-            toggleAdditionalMetricWriteBackModal,
+            toggleWriteBackModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1645,7 +1645,7 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
-            toggleAdditionalMetricWriteBackModal,
+            toggleWriteBackModal,
             replaceFields,
         ],
     );

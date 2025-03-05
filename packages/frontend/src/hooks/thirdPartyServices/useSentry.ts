@@ -1,12 +1,18 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
 import {
-    browserTracingIntegration,
     init,
+    reactRouterV7BrowserTracingIntegration,
     replayIntegration,
     setTag,
     setUser,
 } from '@sentry/react';
 import { useEffect, useState } from 'react';
+import {
+    createRoutesFromChildren,
+    matchRoutes,
+    useLocation,
+    useNavigationType,
+} from 'react-router';
 
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
@@ -21,7 +27,13 @@ const useSentry = (
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [
-                    browserTracingIntegration(),
+                    reactRouterV7BrowserTracingIntegration({
+                        useEffect,
+                        useLocation,
+                        useNavigationType,
+                        createRoutesFromChildren,
+                        matchRoutes,
+                    }),
                     replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {

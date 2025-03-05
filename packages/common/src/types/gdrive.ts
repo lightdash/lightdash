@@ -1,5 +1,6 @@
 import { type MetricQueryResponse } from './metricQuery';
 import { type PivotConfig } from './pivot';
+import { type TraceTaskBase } from './scheduler';
 
 export type ApiGdriveAccessTokenResponse = {
     status: 'ok';
@@ -20,7 +21,4 @@ export type UploadMetricGsheet = {
     pivotConfig?: PivotConfig;
 };
 
-export type UploadMetricGsheetPayload = UploadMetricGsheet & {
-    userUuid: string;
-    organizationUuid?: string;
-};
+export type UploadMetricGsheetPayload = TraceTaskBase & UploadMetricGsheet;

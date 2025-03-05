@@ -678,7 +678,7 @@ export class ValidationService extends BaseService {
             userUuid: user.userUuid,
             projectUuid,
             context: fromCLI ? 'cli' : 'lightdash_app',
-            organizationUuid: user.organizationUuid,
+            organizationUuid,
             explores,
             validationTargets,
         });

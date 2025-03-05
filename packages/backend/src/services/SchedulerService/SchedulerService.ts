@@ -7,8 +7,10 @@ import {
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
+    isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
+    isDashboardCreateScheduler,
     isDashboardScheduler,
     isUserWithOrg,
     isValidFrequency,
@@ -106,6 +108,18 @@ export class SchedulerService extends BaseService {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
             : this.dashboardModel.getById(scheduler.dashboardUuid);
+    }
+
+    public async getCreateSchedulerResource(
+        scheduler: CreateSchedulerAndTargets,
+    ): Promise<ChartSummary | DashboardDAO> {
+        if (isChartCreateScheduler(scheduler)) {
+            return this.savedChartModel.getSummary(scheduler.savedChartUuid);
+        }
+        if (isDashboardCreateScheduler(scheduler)) {
+            return this.dashboardModel.getById(scheduler.dashboardUuid);
+        }
+        throw new ParameterError('Invalid scheduler type');
     }
 
     private async checkUserCanUpdateSchedulerResource(
@@ -298,6 +312,11 @@ export class SchedulerService extends BaseService {
 
             await this.schedulerClient.generateDailyJobsForScheduler(
                 scheduler,
+                {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                },
                 defaultTimezone,
             );
         }
@@ -328,10 +347,17 @@ export class SchedulerService extends BaseService {
             const defaultTimezone = await this.getSchedulerDefaultTimezone(
                 schedulerUuid,
             );
+            const { organizationUuid, projectUuid } =
+                await this.getCreateSchedulerResource(scheduler);
 
             // If the scheduler is enabled, we need to generate the daily jobs
             await this.schedulerClient.generateDailyJobsForScheduler(
                 scheduler,
+                {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: scheduler.createdBy,
+                },
                 defaultTimezone,
             );
         }
@@ -469,9 +495,17 @@ export class SchedulerService extends BaseService {
             slackChannels,
         );
 
+        const { organizationUuid, projectUuid } =
+            await this.getCreateSchedulerResource(scheduler);
+
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
-            scheduler,
+            {
+                ...scheduler,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            },
             undefined,
         );
     }

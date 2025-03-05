@@ -18,11 +18,13 @@ import {
     FilterRule,
     ForbiddenError,
     getCustomMetricDimensionId,
+    getCustomRangeSelectSql,
     getDateDimension,
     getDimensions,
     getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
+    getFixedWidthBinSelectSql,
     getItemId,
     getMetrics,
     getSqlForTruncatedDate,
@@ -640,11 +642,11 @@ export const getCustomBinDimensionSql = ({
                     }
 
                     const width = customDimension.binWidth;
-                    const widthSql = `${warehouseClient.concatString(
-                        `FLOOR(${dimension.compiledSql} / ${width}) * ${width}`,
-                        dash,
-                        `(FLOOR(${dimension.compiledSql} / ${width}) + 1) * ${width} - 1`,
-                    )} AS ${customDimensionName}`;
+                    const widthSql = `${getFixedWidthBinSelectSql({
+                        binWidth: customDimension.binWidth || 1,
+                        baseDimensionSql: dimension.compiledSql,
+                        warehouseClient,
+                    })} AS ${customDimensionName}`;
 
                     if (isSorted) {
                         return [
@@ -754,47 +756,11 @@ export const getCustomBinDimensionSql = ({
                         );
                     }
 
-                    const binRangeWhens = customDimension.customRange.map(
-                        (range) => {
-                            if (range.from === undefined) {
-                                // First range
-                                return `WHEN ${dimension.compiledSql} < ${
-                                    range.to
-                                } THEN ${warehouseClient.concatString(
-                                    `${quoteChar}<${quoteChar}`,
-                                    `${range.to}`,
-                                )}`;
-                            }
-                            if (range.to === undefined) {
-                                // Last range
-                                return `ELSE ${warehouseClient.concatString(
-                                    `${quoteChar}≥${quoteChar}`,
-                                    `${range.from}`,
-                                )}`;
-                            }
-
-                            return `WHEN ${dimension.compiledSql} >= ${
-                                range.from
-                            } AND ${dimension.compiledSql} < ${
-                                range.to
-                            } THEN ${warehouseClient.concatString(
-                                `${range.from}`,
-                                "'-'",
-                                `${range.to}`,
-                            )}`;
-                        },
-                    );
-
-                    // Add a NULL case for when the dimension is NULL, returning null as the value so it get's correctly formated with the symbol ∅
-                    const rangeWhens = [
-                        `WHEN ${dimension.compiledSql} IS NULL THEN NULL`,
-                        ...binRangeWhens,
-                    ];
-
-                    const customRangeSql = `CASE
-                        ${rangeWhens.join('\n')}
-                        END
-                        AS ${customDimensionName}`;
+                    const customRangeSql = `${getCustomRangeSelectSql({
+                        binRanges: customDimension.customRange || [],
+                        baseDimensionSql: dimension.compiledSql,
+                        warehouseClient,
+                    })} AS ${customDimensionName}`;
 
                     if (isSorted) {
                         const sortedRangeWhens =
