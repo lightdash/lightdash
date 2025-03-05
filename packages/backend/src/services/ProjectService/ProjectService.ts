@@ -2318,11 +2318,13 @@ export class ProjectService extends BaseService {
                                 ),
                             );
 
+                        // TODO paginate: fields is only calculated for the first page, we need to implement metadata table to store fields so we can use them when there's no metricQuery and we're using the QueryId
                         fieldsMap = fieldsWithOverrides;
                         sql = query;
 
                         span.setAttribute('generatedSql', query);
                     } else if ('queryId' in rest) {
+                        // TODO paginate: in this case fields is being sent in the request, but it's not being generated in the backend because we don't have a metricQuery
                         fieldsMap = rest.fields;
                     }
 
