@@ -49,6 +49,11 @@ export enum FeatureFlags {
      * For more details, see https://github.com/lightdash/lightdash/issues/13831
      */
     CalculateSeriesColor = 'calculate-series-color',
+
+    /**
+     * Enable the ability to write back custom bin dimensions to dbt.
+     */
+    WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
 }
 
 export type FeatureFlag = {
