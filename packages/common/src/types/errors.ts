@@ -427,3 +427,14 @@ export class SshTunnelError extends LightdashError {
         });
     }
 }
+
+export class ReadFileError extends LightdashError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super({
+            message,
+            name: 'ReadFileError',
+            statusCode: 404,
+            data,
+        });
+    }
+}

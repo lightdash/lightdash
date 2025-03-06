@@ -14,6 +14,7 @@ export const IGNORE_ERRORS = [
     'TokenError',
     'AuthorizationError',
     'SshTunnelError',
+    'ReadFileError',
 ];
 
 Sentry.init({
