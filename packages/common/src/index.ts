@@ -272,6 +272,7 @@ export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
 export * from './utils/projectMemberRole';
+export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/semanticLayer';
