@@ -524,6 +524,42 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.exportCsvDashboard(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                            },
+                        });
+                    },
+                );
+            },
         };
     }
 }

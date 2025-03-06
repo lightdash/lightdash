@@ -4,6 +4,7 @@ import {
     type CompileProjectPayload,
     type DownloadCsvPayload,
     type EmailNotificationPayload,
+    type ExportCsvDashboardPayload,
     type GsheetsNotificationPayload,
     type ReplaceCustomFieldsPayload,
     type ScheduledDeliveryPayload,
@@ -35,6 +36,7 @@ export const SCHEDULER_TASKS = {
     REPLACE_CUSTOM_FIELDS: 'replaceCustomFields',
     INDEX_CATALOG: 'indexCatalog',
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
+    EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
 } as const;
 
 export type SchedulerTaskName =
@@ -58,4 +60,5 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: ReplaceCustomFieldsPayload;
     [SCHEDULER_TASKS.INDEX_CATALOG]: SchedulerIndexCatalogJobPayload;
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
+    [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
 }

@@ -806,6 +806,36 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async scheduleMethod<T extends SchedulerTaskName>(
+        task: SchedulerTaskName,
+        payload: TaskPayloadMap[T],
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            task,
+            payload,
+            now,
+            JobPriority.LOW,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                userUuid: payload.userUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
     async replaceCustomFields(payload: ReplaceCustomFieldsPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();

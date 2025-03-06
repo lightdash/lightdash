@@ -107,6 +107,11 @@ const getTagsForTask: {
     }),
 
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: () => ({}),
+    [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
 } as const;
 
 // Generic accessor function

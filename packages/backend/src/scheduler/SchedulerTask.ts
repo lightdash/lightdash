@@ -7,6 +7,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    ExportCsvDashboardPayload,
     FeatureFlags,
     FieldReferenceError,
     ForbiddenError,
@@ -29,6 +30,7 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulerTaskName,
     SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
@@ -2308,6 +2310,32 @@ export default class SchedulerTask {
                 );
 
                 return {}; // Don't pollute with more details
+            },
+        );
+    }
+
+    protected async exportCsvDashboard(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportCsvDashboardPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                const url =
+                    await this.csvService.runScheduledExportCsvDashboard(
+                        payload,
+                    );
+                return { url };
             },
         );
     }

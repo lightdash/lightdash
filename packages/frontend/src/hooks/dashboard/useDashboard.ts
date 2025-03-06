@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type ApiJobScheduledResponse,
     type CreateDashboard,
     type Dashboard,
     type DashboardAvailableFilters,
@@ -18,6 +19,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../api';
+import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
@@ -188,16 +190,22 @@ const exportCsvDashboard = async (
     filters: DashboardFilters,
     dateZoomGranularity: DateGranularity | undefined,
 ) =>
-    lightdashApi<string>({
+    lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
         body: JSON.stringify({ filters, dateZoomGranularity }),
     });
 
 export const useExportCsvDashboard = () => {
-    const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
+    const {
+        showToastSuccess,
+        showToastError,
+        showToastApiError,
+        showToastInfo,
+    } = useToaster();
+
     return useMutation<
-        string,
+        ApiJobScheduledResponse['results'],
         ApiError,
         {
             dashboard: Dashboard;
@@ -221,14 +229,31 @@ export const useExportCsvDashboard = () => {
                     loading: true,
                 });
             },
-            onSuccess: async (url, data) => {
-                if (url) {
-                    window.open(url, '_blank');
-                    showToastSuccess({
-                        key: 'dashboard_export_toast',
-                        title: `Success! ${data.dashboard.name} was exported.`,
+            onSuccess: async (job, data) => {
+                // Wait until validation is complete
+                pollJobStatus(job.jobId)
+                    .then(async (details) => {
+                        if (details?.url) {
+                            window.open(details.url, '_blank');
+                            showToastSuccess({
+                                key: 'dashboard_export_toast',
+                                title: `Success! ${data.dashboard.name} was exported.`,
+                            });
+                        } else {
+                            showToastError({
+                                key: 'dashboard_export_toast',
+                                title: `Missing file url for ${data.dashboard.name}`,
+                                subtitle: 'Something went wrong',
+                            });
+                        }
+                    })
+                    .catch((error: Error) => {
+                        showToastError({
+                            key: 'dashboard_export_toast',
+                            title: `Failed to export ${data.dashboard.name}`,
+                            subtitle: error.message,
+                        });
                     });
-                }
             },
             onError: ({ error }, data) => {
                 showToastApiError({
