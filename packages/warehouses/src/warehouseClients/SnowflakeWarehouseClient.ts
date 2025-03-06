@@ -267,6 +267,23 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
     }
 
+    private getFieldsFromStatement(
+        stmt: RowStatement | FileAndStageBindStatement,
+    ) {
+        const columns = stmt.getColumns();
+        return columns
+            ? columns.reduce(
+                  (acc, column) => ({
+                      ...acc,
+                      [column.getName()]: {
+                          type: mapFieldType(column.getType().toUpperCase()),
+                      },
+                  }),
+                  {},
+              )
+            : {};
+    }
+
     async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
         { timezone, tags, ...queryArgs }: WarehousePaginateQueryArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
@@ -328,57 +345,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 });
             });
         }
-    }
-
-    async streamQuery(
-        sql: string,
-        streamCallback: (data: WarehouseResults) => void,
-        options: {
-            values?: AnyType[];
-            tags?: Record<string, string>;
-            timezone?: string;
-        },
-    ): Promise<void> {
-        const connection = await this.getConnection();
-
-        try {
-            await this.prepareWarehouse(connection, options);
-            await this.executeStreamStatement(
-                connection,
-                sql,
-                streamCallback,
-                options,
-            );
-        } catch (e) {
-            const error = e as SnowflakeError;
-            throw this.parseError(error, sql);
-        } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
-                });
-            });
-        }
-    }
-
-    private getFieldsFromStatement(
-        stmt: RowStatement | FileAndStageBindStatement,
-    ) {
-        const columns = stmt.getColumns();
-        return columns
-            ? columns.reduce(
-                  (acc, column) => ({
-                      ...acc,
-                      [column.getName()]: {
-                          type: mapFieldType(column.getType().toUpperCase()),
-                      },
-                  }),
-                  {},
-              )
-            : {};
     }
 
     private async executeAsyncStatement(
@@ -457,6 +423,40 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             fields: this.getFieldsFromStatement(statement),
             numRows: statement.getNumRows(),
         };
+    }
+
+    async streamQuery(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void,
+        options: {
+            values?: AnyType[];
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
+        const connection = await this.getConnection();
+
+        try {
+            await this.prepareWarehouse(connection, options);
+            await this.executeStreamStatement(
+                connection,
+                sql,
+                streamCallback,
+                options,
+            );
+        } catch (e) {
+            const error = e as SnowflakeError;
+            throw this.parseError(error, sql);
+        } finally {
+            await new Promise((resolve, reject) => {
+                connection.destroy((err, conn) => {
+                    if (err) {
+                        reject(new WarehouseConnectionError(err.message));
+                    }
+                    resolve(conn);
+                });
+            });
+        }
     }
 
     private async executeStreamStatement(

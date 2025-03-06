@@ -2376,6 +2376,8 @@ export class ProjectService extends BaseService {
                             ? undefined
                             : page + 1;
 
+                    const previousPage = page > 1 ? page - 1 : undefined;
+
                     return {
                         rows: rows as TFormattedRow[],
                         page,
@@ -2387,6 +2389,7 @@ export class ProjectService extends BaseService {
                         totalPageCount,
                         totalResults,
                         nextPage,
+                        previousPage,
                         queryId,
                         fields: fieldsMap,
                     };
