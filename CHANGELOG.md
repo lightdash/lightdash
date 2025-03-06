@@ -1,3 +1,10 @@
+## [0.1530.1](https://github.com/lightdash/lightdash/compare/0.1530.0...0.1530.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* table cell rendering for strings that does not have a newline ([#13947](https://github.com/lightdash/lightdash/issues/13947)) ([c23a134](https://github.com/lightdash/lightdash/commit/c23a13467243b5c2971be9c4bb75860dfd49ff18))
+
 # [0.1530.0](https://github.com/lightdash/lightdash/compare/0.1529.1...0.1530.0) (2025-03-06)
 
 
