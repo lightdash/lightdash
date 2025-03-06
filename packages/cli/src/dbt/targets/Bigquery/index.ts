@@ -2,12 +2,15 @@ import {
     CreateBigqueryCredentials,
     ParseError,
     WarehouseTypes,
+    WarehouseConnectionError,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
+import { OAuth2ClientOptions } from 'google-auth-library';
 import { ajv } from '../../../ajv';
 import { Target } from '../../types';
 import { getBigqueryCredentialsFromOauth } from './oauth';
+import { getBigqueryCredentialsFromOauthSecrets } from './oauthSecrets';
 import {
     getBigqueryCredentialsFromServiceAccount,
     getBigqueryCredentialsFromServiceAccountJson,
@@ -79,19 +82,22 @@ export const convertBigquerySchema = async (
     target: Target,
 ): Promise<CreateBigqueryCredentials> => {
     const validate = ajv.compile<BigqueryTarget>(bigqueryTargetJsonSchema);
+    let getKeyfileContents : (target: Target) => Promise<Record<string, string>> | Promise<OAuth2ClientOptions>;
     if (validate(target)) {
-        let getBigqueryCredentials;
         switch (target.method) {
             case 'oauth':
-                getBigqueryCredentials = getBigqueryCredentialsFromOauth;
+                getKeyfileContents = getBigqueryCredentialsFromOauth;
                 break;
             case 'service-account':
-                getBigqueryCredentials =
+                getKeyfileContents =
                     getBigqueryCredentialsFromServiceAccount;
                 break;
             case 'service-account-json':
-                getBigqueryCredentials =
+                getKeyfileContents =
                     getBigqueryCredentialsFromServiceAccountJson;
+                break;
+            case 'oauth-secrets':
+                getKeyfileContents = getBigqueryCredentialsFromOauthSecrets;
                 break;
             default:
                 throw new ParseError(
@@ -99,23 +105,35 @@ export const convertBigquerySchema = async (
                 );
         }
 
-        if (target.project === undefined && target.method !== 'oauth')
+        if (target.project === undefined && target.method !== 'oauth') {
             throw new ParseError(
                 `BigQuery project is required for ${target.method} authentication method`,
             );
+        }
 
-        return {
+        const creds: CreateBigqueryCredentials = {
             type: WarehouseTypes.BIGQUERY,
             project: target.project || '',
             dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
-            keyfileContents: await getBigqueryCredentials(target),
             retries: target.retries,
             maximumBytesBilled: target.maximum_bytes_billed,
             location: target.location,
             executionProject: target.execution_project,
         };
+
+        if (getKeyfileContents) {
+            const keyfile = await getKeyfileContents(target);
+
+            if ('credentials' in keyfile) {
+                creds.authClientOptions = keyfile;
+            } else {
+                creds.keyfileContents = keyfile as Record<string, string>;
+            }
+        }
+
+        return creds;
     }
 
     const errs = betterAjvErrors(

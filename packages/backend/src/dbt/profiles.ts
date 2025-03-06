@@ -25,6 +25,28 @@ const credentialsTarget = (
 ): CredentialsTarget => {
     switch (credentials.type) {
         case WarehouseTypes.BIGQUERY:
+            if (credentials.authClientOptions) {
+                return {
+                    target: {
+                        type: credentials.type,
+                        method: 'oauth-secrets',
+                        ...credentials.authClientOptions,
+                        project: credentials.project,
+                        dataset: credentials.dataset,
+                        threads: DEFAULT_THREADS,
+                        timeout_seconds: credentials.timeoutSeconds,
+                        priority: credentials.priority,
+                        retries: credentials.retries,
+                        maximum_bytes_billed: credentials.maximumBytesBilled,
+                        execution_project: credentials.executionProject,
+                    },
+                    environment: Object.fromEntries(
+                        Object.entries(credentials.authClientOptions).map(
+                            ([key, value]) => [envVar(key), value],
+                        ),
+                    ),
+                };
+            }
             return {
                 target: {
                     type: credentials.type,
@@ -37,7 +59,7 @@ const credentialsTarget = (
                     retries: credentials.retries,
                     maximum_bytes_billed: credentials.maximumBytesBilled,
                     keyfile_json: Object.fromEntries(
-                        Object.keys(credentials.keyfileContents).map((key) => [
+                        Object.keys(credentials.keyfileContents || {}).map((key) => [
                             key,
                             envVarReference(key),
                         ]),
@@ -45,11 +67,12 @@ const credentialsTarget = (
                     execution_project: credentials.executionProject,
                 },
                 environment: Object.fromEntries(
-                    Object.entries(credentials.keyfileContents).map(
+                    Object.entries(credentials.keyfileContents || {}).map(
                         ([key, value]) => [envVar(key), value],
                     ),
                 ),
             };
+
         case WarehouseTypes.REDSHIFT:
             return {
                 target: {

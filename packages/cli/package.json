@@ -22,7 +22,7 @@
         "columnify": "^1.6.0",
         "commander": "^9.2.0",
         "execa": "^5",
-        "google-auth-library": "^8.5.1",
+        "google-auth-library": "^9.15.0",
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
         "lodash": "^4.17.21",

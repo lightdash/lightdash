@@ -30,6 +30,7 @@ export interface InputWrapperProps {
     labelHelp?: string | ReactNode;
     helperText?: string | ReactNode;
     rules?: React.ComponentProps<typeof Controller>['rules'];
+    required?: boolean;
     render: (
         inputProps: InputProps,
         controllerProps: ArgumentsOf<
