@@ -38,13 +38,14 @@ Sentry.init({
     ],
     ignoreErrors: IGNORE_ERRORS,
     tracesSampler: (context) => {
+        const request = context.normalizedRequest;
         if (
-            context.request?.url?.endsWith('/status') ||
-            context.request?.url?.endsWith('/health') ||
-            context.request?.url?.endsWith('/favicon.ico') ||
-            context.request?.url?.endsWith('/robots.txt') ||
-            context.request?.url?.endsWith('livez') ||
-            context.request?.headers?.['user-agent']?.includes('GoogleHC')
+            request?.url?.endsWith('/status') ||
+            request?.url?.endsWith('/health') ||
+            request?.url?.endsWith('/favicon.ico') ||
+            request?.url?.endsWith('/robots.txt') ||
+            request?.url?.endsWith('livez') ||
+            request?.headers?.['user-agent']?.includes('GoogleHC')
         ) {
             return 0.0;
         }
