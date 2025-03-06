@@ -17,6 +17,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
+    ReadFileError,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceableCustomFields,
@@ -621,18 +622,34 @@ export default class SchedulerTask {
                 });
 
                 if (pdfFile && message.ts) {
-                    // Add the pdf to the thread
-                    const pdfBuffer = await fs.readFile(pdfFile);
+                    try {
+                        // Add the pdf to the thread
+                        const pdfBuffer = await fs.readFile(pdfFile);
 
-                    await this.slackClient.postFileToThread({
-                        organizationUuid,
-                        file: pdfBuffer,
-                        title: name,
-                        channelId: channel,
-                        threadTs: message.ts,
-                        filename: `${name}.pdf`,
-                        fileType: 'pdf',
-                    });
+                        await this.slackClient.postFileToThread({
+                            organizationUuid,
+                            file: pdfBuffer,
+                            title: name,
+                            channelId: channel,
+                            threadTs: message.ts,
+                            filename: `${name}.pdf`,
+                            fileType: 'pdf',
+                        });
+                    } catch (err) {
+                        if (
+                            err instanceof Error &&
+                            'code' in err &&
+                            err.code === 'ENOENT'
+                        ) {
+                            throw new ReadFileError(
+                                `PDF file not found for ${name}`,
+                                {
+                                    filePath: pdfFile,
+                                },
+                            );
+                        }
+                        throw err;
+                    }
                 }
             } else {
                 let blocks;

@@ -416,3 +416,25 @@ export class ScreenshotError extends LightdashError {
         });
     }
 }
+
+export class SshTunnelError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'SshTunnelError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
+export class ReadFileError extends LightdashError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super({
+            message,
+            name: 'ReadFileError',
+            statusCode: 404,
+            data,
+        });
+    }
+}

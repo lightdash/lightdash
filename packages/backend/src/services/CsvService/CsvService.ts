@@ -18,6 +18,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getErrorMessage,
+    getFulfilledValues,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -848,10 +849,10 @@ This method can be memory intensive
             }),
         );
 
-        const csvUrls = await Promise.all([
+        const csvUrls = await Promise.allSettled([
             ...csvForChartPromises,
             ...csvForSqlChartPromises,
-        ]);
+        ]).then(getFulfilledValues);
         return csvUrls;
     }
 

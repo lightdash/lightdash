@@ -1,7 +1,14 @@
 import { isField, type RawResultRow, type ResultRow } from '@lightdash/common';
 import { getHotkeyHandler, useClipboard, useDisclosure } from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { Td } from '../Table.styles';
@@ -60,13 +67,16 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         elementRef.current &&
         !shouldRenderMenu;
 
+    const formattedValue = useMemo(() => {
+        if (!item) return null;
+        return (cell as Cell<ResultRow, ResultRow[0]>).getValue().value
+            .formatted;
+    }, [cell, item]);
+
     const handleCopy = useCallback(() => {
         if (!isMenuOpen) return;
 
-        const value = (cell as Cell<ResultRow, ResultRow[0]>).getValue().value
-            .formatted;
-
-        copy(value);
+        copy(formattedValue);
         showToastSuccess({ title: 'Copied to clipboard!' });
 
         setCopying((copyingState) => {
@@ -75,7 +85,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
             }
             return true;
         });
-    }, [isMenuOpen, cell, copy, showToastSuccess]);
+    }, [isMenuOpen, formattedValue, copy, showToastSuccess]);
 
     useEffect(() => {
         const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
@@ -113,7 +123,11 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     style={{
                         textDecoration: hasUrls ? 'underline' : 'none',
                         textDecorationStyle: 'dotted',
-                        whiteSpace: 'pre-line',
+                        whiteSpace:
+                            typeof formattedValue === 'string' &&
+                            formattedValue.includes('\n')
+                                ? 'pre-line'
+                                : 'nowrap',
                     }}
                 >
                     {children}

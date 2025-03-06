@@ -3,11 +3,11 @@ import {
     DbtProjectType,
     FeatureFlags,
     getItemId,
+    isCustomSqlDimension,
     type AdditionalMetric,
     type CompiledTable,
     type CustomDimension,
 } from '@lightdash/common';
-import { isCustomSqlDimension } from '@lightdash/common/dist';
 import {
     ActionIcon,
     Button,

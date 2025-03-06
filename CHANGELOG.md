@@ -1,3 +1,24 @@
+## [0.1530.3](https://github.com/lightdash/lightdash/compare/0.1530.2...0.1530.3) (2025-03-06)
+
+
+### Bug Fixes
+
+* download valid chart csv ([#13942](https://github.com/lightdash/lightdash/issues/13942)) ([cbbcc67](https://github.com/lightdash/lightdash/commit/cbbcc678b970be428cb96332e6e09a7408b0d431))
+
+## [0.1530.2](https://github.com/lightdash/lightdash/compare/0.1530.1...0.1530.2) (2025-03-06)
+
+
+### Bug Fixes
+
+* fix import common ([#13944](https://github.com/lightdash/lightdash/issues/13944)) ([e8377ed](https://github.com/lightdash/lightdash/commit/e8377edf6ac3d947ea3df08b0f4b8f6c6bf61743))
+
+## [0.1530.1](https://github.com/lightdash/lightdash/compare/0.1530.0...0.1530.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* table cell rendering for strings that does not have a newline ([#13947](https://github.com/lightdash/lightdash/issues/13947)) ([c23a134](https://github.com/lightdash/lightdash/commit/c23a13467243b5c2971be9c4bb75860dfd49ff18))
+
 # [0.1530.0](https://github.com/lightdash/lightdash/compare/0.1529.1...0.1530.0) (2025-03-06)
 
 
