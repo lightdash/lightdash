@@ -1,3 +1,10 @@
+# [0.1531.0](https://github.com/lightdash/lightdash/compare/0.1530.6...0.1531.0) (2025-03-06)
+
+
+### Features
+
+* **backend:** allow email configuration without authentication ([#13877](https://github.com/lightdash/lightdash/issues/13877)) ([44f2217](https://github.com/lightdash/lightdash/commit/44f2217b17124f9247b64c6f3e8cc74a93d64678))
+
 ## [0.1530.6](https://github.com/lightdash/lightdash/compare/0.1530.5...0.1530.6) (2025-03-06)
 
 
