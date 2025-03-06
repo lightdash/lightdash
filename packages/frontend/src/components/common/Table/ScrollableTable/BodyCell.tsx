@@ -1,4 +1,10 @@
-import { isField, type RawResultRow, type ResultRow } from '@lightdash/common';
+import {
+    isField,
+    isRawResultRow,
+    isResultValue,
+    type RawResultRow,
+    type ResultRow,
+} from '@lightdash/common';
 import { getHotkeyHandler, useClipboard, useDisclosure } from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
 import {
@@ -67,16 +73,24 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         elementRef.current &&
         !shouldRenderMenu;
 
-    const formattedValue = useMemo(() => {
-        if (!item) return null;
-        return (cell as Cell<ResultRow, ResultRow[0]>).getValue().value
-            .formatted;
-    }, [cell, item]);
+    const displayValue = useMemo(() => {
+        if (!hasData) return null;
+
+        const cellValue = cell.getValue();
+
+        if (isResultValue(cellValue)) {
+            return cellValue.value.formatted;
+        } else if (isRawResultRow(cellValue)) {
+            return cellValue;
+        } else {
+            return null;
+        }
+    }, [hasData, cell]);
 
     const handleCopy = useCallback(() => {
         if (!isMenuOpen) return;
 
-        copy(formattedValue);
+        copy(displayValue);
         showToastSuccess({ title: 'Copied to clipboard!' });
 
         setCopying((copyingState) => {
@@ -85,7 +99,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
             }
             return true;
         });
-    }, [isMenuOpen, formattedValue, copy, showToastSuccess]);
+    }, [isMenuOpen, displayValue, copy, showToastSuccess]);
 
     useEffect(() => {
         const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
@@ -124,8 +138,8 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         textDecoration: hasUrls ? 'underline' : 'none',
                         textDecorationStyle: 'dotted',
                         whiteSpace:
-                            typeof formattedValue === 'string' &&
-                            formattedValue.includes('\n')
+                            typeof displayValue === 'string' &&
+                            displayValue.includes('\n')
                                 ? 'pre-line'
                                 : 'nowrap',
                     }}

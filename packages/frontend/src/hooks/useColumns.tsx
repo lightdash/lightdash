@@ -47,8 +47,7 @@ export const getItemBgColor = (
 };
 
 export const formatCellContent = (data?: { value: ResultValue }) => {
-    if (!data?.value) return '-';
-    return data.value.formatted ?? String(data.value.raw);
+    return data?.value.formatted ?? '-';
 };
 
 export const getFormattedValueCell = (
