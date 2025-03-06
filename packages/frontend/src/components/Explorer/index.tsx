@@ -10,13 +10,13 @@ import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider'
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
-import { CustomMetricWriteBackModal } from './CustomMetricWriteBackModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
 import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
+import { WriteBackModal } from './WriteBackModal';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
@@ -65,7 +65,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <CustomMetricModal />
                 <CustomDimensionModal />
                 <FormatModal />
-                <CustomMetricWriteBackModal />
+                <WriteBackModal />
             </MetricQueryDataProvider>
         );
     },

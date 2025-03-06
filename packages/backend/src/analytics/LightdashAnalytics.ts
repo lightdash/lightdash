@@ -1009,7 +1009,6 @@ export type Validation = BaseTrack & {
         organizationId?: string;
         projectId: string;
         validationRunId?: number;
-
         context?: ValidateProjectPayload['context'];
         numErrorsDetected?: number;
         numContentAffected?: number;

@@ -1,12 +1,11 @@
 import {
-    convertCustomMetricToDbt,
-    DbtProjectType,
+    capitalize,
     getErrorMessage,
     NotImplementedError,
     type AdditionalMetric,
+    type CustomDimension,
 } from '@lightdash/common';
 import {
-    Anchor,
     Button,
     Checkbox,
     Group,
@@ -19,103 +18,85 @@ import {
 import { Prism } from '@mantine/prism';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { useProject } from '../../../hooks/useProject';
+
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
-import { useWriteBackCustomMetrics } from './hooks/useCustomMetricWriteBack';
-
-const useIsGithubProject = (projectUuid: string) => {
-    const { data: project } = useProject(projectUuid);
-    return project?.dbtConnection.type === DbtProjectType.GITHUB;
-};
+import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
+import {
+    useIsGithubProject,
+    useWriteBackCustomDimensions,
+    useWriteBackCustomMetrics,
+} from './hooks';
+import { convertToDbt, getItemId, getItemLabel, match } from './utils';
 
 const prDisabledMessage =
     'Pull requests can only be opened for GitHub connected projects';
-const unsupportedMetricDefinitionError = 'Unsupported metric definition';
+const texts = {
+    customDimension: {
+        name: 'custom dimension',
+        baseName: 'dimension',
+        prDisabled: prDisabledMessage,
+    },
+    customMetric: {
+        name: 'custom metric',
+        baseName: 'metric',
+        prDisabled: prDisabledMessage,
+    },
+} as const;
 
-const CreatedPullRequestModalContent = ({
-    onClose,
-    data,
-}: {
-    onClose: () => void;
-    data: { prUrl: string };
-}) => {
-    return (
-        <Modal
-            size="xl"
-            onClick={(e) => e.stopPropagation()}
-            opened={true}
-            onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconBrandGithub}
-                        size="lg"
-                        color="gray.7"
-                    />
-                    <Text fw={500}>Write back to dbt</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
-                body: { padding: 0 },
-            })}
-        >
-            <Stack p="md">
-                <Text>
-                    Your pull request{' '}
-                    <Anchor href={data.prUrl} target="_blank" span fw={700}>
-                        #{data.prUrl.split('/').pop()}
-                    </Anchor>{' '}
-                    was successfully created on Github.
-                    <Text pt="md">
-                        Once it is merged, refresh your dbt connection to see
-                        your updated metrics.
-                    </Text>
-                </Text>
-            </Stack>
-            <Group position="right" w="100%" p="md">
-                <Button
-                    color="gray.7"
-                    onClick={onClose}
-                    variant="outline"
-                    size="xs"
-                >
-                    Close
-                </Button>
-            </Group>
-        </Modal>
-    );
-};
-
-const parseError = (error: unknown): string => {
+const parseError = (
+    error: unknown,
+    type: 'customDimension' | 'customMetric',
+): string => {
     const errorName = error instanceof Error ? error.name : 'unknown error';
-    return `Error: ${
+    const errorTitle =
         error instanceof NotImplementedError
-            ? `unsupported metric definition`
-            : errorName
-    }
-
-${getErrorMessage(error)}`;
+            ? `Unsupported ${texts[type].baseName} definition`
+            : errorName;
+    return `Error: ${errorTitle}\n${getErrorMessage(error)}`;
 };
 
-const SingleCustomMetricModalContent = ({
+const SingleItemModalContent = ({
     handleClose,
     item,
     projectUuid,
 }: {
     handleClose: () => void;
     projectUuid: string;
-    item: AdditionalMetric;
+    item: CustomDimension | AdditionalMetric;
 }) => {
+    const type = match(
+        item,
+        () => 'customDimension' as const,
+        () => 'customMetric' as const,
+    );
+
+    const {
+        mutate: writeBackCustomDimension,
+        data: writeBackCustomDimensionData,
+        isLoading: writeBackCustomDimensionIsLoading,
+    } = useWriteBackCustomDimensions(projectUuid!);
     const {
         mutate: writeBackCustomMetrics,
-        data,
-        isLoading,
+        data: writeBackCustomMetricsData,
+        isLoading: writeBackCustomMetricsIsLoading,
     } = useWriteBackCustomMetrics(projectUuid!);
+
+    const data = match(
+        item,
+        () => writeBackCustomDimensionData,
+        () => writeBackCustomMetricsData,
+    );
+
+    const isLoading = match(
+        item,
+        () => writeBackCustomDimensionIsLoading,
+        () => writeBackCustomMetricsIsLoading,
+    );
+
     const [showDiff, setShowDiff] = useState(true);
     const [error, setError] = useState<string | undefined>();
 
@@ -123,16 +104,19 @@ const SingleCustomMetricModalContent = ({
 
     const previewCode = useMemo(() => {
         try {
+            const { key, value } = convertToDbt(item);
+
             const code = yaml.dump({
-                [item.name]: convertCustomMetricToDbt(item),
+                [key]: value,
             });
+
             setError(undefined);
             return code;
         } catch (e) {
-            setError(parseError(e));
+            setError(parseError(e, type));
             return '';
         }
-    }, [item]);
+    }, [item, type]);
 
     if (data) {
         // Return a simple confirmation modal with the PR URL
@@ -144,10 +128,12 @@ const SingleCustomMetricModalContent = ({
     const disableErrorTooltip = isGithubProject && !error;
 
     const errorTooltipLabel = error
-        ? unsupportedMetricDefinitionError
+        ? `Unsupported ${texts[type].baseName} definition`
         : prDisabledMessage;
 
     const buttonDisabled = isLoading || !disableErrorTooltip;
+
+    const itemLabel = getItemLabel(item);
 
     return (
         <Modal
@@ -168,7 +154,7 @@ const SingleCustomMetricModalContent = ({
                         withinPortal
                         multiline
                         maw={300}
-                        label="Convert this custom metric into a metric in your dbt project. This will create a new branch and start a pull request."
+                        label={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your dbt project. This will create a new branch and open a pull request.`}
                     >
                         <MantineIcon
                             color="gray.7"
@@ -186,16 +172,16 @@ const SingleCustomMetricModalContent = ({
             <Stack p="md">
                 <Text>
                     Create a pull request in your dbt project's GitHub
-                    repository for the following metric:
+                    repository for the following {texts[type].name}:
                 </Text>
                 <List spacing="xs" pl="xs">
                     <List.Item fz="xs" ff="monospace">
-                        {item.label}
+                        {itemLabel}
                     </List.Item>
                 </List>
                 <CollapsableCard
                     isOpen={showDiff}
-                    title={'Show metrics code'}
+                    title={`Show ${texts[type].baseName} code`}
                     onToggle={() => setShowDiff(!showDiff)}
                 >
                     <Stack ml={36}>
@@ -227,7 +213,15 @@ const SingleCustomMetricModalContent = ({
                             size="xs"
                             onClick={() => {
                                 if (!item) return;
-                                writeBackCustomMetrics([item]);
+                                match(
+                                    item,
+                                    (customDimension) =>
+                                        writeBackCustomDimension([
+                                            customDimension,
+                                        ]),
+                                    (customMetric) =>
+                                        writeBackCustomMetrics([customMetric]),
+                                );
                             }}
                         >
                             {isLoading
@@ -241,44 +235,75 @@ const SingleCustomMetricModalContent = ({
     );
 };
 
-const MultipleCustomMetricModalContent = ({
+const MultipleItemsModalContent = ({
     handleClose,
     items,
     projectUuid,
 }: {
     handleClose: () => void;
     projectUuid: string;
-    items: AdditionalMetric[];
+    items: CustomDimension[] | AdditionalMetric[];
 }) => {
+    const type = match(
+        items[0]!,
+        () => 'customDimension' as const,
+        () => 'customMetric' as const,
+    );
+
+    const {
+        mutate: writeBackCustomDimension,
+        data: writeBackCustomDimensionData,
+        isLoading: writeBackCustomDimensionIsLoading,
+    } = useWriteBackCustomDimensions(projectUuid!);
     const {
         mutate: writeBackCustomMetrics,
-        data,
-        isLoading,
-    } = useWriteBackCustomMetrics(projectUuid);
+        data: writeBackCustomMetricsData,
+        isLoading: writeBackCustomMetricsIsLoading,
+    } = useWriteBackCustomMetrics(projectUuid!);
+
+    const data = match(
+        items[0]!,
+        () => writeBackCustomDimensionData,
+        () => writeBackCustomMetricsData,
+    );
+
+    const isLoading = match(
+        items[0]!,
+        () => writeBackCustomDimensionIsLoading,
+        () => writeBackCustomMetricsIsLoading,
+    );
 
     const isGithubProject = useIsGithubProject(projectUuid);
 
-    const [selectedItems, setSelectedItems] = useState<string[]>([]);
+    const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+
+    const selectedItems = useMemo(
+        () => items.filter((item) => selectedItemIds.includes(getItemId(item))),
+        [items, selectedItemIds],
+    );
+
     const [error, setError] = useState<string | undefined>();
 
     const previewCode = useMemo(() => {
         if (selectedItems.length === 0) return '';
         try {
-            const selectedMetrics = items.filter((item) =>
-                selectedItems.includes(item.name),
-            );
             const code = yaml.dump(
-                selectedMetrics.map((item) => ({
-                    [item.name]: convertCustomMetricToDbt(item),
-                })),
+                selectedItems
+                    .map((item) => {
+                        const { key, value } = convertToDbt(item);
+                        return {
+                            [key]: value,
+                        };
+                    })
+                    .reduce((acc, curr) => ({ ...acc, ...curr }), {}),
             );
             setError(undefined);
             return code;
         } catch (e) {
-            setError(parseError(e));
+            setError(parseError(e, type));
             return '';
         }
-    }, [items, selectedItems]);
+    }, [selectedItems, type]);
 
     if (data) {
         // Return a simple confirmation modal with the PR URL
@@ -288,16 +313,16 @@ const MultipleCustomMetricModalContent = ({
     }
 
     const disableErrorTooltip =
-        isGithubProject && selectedItems.length > 0 && !error;
+        isGithubProject && selectedItemIds.length > 0 && !error;
 
     const errorTooltipLabel = error
-        ? unsupportedMetricDefinitionError
+        ? `Unsupported ${texts[type].baseName} definition`
         : !isGithubProject
         ? prDisabledMessage
-        : 'Select metrics to open a pull request';
+        : `Select ${texts[type].baseName}s to open a pull request`;
 
-    const buttonDisabled = isLoading || !disableErrorTooltip;
-
+    const buttonDisabled =
+        isLoading || !disableErrorTooltip || selectedItemIds.length === 0;
     return (
         <Modal
             size="xl"
@@ -328,14 +353,15 @@ const MultipleCustomMetricModalContent = ({
                 })}
             >
                 Create a pull request in your dbt project's GitHub repository
-                for the following metrics
+                for the following {texts[type].baseName}s
             </Text>
 
             <Stack p="md">
                 <Group align="flex-start" h="305px">
                     <Stack w="30%" h="100%">
                         <Text>
-                            Available metrics ({selectedItems.length} selected)
+                            Available {texts[type].name}s (
+                            {selectedItemIds.length} selected)
                         </Text>
 
                         <Stack
@@ -347,47 +373,56 @@ const MultipleCustomMetricModalContent = ({
                                 overflowY: 'auto',
                             }}
                         >
-                            {items.map((item) => (
-                                <Tooltip
-                                    label={item.label}
-                                    key={item.name}
-                                    position="right"
-                                >
-                                    <Group
-                                        noWrap
-                                        key={item.name}
-                                        onClick={() =>
-                                            setSelectedItems(
-                                                !selectedItems.includes(
-                                                    item.name,
-                                                )
-                                                    ? [
-                                                          ...selectedItems,
-                                                          item.name,
-                                                      ]
-                                                    : selectedItems.filter(
-                                                          (name) =>
-                                                              name !==
-                                                              item.name,
-                                                      ),
-                                            )
-                                        }
-                                        sx={{ cursor: 'pointer' }}
+                            {items.map((item) => {
+                                const itemId = getItemId(item);
+                                const itemLabel = getItemLabel(item);
+                                return (
+                                    <Tooltip
+                                        label={itemLabel}
+                                        key={itemId}
+                                        position="right"
                                     >
-                                        <Checkbox
-                                            size="xs"
-                                            checked={selectedItems.includes(
-                                                item.name,
-                                            )}
-                                        />
-                                        <Text truncate="end">{item.label}</Text>
-                                    </Group>
-                                </Tooltip>
-                            ))}
+                                        <Group
+                                            noWrap
+                                            key={itemId}
+                                            onClick={() =>
+                                                setSelectedItemIds(
+                                                    !selectedItemIds.includes(
+                                                        itemId,
+                                                    )
+                                                        ? [
+                                                              ...selectedItemIds,
+                                                              itemId,
+                                                          ]
+                                                        : selectedItemIds.filter(
+                                                              (name) =>
+                                                                  name !==
+                                                                  itemId,
+                                                          ),
+                                                )
+                                            }
+                                            sx={{ cursor: 'pointer' }}
+                                        >
+                                            <Checkbox
+                                                size="xs"
+                                                checked={selectedItemIds.includes(
+                                                    itemId,
+                                                )}
+                                            />
+                                            <Text truncate="end">
+                                                {itemLabel}
+                                            </Text>
+                                        </Group>
+                                    </Tooltip>
+                                );
+                            })}
                         </Stack>
                     </Stack>
                     <Stack w="calc(70% - 18px)" h="100%">
-                        <Text>Metric YAML to be created:</Text>
+                        <Text>
+                            {capitalize(texts[type].baseName)} YAML to be
+                            created:
+                        </Text>
 
                         <Stack
                             h="100%"
@@ -429,8 +464,20 @@ const MultipleCustomMetricModalContent = ({
                             disabled={buttonDisabled}
                             size="xs"
                             onClick={() => {
-                                if (!items) return;
-                                writeBackCustomMetrics(items);
+                                if (!items || selectedItems.length === 0)
+                                    return;
+
+                                match(
+                                    items[0],
+                                    () =>
+                                        writeBackCustomDimension(
+                                            selectedItems as CustomDimension[],
+                                        ),
+                                    () =>
+                                        writeBackCustomMetrics(
+                                            selectedItems as AdditionalMetric[],
+                                        ),
+                                );
                             }}
                         >
                             {isLoading
@@ -444,46 +491,43 @@ const MultipleCustomMetricModalContent = ({
     );
 };
 
-export const CustomMetricWriteBackModal = () => {
-    const { items, multiple, isOpen } = useExplorerContext(
-        (context) => context.state.modals.additionalMetricWriteBack,
+export const WriteBackModal = () => {
+    const { isOpen, items } = useExplorerContext(
+        (context) => context.state.modals.writeBack,
     );
+
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
 
     const toggleModal = useExplorerContext(
-        (context) => context.actions.toggleAdditionalMetricWriteBackModal,
+        (context) => context.actions.toggleWriteBackModal,
     );
-
-    const handleClose = useCallback(() => {
-        toggleModal();
-    }, [toggleModal]);
 
     if (!isOpen) {
         return null;
     }
 
-    if (items && !multiple && items.length === 1) {
+    if (!items || items.length === 0) {
+        console.error(new Error('No items to write back'));
+        return null; // TODO: Add a modal to explain that no custom metrics or dimensions are defined
+    }
+
+    if (items && items.length === 1) {
         return (
-            <SingleCustomMetricModalContent
-                handleClose={handleClose}
+            <SingleItemModalContent
+                handleClose={toggleModal}
                 item={items[0]}
                 projectUuid={projectUuid!}
             />
         );
-    } else if (multiple === true) {
-        return (
-            <MultipleCustomMetricModalContent
-                handleClose={handleClose}
-                projectUuid={projectUuid!}
-                items={items || []}
-            />
-        );
-    } else {
-        console.error(
-            `Invalid custom metric modal arguments multiple="${multiple}": `,
-            items,
-        );
     }
+
+    return (
+        <MultipleItemsModalContent
+            handleClose={toggleModal}
+            projectUuid={projectUuid!}
+            items={items}
+        />
+    );
 };

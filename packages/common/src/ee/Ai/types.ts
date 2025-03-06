@@ -1,4 +1,5 @@
 import type { AnyType } from '../../types/any';
+import { type TraceTaskBase } from '../../types/scheduler';
 
 export type AiThread = {
     aiThreadUuid: string;
@@ -92,7 +93,7 @@ export type UpdateSlackResponseTs = {
     responseSlackTs: string;
 };
 
-export type SlackPromptJobPayload = {
+export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
 };
 
