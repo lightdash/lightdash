@@ -86,7 +86,13 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
                 },
             );
 
-            return { fields, rows, queryId: '', pageCount: 1 };
+            return {
+                fields,
+                rows,
+                queryId: '',
+                pageCount: 1,
+                totalRows: rows.length,
+            };
         }
 
         throw new Error('Warehouse method not implemented.');

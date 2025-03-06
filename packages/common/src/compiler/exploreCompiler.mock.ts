@@ -42,7 +42,8 @@ export const warehouseClientMock: WarehouseClient = {
         rows: [],
         fields: {},
         queryId: '',
-        pageCount: 1,
+        pageCount: 0,
+        totalRows: 0,
     }),
     runQuery: () =>
         Promise.resolve({

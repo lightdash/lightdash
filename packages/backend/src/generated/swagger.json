@@ -8430,6 +8430,14 @@
             },
             "ApiPaginatedQueryResults": {
                 "properties": {
+                    "totalRows": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "nextPage": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "pageCount": {
                         "type": "number",
                         "format": "double"
@@ -8447,7 +8455,13 @@
                         "type": "string"
                     }
                 },
-                "required": ["pageCount", "rows", "queryId"],
+                "required": [
+                    "totalRows",
+                    "pageCount",
+                    "fields",
+                    "rows",
+                    "queryId"
+                ],
                 "type": "object"
             },
             "ApiPaginatedRunQueryResponse": {
@@ -8463,6 +8477,43 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "PaginatedMetricQueryRequest": {
+                "allOf": [
+                    {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricQueryRequest"
+                            },
+                            {
+                                "properties": {
+                                    "fields": {
+                                        "$ref": "#/components/schemas/ItemsMap"
+                                    },
+                                    "queryId": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["fields", "queryId"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "pageSize": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "page": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["pageSize", "page"],
+                        "type": "object"
+                    }
+                ]
             },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
                 "properties": {
@@ -15185,7 +15236,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1528.0",
+        "version": "0.1529.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -45,7 +45,8 @@ export const warehouseClientMock: WarehouseClient = {
         fields: {},
         rows: [],
         queryId: '',
-        pageCount: 1,
+        pageCount: 0,
+        totalRows: 0,
     }),
     runQuery: () =>
         Promise.resolve({
@@ -115,7 +116,8 @@ export const bigqueryClientMock: WarehouseClient = {
         fields: {},
         rows: [],
         queryId: '',
-        pageCount: 1,
+        pageCount: 0,
+        totalRows: 0,
     }),
     runQuery: () =>
         Promise.resolve({

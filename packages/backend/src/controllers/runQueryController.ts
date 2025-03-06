@@ -11,6 +11,7 @@ import {
     QueryExecutionContext,
     type ApiPaginatedQueryResults,
     type ItemsMap,
+    type PaginatedMetricQueryRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -151,10 +152,7 @@ export class RunViewChartQueryController extends BaseController {
     @OperationId('RunPaginatedQuery')
     async runPaginatedQuery(
         @Body()
-        body: (MetricQueryRequest | { queryId: string; fields: ItemsMap }) & {
-            page: number;
-            pageSize: number;
-        },
+        body: PaginatedMetricQueryRequest,
         @Path() projectUuid: string,
         @Path() exploreName: string,
         @Request() req: express.Request,

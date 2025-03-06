@@ -2345,30 +2345,38 @@ export class ProjectService extends BaseService {
                     const formatter = (row: Record<string, unknown>) =>
                         rowFormatter ? rowFormatter(row, fieldsMap) : row;
 
-                    const results = await measureTime(
-                        () =>
-                            warehouseClient.getPaginatedResults(
-                                {
-                                    ...('metricQuery' in rest
-                                        ? { sql }
-                                        : { queryId: rest.queryId }),
-                                    page,
-                                    pageSize,
-                                    tags: queryTags,
-                                },
-                                formatter,
-                            ),
-                        'getPaginatedResults',
-                        this.logger,
-                        context,
-                    );
+                    const { rows, pageCount, totalRows, queryId } =
+                        await measureTime(
+                            () =>
+                                warehouseClient.getPaginatedResults(
+                                    {
+                                        ...('metricQuery' in rest
+                                            ? { sql }
+                                            : { queryId: rest.queryId }),
+                                        page,
+                                        pageSize,
+                                        tags: queryTags,
+                                    },
+                                    formatter,
+                                ),
+                            'getPaginatedResults',
+                            this.logger,
+                            context,
+                        );
 
                     await sshTunnel.disconnect();
 
+                    const nextPage =
+                        page === pageCount || pageCount === 0
+                            ? undefined
+                            : page + 1;
+
                     return {
-                        rows: results.rows as TFormattedRow[],
-                        pageCount: results.pageCount,
-                        queryId: results.queryId,
+                        rows: rows as TFormattedRow[],
+                        totalRows,
+                        pageCount,
+                        nextPage,
+                        queryId,
                         fields: fieldsMap,
                     };
                 } catch (e) {

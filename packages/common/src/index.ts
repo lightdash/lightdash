@@ -465,8 +465,10 @@ export type ApiQueryResults = {
 export type ApiPaginatedQueryResults = {
     queryId: string;
     rows: ResultRow[];
-    fields?: ItemsMap;
+    fields: ItemsMap;
     pageCount: number;
+    nextPage: number | undefined;
+    totalRows: number;
 };
 
 export type ApiChartAndResults = {
