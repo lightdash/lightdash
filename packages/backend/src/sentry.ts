@@ -23,7 +23,10 @@ Sentry.init({
             ? 'development'
             : lightdashConfig.mode,
     integrations: [
-        // NOTE: Http, express, and postgres integrations are enabled by default
+        /**
+         * Some integrations are enabled by default
+         * @ref https://docs.sentry.io/platforms/javascript/guides/node/configuration/integrations/
+         */
         nodeProfilingIntegration(),
         ...(lightdashConfig.sentry.anr.enabled
             ? [
