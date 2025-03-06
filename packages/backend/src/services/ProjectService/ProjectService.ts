@@ -2204,7 +2204,9 @@ export class ProjectService extends BaseService {
         }
     }
 
-    async paginateMetricQuery<TFormattedRow extends Record<string, unknown>>(
+    private async paginateMetricQuery<
+        TFormattedRow extends Record<string, unknown>,
+    >(
         {
             user,
             projectUuid,
