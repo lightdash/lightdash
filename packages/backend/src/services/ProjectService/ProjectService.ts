@@ -2183,23 +2183,24 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private validatePagination({ pageSize, page }: ResultsPaginationArgs) {
-        if (page && page < 1) {
+    private validatePagination({
+        pageSize,
+        page,
+    }: Required<ResultsPaginationArgs>) {
+        if (page < 1) {
             throw new ResultsPaginationError('page should be greater than 0');
         }
 
-        if (pageSize) {
-            if (pageSize < 1) {
-                throw new ResultsPaginationError(
-                    `page size should be greater than 0`,
-                );
-            }
+        if (pageSize < 1) {
+            throw new ResultsPaginationError(
+                `page size should be greater than 0`,
+            );
+        }
 
-            if (pageSize > this.lightdashConfig.query.maxLimit) {
-                throw new ResultsPaginationError(
-                    `page size is too large, max is ${this.lightdashConfig.query.maxLimit}`,
-                );
-            }
+        if (pageSize > this.lightdashConfig.query.maxLimit) {
+            throw new ResultsPaginationError(
+                `page size is too large, max is ${this.lightdashConfig.query.maxLimit}`,
+            );
         }
     }
 
