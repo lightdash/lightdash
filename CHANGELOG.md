@@ -1,3 +1,10 @@
+## [0.1530.5](https://github.com/lightdash/lightdash/compare/0.1530.4...0.1530.5) (2025-03-06)
+
+
+### Bug Fixes
+
+* formatting cell value regression ([#13948](https://github.com/lightdash/lightdash/issues/13948)) ([5194924](https://github.com/lightdash/lightdash/commit/5194924e1eda118706d9f0f62aa34a762b8fb6d0))
+
 ## [0.1530.4](https://github.com/lightdash/lightdash/compare/0.1530.3...0.1530.4) (2025-03-06)
 
 
