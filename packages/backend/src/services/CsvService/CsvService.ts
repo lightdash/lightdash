@@ -1213,7 +1213,7 @@ This method can be memory intensive
             userUuid: user.userUuid,
             schedulerUuid: undefined,
         };
-        const { jobId } = await this.schedulerClient.scheduleMethod(
+        const { jobId } = await this.schedulerClient.scheduleTask(
             SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
             payload,
         );

@@ -806,9 +806,11 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async scheduleMethod<T extends SchedulerTaskName>(
+    async scheduleTask<T extends SchedulerTaskName>(
         task: SchedulerTaskName,
         payload: TaskPayloadMap[T],
+        priority?: JobPriority,
+        retries?: number,
     ) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
@@ -817,8 +819,8 @@ export class SchedulerClient {
             task,
             payload,
             now,
-            JobPriority.LOW,
-            1,
+            priority || JobPriority.LOW,
+            retries || 1,
         );
 
         await this.schedulerModel.logSchedulerJob({
