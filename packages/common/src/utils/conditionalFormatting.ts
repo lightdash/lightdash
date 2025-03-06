@@ -171,9 +171,9 @@ export const hasMatchingConditionalRules = (
 
             switch (rule.operator) {
                 case ConditionalOperator.NULL:
-                    return convertedValue === null;
+                    return value === null;
                 case ConditionalOperator.NOT_NULL:
-                    return convertedValue !== null;
+                    return value !== null;
                 case ConditionalOperator.EQUALS:
                     if (shouldCompareFieldToValue) {
                         return rule.values.some((v) => convertedValue === v);
