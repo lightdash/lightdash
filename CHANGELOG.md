@@ -1,3 +1,10 @@
+## [0.1530.6](https://github.com/lightdash/lightdash/compare/0.1530.5...0.1530.6) (2025-03-06)
+
+
+### Bug Fixes
+
+* conditional formatting null comparison regression ([#13960](https://github.com/lightdash/lightdash/issues/13960)) ([5ad5850](https://github.com/lightdash/lightdash/commit/5ad585001f768a8ed1eea267a38bddaf90114358))
+
 ## [0.1530.5](https://github.com/lightdash/lightdash/compare/0.1530.4...0.1530.5) (2025-03-06)
 
 
