@@ -313,6 +313,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 rows,
                 queryId: currentQueryId,
                 pageCount: Math.ceil(numRows / queryArgs.pageSize),
+                totalRows: numRows,
             };
         } catch (e) {
             const error = e as SnowflakeError;

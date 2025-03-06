@@ -63,6 +63,7 @@ export type WarehousePaginatedResults<
 > = WarehouseResults & {
     queryId: string;
     pageCount: number;
+    totalRows: number;
     rows: TFormattedRow[];
 };
 

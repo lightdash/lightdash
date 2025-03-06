@@ -7597,8 +7597,17 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                totalRows: { dataType: 'double', required: true },
+                nextPage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
                 pageCount: { dataType: 'double', required: true },
-                fields: { ref: 'ItemsMap' },
+                fields: { ref: 'ItemsMap', required: true },
                 rows: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'ResultRow' },
@@ -7618,6 +7627,36 @@ const models: TsoaRoute.Models = {
                 results: { ref: 'ApiPaginatedQueryResults', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedMetricQueryRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MetricQueryRequest' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                fields: { ref: 'ItemsMap', required: true },
+                                queryId: { dataType: 'string', required: true },
+                            },
+                        },
+                    ],
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        pageSize: { dataType: 'double', required: true },
+                        page: { dataType: 'double', required: true },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -20399,29 +20438,7 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'MetricQueryRequest' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                fields: { ref: 'ItemsMap', required: true },
-                                queryId: { dataType: 'string', required: true },
-                            },
-                        },
-                    ],
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        pageSize: { dataType: 'double', required: true },
-                        page: { dataType: 'double', required: true },
-                    },
-                },
-            ],
+            ref: 'PaginatedMetricQueryRequest',
         },
         projectUuid: {
             in: 'path',
