@@ -349,7 +349,6 @@ export class ValidationService extends BaseService {
                             [],
                         );
 
-                    throw new Error('test');
                     const filterErrors = getFilterRules(filters).reduce<
                         CreateChartValidation[]
                     >((acc, field) => {
@@ -364,9 +363,9 @@ export class ValidationService extends BaseService {
                             });
                         } catch (e) {
                             console.error(
-                                'Unexpected validation error on filterErrors',
-                                e,
+                                'Unexpected validation error on filterErrors with filter',
                                 field,
+                                e,
                             );
                             return acc;
                         }
@@ -389,9 +388,9 @@ export class ValidationService extends BaseService {
                                 });
                             } catch (e) {
                                 console.error(
-                                    'Unexpected validation error on customMetricFilterErrors',
-                                    e,
+                                    'Unexpected validation error on customMetricFilterErrors with filter',
                                     filter,
+                                    e,
                                 );
                                 return acc;
                             }
@@ -478,18 +477,25 @@ export class ValidationService extends BaseService {
                     ];
                     const filterErrors = dashboardFilterRules.reduce<
                         CreateDashboardValidation[]
-                    >(
-                        (acc, filter) =>
-                            containsFieldId({
+                    >((acc, filter) => {
+                        try {
+                            return containsFieldId({
                                 acc,
                                 fieldIds: existingFieldIds,
                                 fieldId: filter.target.fieldId,
                                 error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
                                 errorType: ValidationErrorType.Filter,
                                 fieldName: filter.target.fieldId,
-                            }),
-                        [],
-                    );
+                            });
+                        } catch (e) {
+                            console.error(
+                                'Unexpected validation error on dashboard filterErrors with filter',
+                                filter,
+                                e,
+                            );
+                            return acc;
+                        }
+                    }, []);
 
                     const dashboardTileTargets = dashboardFilterRules.reduce<
                         DashboardTileTarget[]
