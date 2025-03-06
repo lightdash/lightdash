@@ -1,3 +1,10 @@
+# [0.1530.0](https://github.com/lightdash/lightdash/compare/0.1529.1...0.1530.0) (2025-03-06)
+
+
+### Features
+
+* feature flag write back for bin dimensions ([#13936](https://github.com/lightdash/lightdash/issues/13936)) ([1b679eb](https://github.com/lightdash/lightdash/commit/1b679ebe11a9358efa7988792f2623c055420854))
+
 ## [0.1529.1](https://github.com/lightdash/lightdash/compare/0.1529.0...0.1529.1) (2025-03-05)
 
 
