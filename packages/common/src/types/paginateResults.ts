@@ -8,4 +8,5 @@ export type ResultsPaginationMetadata<T> = KnexPaginatedData<
     T[]
 >['pagination'] & {
     nextPage: number | undefined;
+    previousPage: number | undefined;
 };
