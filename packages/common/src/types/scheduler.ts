@@ -1,9 +1,10 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type Explore, type ExploreError } from './explore';
-import { type DashboardFilterRule } from './filter';
+import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type MetricQuery } from './metricQuery';
 import { type PivotConfig } from './pivot';
+import { type DateGranularity } from './timeFrames';
 import { type ValidationTarget } from './validation';
 
 export type SchedulerCsvOptions = {
@@ -443,3 +444,9 @@ export type ApiJobStatusResponse = {
 };
 
 export type SchedulerCronUpdate = { schedulerUuid: string; cron: string };
+
+export type ExportCsvDashboardPayload = TraceTaskBase & {
+    dashboardUuid: string;
+    dashboardFilters: DashboardFilters;
+    dateZoomGranularity?: DateGranularity;
+};
