@@ -195,7 +195,7 @@ dashboardRouter.post(
         try {
             const results = await req.services
                 .getCsvService()
-                .exportCsvDashboard(
+                .scheduleExportCsvDashboard(
                     req.user!,
                     req.params.dashboardUuid,
                     req.body.filters,
