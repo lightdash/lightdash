@@ -1764,14 +1764,12 @@ export class ProjectService extends BaseService {
     async runPaginatedExploreQuery({
         user,
         projectUuid,
-        exploreName,
         dateZoomGranularity,
         context = QueryExecutionContext.EXPLORE,
         ...rest
     }: PaginateQueryArgs & {
         user: SessionUser;
         projectUuid: string;
-        exploreName: string;
         dateZoomGranularity?: DateGranularity;
         context?: QueryExecutionContext;
     }): Promise<ApiPaginatedQueryResults> {
@@ -1789,6 +1787,11 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        const exploreName =
+            'metricQuery' in rest
+                ? rest.metricQuery.exploreName
+                : rest.exploreName;
 
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
@@ -1844,7 +1847,6 @@ export class ProjectService extends BaseService {
                 metricQuery,
                 projectUuid,
                 exploreName,
-                explore,
                 csvLimit,
                 context: QueryExecutionContext.EXPLORE,
                 queryTags,
@@ -2210,23 +2212,21 @@ export class ProjectService extends BaseService {
         {
             user,
             projectUuid,
-            exploreName,
             context,
             invalidateCache,
-            explore: loadedExplore,
             granularity,
             chartUuid,
             page = 1,
             pageSize = DEFAULT_RESULTS_PAGE_SIZE,
             queryTags,
+            exploreName,
             ...rest
         }: PaginateQueryArgs & {
             user: SessionUser;
             projectUuid: string;
-            exploreName: string;
             context: QueryExecutionContext;
             invalidateCache?: boolean;
-            explore?: Explore;
+            exploreName: string;
             granularity?: DateGranularity;
             chartUuid: string | undefined; // for analytics
             queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
@@ -2264,9 +2264,11 @@ export class ProjectService extends BaseService {
 
                     this.validatePagination({ pageSize, page });
 
-                    const explore =
-                        loadedExplore ??
-                        (await this.getExplore(user, projectUuid, exploreName));
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        exploreName,
+                    );
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(

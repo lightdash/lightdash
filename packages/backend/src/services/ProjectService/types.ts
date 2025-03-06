@@ -13,5 +13,6 @@ export type PaginateQueryArgs = ResultsPaginationArgs &
         | {
               queryId: string;
               fields: ItemsMap;
+              exploreName: string;
           }
     );

@@ -174,6 +174,6 @@ export type MetricQueryRequest = {
 // When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
 export type PaginatedMetricQueryRequest = (
     | { query: MetricQueryRequest }
-    | { queryId: string; fields: ItemsMap }
+    | { queryId: string; fields: ItemsMap; exploreName: string }
 ) &
     ResultsPaginationArgs;
