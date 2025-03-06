@@ -1,3 +1,10 @@
+## [0.1530.2](https://github.com/lightdash/lightdash/compare/0.1530.1...0.1530.2) (2025-03-06)
+
+
+### Bug Fixes
+
+* fix import common ([#13944](https://github.com/lightdash/lightdash/issues/13944)) ([e8377ed](https://github.com/lightdash/lightdash/commit/e8377edf6ac3d947ea3df08b0f4b8f6c6bf61743))
+
 ## [0.1530.1](https://github.com/lightdash/lightdash/compare/0.1530.0...0.1530.1) (2025-03-06)
 
 
