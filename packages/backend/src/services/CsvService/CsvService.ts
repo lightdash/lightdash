@@ -18,6 +18,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getErrorMessage,
+    getFulfilledValues,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -27,7 +28,6 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isField,
-    isFulfilled,
     isMomentInput,
     isTableChartConfig,
     isVizCartesianChartConfig,
@@ -852,9 +852,7 @@ This method can be memory intensive
         const csvUrls = await Promise.allSettled([
             ...csvForChartPromises,
             ...csvForSqlChartPromises,
-        ]).then((results) =>
-            results.filter(isFulfilled).map((result) => result.value),
-        );
+        ]).then(getFulfilledValues);
         return csvUrls;
     }
 

@@ -5,3 +5,7 @@ export const isFulfilled = <T>(
 export const isRejected = (
     input: PromiseSettledResult<unknown>,
 ): input is PromiseRejectedResult => input.status === 'rejected';
+
+export const getFulfilledValues = <T>(
+    results: PromiseSettledResult<T>[],
+): T[] => results.filter(isFulfilled).map((result) => result.value);
