@@ -68,10 +68,10 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         !shouldRenderMenu;
 
     const formattedValue = useMemo(() => {
-        if (!item) return null;
-        return (cell as Cell<ResultRow, ResultRow[0]>).getValue().value
+        if (!hasData) return null;
+        return (cell as Cell<ResultRow, ResultRow[0]>).getValue()?.value
             .formatted;
-    }, [cell, item]);
+    }, [hasData, cell]);
 
     const handleCopy = useCallback(() => {
         if (!isMenuOpen) return;
