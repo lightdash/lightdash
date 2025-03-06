@@ -20,6 +20,7 @@ import {
     type TableCalculation,
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
+import type { ResultsPaginationArgs } from './paginateResults';
 import { type DateGranularity } from './timeFrames';
 
 export interface AdditionalMetric {
@@ -172,9 +173,7 @@ export type MetricQueryRequest = {
 
 // When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
 export type PaginatedMetricQueryRequest = (
-    | MetricQueryRequest
+    | { query: MetricQueryRequest }
     | { queryId: string; fields: ItemsMap }
-) & {
-    page: number;
-    pageSize: number;
-};
+) &
+    ResultsPaginationArgs;
