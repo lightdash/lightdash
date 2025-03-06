@@ -20,6 +20,7 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
+    DEFAULT_RESULTS_PAGE_SIZE,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -2189,8 +2190,8 @@ export class ProjectService extends BaseService {
             explore: loadedExplore,
             granularity,
             chartUuid,
-            page,
-            pageSize,
+            page = 1,
+            pageSize = DEFAULT_RESULTS_PAGE_SIZE,
             queryTags,
             ...rest
         }: PaginateQueryArgs & {
@@ -2345,36 +2346,46 @@ export class ProjectService extends BaseService {
                     const formatter = (row: Record<string, unknown>) =>
                         rowFormatter ? rowFormatter(row, fieldsMap) : row;
 
-                    const { rows, pageCount, totalRows, queryId } =
-                        await measureTime(
-                            () =>
-                                warehouseClient.getPaginatedResults(
-                                    {
-                                        ...('metricQuery' in rest
-                                            ? { sql }
-                                            : { queryId: rest.queryId }),
-                                        page,
-                                        pageSize,
-                                        tags: queryTags,
-                                    },
-                                    formatter,
-                                ),
-                            'getPaginatedResults',
-                            this.logger,
-                            context,
-                        );
+                    const {
+                        rows,
+                        pageCount: totalPageCount,
+                        totalRows: totalResults,
+                        queryId,
+                    } = await measureTime(
+                        () =>
+                            warehouseClient.getPaginatedResults(
+                                {
+                                    ...('metricQuery' in rest
+                                        ? { sql }
+                                        : { queryId: rest.queryId }),
+                                    page,
+                                    pageSize,
+                                    tags: queryTags,
+                                },
+                                formatter,
+                            ),
+                        'getPaginatedResults',
+                        this.logger,
+                        context,
+                    );
 
                     await sshTunnel.disconnect();
 
                     const nextPage =
-                        page === pageCount || pageCount === 0
+                        page === totalPageCount || totalPageCount === 0
                             ? undefined
                             : page + 1;
 
                     return {
                         rows: rows as TFormattedRow[],
-                        totalRows,
-                        pageCount,
+                        page,
+                        // This is to take into account the page size override for warehouses that don't support pagination yet
+                        pageSize:
+                            totalPageCount > pageSize
+                                ? totalPageCount
+                                : pageSize,
+                        totalPageCount,
+                        totalResults,
                         nextPage,
                         queryId,
                         fields: fieldsMap,

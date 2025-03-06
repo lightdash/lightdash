@@ -140,6 +140,7 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
+import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
@@ -217,6 +218,7 @@ export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/paginateResults';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -462,13 +464,10 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
-export type ApiPaginatedQueryResults = {
+export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
     queryId: string;
     rows: ResultRow[];
     fields: ItemsMap;
-    pageCount: number;
-    nextPage: number | undefined;
-    totalRows: number;
 };
 
 export type ApiChartAndResults = {

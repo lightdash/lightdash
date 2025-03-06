@@ -1,10 +1,10 @@
 import {
     MetricQuery,
     type ItemsMap,
-    type WarehousePaginationArgs,
+    type ResultsPaginationArgs,
 } from '@lightdash/common';
 
-export type PaginateQueryArgs = WarehousePaginationArgs &
+export type PaginateQueryArgs = ResultsPaginationArgs &
     (
         | {
               metricQuery: MetricQuery;

@@ -8377,6 +8377,54 @@
                 ],
                 "type": "object"
             },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "ResultsPaginationMetadata_ResultRow_": {
+                "allOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "nextPage": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ResultValue": {
                 "properties": {
                     "formatted": {
@@ -8429,42 +8477,31 @@
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
             "ApiPaginatedQueryResults": {
-                "properties": {
-                    "totalRows": {
-                        "type": "number",
-                        "format": "double"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
                     },
-                    "nextPage": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap"
-                    },
-                    "rows": {
-                        "items": {
-                            "$ref": "#/components/schemas/ResultRow"
+                    {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "rows": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ResultRow"
+                                },
+                                "type": "array"
+                            },
+                            "queryId": {
+                                "type": "string"
+                            }
                         },
-                        "type": "array"
-                    },
-                    "queryId": {
-                        "type": "string"
+                        "required": ["fields", "rows", "queryId"],
+                        "type": "object"
                     }
-                },
-                "required": [
-                    "totalRows",
-                    "pageCount",
-                    "fields",
-                    "rows",
-                    "queryId"
-                ],
-                "type": "object"
+                ]
             },
-            "ApiPaginatedRunQueryResponse": {
+            "ApiRunPaginatedQueryResponse": {
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ApiPaginatedQueryResults"
@@ -8478,12 +8515,35 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Partial_KnexPaginateArgs_": {
+                "properties": {
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "ResultsPaginationArgs": {
+                "$ref": "#/components/schemas/Partial_KnexPaginateArgs_"
+            },
             "PaginatedMetricQueryRequest": {
                 "allOf": [
                     {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/MetricQueryRequest"
+                                "properties": {
+                                    "query": {
+                                        "$ref": "#/components/schemas/MetricQueryRequest"
+                                    }
+                                },
+                                "required": ["query"],
+                                "type": "object"
                             },
                             {
                                 "properties": {
@@ -8500,18 +8560,7 @@
                         ]
                     },
                     {
-                        "properties": {
-                            "pageSize": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "page": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["pageSize", "page"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/ResultsPaginationArgs"
                     }
                 ]
             },
@@ -11102,22 +11151,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -11874,20 +11923,6 @@
                 ],
                 "type": "object",
                 "description": "Profile for a user's membership in an organization"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
-                "type": "object"
             },
             "KnexPaginatedData_OrganizationMemberProfile-Array_": {
                 "properties": {

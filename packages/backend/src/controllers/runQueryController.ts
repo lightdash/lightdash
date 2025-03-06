@@ -8,9 +8,7 @@ import {
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
-    QueryExecutionContext,
     type ApiPaginatedQueryResults,
-    type ItemsMap,
     type PaginatedMetricQueryRequest,
 } from '@lightdash/common';
 import {
@@ -41,7 +39,7 @@ export type ApiRunQueryResponse = {
     };
 };
 
-export type ApiPaginatedRunQueryResponse = {
+export type ApiRunPaginatedQueryResponse = {
     status: 'ok';
     results: ApiPaginatedQueryResults;
 };
@@ -156,7 +154,7 @@ export class RunViewChartQueryController extends BaseController {
         @Path() projectUuid: string,
         @Path() exploreName: string,
         @Request() req: express.Request,
-    ): Promise<ApiPaginatedRunQueryResponse> {
+    ): Promise<ApiRunPaginatedQueryResponse> {
         const queryParams =
             'queryId' in body
                 ? {
@@ -165,19 +163,19 @@ export class RunViewChartQueryController extends BaseController {
                   }
                 : {
                       metricQuery: {
-                          exploreName: body.exploreName,
-                          dimensions: body.dimensions,
-                          metrics: body.metrics,
-                          filters: body.filters,
-                          sorts: body.sorts,
-                          limit: body.limit,
-                          tableCalculations: body.tableCalculations,
-                          additionalMetrics: body.additionalMetrics,
-                          customDimensions: body.customDimensions,
-                          timezone: body.timezone,
-                          metricOverrides: body.metricOverrides,
+                          exploreName: body.query.exploreName,
+                          dimensions: body.query.dimensions,
+                          metrics: body.query.metrics,
+                          filters: body.query.filters,
+                          sorts: body.query.sorts,
+                          limit: body.query.limit,
+                          tableCalculations: body.query.tableCalculations,
+                          additionalMetrics: body.query.additionalMetrics,
+                          customDimensions: body.query.customDimensions,
+                          timezone: body.query.timezone,
+                          metricOverrides: body.query.metricOverrides,
                       },
-                      csvLimit: body.csvLimit,
+                      csvLimit: body.query.csvLimit,
                   };
 
         const results = await this.services
