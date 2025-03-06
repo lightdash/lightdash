@@ -1,3 +1,10 @@
+## [0.1530.4](https://github.com/lightdash/lightdash/compare/0.1530.3...0.1530.4) (2025-03-06)
+
+
+### Bug Fixes
+
+* migrate dashboard csv zip to scheduler ([#13951](https://github.com/lightdash/lightdash/issues/13951)) ([ab04235](https://github.com/lightdash/lightdash/commit/ab042358d45223ef15492715417ab47d6c19cb4c))
+
 ## [0.1530.3](https://github.com/lightdash/lightdash/compare/0.1530.2...0.1530.3) (2025-03-06)
 
 
