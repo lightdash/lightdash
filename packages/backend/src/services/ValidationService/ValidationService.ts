@@ -349,35 +349,52 @@ export class ValidationService extends BaseService {
                             [],
                         );
 
+                    throw new Error('test');
                     const filterErrors = getFilterRules(filters).reduce<
                         CreateChartValidation[]
-                    >(
-                        (acc, field) =>
-                            containsFieldId({
+                    >((acc, field) => {
+                        try {
+                            return containsFieldId({
                                 acc,
                                 fieldIds: allItemIdsAvailableInChart,
                                 fieldId: field.target.fieldId,
                                 error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                                 errorType: ValidationErrorType.Filter,
                                 fieldName: field.target.fieldId,
-                            }),
-                        [],
-                    );
+                            });
+                        } catch (e) {
+                            console.error(
+                                'Unexpected validation error on filterErrors',
+                                e,
+                                field,
+                            );
+                            return acc;
+                        }
+                    }, []);
 
                     const customMetricFilterErrors = customMetricsFilters
                         .filter((f) => !!f)
                         .reduce<CreateChartValidation[]>((acc, filter) => {
-                            const fieldId = convertFieldRefToFieldId(
-                                filter.target.fieldRef,
-                            );
-                            return containsFieldId({
-                                acc,
-                                fieldIds: allItemIdsAvailableInChart,
-                                fieldId,
-                                error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
-                                errorType: ValidationErrorType.CustomMetric,
-                                fieldName: fieldId,
-                            });
+                            try {
+                                const fieldId = convertFieldRefToFieldId(
+                                    filter.target.fieldRef,
+                                );
+                                return containsFieldId({
+                                    acc,
+                                    fieldIds: allItemIdsAvailableInChart,
+                                    fieldId,
+                                    error: `Custom metric filter error: the field '${fieldId}' no longer exists`,
+                                    errorType: ValidationErrorType.CustomMetric,
+                                    fieldName: fieldId,
+                                });
+                            } catch (e) {
+                                console.error(
+                                    'Unexpected validation error on customMetricFilterErrors',
+                                    e,
+                                    filter,
+                                );
+                                return acc;
+                            }
                         }, []);
 
                     const sortErrors = sorts.reduce<CreateChartValidation[]>(
