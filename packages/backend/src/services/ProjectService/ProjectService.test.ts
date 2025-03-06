@@ -1,10 +1,14 @@
 import {
     ConditionalOperator,
+    DEFAULT_RESULTS_PAGE_SIZE,
     defineUserAbility,
+    FieldType,
+    formatRow,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     SessionUser,
+    type ItemsMap,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3Client } from '../../clients/Aws/s3';
@@ -433,6 +437,108 @@ describe('ProjectService', () => {
                                         GROUP BY 1 
                                         ORDER BY "a_dim1" 
                                         LIMIT 10`),
+            );
+        });
+    });
+    describe('runPaginatedExploreQuery', () => {
+        const baseArgs = {
+            user,
+            projectUuid,
+            exploreName: 'valid_explore',
+        };
+
+        beforeEach(() => {
+            // Reset the service's warehouse clients
+            service.warehouseClients = {};
+        });
+
+        test('should pass formatRow as formatter to getPaginatedResults', async () => {
+            const getPaginatedResultsMock = jest.fn().mockResolvedValue({
+                rows: [],
+                fields: {},
+                pageCount: 0,
+                totalRows: 0,
+                queryId: '',
+            });
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                getPaginatedResults: getPaginatedResultsMock,
+            }));
+
+            await service.runPaginatedExploreQuery({
+                ...baseArgs,
+                metricQuery: metricQueryMock,
+                csvLimit: null,
+                page: 1,
+                pageSize: 10,
+            });
+
+            // Get the formatter function that was passed
+            const formatterFn = getPaginatedResultsMock.mock.calls[0][1];
+
+            // Create a test row
+            const testRow = { test_field: 123 };
+            const testItemsMap: ItemsMap = {
+                a_dim1: {
+                    fieldType: FieldType.DIMENSION,
+                    type: 'string',
+                    name: 'dim1',
+                    label: 'dim1',
+                    table: 'a',
+                    tableLabel: '',
+                    sql: '',
+                    hidden: false,
+                },
+                a_met1: {
+                    fieldType: FieldType.METRIC,
+                    type: 'string',
+                    name: 'met1',
+                    label: 'met1',
+                    table: 'a',
+                    tableLabel: '',
+                    sql: '',
+                    hidden: false,
+                },
+                tc: { name: 'tc', displayName: '', sql: '' },
+            };
+
+            // Compare the results of both functions
+            expect(formatterFn(testRow, testItemsMap)).toEqual(
+                formatRow(testRow, testItemsMap),
+            );
+        });
+
+        test('should use default pagination values when not provided', async () => {
+            const getPaginatedResultsMock = jest.fn().mockResolvedValue({
+                rows: [],
+                fields: {},
+                pageCount: 0,
+                totalRows: 0,
+                queryId: '',
+            });
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                getPaginatedResults: getPaginatedResultsMock,
+            }));
+
+            await service.runPaginatedExploreQuery({
+                ...baseArgs,
+                metricQuery: metricQueryMock,
+                csvLimit: null,
+            });
+
+            expect(getPaginatedResultsMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    page: 1,
+                    pageSize: DEFAULT_RESULTS_PAGE_SIZE,
+                }),
+                expect.any(Function),
             );
         });
     });
