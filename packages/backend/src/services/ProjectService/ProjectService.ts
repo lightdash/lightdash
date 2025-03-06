@@ -65,6 +65,7 @@ import {
     ReplaceableCustomFields,
     RequestMethod,
     ResultRow,
+    ResultsPaginationError,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
@@ -130,6 +131,7 @@ import {
     type ApiPaginatedQueryResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
+    type ResultsPaginationArgs,
     type RunQueryTags,
     type SemanticLayerConnectionUpdate,
     type Tag,
@@ -140,6 +142,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
+import { BadRequestError } from 'passport-headerapikey';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -2180,6 +2183,26 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private validatePagination({ pageSize, page }: ResultsPaginationArgs) {
+        if (page && page < 1) {
+            throw new ResultsPaginationError('page should be greater than 0');
+        }
+
+        if (pageSize) {
+            if (pageSize < 1) {
+                throw new ResultsPaginationError(
+                    `page size should be greater than 0`,
+                );
+            }
+
+            if (pageSize > this.lightdashConfig.query.maxLimit) {
+                throw new ResultsPaginationError(
+                    `page size is too large, max is ${this.lightdashConfig.query.maxLimit}`,
+                );
+            }
+        }
+    }
+
     async paginateMetricQuery<TFormattedRow extends Record<string, unknown>>(
         {
             user,
@@ -2235,6 +2258,8 @@ export class ProjectService extends BaseService {
                     ) {
                         throw new ForbiddenError();
                     }
+
+                    this.validatePagination({ pageSize, page });
 
                     const explore =
                         loadedExplore ??

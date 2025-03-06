@@ -352,6 +352,17 @@ export class KnexPaginationError extends LightdashError {
     }
 }
 
+export class ResultsPaginationError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'ResultsPaginationError',
+            statusCode: 422,
+            data: {},
+        });
+    }
+}
+
 export class SlackInstallationNotFoundError extends LightdashError {
     constructor(message: string = 'Could not find slack installation') {
         super({
