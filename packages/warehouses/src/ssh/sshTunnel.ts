@@ -275,7 +275,9 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             `Failed to connect to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
                         );
 
-                        throw new SshTunnelError(`Could not open SSH tunnel: ${getErrorMessage(e)}`);
+                        throw new SshTunnelError(
+                            `Could not open SSH tunnel: ${getErrorMessage(e)}`,
+                        );
                     }
                 }
                 break;
