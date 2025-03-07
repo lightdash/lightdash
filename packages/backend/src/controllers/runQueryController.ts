@@ -9,7 +9,6 @@ import {
     MetricQueryRequest,
     MetricQueryResponse,
     type ApiPaginatedQueryResults,
-    type PaginatedMetricQueryRequest,
 } from '@lightdash/common';
 import {
     Body,

@@ -183,6 +183,7 @@ export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
+export * from './types/api/paginatedQuery';
 export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/spotlight';

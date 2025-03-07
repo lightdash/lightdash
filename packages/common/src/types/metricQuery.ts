@@ -14,13 +14,11 @@ import {
     type CustomFormat,
     type FieldId,
     type Format,
-    type ItemsMap,
     type Metric,
     type MetricType,
     type TableCalculation,
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
-import type { ResultsPaginationArgs } from './paginateResults';
 import { type DateGranularity } from './timeFrames';
 
 export interface AdditionalMetric {
@@ -170,10 +168,3 @@ export type MetricQueryRequest = {
     timezone?: string;
     metricOverrides?: MetricOverrides;
 };
-
-// When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
-export type PaginatedMetricQueryRequest = (
-    | { query: MetricQueryRequest }
-    | { queryId: string; fields: ItemsMap; exploreName: string }
-) &
-    ResultsPaginationArgs;
