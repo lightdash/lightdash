@@ -2113,6 +2113,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
+        // TODO paginate: when we have metadata, we can fetch query related info here and have the same arguments for all paginated queries, therefore we won't need checks in runPaginatedQuery
         return this.runPaginatedQuery(
             {
                 user,
