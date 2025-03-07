@@ -14035,6 +14035,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryExecutionContext: {
+        dataType: 'refEnum',
+        enums: [
+            'dashboardView',
+            'autorefreshedDashboard',
+            'exploreView',
+            'filterAutocomplete',
+            'chartView',
+            'sqlChartView',
+            'sqlRunner',
+            'viewUnderlyingData',
+            'alert',
+            'scheduledDelivery',
+            'csvDownload',
+            'gsheets',
+            'scheduledGsheetsChart',
+            'scheduledGsheetsDashboard',
+            'scheduledChart',
+            'scheduledDashboard',
+            'calculateTotal',
+            'calculateSubtotal',
+            'embed',
+            'ai',
+            'api',
+            'cli',
+            'semanticViewer',
+            'metricsExplorer',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Partial_KnexPaginateArgs_: {
         dataType: 'refAlias',
         type: {
@@ -14076,6 +14106,12 @@ const models: TsoaRoute.Models = {
                         { ref: 'PaginatedQueryIdRequest' },
                         { ref: 'PaginatedSavedChartRequest' },
                     ],
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        context: { ref: 'QueryExecutionContext' },
+                    },
                 },
                 { ref: 'ResultsPaginationArgs' },
             ],
