@@ -16,9 +16,6 @@ export enum FeatureFlags {
     /**/
     ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
 
-    /**/
-    CustomSQLEnabled = 'custom-sql-enabled',
-
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 

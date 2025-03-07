@@ -22019,11 +22019,8 @@
                                     },
                                     {
                                         "properties": {
-                                            "pivotColumns": {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
+                                            "pivotConfig": {
+                                                "$ref": "#/components/schemas/PivotConfig"
                                             },
                                             "chartName": {
                                                 "type": "string"

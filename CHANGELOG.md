@@ -1,3 +1,39 @@
+## [0.1531.9](https://github.com/lightdash/lightdash/compare/0.1531.8...0.1531.9) (2025-03-07)
+
+
+### Bug Fixes
+
+* conditional formatting in between filters ([#13971](https://github.com/lightdash/lightdash/issues/13971)) ([3356a1a](https://github.com/lightdash/lightdash/commit/3356a1a55844aba220ae2e0e943ebba5ee028a63))
+
+## [0.1531.8](https://github.com/lightdash/lightdash/compare/0.1531.7...0.1531.8) (2025-03-07)
+
+
+### Bug Fixes
+
+* subtotals check if null or undefined ([#13965](https://github.com/lightdash/lightdash/issues/13965)) ([7a315e3](https://github.com/lightdash/lightdash/commit/7a315e3a4d89197d3bb08a2c161ddeb424a67601))
+
+## [0.1531.7](https://github.com/lightdash/lightdash/compare/0.1531.6...0.1531.7) (2025-03-07)
+
+
+### Bug Fixes
+
+* handle unauthorized and invalid_grant errors from google ([#13982](https://github.com/lightdash/lightdash/issues/13982)) ([8865500](https://github.com/lightdash/lightdash/commit/886550087e89b16bc28eb2f67f74cab2a9f5a3e0))
+
+## [0.1531.6](https://github.com/lightdash/lightdash/compare/0.1531.5...0.1531.6) (2025-03-07)
+
+
+### Bug Fixes
+
+* ai service getTagsForTask ([#13979](https://github.com/lightdash/lightdash/issues/13979)) ([8fa06e5](https://github.com/lightdash/lightdash/commit/8fa06e5ddfff50867ef8e8f2f3c2daad330064ea))
+
+## [0.1531.5](https://github.com/lightdash/lightdash/compare/0.1531.4...0.1531.5) (2025-03-07)
+
+
+### Bug Fixes
+
+* metrics as rows in csv ([#13930](https://github.com/lightdash/lightdash/issues/13930)) ([356e75f](https://github.com/lightdash/lightdash/commit/356e75f360a4230ec6bcd2c8edf473e54409bfdf))
+* remove write back feature flag ([#13974](https://github.com/lightdash/lightdash/issues/13974)) ([4189482](https://github.com/lightdash/lightdash/commit/418948236af82c1f75f484b8146d234583145bae))
+
 ## [0.1531.4](https://github.com/lightdash/lightdash/compare/0.1531.3...0.1531.4) (2025-03-07)
 
 

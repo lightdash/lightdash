@@ -132,9 +132,7 @@ const TableTreeSections: FC<Props> = ({
     const isGithubProject =
         project?.dbtConnection.type === DbtProjectType.GITHUB;
     const { data: gitIntegration } = useGitIntegration();
-    const isCustomSqlEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CustomSQLEnabled,
-    );
+
     const isWriteBackCustomBinDimensionsEnabled = useFeatureFlagEnabled(
         FeatureFlags.WriteBackCustomBinDimensions,
     );
@@ -338,7 +336,7 @@ const TableTreeSections: FC<Props> = ({
                             }}
                         />
                     </Group>
-                    {isCustomSqlEnabled && hasCustomMetrics && (
+                    {hasCustomMetrics && (
                         <Tooltip label="Write back custom metrics">
                             <ActionIcon
                                 onClick={() => {
@@ -382,9 +380,7 @@ const TableTreeSections: FC<Props> = ({
                     itemsAlerts={customMetricsIssues}
                     groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
-                    isGithubIntegrationEnabled={
-                        isGithubProject && isCustomSqlEnabled
-                    }
+                    isGithubIntegrationEnabled={isGithubProject}
                     gitIntegration={gitIntegration}
                 >
                     <TreeRoot />
@@ -420,7 +416,7 @@ const TableTreeSections: FC<Props> = ({
                             }}
                         />
                     </Group>
-                    {isCustomSqlEnabled && hasCustomDimensionsToWriteBack && (
+                    {hasCustomDimensionsToWriteBack && (
                         <Tooltip label="Write back custom dimensions">
                             <ActionIcon
                                 onClick={() => {

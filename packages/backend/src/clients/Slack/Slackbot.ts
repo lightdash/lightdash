@@ -2,14 +2,15 @@ import {
     AnyType,
     getErrorMessage,
     LightdashMode,
+    ScreenshotError,
     SlackInstallationNotFoundError,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { Express } from 'express';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import {
@@ -235,8 +236,9 @@ export class SlackBot {
                         appProfilePhotoUrl,
                     });
                 }
-
-                Sentry.captureException(e);
+                if (!(e instanceof ScreenshotError)) {
+                    slackErrorHandler(e, 'Unable to unfurl slack URL');
+                }
 
                 this.analytics.track({
                     event: 'share_slack.unfurl_error',
