@@ -4,12 +4,10 @@ import {
     type ApiWarehouseTablesCatalog,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Fuse from 'fuse.js';
 import { lightdashApi } from '../../../api';
 
 export type GetTablesParams = {
     projectUuid: string;
-    search: string | undefined;
 };
 
 const fetchTables = async ({
@@ -37,11 +35,11 @@ export type TablesBySchema =
       }[]
     | undefined;
 
-export const useTables = ({ projectUuid, search }: GetTablesParams) => {
+export const useTables = ({ projectUuid }: GetTablesParams) => {
     return useQuery<
         ApiWarehouseTablesCatalog,
         ApiError,
-        { database: string; tablesBySchema: TablesBySchema } | undefined
+        ApiWarehouseTablesCatalog
     >({
         queryKey: ['sqlRunner', 'tables', projectUuid],
         queryFn: () =>
@@ -50,13 +48,8 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
             }),
         retry: false,
         enabled: !!projectUuid,
-        select(data) {
-            const tablesBySchema = Object.entries(data).flatMap(([, schemas]) =>
-                Object.entries(schemas).map(([schema, tables]) => ({
-                    schema,
-                    tables,
-                })),
-            );
+        /*select(data) {
+        
 
             if (!search)
                 return {
@@ -80,12 +73,13 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
 
                     return {
                         schema,
-                        tables: fuseResult
-                            .slice(0, 100)
-                            .reduce<typeof tables>((acc, tableName) => {
+                        tables: fuseResult.reduce<typeof tables>(
+                            (acc, tableName) => {
                                 acc[tableName] = tables[tableName];
                                 return acc;
-                            }, {}),
+                            },
+                            {},
+                        ),
                     };
                 })
                 .filter(
@@ -99,7 +93,7 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
                     database: Object.keys(data)[0],
                     tablesBySchema: searchResults,
                 };
-        },
+        },*/
     });
 };
 

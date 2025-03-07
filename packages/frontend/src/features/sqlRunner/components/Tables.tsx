@@ -24,6 +24,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import Fuse from 'fuse.js';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -120,17 +121,21 @@ const TableItem: FC<TableItemProps> = memo(
                             wordBreak: 'break-word',
                         }}
                     >
-                        <Highlight
-                            ref={truncatedRef}
-                            component={Text}
-                            highlight={search || ''}
-                            truncate
-                            sx={{
-                                flex: 1,
-                            }}
-                        >
-                            {table}
-                        </Highlight>
+                        {search.length > 2 ? (
+                            <Highlight
+                                ref={truncatedRef}
+                                component={Text}
+                                highlight={search || ''}
+                                truncate
+                                sx={{
+                                    flex: 1,
+                                }}
+                            >
+                                {table}
+                            </Highlight>
+                        ) : (
+                            <Text>{table}</Text>
+                        )}
                     </Tooltip>
                 </UnstyledButton>
 
@@ -197,6 +202,10 @@ const Table: FC<{
         } else {
             // Autoclose when search is empty and no matching table is selected
             // to avoid rendering all tables after a search
+
+            // TODO fix this edge case
+            // when this happens, there is still a render loop that is rendering all tables without search or filtering
+            // which is making the UI unresponsive for a short while until this state is updated
             setIsExpanded(false);
         }
     }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
@@ -242,8 +251,9 @@ const Table: FC<{
                         ))}
                     {Object.keys(tables).length > limitTableResults && (
                         <Text ml="md" c="gray.5">
-                            Filtering first ${limitTableResults} results, search
-                            to see more
+                            Filtering first {limitTableResults} of{' '}
+                            {Object.keys(tables).length} tables, search to see
+                            more
                         </Text>
                     )}
                 </>
@@ -267,8 +277,68 @@ export const Tables: FC = () => {
 
     const { data, isLoading, isSuccess } = useTables({
         projectUuid,
-        search: isValidSearch ? debouncedSearch : '',
     });
+
+    const transformedData:
+        | { database: string; tablesBySchema: TablesBySchema }
+        | undefined = useMemo(() => {
+        if (!data) return undefined;
+        const tablesBySchema = Object.entries(data).flatMap(([, schemas]) =>
+            Object.entries(schemas).map(([schema, tables]) => ({
+                schema,
+                tables,
+            })),
+        );
+        return {
+            database: Object.keys(data)[0],
+            tablesBySchema,
+        };
+    }, [data]);
+
+    const filteredTablesBySchema:
+        | { database: string; tablesBySchema: TablesBySchema }
+        | undefined = useMemo(() => {
+        if (
+            !transformedData?.tablesBySchema ||
+            !debouncedSearch ||
+            !isValidSearch
+        )
+            return transformedData;
+
+        const searchResults: TablesBySchema = transformedData.tablesBySchema
+            .map((schemaData) => {
+                const { schema, tables } = schemaData;
+                const tableNames = Object.keys(tables);
+
+                const fuse = new Fuse(tableNames, {
+                    threshold: 0.3,
+                    isCaseSensitive: false,
+                });
+
+                const fuseResult = fuse
+                    .search(debouncedSearch)
+                    .map((res) => res.item);
+
+                return {
+                    schema,
+                    tables: fuseResult.reduce<typeof tables>(
+                        (acc, tableName) => {
+                            acc[tableName] = tables[tableName];
+                            return acc;
+                        },
+                        {},
+                    ),
+                };
+            })
+            .filter((schemaData) => Object.keys(schemaData.tables).length > 0);
+        if (searchResults.length === 0) {
+            return undefined;
+        } else
+            return {
+                database: transformedData.database,
+                tablesBySchema: searchResults,
+            };
+    }, [isValidSearch, debouncedSearch, transformedData]);
 
     return (
         <>
@@ -312,18 +382,20 @@ export const Tables: FC = () => {
                 scrollbarSize={8}
             >
                 {isSuccess &&
-                    data &&
-                    data.tablesBySchema?.map(({ schema, tables }) => (
-                        <Table
-                            key={schema}
-                            schema={schema}
-                            tables={tables}
-                            search={isValidSearch ? search : ''}
-                            activeTable={activeTable}
-                            activeSchema={activeSchema}
-                            database={data.database}
-                        />
-                    ))}
+                    filteredTablesBySchema &&
+                    filteredTablesBySchema.tablesBySchema?.map(
+                        ({ schema, tables }) => (
+                            <Table
+                                key={schema}
+                                schema={schema}
+                                tables={tables}
+                                search={isValidSearch ? debouncedSearch : ''}
+                                activeTable={activeTable}
+                                activeSchema={activeSchema}
+                                database={filteredTablesBySchema?.database}
+                            />
+                        ),
+                    )}
             </ScrollArea>
 
             {isSuccess && !data && (
