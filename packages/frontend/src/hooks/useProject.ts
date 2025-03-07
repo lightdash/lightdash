@@ -87,7 +87,9 @@ export const useUpdateMutation = (uuid: string) => {
                 await queryClient.invalidateQueries(['projects']);
                 await queryClient.invalidateQueries(['project', uuid]);
                 await queryClient.invalidateQueries(['tables']);
-                await queryClient.invalidateQueries(['queryResults']);
+                await queryClient.invalidateQueries(['query-all-results'], {
+                    exact: false,
+                });
                 await queryClient.invalidateQueries(['status']);
             },
             onError: ({ error }) => {

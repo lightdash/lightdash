@@ -4,7 +4,6 @@ import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
-import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
@@ -31,7 +30,7 @@ const MinimalExplorer: FC = () => {
     );
 
     const isLoadingQueryResults = useExplorerContext(
-        (context) => context.queryResults.isLoading,
+        (context) => context.queryResults.isFetching,
     );
 
     if (!savedChart || health.isInitialLoading || !health.data) {
@@ -76,13 +75,6 @@ const MinimalSavedExplorer: FC = () => {
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
-    const queryResults = useQueryResults({
-        chartUuid: savedQueryUuid,
-        isViewOnly: true,
-        dateZoomGranularity,
-        context,
-    });
-
     if (isInitialLoading) {
         return null;
     }
@@ -93,7 +85,12 @@ const MinimalSavedExplorer: FC = () => {
 
     return (
         <ExplorerProvider
-            queryResults={queryResults}
+            viewModeQueryArgs={
+                savedQueryUuid
+                    ? { chartUuid: savedQueryUuid, context }
+                    : undefined
+            }
+            dateZoomGranularity={dateZoomGranularity}
             savedChart={data}
             initialState={
                 data

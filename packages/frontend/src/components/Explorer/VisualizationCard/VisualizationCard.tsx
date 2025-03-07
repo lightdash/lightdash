@@ -41,7 +41,7 @@ const VisualizationCard: FC<{
     );
 
     const isLoadingQueryResults = useExplorerContext(
-        (context) => context.queryResults.isLoading,
+        (context) => context.queryResults.isFetching,
     );
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
