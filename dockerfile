@@ -216,3 +216,6 @@ WORKDIR /usr/app/packages/backend
 
 ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
+
+
+# TODO: change the tmp directory in Lightdash app
