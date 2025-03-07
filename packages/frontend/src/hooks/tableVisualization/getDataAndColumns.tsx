@@ -173,6 +173,15 @@ const getDataAndColumns = ({
                             const subtotal = groupedSubtotals?.[
                                 subtotalGroupKey
                             ]?.find((sub) => {
+                                if (
+                                    typeof sub !== 'object' ||
+                                    sub === null ||
+                                    typeof groupingValues !== 'object' ||
+                                    groupingValues === null
+                                ) {
+                                    return false;
+                                }
+
                                 return Object.keys(groupingValues).every(
                                     (key) => {
                                         return (

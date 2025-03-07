@@ -190,6 +190,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const subtotal = data.groupedSubtotals?.[
                                     subtotalGroupKey
                                 ]?.find((sub) => {
+                                    if (
+                                        typeof sub !== 'object' ||
+                                        sub === null ||
+                                        typeof groupingValues !== 'object' ||
+                                        groupingValues === null ||
+                                        typeof pivotedHeaderValues !==
+                                            'object' ||
+                                        pivotedHeaderValues === null
+                                    ) {
+                                        return false;
+                                    }
+
                                     return (
                                         // All grouping values in the row must match the subtotal values
                                         Object.keys(groupingValues).every(
