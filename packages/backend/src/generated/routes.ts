@@ -26307,10 +26307,7 @@ export function RegisterRoutes(app: Router) {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        pivotColumns: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                        },
+                        pivotConfig: { ref: 'PivotConfig' },
                         chartName: { dataType: 'string' },
                         hiddenFields: {
                             dataType: 'array',

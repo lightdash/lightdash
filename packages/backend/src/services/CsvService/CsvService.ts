@@ -460,6 +460,7 @@ This method can be memory intensive
         onlyRaw: boolean;
         truncated: boolean;
         customLabels: Record<string, string> | undefined;
+        metricsAsRows?: boolean;
     }) {
         return wrapSentryTransaction<AttachmentUrl>(
             'downloadPivotTableCsv',
@@ -880,7 +881,6 @@ This method can be memory intensive
             metricQuery,
             tableConfig,
             chartConfig,
-            pivotConfig,
         } = chart;
         const explore = await this.projectService.getExplore(
             user,
@@ -911,15 +911,6 @@ This method can be memory intensive
               )
             : metricQuery;
 
-        const csvPivotConfig: PivotConfig | undefined =
-            chartConfig.type === ChartType.TABLE && pivotConfig !== undefined
-                ? {
-                      pivotDimensions: pivotConfig.columns,
-                      metricsAsRows: false,
-                      hiddenMetricFieldIds: hiddenFields,
-                      columnOrder: tableConfig.columnOrder,
-                  }
-                : undefined;
         return this.scheduleDownloadCsv(user, {
             userUuid: user.userUuid,
             projectUuid,
@@ -929,11 +920,11 @@ This method can be memory intensive
             csvLimit,
             showTableNames,
             customLabels,
-            columnOrder: tableConfig.columnOrder,
-            hiddenFields,
             chartName: name,
             fromSavedChart: true,
-            pivotConfig: csvPivotConfig,
+            hiddenFields,
+            columnOrder: tableConfig.columnOrder,
+            pivotConfig: getPivotConfig(chart),
         });
     }
 
@@ -984,7 +975,6 @@ This method can be memory intensive
         )
             ? undefined
             : csvOptions.csvLimit;
-
         const payload: DownloadCsvPayload = {
             ...csvOptions,
             csvLimit,

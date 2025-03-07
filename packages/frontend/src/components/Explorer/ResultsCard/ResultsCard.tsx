@@ -64,7 +64,7 @@ const ResultsCard: FC = memo(() => {
                 onlyRaw,
                 columnOrder,
                 showTableNames: true,
-                pivotColumns: undefined, // results are always unpivoted
+                pivotConfig: undefined, // results are always unpivoted
             });
         } else {
             throw new Error('Project UUID is missing');
