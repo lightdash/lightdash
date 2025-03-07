@@ -1,3 +1,11 @@
+## [0.1531.5](https://github.com/lightdash/lightdash/compare/0.1531.4...0.1531.5) (2025-03-07)
+
+
+### Bug Fixes
+
+* metrics as rows in csv ([#13930](https://github.com/lightdash/lightdash/issues/13930)) ([356e75f](https://github.com/lightdash/lightdash/commit/356e75f360a4230ec6bcd2c8edf473e54409bfdf))
+* remove write back feature flag ([#13974](https://github.com/lightdash/lightdash/issues/13974)) ([4189482](https://github.com/lightdash/lightdash/commit/418948236af82c1f75f484b8146d234583145bae))
+
 ## [0.1531.4](https://github.com/lightdash/lightdash/compare/0.1531.3...0.1531.4) (2025-03-07)
 
 
