@@ -15,7 +15,7 @@ import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
-import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
+import { formatViewCountCompact, getResourceViewsSinceWhenDescription } from '../resourceUtils';
 
 interface ResourceViewGridDashboardItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
@@ -80,7 +80,10 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                         <IconEye color={theme.colors.gray[6]} size={14} />
 
                         <Text size={14} color="gray.6" fz="xs">
-                            {item.data.views} views
+                            {item.data.views
+                                ? formatViewCountCompact(item.data.views)
+                                : '0'}
+                            views
                         </Text>
                     </Flex>
                 </Tooltip>

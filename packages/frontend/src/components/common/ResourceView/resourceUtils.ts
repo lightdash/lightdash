@@ -108,8 +108,16 @@ export const getResourceViewsSinceWhenDescription = (
     }
 
     return item.data.firstViewedAt
-        ? `${item.data.views} views since ${dayjs(
+        ? `${formatViewCount(item.data.views)} views since ${dayjs(
               item.data.firstViewedAt,
           ).format('MMM D, YYYY h:mm A')}`
         : undefined;
 };
+
+export const formatViewCountCompact = (views: number) => {
+    return Intl.NumberFormat('en-US', { notation: 'compact' }).format(views);
+};
+
+export const formatViewCount = (views: number) => {
+    return Intl.NumberFormat('en-Us').format(views);
+}
