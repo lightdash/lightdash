@@ -149,10 +149,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         <Box />
                     )
                 ) : (
-                    <TitleWrapper $hovered={titleHovered}>
-                        <Group spacing="xs">
-                            {titleLeftIcon}
+                    <Group
+                        spacing="xs"
+                        noWrap
+                        align="start"
+                        sx={{ overflow: 'hidden' }}
+                    >
+                        {titleLeftIcon}
 
+                        <TitleWrapper $hovered={titleHovered}>
                             <Tooltip
                                 disabled={!description}
                                 label={
@@ -189,8 +194,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     </Text>
                                 )}
                             </Tooltip>
-                        </Group>
-                    </TitleWrapper>
+                        </TitleWrapper>
+                    </Group>
                 )}
                 {visibleHeaderElement && (
                     <ButtonsWrapper className="non-draggable">

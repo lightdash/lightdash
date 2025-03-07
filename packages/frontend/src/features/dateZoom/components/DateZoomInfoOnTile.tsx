@@ -38,7 +38,12 @@ export const DateZoomInfoOnTile: FC<Props> = ({
             multiline
             withinPortal
         >
-            <MantineIcon icon={IconCalendarSearch} color="blue" />
+            <MantineIcon
+                icon={IconCalendarSearch}
+                color="blue"
+                size={20}
+                style={{ flexShrink: 0 }}
+            />
         </Tooltip>
     );
 };
