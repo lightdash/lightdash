@@ -102,7 +102,7 @@ export class SlackAuthenticationModel {
             )
             .select<(DbSlackAuthTokens & DbUser)[]>('*')
             .where('slack_team_id', teamId);
-        if (isNil(row) || isNil(row.user_uuid)) {
+        if (isNil(row?.user_uuid)) {
             throw new Error(`Could not find user uuid id ${teamId}`);
         }
         return row.user_uuid;
