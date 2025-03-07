@@ -2107,7 +2107,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: exploreName,
-            query_context: context,
+            query_context: context, // TODO paginate: this should come from metadata
         };
 
         // TODO paginate: when we have metadata, we can fetch query related info here and have the same arguments for all paginated queries, therefore we won't need checks in runPaginatedQuery
