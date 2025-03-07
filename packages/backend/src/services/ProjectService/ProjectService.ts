@@ -193,7 +193,13 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
-import { isPaginateQueryIdArgs, type PaginateQueryArgs } from './types';
+import {
+    isPaginateMetricQueryArgs,
+    isPaginateQueryIdArgs,
+    type PaginateMetricQueryArgs,
+    type PaginateQueryArgs,
+    type PaginateQueryIdArgs,
+} from './types';
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1760,13 +1766,248 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async runPaginatedExploreQuery({
+    private async runPaginatedQuery<
+        TFormattedRow extends Record<string, unknown>,
+    >(
+        args: PaginateQueryArgs & {
+            user: SessionUser;
+            projectUuid: string;
+            context: QueryExecutionContext;
+            invalidateCache?: boolean;
+            exploreName: string;
+            granularity?: DateGranularity;
+            queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
+        },
+        rowFormatter?: (
+            row: Record<string, unknown>,
+            fields: ItemsMap,
+        ) => TFormattedRow,
+    ) {
+        return wrapSentryTransaction(
+            'ProjectService.runMetricQuery',
+            {},
+            async (span) => {
+                const {
+                    user,
+                    projectUuid,
+                    context,
+                    granularity,
+                    page = 1,
+                    pageSize = DEFAULT_RESULTS_PAGE_SIZE,
+                    queryTags,
+                    exploreName,
+                } = args;
+
+                try {
+                    if (!isUserWithOrg(user)) {
+                        throw new ForbiddenError(
+                            'User is not part of an organization',
+                        );
+                    }
+
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
+
+                    this.validatePagination({ pageSize, page });
+
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        exploreName,
+                    );
+
+                    const { warehouseClient, sshTunnel } =
+                        await this._getWarehouseClient(
+                            projectUuid,
+                            await this.getWarehouseCredentials(
+                                projectUuid,
+                                user.userUuid,
+                            ),
+                            {
+                                snowflakeVirtualWarehouse: explore.warehouse,
+                                databricksCompute: explore.databricksCompute,
+                            },
+                        );
+
+                    span.setAttribute('lightdash.projectUuid', projectUuid);
+                    span.setAttribute(
+                        'warehouse.type',
+                        warehouseClient.credentials.type,
+                    );
+
+                    let sql = '';
+                    let fieldsMap: ItemsMap = {};
+
+                    if (isPaginateMetricQueryArgs(args)) {
+                        const { metricQuery, csvLimit } = args;
+                        const userAttributes =
+                            await this.userAttributesModel.getAttributeValuesForOrgMember(
+                                {
+                                    organizationUuid,
+                                    userUuid: user.userUuid,
+                                },
+                            );
+
+                        const emailStatus =
+                            await this.emailModel.getPrimaryEmailStatus(
+                                user.userUuid,
+                            );
+                        const intrinsicUserAttributes = emailStatus.isVerified
+                            ? getIntrinsicUserAttributes(user)
+                            : {};
+
+                        const metricQueryWithLimit = this.metricQueryWithLimit(
+                            metricQuery,
+                            csvLimit,
+                        );
+
+                        const fullQuery = await ProjectService._compileQuery(
+                            metricQueryWithLimit,
+                            explore,
+                            warehouseClient,
+                            intrinsicUserAttributes,
+                            userAttributes,
+                            this.lightdashConfig.query.timezone || 'UTC',
+                            granularity,
+                        );
+
+                        const { query, fields: fieldsFromQuery } = fullQuery;
+
+                        const fieldsWithOverrides: ItemsMap =
+                            Object.fromEntries(
+                                Object.entries(fieldsFromQuery).map(
+                                    ([key, value]) => {
+                                        if (
+                                            metricQuery.metricOverrides &&
+                                            metricQuery.metricOverrides[key]
+                                        ) {
+                                            return [
+                                                key,
+                                                {
+                                                    ...value,
+                                                    ...metricQuery
+                                                        .metricOverrides[key],
+                                                },
+                                            ];
+                                        }
+                                        return [key, value];
+                                    },
+                                ),
+                            );
+
+                        // TODO paginate: fields is only calculated for the first page, we need to implement metadata table to store fields so we can use them when there's no metricQuery and we're using the QueryId
+                        fieldsMap = fieldsWithOverrides;
+                        sql = query;
+
+                        span.setAttribute('generatedSql', query);
+                    } else if (isPaginateQueryIdArgs(args)) {
+                        // TODO paginate: in this case fields is being sent in the request, but it's not being generated in the backend because we don't have a metricQuery
+                        fieldsMap = args.fields;
+                    }
+
+                    const onboardingRecord =
+                        await this.onboardingModel.getByOrganizationUuid(
+                            user.organizationUuid,
+                        );
+
+                    if (!onboardingRecord.ranQueryAt) {
+                        await this.onboardingModel.update(
+                            user.organizationUuid,
+                            {
+                                ranQueryAt: new Date(),
+                            },
+                        );
+                    }
+
+                    const formatter = (
+                        row: Record<string, unknown>,
+                    ): TFormattedRow =>
+                        rowFormatter
+                            ? rowFormatter(row, fieldsMap)
+                            : (row as TFormattedRow);
+
+                    const {
+                        rows,
+                        pageCount: totalPageCount,
+                        totalRows: totalResults,
+                        queryId,
+                    } = await measureTime(
+                        () =>
+                            warehouseClient.getPaginatedResults(
+                                {
+                                    ...(isPaginateMetricQueryArgs(args)
+                                        ? { sql }
+                                        : { queryId: args.queryId }),
+                                    page,
+                                    pageSize,
+                                    tags: queryTags,
+                                },
+                                formatter,
+                            ),
+                        'getPaginatedResults',
+                        this.logger,
+                        context,
+                    );
+
+                    await sshTunnel.disconnect();
+
+                    const nextPage =
+                        page === totalPageCount || totalPageCount === 0
+                            ? undefined
+                            : page + 1;
+
+                    const previousPage = page > 1 ? page - 1 : undefined;
+
+                    return {
+                        rows,
+                        page,
+                        // This is to take into account the page size override for warehouses that don't support pagination yet
+                        pageSize:
+                            totalPageCount > pageSize
+                                ? totalPageCount
+                                : pageSize,
+                        totalPageCount,
+                        totalResults,
+                        nextPage,
+                        previousPage,
+                        queryId,
+                        fields: fieldsMap,
+                    };
+                } catch (e) {
+                    span.setStatus({
+                        code: 2, // ERROR
+                        message: getErrorMessage(e),
+                    });
+                    throw e;
+                } finally {
+                    span.end();
+                }
+            },
+        );
+    }
+
+    async runPaginatedMetricQuery({
         user,
         projectUuid,
         dateZoomGranularity,
         context = QueryExecutionContext.EXPLORE,
-        ...rest
-    }: PaginateQueryArgs & {
+        metricQuery,
+        csvLimit,
+        page,
+        pageSize,
+    }: PaginateMetricQueryArgs & {
         user: SessionUser;
         projectUuid: string;
         dateZoomGranularity?: DateGranularity;
@@ -1787,40 +2028,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const exploreName =
-            'metricQuery' in rest
-                ? rest.metricQuery.exploreName
-                : rest.exploreName;
-
-        const queryTags: RunQueryTags = {
-            organization_uuid: organizationUuid,
-            project_uuid: projectUuid,
-            user_uuid: user.userUuid,
-            explore_name: exploreName,
-            query_context: context,
-        };
-
-        if (isPaginateQueryIdArgs(rest)) {
-            return this.paginateMetricQuery(
-                {
-                    user,
-                    projectUuid,
-                    exploreName,
-                    queryId: rest.queryId,
-                    page: rest.page,
-                    pageSize: rest.pageSize,
-                    context,
-                    chartUuid: undefined,
-                    granularity: dateZoomGranularity,
-                    queryTags,
-                    fields: rest.fields,
-                },
-                formatRow,
-            );
-        }
-
-        const { metricQuery, csvLimit } = rest;
-
         if (
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             user.ability.cannot(
@@ -1833,19 +2040,87 @@ export class ProjectService extends BaseService {
             );
         }
 
-        return this.paginateMetricQuery(
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: metricQuery.exploreName,
+            query_context: context,
+        };
+
+        return this.runPaginatedQuery(
             {
                 user,
                 metricQuery,
                 projectUuid,
-                exploreName,
+                exploreName: metricQuery.exploreName,
                 csvLimit,
                 context: QueryExecutionContext.EXPLORE,
                 queryTags,
                 granularity: dateZoomGranularity,
-                chartUuid: undefined,
-                page: rest.page,
-                pageSize: rest.pageSize,
+                page,
+                pageSize,
+            },
+            formatRow,
+        );
+    }
+
+    async runPaginatedQueryIdQuery({
+        user,
+        projectUuid,
+        context = QueryExecutionContext.EXPLORE,
+        exploreName,
+        ...rest
+    }: PaginateQueryIdArgs & {
+        user: SessionUser;
+        projectUuid: string;
+        dateZoomGranularity?: DateGranularity;
+        context?: QueryExecutionContext;
+    }): Promise<ApiPaginatedQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // TODO paginate: we need metadata to be able enforce this permission
+        // if (
+        //     metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+        //     user.ability.cannot(
+        //         'manage',
+        //         subject('CustomSql', { organizationUuid, projectUuid }),
+        //     )
+        // ) {
+        //     throw new ForbiddenError(
+        //         'User cannot run queries with custom SQL dimensions',
+        //     );
+        // }
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: context,
+        };
+
+        return this.runPaginatedQuery(
+            {
+                user,
+                projectUuid,
+                context,
+                queryTags,
+                exploreName,
+                ...rest,
             },
             formatRow,
         );
@@ -2196,242 +2471,6 @@ export class ProjectService extends BaseService {
                 `page size is too large, max is ${this.lightdashConfig.query.maxLimit}`,
             );
         }
-    }
-
-    private async paginateMetricQuery<
-        TFormattedRow extends Record<string, unknown>,
-    >(
-        {
-            user,
-            projectUuid,
-            context,
-            invalidateCache,
-            granularity,
-            chartUuid,
-            page = 1,
-            pageSize = DEFAULT_RESULTS_PAGE_SIZE,
-            queryTags,
-            exploreName,
-            ...rest
-        }: PaginateQueryArgs & {
-            user: SessionUser;
-            projectUuid: string;
-            context: QueryExecutionContext;
-            invalidateCache?: boolean;
-            exploreName: string;
-            granularity?: DateGranularity;
-            chartUuid: string | undefined; // for analytics
-            queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
-        },
-        rowFormatter?: (
-            row: Record<string, unknown>,
-            fields: ItemsMap,
-        ) => TFormattedRow,
-    ) {
-        return wrapSentryTransaction(
-            'ProjectService.runMetricQuery',
-            {},
-            async (span) => {
-                try {
-                    if (!isUserWithOrg(user)) {
-                        throw new ForbiddenError(
-                            'User is not part of an organization',
-                        );
-                    }
-
-                    const { organizationUuid } =
-                        await this.projectModel.getSummary(projectUuid);
-
-                    if (
-                        user.ability.cannot(
-                            'view',
-                            subject('Project', {
-                                organizationUuid,
-                                projectUuid,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-
-                    this.validatePagination({ pageSize, page });
-
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        exploreName,
-                    );
-
-                    const { warehouseClient, sshTunnel } =
-                        await this._getWarehouseClient(
-                            projectUuid,
-                            await this.getWarehouseCredentials(
-                                projectUuid,
-                                user.userUuid,
-                            ),
-                            {
-                                snowflakeVirtualWarehouse: explore.warehouse,
-                                databricksCompute: explore.databricksCompute,
-                            },
-                        );
-
-                    span.setAttribute('lightdash.projectUuid', projectUuid);
-                    span.setAttribute(
-                        'warehouse.type',
-                        warehouseClient.credentials.type,
-                    );
-
-                    let sql = '';
-                    let fieldsMap: ItemsMap = {};
-
-                    if ('metricQuery' in rest) {
-                        const { metricQuery } = rest;
-                        const userAttributes =
-                            await this.userAttributesModel.getAttributeValuesForOrgMember(
-                                {
-                                    organizationUuid,
-                                    userUuid: user.userUuid,
-                                },
-                            );
-
-                        const emailStatus =
-                            await this.emailModel.getPrimaryEmailStatus(
-                                user.userUuid,
-                            );
-                        const intrinsicUserAttributes = emailStatus.isVerified
-                            ? getIntrinsicUserAttributes(user)
-                            : {};
-
-                        const metricQueryWithLimit = this.metricQueryWithLimit(
-                            metricQuery,
-                            rest.csvLimit,
-                        );
-
-                        const fullQuery = await ProjectService._compileQuery(
-                            metricQueryWithLimit,
-                            explore,
-                            warehouseClient,
-                            intrinsicUserAttributes,
-                            userAttributes,
-                            this.lightdashConfig.query.timezone || 'UTC',
-                            granularity,
-                        );
-
-                        const { query, fields: fieldsFromQuery } = fullQuery;
-
-                        const fieldsWithOverrides: ItemsMap =
-                            Object.fromEntries(
-                                Object.entries(fieldsFromQuery).map(
-                                    ([key, value]) => {
-                                        if (
-                                            metricQuery.metricOverrides &&
-                                            metricQuery.metricOverrides[key]
-                                        ) {
-                                            return [
-                                                key,
-                                                {
-                                                    ...value,
-                                                    ...metricQuery
-                                                        .metricOverrides[key],
-                                                },
-                                            ];
-                                        }
-                                        return [key, value];
-                                    },
-                                ),
-                            );
-
-                        // TODO paginate: fields is only calculated for the first page, we need to implement metadata table to store fields so we can use them when there's no metricQuery and we're using the QueryId
-                        fieldsMap = fieldsWithOverrides;
-                        sql = query;
-
-                        span.setAttribute('generatedSql', query);
-                    } else if (
-                        isPaginateQueryIdArgs({ ...rest, exploreName })
-                    ) {
-                        // TODO paginate: in this case fields is being sent in the request, but it's not being generated in the backend because we don't have a metricQuery
-                        fieldsMap = rest.fields;
-                    }
-
-                    const onboardingRecord =
-                        await this.onboardingModel.getByOrganizationUuid(
-                            user.organizationUuid,
-                        );
-
-                    if (!onboardingRecord.ranQueryAt) {
-                        await this.onboardingModel.update(
-                            user.organizationUuid,
-                            {
-                                ranQueryAt: new Date(),
-                            },
-                        );
-                    }
-
-                    const formatter = (
-                        row: Record<string, unknown>,
-                    ): TFormattedRow =>
-                        rowFormatter
-                            ? rowFormatter(row, fieldsMap)
-                            : (row as TFormattedRow);
-
-                    const {
-                        rows,
-                        pageCount: totalPageCount,
-                        totalRows: totalResults,
-                        queryId,
-                    } = await measureTime(
-                        () =>
-                            warehouseClient.getPaginatedResults(
-                                {
-                                    ...('metricQuery' in rest
-                                        ? { sql }
-                                        : { queryId: rest.queryId }),
-                                    page,
-                                    pageSize,
-                                    tags: queryTags,
-                                },
-                                formatter,
-                            ),
-                        'getPaginatedResults',
-                        this.logger,
-                        context,
-                    );
-
-                    await sshTunnel.disconnect();
-
-                    const nextPage =
-                        page === totalPageCount || totalPageCount === 0
-                            ? undefined
-                            : page + 1;
-
-                    const previousPage = page > 1 ? page - 1 : undefined;
-
-                    return {
-                        rows,
-                        page,
-                        // This is to take into account the page size override for warehouses that don't support pagination yet
-                        pageSize:
-                            totalPageCount > pageSize
-                                ? totalPageCount
-                                : pageSize,
-                        totalPageCount,
-                        totalResults,
-                        nextPage,
-                        previousPage,
-                        queryId,
-                        fields: fieldsMap,
-                    };
-                } catch (e) {
-                    span.setStatus({
-                        code: 2, // ERROR
-                        message: getErrorMessage(e),
-                    });
-                    throw e;
-                } finally {
-                    span.end();
-                }
-            },
-        );
     }
 
     async runMetricQuery({

@@ -14857,6 +14857,15 @@
                 "required": ["exploreName", "fields", "queryId"],
                 "type": "object"
             },
+            "PaginatedChartQueryRequest": {
+                "properties": {
+                    "chartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["chartUuid"],
+                "type": "object"
+            },
             "Partial_KnexPaginateArgs_": {
                 "properties": {
                     "pageSize": {
@@ -14883,6 +14892,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/PaginatedQueryIdRequest"
+                            },
+                            {
+                                "$ref": "#/components/schemas/PaginatedChartQueryRequest"
                             }
                         ]
                     },
