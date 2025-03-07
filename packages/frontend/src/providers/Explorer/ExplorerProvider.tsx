@@ -1493,7 +1493,6 @@ const ExplorerProvider: FC<
         ],
     );
 
-    // Fetch query results after state update
     const [validQueryArgs, setValidQueryArgs] =
         useState<QueryResultsProps | null>(null);
     const queryResults = useQueryResults(validQueryArgs);
@@ -1504,6 +1503,7 @@ const ExplorerProvider: FC<
         clearQueryResults();
     }, [clearQueryResults]);
 
+    // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
         const fields = new Set([
             ...unsavedChartVersion.metricQuery.dimensions,
