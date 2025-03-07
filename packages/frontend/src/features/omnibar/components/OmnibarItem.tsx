@@ -39,7 +39,7 @@ type Props = {
     classNames?: Record<string, string>;
     hovered?: boolean;
     scrollRef?: MutableRefObject<HTMLDivElement>;
-    onClick: () => void;
+    onClick: (e: React.MouseEvent) => void;
 };
 
 const itemHasValidationError = (searchItem: SearchItem) =>

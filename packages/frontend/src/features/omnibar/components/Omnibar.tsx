@@ -123,9 +123,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         setQuery(undefined);
     };
 
-    const handleItemClick = (item: SearchItem) => {
-        closeOmnibar();
-
+    const handleItemClick = (item: SearchItem, redirect = true) => {
         track({
             name: EventName.SEARCH_RESULT_CLICKED,
             properties: {
@@ -133,6 +131,16 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 id: getSearchResultId(item.item),
             },
         });
+        if (redirect) {
+            window.open(
+                item.location.pathname + (item.location.search || ''),
+                '_blank',
+            );
+            return;
+        }
+
+        closeOmnibar();
+
         track({
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {

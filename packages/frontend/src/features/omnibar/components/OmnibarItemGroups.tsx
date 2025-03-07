@@ -10,7 +10,7 @@ type Props = {
     onOpenPanelsChange: (panels: SearchItemType[]) => void;
     projectUuid: string;
     canUserManageValidation: boolean;
-    onClick: (item: SearchItem) => void;
+    onClick: (item: SearchItem, redirect: boolean) => void;
     focusedItemIndex?: FocusedItemIndex;
     groupedItems: [SearchItemType, SearchItem[]][];
     scrollRef?: MutableRefObject<HTMLDivElement>;
@@ -93,7 +93,9 @@ const OmnibarItemGroups: FC<Props> = ({
                                     scrollRef={
                                         isFocused ? scrollRef : undefined
                                     }
-                                    onClick={() => onClick(item)}
+                                    onClick={(e: React.MouseEvent) => {
+                                        onClick(item, e.metaKey);
+                                    }}
                                     projectUuid={projectUuid}
                                     canUserManageValidation={
                                         canUserManageValidation
