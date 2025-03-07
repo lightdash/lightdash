@@ -1,3 +1,10 @@
+## [0.1531.2](https://github.com/lightdash/lightdash/compare/0.1531.1...0.1531.2) (2025-03-07)
+
+
+### Bug Fixes
+
+* revert check for gourps in series coloring ([#13964](https://github.com/lightdash/lightdash/issues/13964)) ([ffb3b80](https://github.com/lightdash/lightdash/commit/ffb3b806c918d2fda6f5d49c8a7fb6c296ecaa8b))
+
 ## [0.1531.1](https://github.com/lightdash/lightdash/compare/0.1531.0...0.1531.1) (2025-03-07)
 
 
