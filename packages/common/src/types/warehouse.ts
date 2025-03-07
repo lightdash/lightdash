@@ -60,7 +60,8 @@ export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
 
 export type WarehousePaginatedResults<
     TFormattedRow extends Record<string, unknown>,
-> = WarehouseResults & {
+> = {
+    fields: Record<string, { type: DimensionType }>;
     queryId: string;
     pageCount: number;
     totalRows: number;
