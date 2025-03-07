@@ -1,3 +1,10 @@
+## [0.1531.3](https://github.com/lightdash/lightdash/compare/0.1531.2...0.1531.3) (2025-03-07)
+
+
+### Bug Fixes
+
+* chart descriptions not showing up ([#13968](https://github.com/lightdash/lightdash/issues/13968)) ([4be8bf0](https://github.com/lightdash/lightdash/commit/4be8bf0b315872b4729c9bbcfe99e86e50335dc5))
+
 ## [0.1531.2](https://github.com/lightdash/lightdash/compare/0.1531.1...0.1531.2) (2025-03-07)
 
 
