@@ -1,3 +1,10 @@
+## [0.1531.4](https://github.com/lightdash/lightdash/compare/0.1531.3...0.1531.4) (2025-03-07)
+
+
+### Bug Fixes
+
+* validation error target ([#13961](https://github.com/lightdash/lightdash/issues/13961)) ([f47b644](https://github.com/lightdash/lightdash/commit/f47b644624da9e750f2f4e56c297f150119247db))
+
 ## [0.1531.3](https://github.com/lightdash/lightdash/compare/0.1531.2...0.1531.3) (2025-03-07)
 
 
