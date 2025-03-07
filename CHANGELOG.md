@@ -1,3 +1,10 @@
+## [0.1531.7](https://github.com/lightdash/lightdash/compare/0.1531.6...0.1531.7) (2025-03-07)
+
+
+### Bug Fixes
+
+* handle unauthorized and invalid_grant errors from google ([#13982](https://github.com/lightdash/lightdash/issues/13982)) ([8865500](https://github.com/lightdash/lightdash/commit/886550087e89b16bc28eb2f67f74cab2a9f5a3e0))
+
 ## [0.1531.6](https://github.com/lightdash/lightdash/compare/0.1531.5...0.1531.6) (2025-03-07)
 
 
