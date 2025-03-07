@@ -1834,13 +1834,6 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const explore = await this.getExplore(
-            user,
-            projectUuid,
-            exploreName,
-            organizationUuid,
-        );
-
         return this.paginateMetricQuery(
             {
                 user,
