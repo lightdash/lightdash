@@ -1,8 +1,7 @@
-import { AnyType, SlackPromptJobPayload } from '@lightdash/common';
-import { JobHelpers } from 'graphile-worker';
+import { EE_SCHEDULER_TASKS } from '@lightdash/common';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
 import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
-import { TypedTask, TypedTaskList } from '../../scheduler/types';
+import { TypedEETaskList } from '../../scheduler/types';
 import { AiService } from '../services/AiService/AiService';
 
 type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
@@ -17,26 +16,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiService = args.aiService;
     }
 
-    protected getTaskList(): TypedTaskList & {
-        aiPrompt: TypedTask<SlackPromptJobPayload>;
-    } {
+    protected getTaskList(): TypedEETaskList {
         return {
             ...super.getTaskList(),
-            aiPrompt: async (payload, helpers) => {
-                await this.aiPrompt(
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
+            [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
+                await this.aiService.replyToSlackPrompt(
+                    payload.slackPromptUuid,
                 );
             },
         };
-    }
-
-    protected async aiPrompt(
-        _jobId: string,
-        _scheduledTime: Date,
-        payload: SlackPromptJobPayload,
-    ) {
-        await this.aiService.replyToSlackPrompt(payload.slackPromptUuid);
     }
 }
