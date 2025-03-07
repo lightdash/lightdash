@@ -440,7 +440,7 @@ describe('ProjectService', () => {
             );
         });
     });
-    describe('runPaginatedExploreQuery', () => {
+    describe('runPaginatedMetricQuery', () => {
         const baseArgs = {
             user,
             projectUuid,
@@ -468,7 +468,7 @@ describe('ProjectService', () => {
                 getPaginatedResults: getPaginatedResultsMock,
             }));
 
-            await service.runPaginatedExploreQuery({
+            await service.runPaginatedMetricQuery({
                 ...baseArgs,
                 metricQuery: metricQueryMock,
                 csvLimit: null,
@@ -527,7 +527,7 @@ describe('ProjectService', () => {
                 getPaginatedResults: getPaginatedResultsMock,
             }));
 
-            await service.runPaginatedExploreQuery({
+            await service.runPaginatedMetricQuery({
                 ...baseArgs,
                 metricQuery: metricQueryMock,
                 csvLimit: null,
