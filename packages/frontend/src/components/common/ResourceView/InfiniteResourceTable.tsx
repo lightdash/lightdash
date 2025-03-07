@@ -58,6 +58,7 @@ import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
+    formatViewCountCompact,
     getResourceTypeName,
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
@@ -227,7 +228,12 @@ const InfiniteResourceTable = ({
                                             )}
                                         >
                                             <span>
-                                                {item.data.views || '0'} views
+                                                {item.data.views
+                                                    ? formatViewCountCompact(
+                                                          item.data.views,
+                                                      )
+                                                    : '0'}
+                                                views
                                             </span>
                                         </Tooltip>
                                     </Text>
