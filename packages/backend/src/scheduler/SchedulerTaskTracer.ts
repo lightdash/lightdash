@@ -107,7 +107,14 @@ const getTagsForTask: {
     }),
 
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: () => ({}),
+
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+
+    [SCHEDULER_TASKS.SLACK_AI_PROMPT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,

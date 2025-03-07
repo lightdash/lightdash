@@ -1,3 +1,4 @@
+import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
 import {
@@ -19,6 +20,10 @@ import {
     type SqlRunnerPivotQueryPayload,
 } from './sqlRunner';
 
+export const EE_SCHEDULER_TASKS = {
+    SLACK_AI_PROMPT: 'slackAiPrompt',
+} as const;
+
 export const SCHEDULER_TASKS = {
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
@@ -37,10 +42,8 @@ export const SCHEDULER_TASKS = {
     INDEX_CATALOG: 'indexCatalog',
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
+    ...EE_SCHEDULER_TASKS,
 } as const;
-
-export type SchedulerTaskName =
-    typeof SCHEDULER_TASKS[keyof typeof SCHEDULER_TASKS];
 
 // Map each task to its payload type
 export interface TaskPayloadMap {
@@ -61,4 +64,12 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INDEX_CATALOG]: SchedulerIndexCatalogJobPayload;
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
+    [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
 }
+
+export interface EETaskPayloadMap {
+    [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
+}
+
+export type SchedulerTaskName =
+    typeof SCHEDULER_TASKS[keyof typeof SCHEDULER_TASKS];
