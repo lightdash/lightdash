@@ -1,10 +1,11 @@
 import {
     ApiErrorPayload,
+    isPaginatedDashboardChartRequest,
     isPaginatedMetricQueryRequest,
     isPaginatedQueryIdRequest,
     isPaginatedSavedChartRequest,
     ParameterError,
-    type PaginatedQueryRequest,
+    type PaginatedQueryRequestParams,
 } from '@lightdash/common';
 import {
     Body,
@@ -36,7 +37,7 @@ export class V2ProjectController extends BaseController {
     @OperationId('query')
     async query(
         @Body()
-        body: PaginatedQueryRequest,
+        body: PaginatedQueryRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunPaginatedQueryResponse> {
@@ -103,6 +104,25 @@ export class V2ProjectController extends BaseController {
                     ...commonArgs,
                     chartUuid: body.chartUuid,
                     versionUuid: body.versionUuid,
+                });
+
+            return {
+                status: 'ok',
+                results,
+            };
+        }
+
+        if (isPaginatedDashboardChartRequest(body)) {
+            const results = await this.services
+                .getProjectService()
+                .runPaginatedDashboardChartQuery({
+                    ...commonArgs,
+                    chartUuid: body.chartUuid,
+                    dashboardUuid: body.dashboardUuid,
+                    dashboardFilters: body.dashboardFilters,
+                    dashboardSorts: body.dashboardSorts,
+                    granularity: body.granularity,
+                    autoRefresh: body.autoRefresh,
                 });
 
             return {

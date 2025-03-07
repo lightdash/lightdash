@@ -1,42 +1,74 @@
 import type { QueryExecutionContext } from '../analytics';
 import type { ItemsMap } from '../field';
-import type { MetricQueryRequest } from '../metricQuery';
+import type { DashboardFilters } from '../filter';
+import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { ResultsPaginationArgs } from '../paginateResults';
+import type { DateGranularity } from '../timeFrames';
 
-export type PaginatedMetricQueryRequest = { query: MetricQueryRequest };
-export type PaginatedQueryIdRequest = {
-    queryId: string;
-    fields: ItemsMap;
-    exploreName: string;
-};
-export type PaginatedSavedChartRequest = {
-    chartUuid: string;
-    versionUuid?: string;
-};
-
-// When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
-export type PaginatedQueryRequest = (
-    | PaginatedMetricQueryRequest
-    | PaginatedQueryIdRequest
-    | PaginatedSavedChartRequest
-) & {
+type CommonPaginatedQueryRequestParams = {
     context?: QueryExecutionContext;
 } & ResultsPaginationArgs;
 
+export type PaginatedMetricQueryRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        query: MetricQueryRequest;
+    };
+
+export type PaginatedQueryIdRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        queryId: string;
+        fields: ItemsMap;
+        exploreName: string;
+    };
+
+export type PaginatedSavedChartRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        chartUuid: string;
+        versionUuid?: string;
+    };
+
+export type PaginatedDashboardChartRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        chartUuid: string;
+        dashboardUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+        granularity?: DateGranularity;
+        autoRefresh?: boolean;
+    };
+
+// When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
+export type PaginatedQueryRequestParams =
+    | PaginatedMetricQueryRequestParams
+    | PaginatedQueryIdRequestParams
+    | PaginatedSavedChartRequestParams
+    | PaginatedDashboardChartRequestParams;
+
 export function isPaginatedMetricQueryRequest(
-    query: PaginatedQueryRequest,
-): query is PaginatedMetricQueryRequest {
+    query: PaginatedQueryRequestParams,
+): query is PaginatedMetricQueryRequestParams {
     return 'query' in query;
 }
 
 export function isPaginatedQueryIdRequest(
-    query: PaginatedQueryRequest,
-): query is PaginatedQueryIdRequest {
+    query: PaginatedQueryRequestParams,
+): query is PaginatedQueryIdRequestParams {
     return 'queryId' in query && 'fields' in query && 'exploreName' in query;
 }
 
+export function isPaginatedDashboardChartRequest(
+    query: PaginatedQueryRequestParams,
+): query is PaginatedDashboardChartRequestParams {
+    return (
+        'chartUuid' in query &&
+        'dashboardUuid' in query &&
+        'dashboardFilters' in query &&
+        'dashboardSorts' in query
+    );
+}
+
 export function isPaginatedSavedChartRequest(
-    query: PaginatedQueryRequest,
-): query is PaginatedSavedChartRequest {
-    return 'chartUuid' in query;
+    query: PaginatedQueryRequestParams,
+): query is PaginatedSavedChartRequestParams {
+    return 'chartUuid' in query && !isPaginatedDashboardChartRequest(query);
 }

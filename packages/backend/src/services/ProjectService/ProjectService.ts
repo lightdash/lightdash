@@ -196,6 +196,7 @@ import {
 import {
     isPaginateMetricQueryArgs,
     isPaginateQueryIdArgs,
+    type PaginateDashboardChartArgs,
     type PaginateMetricQueryArgs,
     type PaginateQueryArgs,
     type PaginateQueryIdArgs,
@@ -2007,10 +2008,7 @@ export class ProjectService extends BaseService {
         csvLimit,
         page,
         pageSize,
-    }: PaginateMetricQueryArgs & {
-        user: SessionUser;
-        projectUuid: string;
-    }): Promise<ApiPaginatedQueryResults> {
+    }: PaginateMetricQueryArgs): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2069,10 +2067,7 @@ export class ProjectService extends BaseService {
         context = QueryExecutionContext.API,
         exploreName,
         ...rest
-    }: PaginateQueryIdArgs & {
-        user: SessionUser;
-        projectUuid: string;
-    }): Promise<ApiPaginatedQueryResults> {
+    }: PaginateQueryIdArgs): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2131,10 +2126,7 @@ export class ProjectService extends BaseService {
         page,
         pageSize,
         context = QueryExecutionContext.CHART,
-    }: PaginateSavedChartArgs & {
-        user: SessionUser;
-        projectUuid: string;
-    }): Promise<ApiPaginatedQueryResults> {
+    }: PaginateSavedChartArgs): Promise<ApiPaginatedQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2219,6 +2211,147 @@ export class ProjectService extends BaseService {
             },
             formatRow,
         );
+    }
+
+    async runPaginatedDashboardChartQuery({
+        user,
+        projectUuid,
+        chartUuid,
+        dashboardUuid,
+        dashboardFilters,
+        dashboardSorts,
+        granularity,
+        autoRefresh,
+        page,
+        pageSize,
+        context = QueryExecutionContext.DASHBOARD,
+    }: PaginateDashboardChartArgs): Promise<ApiPaginatedQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(chartUuid);
+        const { organizationUuid, projectUuid: dashboardProjectUuid } =
+            savedChart;
+
+        if (dashboardProjectUuid !== projectUuid) {
+            throw new ForbiddenError('Dashboard does not belong to project');
+        }
+
+        const [space, explore] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+            this.getExplore(
+                user,
+                projectUuid,
+                savedChart.tableName,
+                organizationUuid,
+            ),
+        ]);
+
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.analyticsModel.addChartViewEvent(
+            savedChart.uuid,
+            user.userUuid,
+        );
+
+        const tables = Object.keys(explore.tables);
+        const appliedDashboardFilters = {
+            dimensions: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.dimensions,
+            ),
+            metrics: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.metrics,
+            ),
+            tableCalculations: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.tableCalculations,
+            ),
+        };
+
+        const metricQueryWithDashboardOverrides: MetricQuery = {
+            ...addDashboardFiltersToMetricQuery(
+                savedChart.metricQuery,
+                appliedDashboardFilters,
+                explore,
+            ),
+            sorts:
+                dashboardSorts && dashboardSorts.length > 0
+                    ? dashboardSorts
+                    : savedChart.metricQuery.sorts,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
+            dashboard_uuid: dashboardUuid,
+            explore_name: explore.name,
+            query_context: autoRefresh
+                ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                : context,
+        };
+
+        const exploreDimensions = getDimensions(explore);
+
+        const metricQueryDimensions = [
+            ...metricQueryWithDashboardOverrides.dimensions,
+            ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
+        ];
+        const hasADateDimension = exploreDimensions.find(
+            (c) =>
+                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
+        );
+
+        if (hasADateDimension) {
+            metricQueryWithDashboardOverrides.metadata = {
+                hasADateDimension: {
+                    name: hasADateDimension.name,
+                    label: hasADateDimension.label,
+                },
+            };
+        }
+
+        return this.runPaginatedQuery({
+            user,
+            projectUuid,
+            exploreName: savedChart.tableName,
+            metricQuery: metricQueryWithDashboardOverrides,
+            csvLimit: undefined,
+            context,
+            queryTags,
+            invalidateCache: false,
+            page,
+            pageSize,
+            granularity,
+        });
     }
 
     private async runQueryAndFormatRows({
