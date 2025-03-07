@@ -1,3 +1,10 @@
+## [0.1531.9](https://github.com/lightdash/lightdash/compare/0.1531.8...0.1531.9) (2025-03-07)
+
+
+### Bug Fixes
+
+* conditional formatting in between filters ([#13971](https://github.com/lightdash/lightdash/issues/13971)) ([3356a1a](https://github.com/lightdash/lightdash/commit/3356a1a55844aba220ae2e0e943ebba5ee028a63))
+
 ## [0.1531.8](https://github.com/lightdash/lightdash/compare/0.1531.7...0.1531.8) (2025-03-07)
 
 
