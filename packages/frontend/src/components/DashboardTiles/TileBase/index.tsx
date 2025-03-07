@@ -86,8 +86,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         setIsDeletingChartThatBelongsToDashboard,
     ] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
-    const { hovered: titleHovered, ref: titleRef } =
-        useHover<HTMLAnchorElement>();
+    const [titleHovered, setTitleHovered] = useState(false);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
     const hideTitle =
@@ -150,57 +149,48 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         <Box />
                     )
                 ) : (
-                    <Tooltip
-                        disabled={!description || !!titleLeftIcon}
-                        label={
-                            <Text style={{ whiteSpace: 'pre-line' }}>
-                                {description}
-                            </Text>
-                        }
-                        multiline
-                        position="top-start"
-                        withinPortal
-                        maw={400}
-                    >
-                        <TitleWrapper $hovered={titleHovered}>
-                            <Group spacing="xs">
-                                {titleLeftIcon}
+                    <TitleWrapper $hovered={titleHovered}>
+                        <Group spacing="xs">
+                            {titleLeftIcon}
 
-                                <Tooltip
-                                    disabled={!description || !titleLeftIcon}
-                                    label={description}
-                                    multiline
-                                    position="top-start"
-                                    withinPortal
-                                    maw={400}
-                                >
-                                    {isEditMode ||
-                                    tile.type ===
-                                        DashboardTileTypes.MARKDOWN ? (
-                                        <Text
-                                            fw={600}
-                                            fz="md"
-                                            hidden={hideTitle}
-                                        >
-                                            {title}
-                                        </Text>
-                                    ) : (
-                                        <Text
-                                            component={TileTitleLink}
-                                            ref={titleRef}
-                                            href={titleHref}
-                                            $hovered={titleHovered}
-                                            target="_blank"
-                                            className="non-draggable"
-                                            hidden={hideTitle}
-                                        >
-                                            {title}
-                                        </Text>
-                                    )}
-                                </Tooltip>
-                            </Group>
-                        </TitleWrapper>
-                    </Tooltip>
+                            <Tooltip
+                                disabled={!description}
+                                label={
+                                    <Text style={{ whiteSpace: 'pre-line' }}>
+                                        {description}
+                                    </Text>
+                                }
+                                multiline
+                                position="top-start"
+                                withinPortal
+                                maw={400}
+                            >
+                                {isEditMode ||
+                                tile.type === DashboardTileTypes.MARKDOWN ? (
+                                    <Text fw={600} fz="md" hidden={hideTitle}>
+                                        {title}
+                                    </Text>
+                                ) : (
+                                    <Text
+                                        component={TileTitleLink}
+                                        href={titleHref}
+                                        onMouseEnter={() =>
+                                            setTitleHovered(true)
+                                        }
+                                        onMouseLeave={() =>
+                                            setTitleHovered(false)
+                                        }
+                                        $hovered={titleHovered}
+                                        target="_blank"
+                                        className="non-draggable"
+                                        hidden={hideTitle}
+                                    >
+                                        {title}
+                                    </Text>
+                                )}
+                            </Tooltip>
+                        </Group>
+                    </TitleWrapper>
                 )}
                 {visibleHeaderElement && (
                     <ButtonsWrapper className="non-draggable">

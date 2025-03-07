@@ -630,6 +630,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [showComments, isCommentsMenuOpen, tileUuid],
     );
 
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const chartsWithDateZoomApplied = useDashboardContext(
+        (c) => c.chartsWithDateZoomApplied,
+    );
+
     const editButtonTooltipLabel = useMemo(() => {
         const canManageChartSpace = user.data?.ability?.can(
             'manage',
@@ -772,12 +779,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     </>
                 }
                 titleLeftIcon={
-                    metricQuery.metadata?.hasADateDimension ? (
+                    metricQuery.metadata?.hasADateDimension &&
+                    savedChartUuid &&
+                    dateZoomGranularity &&
+                    chartsWithDateZoomApplied?.has(savedChartUuid) ? (
                         <DateZoomInfoOnTile
-                            chartUuid={savedChartUuid}
                             dateDimension={
                                 metricQuery.metadata.hasADateDimension
                             }
+                            dateZoomGranularity={dateZoomGranularity}
                         />
                     ) : null
                 }
