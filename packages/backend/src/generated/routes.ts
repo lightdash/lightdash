@@ -7251,6 +7251,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['replaceCustomFields'] },
                 { dataType: 'enum', enums: ['indexCatalog'] },
                 { dataType: 'enum', enums: ['generateDailyJobs'] },
+                { dataType: 'enum', enums: ['exportCsvDashboard'] },
             ],
             validators: {},
         },

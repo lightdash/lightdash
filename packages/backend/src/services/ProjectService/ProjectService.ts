@@ -142,7 +142,6 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
-import { BadRequestError } from 'passport-headerapikey';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -2366,8 +2365,12 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    const formatter = (row: Record<string, unknown>) =>
-                        rowFormatter ? rowFormatter(row, fieldsMap) : row;
+                    const formatter = (
+                        row: Record<string, unknown>,
+                    ): TFormattedRow =>
+                        rowFormatter
+                            ? rowFormatter(row, fieldsMap)
+                            : (row as TFormattedRow);
 
                     const {
                         rows,
@@ -2402,7 +2405,7 @@ export class ProjectService extends BaseService {
                     const previousPage = page > 1 ? page - 1 : undefined;
 
                     return {
-                        rows: rows as TFormattedRow[],
+                        rows,
                         page,
                         // This is to take into account the page size override for warehouses that don't support pagination yet
                         pageSize:
