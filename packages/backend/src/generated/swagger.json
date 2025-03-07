@@ -14857,8 +14857,11 @@
                 "required": ["exploreName", "fields", "queryId"],
                 "type": "object"
             },
-            "PaginatedChartQueryRequest": {
+            "PaginatedSavedChartRequest": {
                 "properties": {
+                    "versionUuid": {
+                        "type": "string"
+                    },
                     "chartUuid": {
                         "type": "string"
                     }
@@ -14894,7 +14897,7 @@
                                 "$ref": "#/components/schemas/PaginatedQueryIdRequest"
                             },
                             {
-                                "$ref": "#/components/schemas/PaginatedChartQueryRequest"
+                                "$ref": "#/components/schemas/PaginatedSavedChartRequest"
                             }
                         ]
                     },

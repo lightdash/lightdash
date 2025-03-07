@@ -199,6 +199,7 @@ import {
     type PaginateMetricQueryArgs,
     type PaginateQueryArgs,
     type PaginateQueryIdArgs,
+    type PaginateSavedChartArgs,
 } from './types';
 
 type ProjectServiceArguments = {
@@ -1947,9 +1948,9 @@ export class ProjectService extends BaseService {
                         () =>
                             warehouseClient.getPaginatedResults(
                                 {
-                                    ...(isPaginateMetricQueryArgs(args)
-                                        ? { sql }
-                                        : { queryId: args.queryId }),
+                                    ...(isPaginateQueryIdArgs(args)
+                                        ? { queryId: args.queryId }
+                                        : { sql }),
                                     page,
                                     pageSize,
                                     tags: queryTags,
@@ -2010,8 +2011,6 @@ export class ProjectService extends BaseService {
     }: PaginateMetricQueryArgs & {
         user: SessionUser;
         projectUuid: string;
-        dateZoomGranularity?: DateGranularity;
-        context?: QueryExecutionContext;
     }): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2074,8 +2073,6 @@ export class ProjectService extends BaseService {
     }: PaginateQueryIdArgs & {
         user: SessionUser;
         projectUuid: string;
-        dateZoomGranularity?: DateGranularity;
-        context?: QueryExecutionContext;
     }): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2122,6 +2119,104 @@ export class ProjectService extends BaseService {
                 queryTags,
                 exploreName,
                 ...rest,
+            },
+            formatRow,
+        );
+    }
+
+    async runPaginatedSavedChartQuery({
+        user,
+        projectUuid,
+        chartUuid,
+        versionUuid,
+        page,
+        pageSize,
+        context = QueryExecutionContext.CHART,
+    }: PaginateSavedChartArgs & {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<ApiPaginatedQueryResults> {
+        // Check user is in organization
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+
+        const {
+            uuid: savedChartUuid,
+            organizationUuid: savedChartOrganizationUuid,
+            projectUuid: savedChartProjectUuid,
+            spaceUuid: savedChartSpaceUuid,
+            tableName: savedChartTableName,
+            metricQuery,
+        } = await this.savedChartModel.get(chartUuid, versionUuid);
+
+        // Check chart belongs to project
+        if (savedChartProjectUuid !== projectUuid) {
+            throw new ForbiddenError('Chart does not belong to project');
+        }
+
+        const [space, explore] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChartSpaceUuid),
+            this.getExplore(
+                user,
+                projectUuid,
+                savedChartTableName,
+                savedChartOrganizationUuid,
+            ),
+        ]);
+
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    savedChartOrganizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    savedChartOrganizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.analyticsModel.addChartViewEvent(
+            savedChartUuid,
+            user.userUuid,
+        );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: savedChartOrganizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
+            explore_name: savedChartTableName,
+            query_context: context,
+        };
+
+        return this.runPaginatedQuery(
+            {
+                user,
+                projectUuid,
+                exploreName: savedChartTableName,
+                page,
+                pageSize,
+                context,
+                queryTags,
+                invalidateCache: false,
+                metricQuery,
+                csvLimit: undefined,
             },
             formatRow,
         );
