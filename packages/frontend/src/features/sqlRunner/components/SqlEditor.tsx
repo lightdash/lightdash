@@ -19,7 +19,7 @@ import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import '../../../styles/monaco.css';
-import { useTables } from '../hooks/useTables';
+import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
 
@@ -182,7 +182,7 @@ const registerCustomCompletionProvider = (
 
 const generateTableCompletions = (
     quoteChar: string,
-    data: ReturnType<typeof useTables>['data'],
+    data: { database: string; tablesBySchema: TablesBySchema },
 ) => {
     if (!data) return;
 
@@ -213,8 +213,23 @@ export const SqlEditor: FC<{
     );
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
-        search: undefined,
     });
+    const transformedData:
+        | { database: string; tablesBySchema: TablesBySchema }
+        | undefined = useMemo(() => {
+        if (!tablesData) return undefined;
+        const tablesBySchema = Object.entries(tablesData).flatMap(
+            ([, schemas]) =>
+                Object.entries(schemas).map(([schema, tables]) => ({
+                    schema,
+                    tables,
+                })),
+        );
+        return {
+            database: Object.keys(tablesData)[0],
+            tablesBySchema,
+        };
+    }, [tablesData]);
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
 
     const language = useMemo(
@@ -231,10 +246,10 @@ export const SqlEditor: FC<{
                 ...LIGHTDASH_THEME,
             });
 
-            if (tablesData && quoteChar) {
+            if (transformedData && quoteChar) {
                 const tablesList = generateTableCompletions(
                     quoteChar,
-                    tablesData,
+                    transformedData,
                 );
                 if (tablesList && tablesList.length > 0) {
                     registerCustomCompletionProvider(
@@ -246,7 +261,7 @@ export const SqlEditor: FC<{
                 }
             }
         },
-        [language, quoteChar, tablesData],
+        [language, quoteChar, transformedData],
     );
 
     const monaco = useMonaco();
