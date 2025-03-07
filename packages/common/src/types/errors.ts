@@ -363,6 +363,20 @@ export class SlackInstallationNotFoundError extends LightdashError {
     }
 }
 
+export class SlackError extends LightdashError {
+    constructor(
+        message: string = 'Slack API error occurred',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'SlackError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class UnexpectedGoogleSheetsError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google sheets client',
