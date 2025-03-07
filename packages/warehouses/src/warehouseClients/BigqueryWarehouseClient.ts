@@ -4,6 +4,7 @@ import {
     BigQueryDatetime,
     BigQueryTime,
     BigQueryTimestamp,
+    BigQueryOptions,
     Dataset,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
@@ -24,6 +25,7 @@ import {
 import { Transform, Writable, pipeline } from 'stream';
 import { WarehouseCatalog, WarehouseTableSchema } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
+import { OAuth2Client } from 'google-auth-library';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -117,12 +119,22 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     constructor(credentials: CreateBigqueryCredentials) {
         super(credentials);
         try {
-            this.client = new BigQuery({
+            const options: BigQueryOptions = {
                 projectId: credentials.executionProject || credentials.project,
-                location: credentials.location,
-                maxRetries: credentials.retries,
-                credentials: credentials.keyfileContents,
-            });
+            };
+
+            if (credentials.authClient) {
+                options.authClient = credentials.authClient as any;
+            } else if (credentials.keyfileContents) {
+                options.credentials = credentials.keyfileContents;
+                options.location = credentials.location;
+                options.maxRetries = credentials.retries;
+            } else {
+                throw new WarehouseConnectionError(
+                    'Invalid BigQuery credentials. Must provide one of: access_token, refresh_token with client_id an client_secret, or keyfileContents.',
+                );
+            }
+            this.client = new BigQuery(options);
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
                 `Failed connection to ${credentials.project} in ${

@@ -1,3 +1,5 @@
+import type { OAuth2Client } from 'google-auth-library';
+
 import { type WeekDay } from '../utils/timeFrames';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 
@@ -46,7 +48,8 @@ export type CreateBigqueryCredentials = {
     threads?: number;
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
-    keyfileContents: Record<string, string>;
+    keyfileContents?: Record<string, string>;
+    authClient?: OAuth2Client;
     requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
