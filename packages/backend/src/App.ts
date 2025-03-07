@@ -494,6 +494,18 @@ export default class App {
             next();
         });
 
+        expressApp.use((req, res, next) => {
+            if (req.user) {
+                Sentry.setUser({
+                    id: req.user.userUuid,
+                    organization: req.user.organizationUuid,
+                    email: req.user.email,
+                    username: req.user.email,
+                });
+            }
+            next();
+        });
+
         // api router
         expressApp.use('/api/v1', apiV1Router);
         RegisterRoutes(expressApp);
