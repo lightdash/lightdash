@@ -259,7 +259,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
         forbiddenToastTitle: 'Error running query',
     });
     const result = useQuery<ApiQueryResults, ApiError>({
-        enabled: true,
+        enabled: !!data,
         queryKey: ['query-all-results', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {

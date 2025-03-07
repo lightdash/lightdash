@@ -1591,9 +1591,17 @@ const ExplorerProvider: FC<
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
+            // force new results even when query is the same
+            clearQueryResults();
             runQuery();
         }
-    }, [defaultSort, runQuery, unsavedChartVersion, setSortFields]);
+    }, [
+        unsavedChartVersion.metricQuery.sorts.length,
+        defaultSort,
+        setSortFields,
+        clearQueryResults,
+        runQuery,
+    ]);
 
     const actions = useMemo(
         () => ({
