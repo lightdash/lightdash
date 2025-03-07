@@ -13999,42 +13999,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedMetricQueryRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                query: { ref: 'MetricQueryRequest', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedQueryIdRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                exploreName: { dataType: 'string', required: true },
-                fields: { ref: 'ItemsMap', required: true },
-                queryId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedSavedChartRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                versionUuid: { dataType: 'string' },
-                chartUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QueryExecutionContext: {
         dataType: 'refEnum',
         enums: [
@@ -14094,19 +14058,11 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Partial_KnexPaginateArgs_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedQueryRequest: {
+    CommonPaginatedQueryRequestParams: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'PaginatedMetricQueryRequest' },
-                        { ref: 'PaginatedQueryIdRequest' },
-                        { ref: 'PaginatedSavedChartRequest' },
-                    ],
-                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -14114,6 +14070,103 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 { ref: 'ResultsPaginationArgs' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedMetricQueryRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        query: { ref: 'MetricQueryRequest', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedQueryIdRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        exploreName: { dataType: 'string', required: true },
+                        fields: { ref: 'ItemsMap', required: true },
+                        queryId: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedSavedChartRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        versionUuid: { dataType: 'string' },
+                        chartUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedDashboardChartRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        autoRefresh: { dataType: 'boolean' },
+                        granularity: { ref: 'DateGranularity' },
+                        dashboardSorts: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SortField' },
+                            required: true,
+                        },
+                        dashboardFilters: {
+                            ref: 'DashboardFilters',
+                            required: true,
+                        },
+                        dashboardUuid: { dataType: 'string', required: true },
+                        chartUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedQueryRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'PaginatedMetricQueryRequestParams' },
+                { ref: 'PaginatedQueryIdRequestParams' },
+                { ref: 'PaginatedSavedChartRequestParams' },
+                { ref: 'PaginatedDashboardChartRequestParams' },
             ],
             validators: {},
         },
@@ -28809,7 +28862,7 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'PaginatedQueryRequest',
+            ref: 'PaginatedQueryRequestParams',
         },
         projectUuid: {
             in: 'path',

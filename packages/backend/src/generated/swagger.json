@@ -14833,42 +14833,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "PaginatedMetricQueryRequest": {
-                "properties": {
-                    "query": {
-                        "$ref": "#/components/schemas/MetricQueryRequest"
-                    }
-                },
-                "required": ["query"],
-                "type": "object"
-            },
-            "PaginatedQueryIdRequest": {
-                "properties": {
-                    "exploreName": {
-                        "type": "string"
-                    },
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap"
-                    },
-                    "queryId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["exploreName", "fields", "queryId"],
-                "type": "object"
-            },
-            "PaginatedSavedChartRequest": {
-                "properties": {
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "chartUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["chartUuid"],
-                "type": "object"
-            },
             "QueryExecutionContext": {
                 "enum": [
                     "dashboardView",
@@ -14915,21 +14879,8 @@
             "ResultsPaginationArgs": {
                 "$ref": "#/components/schemas/Partial_KnexPaginateArgs_"
             },
-            "PaginatedQueryRequest": {
+            "CommonPaginatedQueryRequestParams": {
                 "allOf": [
-                    {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/PaginatedMetricQueryRequest"
-                            },
-                            {
-                                "$ref": "#/components/schemas/PaginatedQueryIdRequest"
-                            },
-                            {
-                                "$ref": "#/components/schemas/PaginatedSavedChartRequest"
-                            }
-                        ]
-                    },
                     {
                         "properties": {
                             "context": {
@@ -14940,6 +14891,118 @@
                     },
                     {
                         "$ref": "#/components/schemas/ResultsPaginationArgs"
+                    }
+                ]
+            },
+            "PaginatedMetricQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "query": {
+                                "$ref": "#/components/schemas/MetricQueryRequest"
+                            }
+                        },
+                        "required": ["query"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedQueryIdRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "queryId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["exploreName", "fields", "queryId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedSavedChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedDashboardChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "autoRefresh": {
+                                "type": "boolean"
+                            },
+                            "granularity": {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dashboardSorts",
+                            "dashboardFilters",
+                            "dashboardUuid",
+                            "chartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedQueryRequestParams": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PaginatedMetricQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaginatedQueryIdRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaginatedSavedChartRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaginatedDashboardChartRequestParams"
                     }
                 ]
             },
