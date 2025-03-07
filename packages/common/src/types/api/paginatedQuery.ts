@@ -8,11 +8,15 @@ export type PaginatedQueryIdRequest = {
     fields: ItemsMap;
     exploreName: string;
 };
+export type PaginatedChartQueryRequest = {
+    chartUuid: string;
+};
 
 // When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
 export type PaginatedQueryRequest = (
     | PaginatedMetricQueryRequest
     | PaginatedQueryIdRequest
+    | PaginatedChartQueryRequest
 ) &
     ResultsPaginationArgs;
 

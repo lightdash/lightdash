@@ -15,17 +15,16 @@ export type PaginateQueryIdArgs = ResultsPaginationArgs & {
     exploreName: string;
 };
 
-export type PaginateQueryArgs = ResultsPaginationArgs &
-    (PaginateMetricQueryArgs | PaginateQueryIdArgs);
-
-export function isPaginateMetricQueryArgs(
-    args: PaginateQueryArgs,
-): args is PaginateMetricQueryArgs {
-    return 'metricQuery' in args && 'csvLimit' in args;
-}
+export type PaginateQueryArgs = PaginateMetricQueryArgs | PaginateQueryIdArgs;
 
 export function isPaginateQueryIdArgs(
     args: PaginateQueryArgs,
 ): args is PaginateQueryIdArgs {
     return 'queryId' in args && 'fields' in args && 'exploreName' in args;
+}
+
+export function isPaginateMetricQueryArgs(
+    args: PaginateQueryArgs,
+): args is PaginateMetricQueryArgs {
+    return 'metricQuery' in args && 'csvLimit' in args;
 }

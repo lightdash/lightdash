@@ -14023,6 +14023,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PaginatedChartQueryRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chartUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Partial_KnexPaginateArgs_: {
         dataType: 'refAlias',
         type: {
@@ -14062,6 +14073,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { ref: 'PaginatedMetricQueryRequest' },
                         { ref: 'PaginatedQueryIdRequest' },
+                        { ref: 'PaginatedChartQueryRequest' },
                     ],
                 },
                 { ref: 'ResultsPaginationArgs' },

@@ -1,6 +1,9 @@
 import {
     ApiErrorPayload,
+    isPaginatedMetricQueryRequest,
     isPaginatedQueryIdRequest,
+    ParameterError,
+    type ApiPaginatedQueryResults,
     type PaginatedQueryRequest,
 } from '@lightdash/common';
 import {
@@ -37,39 +40,53 @@ export class V2ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunPaginatedQueryResponse> {
-        const queryParams = isPaginatedQueryIdRequest(body)
-            ? {
-                  queryId: body.queryId,
-                  fields: body.fields,
-                  exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId
-              }
-            : {
-                  metricQuery: {
-                      exploreName: body.query.exploreName,
-                      dimensions: body.query.dimensions,
-                      metrics: body.query.metrics,
-                      filters: body.query.filters,
-                      sorts: body.query.sorts,
-                      limit: body.query.limit,
-                      tableCalculations: body.query.tableCalculations,
-                      additionalMetrics: body.query.additionalMetrics,
-                      customDimensions: body.query.customDimensions,
-                      timezone: body.query.timezone,
-                      metricOverrides: body.query.metricOverrides,
-                  },
-                  csvLimit: body.query.csvLimit,
-              };
+        let results: ApiPaginatedQueryResults | undefined;
 
-        const results = await this.services
-            .getProjectService()
-            .runPaginatedExploreQuery({
-                user: req.user!,
-                projectUuid,
-                page: body.page,
-                pageSize: body.pageSize,
-                context: getContextFromHeader(req),
-                ...queryParams,
-            });
+        if (isPaginatedQueryIdRequest(body)) {
+            results = await this.services
+                .getProjectService()
+                .runPaginatedQueryIdQuery({
+                    user: req.user!,
+                    projectUuid,
+                    page: body.page,
+                    pageSize: body.pageSize,
+                    context: getContextFromHeader(req),
+                    queryId: body.queryId,
+                    fields: body.fields,
+                    exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId
+                });
+        } else if (isPaginatedMetricQueryRequest(body)) {
+            const metricQuery = {
+                exploreName: body.query.exploreName,
+                dimensions: body.query.dimensions,
+                metrics: body.query.metrics,
+                filters: body.query.filters,
+                sorts: body.query.sorts,
+                limit: body.query.limit,
+                tableCalculations: body.query.tableCalculations,
+                additionalMetrics: body.query.additionalMetrics,
+                customDimensions: body.query.customDimensions,
+                timezone: body.query.timezone,
+                metricOverrides: body.query.metricOverrides,
+            };
+
+            results = await this.services
+                .getProjectService()
+                .runPaginatedMetricQuery({
+                    user: req.user!,
+                    projectUuid,
+                    page: body.page,
+                    pageSize: body.pageSize,
+                    context: getContextFromHeader(req),
+                    metricQuery,
+                    csvLimit: body.query.csvLimit,
+                });
+        }
+
+        if (!results) {
+            this.setStatus(400);
+            throw new ParameterError('Invalid query');
+        }
 
         this.setStatus(200);
 
