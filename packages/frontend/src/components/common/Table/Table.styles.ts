@@ -207,6 +207,8 @@ export const Td = styled.td<{
     $hasData: boolean;
     $isLargeText: boolean;
     $isMinimal: boolean;
+    $hasNewlines: boolean;
+    $hasUrls: boolean;
 }>`
     max-width: 300px;
     white-space: nowrap;
@@ -215,18 +217,32 @@ export const Td = styled.td<{
     box-sizing: border-box;
     height: ${ROW_HEIGHT_PX}px;
 
-    ${({ $isLargeText, $isSelected, $isMinimal }) =>
+    ${({ $isLargeText, $isSelected, $isMinimal, $hasNewlines }) =>
         $isLargeText
             ? `
                 min-width: 300px;
-                white-space: ${$isSelected || $isMinimal ? 'normal' : 'nowrap'};
+                white-space: ${
+                    $isSelected || $isMinimal
+                        ? $hasNewlines
+                            ? 'pre-line'
+                            : 'normal'
+                        : 'nowrap'
+                };
                 :hover {
-                    white-space: normal;
+                    white-space: ${$hasNewlines ? 'pre-line' : 'normal'};
                 }
             `
             : ''}
 
     ${CellStyles}
+
+    ${({ $hasUrls }) =>
+        $hasUrls
+            ? `
+                text-decoration: underline;
+                text-decoration-style: dotted;
+            `
+            : ''}
 
     ${({ $isInteractive, $hasData }) =>
         $isInteractive && $hasData
