@@ -80,13 +80,12 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
 
                     return {
                         schema,
-                        tables: fuseResult.reduce<typeof tables>(
-                            (acc, tableName) => {
+                        tables: fuseResult
+                            .slice(0, 100)
+                            .reduce<typeof tables>((acc, tableName) => {
                                 acc[tableName] = tables[tableName];
                                 return acc;
-                            },
-                            {},
-                        ),
+                            }, {}),
                     };
                 })
                 .filter(

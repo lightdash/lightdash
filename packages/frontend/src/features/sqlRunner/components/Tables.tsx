@@ -31,6 +31,8 @@ import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
 
+const limitTableResults = 100;
+
 interface TableItemProps extends BoxProps {
     table: string;
     search: string;
@@ -186,15 +188,16 @@ const Table: FC<{
     }, [tables, schema, search]);
 
     useEffect(() => {
-        if (
+        const isTableSelected =
             activeTable &&
             Object.keys(tables).includes(activeTable) &&
-            schema === activeSchema
-        ) {
+            schema === activeSchema;
+        if (hasMatchingTable || isTableSelected) {
             setIsExpanded(true);
-        }
-        if (hasMatchingTable) {
-            setIsExpanded(true);
+        } else {
+            // Autoclose when search is empty and no matching table is selected
+            // to avoid rendering all tables after a search
+            setIsExpanded(false);
         }
     }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
     return (
@@ -218,21 +221,33 @@ const Table: FC<{
                     />
                 </Group>
             </UnstyledButton>
-            {isExpanded &&
-                Object.keys(tables).map((table) => (
-                    <TableItem
-                        key={table}
-                        search={search}
-                        isActive={
-                            activeTable === table && schema === activeSchema
-                        }
-                        table={table}
-                        schema={`${schema}`}
-                        database={database}
-                        partitionColumn={tables[table].partitionColumn}
-                        ml="sm"
-                    />
-                ))}
+            {isExpanded && (
+                <>
+                    {Object.keys(tables)
+                        .slice(0, limitTableResults)
+                        .map((table) => (
+                            <TableItem
+                                key={table}
+                                search={search}
+                                isActive={
+                                    activeTable === table &&
+                                    schema === activeSchema
+                                }
+                                table={table}
+                                schema={`${schema}`}
+                                database={database}
+                                partitionColumn={tables[table].partitionColumn}
+                                ml="sm"
+                            />
+                        ))}
+                    {Object.keys(tables).length > limitTableResults && (
+                        <Text ml="md" c="gray.5">
+                            Filtering first ${limitTableResults} results, search
+                            to see more
+                        </Text>
+                    )}
+                </>
+            )}
         </Stack>
     );
 };
@@ -252,7 +267,7 @@ export const Tables: FC = () => {
 
     const { data, isLoading, isSuccess } = useTables({
         projectUuid,
-        search: isValidSearch ? debouncedSearch : undefined,
+        search: isValidSearch ? debouncedSearch : '',
     });
 
     return (
@@ -303,7 +318,7 @@ export const Tables: FC = () => {
                             key={schema}
                             schema={schema}
                             tables={tables}
-                            search={search}
+                            search={isValidSearch ? search : ''}
                             activeTable={activeTable}
                             activeSchema={activeSchema}
                             database={data.database}
