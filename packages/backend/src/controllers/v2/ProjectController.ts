@@ -2,8 +2,8 @@ import {
     ApiErrorPayload,
     isPaginatedMetricQueryRequest,
     isPaginatedQueryIdRequest,
+    isPaginatedSavedChartRequest,
     ParameterError,
-    type ApiPaginatedQueryResults,
     type PaginatedQueryRequest,
 } from '@lightdash/common';
 import {
@@ -40,10 +40,10 @@ export class V2ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunPaginatedQueryResponse> {
-        let results: ApiPaginatedQueryResults | undefined;
+        this.setStatus(200);
 
         if (isPaginatedQueryIdRequest(body)) {
-            results = await this.services
+            const results = await this.services
                 .getProjectService()
                 .runPaginatedQueryIdQuery({
                     user: req.user!,
@@ -55,7 +55,14 @@ export class V2ProjectController extends BaseController {
                     fields: body.fields,
                     exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId
                 });
-        } else if (isPaginatedMetricQueryRequest(body)) {
+
+            return {
+                status: 'ok',
+                results,
+            };
+        }
+
+        if (isPaginatedMetricQueryRequest(body)) {
             const metricQuery = {
                 exploreName: body.query.exploreName,
                 dimensions: body.query.dimensions,
@@ -70,7 +77,7 @@ export class V2ProjectController extends BaseController {
                 metricOverrides: body.query.metricOverrides,
             };
 
-            results = await this.services
+            const results = await this.services
                 .getProjectService()
                 .runPaginatedMetricQuery({
                     user: req.user!,
@@ -81,18 +88,33 @@ export class V2ProjectController extends BaseController {
                     metricQuery,
                     csvLimit: body.query.csvLimit,
                 });
+
+            return {
+                status: 'ok',
+                results,
+            };
         }
 
-        if (!results) {
-            this.setStatus(400);
-            throw new ParameterError('Invalid query');
+        if (isPaginatedSavedChartRequest(body)) {
+            const results = await this.services
+                .getProjectService()
+                .runPaginatedSavedChartQuery({
+                    user: req.user!,
+                    projectUuid,
+                    page: body.page,
+                    pageSize: body.pageSize,
+                    context: getContextFromHeader(req),
+                    chartUuid: body.chartUuid,
+                    versionUuid: body.versionUuid,
+                });
+
+            return {
+                status: 'ok',
+                results,
+            };
         }
 
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results,
-        };
+        this.setStatus(400);
+        throw new ParameterError('Invalid query');
     }
 }
