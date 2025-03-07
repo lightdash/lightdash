@@ -4,6 +4,7 @@ import {
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
+    SlackError,
     SlackInstallationNotFoundError,
     SlackSettings,
     UnexpectedServerError,
@@ -14,6 +15,7 @@ import {
     ChatPostMessageArguments,
     ChatUpdateArguments,
     ConversationsListResponse,
+    ErrorCode,
     FilesCompleteUploadExternalResponse,
     UsersListResponse,
     WebAPICallResult,
@@ -79,6 +81,22 @@ export class SlackClient {
         }
 
         return new WebClient(installation.token);
+    }
+
+    private static handleSlackError(e: unknown, context: string) {
+        Logger.error(`${context}: ${getErrorMessage(e)}`);
+
+        if (
+            typeof e === 'object' &&
+            e &&
+            'code' in e &&
+            e.code === ErrorCode.PlatformError
+        ) {
+            Sentry.captureException(new SlackError(getErrorMessage(e)));
+        } else {
+            // Something unexpected happened
+            Sentry.captureException(e);
+        }
     }
 
     async getChannels(
@@ -152,11 +170,10 @@ export class SlackClient {
                     ? [...allChannels, ...conversations.channels]
                     : allChannels;
             } catch (e) {
-                Logger.error(
-                    `Unable to fetch slack channels: ${getErrorMessage(e)}`,
+                SlackClient.handleSlackError(
+                    e,
+                    'Unable to fetch slack channels',
                 );
-                Sentry.captureException(e);
-                break;
             }
         } while (nextCursor);
         Logger.debug(`Total slack channels ${allChannels.length}`);
@@ -178,12 +195,7 @@ export class SlackClient {
                     ? [...allUsers, ...users.members]
                     : allUsers;
             } catch (e) {
-                Logger.error(
-                    `Unable to fetch slack users: ${getErrorMessage(e)}`,
-                );
-                Sentry.captureException(e);
-
-                break;
+                SlackClient.handleSlackError(e, 'Unable to fetch slack users');
             }
         } while (nextCursor);
         Logger.debug(`Total slack users ${allUsers.length}`);
@@ -227,10 +239,9 @@ export class SlackClient {
             });
             await Promise.all(joinPromises);
         } catch (e) {
-            Logger.error(
-                `Unable to join channels ${channels} on organization ${organizationUuid}: ${getErrorMessage(
-                    e,
-                )}`,
+            SlackClient.handleSlackError(
+                e,
+                `Unable to join channels ${channels} on organization ${organizationUuid}`,
             );
         }
     }
@@ -260,8 +271,9 @@ export class SlackClient {
                 ...slackMessageArgs,
             })
             .catch((e) => {
-                Logger.error(
-                    `Unable to post message on Slack: ${getErrorMessage(e)}`,
+                SlackClient.handleSlackError(
+                    e,
+                    'Unable to post message on Slack',
                 );
                 throw e;
             });
@@ -296,10 +308,9 @@ export class SlackClient {
                         : {}),
                 })
                 .catch((e) => {
-                    Logger.error(
-                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${getErrorMessage(
-                            e,
-                        )}`,
+                    SlackClient.handleSlackError(
+                        e,
+                        'Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to',
                     );
                     throw e;
                 });
@@ -485,9 +496,7 @@ export class SlackClient {
             });
             return { url: slackFileUrl, expiring: false };
         } catch (e) {
-            Logger.error(
-                `Failed to upload image to slack: ${getErrorMessage(e)}`,
-            );
+            SlackClient.handleSlackError(e, 'Failed to upload image to slack');
             return { url: imageUrl, expiring: true };
         }
     }
