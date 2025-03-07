@@ -499,6 +499,8 @@ export default class App {
                 Sentry.setUser({
                     id: req.user.userUuid,
                     organization: req.user.organizationUuid,
+                    email: req.user.email,
+                    username: req.user.email,
                 });
             }
             next();
