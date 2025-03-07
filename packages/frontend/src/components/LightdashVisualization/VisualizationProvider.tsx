@@ -203,12 +203,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
      */
     const getSeriesColor = useCallback(
         (seriesLike: SeriesLike) => {
-            if (seriesLike.color && !isGroupedSeries(seriesLike)) {
-                // It doesn't make sense to use the color if it's a grouped series
-                // Grouped series colors should be in metadata
-                // this is likely to be a an leftover from a non-grouped chart
-                return seriesLike.color;
-            }
+            if (seriesLike.color) return seriesLike.color;
 
             // Check if color is stored in metadata
             const serieId = calculateSeriesLikeIdentifier(seriesLike).join('.');
