@@ -1773,11 +1773,10 @@ export class ProjectService extends BaseService {
         args: PaginateQueryArgs & {
             user: SessionUser;
             projectUuid: string;
-            context: QueryExecutionContext;
             invalidateCache?: boolean;
             exploreName: string;
             granularity?: DateGranularity;
-            queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
+            queryTags: RunQueryTags; // We already have context in the context parameter
         },
         rowFormatter?: (
             row: Record<string, unknown>,
@@ -1785,7 +1784,7 @@ export class ProjectService extends BaseService {
         ) => TFormattedRow,
     ) {
         return wrapSentryTransaction(
-            'ProjectService.runMetricQuery',
+            'ProjectService.runPaginatedQuery',
             {},
             async (span) => {
                 const {
@@ -2003,7 +2002,7 @@ export class ProjectService extends BaseService {
         user,
         projectUuid,
         dateZoomGranularity,
-        context = QueryExecutionContext.EXPLORE,
+        context = QueryExecutionContext.API,
         metricQuery,
         csvLimit,
         page,
@@ -2067,7 +2066,7 @@ export class ProjectService extends BaseService {
     async runPaginatedQueryIdQuery({
         user,
         projectUuid,
-        context = QueryExecutionContext.EXPLORE,
+        context = QueryExecutionContext.API,
         exploreName,
         ...rest
     }: PaginateQueryIdArgs & {

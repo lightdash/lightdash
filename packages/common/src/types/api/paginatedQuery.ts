@@ -1,3 +1,4 @@
+import type { QueryExecutionContext } from '../analytics';
 import type { ItemsMap } from '../field';
 import type { MetricQueryRequest } from '../metricQuery';
 import type { ResultsPaginationArgs } from '../paginateResults';
@@ -18,8 +19,9 @@ export type PaginatedQueryRequest = (
     | PaginatedMetricQueryRequest
     | PaginatedQueryIdRequest
     | PaginatedSavedChartRequest
-) &
-    ResultsPaginationArgs;
+) & {
+    context?: QueryExecutionContext;
+} & ResultsPaginationArgs;
 
 export function isPaginatedMetricQueryRequest(
     query: PaginatedQueryRequest,

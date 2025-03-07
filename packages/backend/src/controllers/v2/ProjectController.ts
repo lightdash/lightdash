@@ -42,18 +42,23 @@ export class V2ProjectController extends BaseController {
     ): Promise<ApiRunPaginatedQueryResponse> {
         this.setStatus(200);
 
+        const context = body.context ?? getContextFromHeader(req);
+        const commonArgs = {
+            user: req.user!,
+            projectUuid,
+            context,
+            page: body.page,
+            pageSize: body.pageSize,
+        };
+
         if (isPaginatedQueryIdRequest(body)) {
             const results = await this.services
                 .getProjectService()
                 .runPaginatedQueryIdQuery({
-                    user: req.user!,
-                    projectUuid,
-                    page: body.page,
-                    pageSize: body.pageSize,
-                    context: getContextFromHeader(req),
+                    ...commonArgs,
                     queryId: body.queryId,
                     fields: body.fields,
-                    exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId
+                    exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId,
                 });
 
             return {
@@ -80,11 +85,7 @@ export class V2ProjectController extends BaseController {
             const results = await this.services
                 .getProjectService()
                 .runPaginatedMetricQuery({
-                    user: req.user!,
-                    projectUuid,
-                    page: body.page,
-                    pageSize: body.pageSize,
-                    context: getContextFromHeader(req),
+                    ...commonArgs,
                     metricQuery,
                     csvLimit: body.query.csvLimit,
                 });
@@ -99,11 +100,7 @@ export class V2ProjectController extends BaseController {
             const results = await this.services
                 .getProjectService()
                 .runPaginatedSavedChartQuery({
-                    user: req.user!,
-                    projectUuid,
-                    page: body.page,
-                    pageSize: body.pageSize,
-                    context: getContextFromHeader(req),
+                    ...commonArgs,
                     chartUuid: body.chartUuid,
                     versionUuid: body.versionUuid,
                 });
