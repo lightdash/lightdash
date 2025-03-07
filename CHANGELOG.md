@@ -1,3 +1,10 @@
+## [0.1531.8](https://github.com/lightdash/lightdash/compare/0.1531.7...0.1531.8) (2025-03-07)
+
+
+### Bug Fixes
+
+* subtotals check if null or undefined ([#13965](https://github.com/lightdash/lightdash/issues/13965)) ([7a315e3](https://github.com/lightdash/lightdash/commit/7a315e3a4d89197d3bb08a2c161ddeb424a67601))
+
 ## [0.1531.7](https://github.com/lightdash/lightdash/compare/0.1531.6...0.1531.7) (2025-03-07)
 
 
