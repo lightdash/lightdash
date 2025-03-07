@@ -122,6 +122,8 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                 const ignoredOperators = getFilterOptions([
                     FilterOperator.NULL,
                     FilterOperator.NOT_NULL,
+                    FilterOperator.IN_BETWEEN,
+                    FilterOperator.NOT_IN_BETWEEN,
                 ]);
 
                 return differenceBy(options, ignoredOperators, 'value');
