@@ -34,7 +34,10 @@ import {
     getGroupingValuesAndSubtotalKey,
     getSubtotalValueFromGroup,
 } from '../../../hooks/tableVisualization/getDataAndColumns';
-import { formatCellContent } from '../../../hooks/useColumns';
+import {
+    formatCellContent,
+    getFormattedValueCell,
+} from '../../../hooks/useColumns';
 import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
@@ -158,7 +161,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     },
                     {
                         id: col.fieldId,
-                        cell: (info) => formatCellContent(info.getValue()),
+                        cell: getFormattedValueCell,
                         meta: {
                             item: item,
                             type: col.columnType,

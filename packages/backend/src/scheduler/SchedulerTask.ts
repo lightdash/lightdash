@@ -7,6 +7,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    ExportCsvDashboardPayload,
     FeatureFlags,
     FieldReferenceError,
     ForbiddenError,
@@ -17,6 +18,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
+    ReadFileError,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceableCustomFields,
@@ -29,6 +31,7 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulerTaskName,
     SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
@@ -621,18 +624,34 @@ export default class SchedulerTask {
                 });
 
                 if (pdfFile && message.ts) {
-                    // Add the pdf to the thread
-                    const pdfBuffer = await fs.readFile(pdfFile);
+                    try {
+                        // Add the pdf to the thread
+                        const pdfBuffer = await fs.readFile(pdfFile);
 
-                    await this.slackClient.postFileToThread({
-                        organizationUuid,
-                        file: pdfBuffer,
-                        title: name,
-                        channelId: channel,
-                        threadTs: message.ts,
-                        filename: `${name}.pdf`,
-                        fileType: 'pdf',
-                    });
+                        await this.slackClient.postFileToThread({
+                            organizationUuid,
+                            file: pdfBuffer,
+                            title: name,
+                            channelId: channel,
+                            threadTs: message.ts,
+                            filename: `${name}.pdf`,
+                            fileType: 'pdf',
+                        });
+                    } catch (err) {
+                        if (
+                            err instanceof Error &&
+                            'code' in err &&
+                            err.code === 'ENOENT'
+                        ) {
+                            throw new ReadFileError(
+                                `PDF file not found for ${name}`,
+                                {
+                                    filePath: pdfFile,
+                                },
+                            );
+                        }
+                        throw err;
+                    }
                 }
             } else {
                 let blocks;
@@ -2308,6 +2327,32 @@ export default class SchedulerTask {
                 );
 
                 return {}; // Don't pollute with more details
+            },
+        );
+    }
+
+    protected async exportCsvDashboard(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportCsvDashboardPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                const url =
+                    await this.csvService.runScheduledExportCsvDashboard(
+                        payload,
+                    );
+                return { url };
             },
         );
     }

@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1529.1",
+    "version": "0.1531.4",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -52,9 +52,9 @@
         "@octokit/request": "^8.4.1",
         "@octokit/rest": "^20.0.2",
         "@rudderstack/rudder-sdk-node": "^2.0.6",
-        "@sentry/node": "8.9.2",
-        "@sentry/profiling-node": "8.9.2",
-        "@sentry/types": "8.9.2",
+        "@sentry/core": "^9.4.0",
+        "@sentry/node": "^9.4.0",
+        "@sentry/profiling-node": "^9.4.0",
         "@slack/bolt": "^3.22.0",
         "@slack/web-api": "^6.12.1",
         "@tsoa/runtime": "^6.6.0",

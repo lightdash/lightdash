@@ -402,3 +402,39 @@ export class NotImplementedError extends LightdashError {
 }
 export const getErrorMessage = (e: unknown) =>
     e instanceof Error ? e.message : `Unknown ${typeof e} error`;
+
+export class ScreenshotError extends LightdashError {
+    constructor(
+        message = 'Error capturing screenshot',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'ScreenshotError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
+
+export class SshTunnelError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'SshTunnelError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
+export class ReadFileError extends LightdashError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super({
+            message,
+            name: 'ReadFileError',
+            statusCode: 404,
+            data,
+        });
+    }
+}

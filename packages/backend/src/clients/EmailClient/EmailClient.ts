@@ -45,24 +45,29 @@ export default class EmailClient {
         if (this.lightdashConfig.smtp) {
             Logger.debug(`Create email transporter`);
 
-            const auth: AuthenticationType = this.lightdashConfig.smtp.auth
-                .accessToken
-                ? {
-                      type: 'OAuth2',
-                      user: this.lightdashConfig.smtp.auth.user,
-                      accessToken: this.lightdashConfig.smtp.auth.accessToken,
-                  }
-                : {
-                      user: this.lightdashConfig.smtp.auth.user,
-                      pass: this.lightdashConfig.smtp.auth.pass,
-                  };
+            let auth: AuthenticationType | undefined;
+
+            if (this.lightdashConfig.smtp.useAuth) {
+                if (this.lightdashConfig.smtp.auth.accessToken) {
+                    auth = {
+                        type: 'OAuth2',
+                        user: this.lightdashConfig.smtp.auth.user,
+                        accessToken: this.lightdashConfig.smtp.auth.accessToken,
+                    };
+                } else {
+                    auth = {
+                        user: this.lightdashConfig.smtp.auth.user,
+                        pass: this.lightdashConfig.smtp.auth.pass,
+                    };
+                }
+            }
 
             this.transporter = nodemailer.createTransport(
                 {
                     host: this.lightdashConfig.smtp.host,
                     port: this.lightdashConfig.smtp.port,
                     secure: this.lightdashConfig.smtp.port === 465, // false for any port beside 465, other ports use STARTTLS instead.
-                    auth,
+                    ...(auth ? { auth } : {}),
                     requireTLS: this.lightdashConfig.smtp.secure,
                     tls: this.lightdashConfig.smtp.allowInvalidCertificate
                         ? { rejectUnauthorized: false }

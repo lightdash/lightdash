@@ -11,6 +11,7 @@ import {
     DownloadCsvPayload,
     DownloadFileType,
     DownloadMetricCsv,
+    ExportCsvDashboardPayload,
     ForbiddenError,
     formatItemValue,
     formatRows,
@@ -18,6 +19,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getErrorMessage,
+    getFulfilledValues,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -36,6 +38,7 @@ import {
     PivotConfig,
     pivotResultsAsCsv,
     QueryExecutionContext,
+    SCHEDULER_TASKS,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -848,10 +851,10 @@ This method can be memory intensive
             }),
         );
 
-        const csvUrls = await Promise.all([
+        const csvUrls = await Promise.allSettled([
             ...csvForChartPromises,
             ...csvForSqlChartPromises,
-        ]);
+        ]).then(getFulfilledValues);
         return csvUrls;
     }
 
@@ -1178,20 +1181,16 @@ This method can be memory intensive
         }
     }
 
-    async exportCsvDashboard(
+    /**
+     * This method is used to schedule a CSV download for a dashboard.
+     * Method in scheduler: `runScheduledExportCsvDashboard`
+     */
+    async scheduleExportCsvDashboard(
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
     ) {
-        if (!this.s3Client.isEnabled()) {
-            throw new MissingConfigError('Cloud storage is not enabled');
-        }
-        const options: SchedulerCsvOptions = {
-            formatted: true,
-            limit: 'table',
-        };
-
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         if (
             user.ability.cannot(
@@ -1205,7 +1204,49 @@ This method can be memory intensive
             throw new ForbiddenError();
         }
 
+        const payload: ExportCsvDashboardPayload = {
+            dashboardUuid,
+            dashboardFilters,
+            dateZoomGranularity,
+            // TraceTaskBase
+            organizationUuid: user.organizationUuid!,
+            projectUuid: dashboard.projectUuid,
+            userUuid: user.userUuid,
+            schedulerUuid: undefined,
+        };
+        const { jobId } = await this.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+            payload,
+        );
+
+        return { jobId };
+    }
+
+    /**
+     * This method is running on scheduler
+     * Method triggered by `scheduleExportCsvDashboard`
+     */
+    async runScheduledExportCsvDashboard({
+        dashboardUuid,
+        dashboardFilters,
+        dateZoomGranularity,
+        userUuid,
+        organizationUuid,
+    }: ExportCsvDashboardPayload) {
+        if (!this.s3Client.isEnabled()) {
+            throw new MissingConfigError('Cloud storage is not enabled');
+        }
+        const options: SchedulerCsvOptions = {
+            formatted: true,
+            limit: 'table',
+        };
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
         this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
 
         const analyticProperties: DownloadCsv['properties'] = {
             jobId: '', // not a job

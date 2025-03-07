@@ -107,6 +107,11 @@ const getTagsForTask: {
     }),
 
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: () => ({}),
+    [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
 } as const;
 
 // Generic accessor function
@@ -156,6 +161,7 @@ export const traceTask = <T extends SchedulerTaskName>(
                         if ('user.uuid' in payloadTags) {
                             Sentry.setUser({
                                 id: payloadTags['user.uuid'],
+                                organization: payloadTags['organization.uuid'],
                             });
                         }
 

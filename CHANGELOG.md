@@ -1,3 +1,87 @@
+## [0.1531.4](https://github.com/lightdash/lightdash/compare/0.1531.3...0.1531.4) (2025-03-07)
+
+
+### Bug Fixes
+
+* validation error target ([#13961](https://github.com/lightdash/lightdash/issues/13961)) ([f47b644](https://github.com/lightdash/lightdash/commit/f47b644624da9e750f2f4e56c297f150119247db))
+
+## [0.1531.3](https://github.com/lightdash/lightdash/compare/0.1531.2...0.1531.3) (2025-03-07)
+
+
+### Bug Fixes
+
+* chart descriptions not showing up ([#13968](https://github.com/lightdash/lightdash/issues/13968)) ([4be8bf0](https://github.com/lightdash/lightdash/commit/4be8bf0b315872b4729c9bbcfe99e86e50335dc5))
+
+## [0.1531.2](https://github.com/lightdash/lightdash/compare/0.1531.1...0.1531.2) (2025-03-07)
+
+
+### Bug Fixes
+
+* revert check for gourps in series coloring ([#13964](https://github.com/lightdash/lightdash/issues/13964)) ([ffb3b80](https://github.com/lightdash/lightdash/commit/ffb3b806c918d2fda6f5d49c8a7fb6c296ecaa8b))
+
+## [0.1531.1](https://github.com/lightdash/lightdash/compare/0.1531.0...0.1531.1) (2025-03-07)
+
+
+### Bug Fixes
+
+* Address `getAuthenticationToken` error when unfurling urls in Slackbot ([#13958](https://github.com/lightdash/lightdash/issues/13958)) ([828b479](https://github.com/lightdash/lightdash/commit/828b4791e6ae54279480d0160dff9cddbfac88d3))
+
+# [0.1531.0](https://github.com/lightdash/lightdash/compare/0.1530.6...0.1531.0) (2025-03-06)
+
+
+### Features
+
+* **backend:** allow email configuration without authentication ([#13877](https://github.com/lightdash/lightdash/issues/13877)) ([44f2217](https://github.com/lightdash/lightdash/commit/44f2217b17124f9247b64c6f3e8cc74a93d64678))
+
+## [0.1530.6](https://github.com/lightdash/lightdash/compare/0.1530.5...0.1530.6) (2025-03-06)
+
+
+### Bug Fixes
+
+* conditional formatting null comparison regression ([#13960](https://github.com/lightdash/lightdash/issues/13960)) ([5ad5850](https://github.com/lightdash/lightdash/commit/5ad585001f768a8ed1eea267a38bddaf90114358))
+
+## [0.1530.5](https://github.com/lightdash/lightdash/compare/0.1530.4...0.1530.5) (2025-03-06)
+
+
+### Bug Fixes
+
+* formatting cell value regression ([#13948](https://github.com/lightdash/lightdash/issues/13948)) ([5194924](https://github.com/lightdash/lightdash/commit/5194924e1eda118706d9f0f62aa34a762b8fb6d0))
+
+## [0.1530.4](https://github.com/lightdash/lightdash/compare/0.1530.3...0.1530.4) (2025-03-06)
+
+
+### Bug Fixes
+
+* migrate dashboard csv zip to scheduler ([#13951](https://github.com/lightdash/lightdash/issues/13951)) ([ab04235](https://github.com/lightdash/lightdash/commit/ab042358d45223ef15492715417ab47d6c19cb4c))
+
+## [0.1530.3](https://github.com/lightdash/lightdash/compare/0.1530.2...0.1530.3) (2025-03-06)
+
+
+### Bug Fixes
+
+* download valid chart csv ([#13942](https://github.com/lightdash/lightdash/issues/13942)) ([cbbcc67](https://github.com/lightdash/lightdash/commit/cbbcc678b970be428cb96332e6e09a7408b0d431))
+
+## [0.1530.2](https://github.com/lightdash/lightdash/compare/0.1530.1...0.1530.2) (2025-03-06)
+
+
+### Bug Fixes
+
+* fix import common ([#13944](https://github.com/lightdash/lightdash/issues/13944)) ([e8377ed](https://github.com/lightdash/lightdash/commit/e8377edf6ac3d947ea3df08b0f4b8f6c6bf61743))
+
+## [0.1530.1](https://github.com/lightdash/lightdash/compare/0.1530.0...0.1530.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* table cell rendering for strings that does not have a newline ([#13947](https://github.com/lightdash/lightdash/issues/13947)) ([c23a134](https://github.com/lightdash/lightdash/commit/c23a13467243b5c2971be9c4bb75860dfd49ff18))
+
+# [0.1530.0](https://github.com/lightdash/lightdash/compare/0.1529.1...0.1530.0) (2025-03-06)
+
+
+### Features
+
+* feature flag write back for bin dimensions ([#13936](https://github.com/lightdash/lightdash/issues/13936)) ([1b679eb](https://github.com/lightdash/lightdash/commit/1b679ebe11a9358efa7988792f2623c055420854))
+
 ## [0.1529.1](https://github.com/lightdash/lightdash/compare/0.1529.0...0.1529.1) (2025-03-05)
 
 
