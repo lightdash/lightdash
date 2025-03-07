@@ -140,6 +140,7 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
+import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
@@ -182,6 +183,7 @@ export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
+export * from './types/api/paginatedQuery';
 export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/spotlight';
@@ -217,6 +219,7 @@ export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/paginateResults';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -458,6 +461,12 @@ export type CacheMetadata = {
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     cacheMetadata: CacheMetadata;
+    rows: ResultRow[];
+    fields: ItemsMap;
+};
+
+export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
+    queryId: string;
     rows: ResultRow[];
     fields: ItemsMap;
 };
@@ -751,7 +760,8 @@ type ApiResults =
     | ApiGetMetricsTree['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
-    | ApiCalculateSubtotalsResponse['results'];
+    | ApiCalculateSubtotalsResponse['results']
+    | ApiPaginatedQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1184,6 +1194,28 @@ export function formatRawRows(
 
         return resultRow;
     });
+}
+
+export function formatRow(
+    row: { [col: string]: AnyType },
+    itemsMap: ItemsMap,
+): ResultRow {
+    const resultRow: ResultRow = {};
+    const columnNames = Object.keys(row || {});
+
+    for (const columnName of columnNames) {
+        const value = row[columnName];
+        const item = itemsMap[columnName];
+
+        resultRow[columnName] = {
+            value: {
+                raw: formatRawValue(item, value),
+                formatted: formatItemValue(item, value),
+            },
+        };
+    }
+
+    return resultRow;
 }
 
 export function formatRows(

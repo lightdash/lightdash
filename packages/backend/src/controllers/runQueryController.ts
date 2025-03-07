@@ -8,9 +8,11 @@ import {
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
+    type ApiPaginatedQueryResults,
 } from '@lightdash/common';
 import {
     Body,
+    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -34,6 +36,11 @@ export type ApiRunQueryResponse = {
         rows: AnyType[];
         fields?: Record<string, Item | AdditionalMetric>;
     };
+};
+
+export type ApiRunPaginatedQueryResponse = {
+    status: 'ok';
+    results: ApiPaginatedQueryResults;
 };
 
 @Route('/api/v1/projects/{projectUuid}')

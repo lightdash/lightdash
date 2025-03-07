@@ -38,6 +38,13 @@ export const warehouseClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    getPaginatedResults: async () => ({
+        rows: [],
+        fields: {},
+        queryId: '',
+        pageCount: 0,
+        totalRows: 0,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
