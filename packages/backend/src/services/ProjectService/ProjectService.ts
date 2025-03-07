@@ -193,7 +193,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
-import type { PaginateQueryArgs } from './types';
+import { isPaginateQueryIdArgs, type PaginateQueryArgs } from './types';
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1800,7 +1800,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        if ('queryId' in rest) {
+        if (isPaginateQueryIdArgs(rest)) {
             return this.paginateMetricQuery(
                 {
                     user,
@@ -2346,7 +2346,9 @@ export class ProjectService extends BaseService {
                         sql = query;
 
                         span.setAttribute('generatedSql', query);
-                    } else if ('queryId' in rest) {
+                    } else if (
+                        isPaginateQueryIdArgs({ ...rest, exploreName })
+                    ) {
                         // TODO paginate: in this case fields is being sent in the request, but it's not being generated in the backend because we don't have a metricQuery
                         fieldsMap = rest.fields;
                     }

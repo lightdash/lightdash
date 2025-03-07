@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
-    type PaginatedMetricQueryRequest,
+    isPaginatedQueryIdRequest,
+    type PaginatedQueryRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -32,33 +33,32 @@ export class V2ProjectController extends BaseController {
     @OperationId('query')
     async query(
         @Body()
-        body: PaginatedMetricQueryRequest,
+        body: PaginatedQueryRequest,
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunPaginatedQueryResponse> {
-        const queryParams =
-            'queryId' in body
-                ? {
-                      queryId: body.queryId,
-                      fields: body.fields,
-                      exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId
-                  }
-                : {
-                      metricQuery: {
-                          exploreName: body.query.exploreName,
-                          dimensions: body.query.dimensions,
-                          metrics: body.query.metrics,
-                          filters: body.query.filters,
-                          sorts: body.query.sorts,
-                          limit: body.query.limit,
-                          tableCalculations: body.query.tableCalculations,
-                          additionalMetrics: body.query.additionalMetrics,
-                          customDimensions: body.query.customDimensions,
-                          timezone: body.query.timezone,
-                          metricOverrides: body.query.metricOverrides,
-                      },
-                      csvLimit: body.query.csvLimit,
-                  };
+        const queryParams = isPaginatedQueryIdRequest(body)
+            ? {
+                  queryId: body.queryId,
+                  fields: body.fields,
+                  exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId
+              }
+            : {
+                  metricQuery: {
+                      exploreName: body.query.exploreName,
+                      dimensions: body.query.dimensions,
+                      metrics: body.query.metrics,
+                      filters: body.query.filters,
+                      sorts: body.query.sorts,
+                      limit: body.query.limit,
+                      tableCalculations: body.query.tableCalculations,
+                      additionalMetrics: body.query.additionalMetrics,
+                      customDimensions: body.query.customDimensions,
+                      timezone: body.query.timezone,
+                      metricOverrides: body.query.metricOverrides,
+                  },
+                  csvLimit: body.query.csvLimit,
+              };
 
         const results = await this.services
             .getProjectService()
