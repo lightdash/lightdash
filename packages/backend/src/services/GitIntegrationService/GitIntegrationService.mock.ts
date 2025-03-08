@@ -5,9 +5,12 @@ import {
     DimensionType,
     MetricType,
 } from '@lightdash/common';
+import { warehouseClientMock } from '../../queryBuilder.mock';
 
 export const PROJECT_MODEL = {
     getExploreFromCache: jest.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
+    getWarehouseCredentialsForProject: jest.fn(() => ({})),
+    getWarehouseClientFromCredentials: jest.fn(() => warehouseClientMock),
 };
 export const SAVED_CHART_MODEL = {};
 export const SPACE_MODEL = {};
@@ -122,13 +125,11 @@ models:
               type: count_distinct
             metric_b:
               type: sum
-        additional_dimensions:
-          amount_size:
-            label: Amount size
-            name: amount_size
-            description: ''
-            type: string
-            sql: \${table_a.dim_a}
+          additional_dimensions:
+            amount_size:
+              label: Amount size
+              type: string
+              sql: \${table_a.dim_a}
   - name: table_b
     description: >-
       # Description This table has basic information

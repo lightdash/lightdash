@@ -7228,11 +7228,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ReplaceCustomFieldsTaskType: {
+    SchedulerTaskName: {
         dataType: 'refAlias',
         type: {
-            dataType: 'enum',
-            enums: ['replaceCustomFields'],
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['handleScheduledDelivery'] },
+                { dataType: 'enum', enums: ['sendSlackNotification'] },
+                { dataType: 'enum', enums: ['sendEmailNotification'] },
+                { dataType: 'enum', enums: ['uploadGsheets'] },
+                { dataType: 'enum', enums: ['downloadCsv'] },
+                { dataType: 'enum', enums: ['uploadGsheetFromQuery'] },
+                { dataType: 'enum', enums: ['validateProject'] },
+                { dataType: 'enum', enums: ['compileProject'] },
+                { dataType: 'enum', enums: ['createProjectWithCompile'] },
+                { dataType: 'enum', enums: ['testAndCompileProject'] },
+                { dataType: 'enum', enums: ['semanticLayer'] },
+                { dataType: 'enum', enums: ['sqlRunner'] },
+                { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
+                { dataType: 'enum', enums: ['replaceCustomFields'] },
+                { dataType: 'enum', enums: ['indexCatalog'] },
+                { dataType: 'enum', enums: ['generateDailyJobs'] },
+            ],
             validators: {},
         },
     },
@@ -7263,33 +7280,7 @@ const models: TsoaRoute.Models = {
                 jobGroup: { dataType: 'string' },
                 jobId: { dataType: 'string', required: true },
                 schedulerUuid: { dataType: 'string' },
-                task: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'enum',
-                            enums: ['handleScheduledDelivery'],
-                        },
-                        { dataType: 'enum', enums: ['sendEmailNotification'] },
-                        { dataType: 'enum', enums: ['sendSlackNotification'] },
-                        { dataType: 'enum', enums: ['uploadGsheets'] },
-                        { dataType: 'enum', enums: ['downloadCsv'] },
-                        { dataType: 'enum', enums: ['uploadGsheetFromQuery'] },
-                        {
-                            dataType: 'enum',
-                            enums: ['createProjectWithCompile'],
-                        },
-                        { dataType: 'enum', enums: ['compileProject'] },
-                        { dataType: 'enum', enums: ['testAndCompileProject'] },
-                        { dataType: 'enum', enums: ['validateProject'] },
-                        { dataType: 'enum', enums: ['sqlRunner'] },
-                        { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
-                        { dataType: 'enum', enums: ['semanticLayer'] },
-                        { ref: 'ReplaceCustomFieldsTaskType' },
-                        { dataType: 'enum', enums: ['indexCatalog'] },
-                    ],
-                    required: true,
-                },
+                task: { ref: 'SchedulerTaskName', required: true },
             },
             validators: {},
         },
@@ -10151,7 +10142,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -10161,7 +10152,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -10171,7 +10162,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -10184,7 +10175,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -25972,7 +25963,7 @@ export function RegisterRoutes(app: Router) {
                 },
                 customDimensions: {
                     dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'CustomSqlDimension' },
+                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
                     required: true,
                 },
             },

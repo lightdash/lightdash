@@ -81,14 +81,6 @@ schedulerWorkerEventEmitter.on('job:error', ({ worker, job, error }) => {
 schedulerWorkerEventEmitter.on('job:failed', ({ worker, job, error }) => {
     const message = `Worker ${worker.workerId} failed job ${job.id} (${job.task_identifier}). ${error}`;
     Logger.info(message);
-    Sentry.captureException(new Error(message), {
-        extra: {
-            workerId: worker.workerId,
-            jobId: job.id,
-            task: job.task_identifier,
-            error,
-        },
-    });
 });
 
 schedulerWorkerEventEmitter.on('job:complete', ({ worker, job }) => {

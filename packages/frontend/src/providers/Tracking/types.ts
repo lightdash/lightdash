@@ -360,12 +360,15 @@ type MetricsCatalogTreesCanvasModeClickedEvent = {
 type WriteBackEvent = {
     name:
         | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_HEADER_CLICKED
-        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED;
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_HEADER_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED;
     properties: {
         userId: string;
         organizationId: string;
         projectId: string;
-        customMetricsCount: number;
+        customMetricsCount?: number;
+        customDimensionsCount?: number;
     };
 };
 

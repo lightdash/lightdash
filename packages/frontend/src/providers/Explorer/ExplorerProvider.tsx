@@ -1,6 +1,7 @@
 import {
-    ChartType,
+    type ApiQueryResults,
     assertUnreachable,
+    ChartType,
     convertFieldRefToFieldId,
     deepEqual,
     getFieldRef,
@@ -15,6 +16,7 @@ import {
     type ChartConfig,
     type CustomDimension,
     type CustomFormat,
+    type DateGranularity,
     type FieldId,
     type Metric,
     type MetricQuery,
@@ -24,6 +26,7 @@ import {
     type TableCalculation,
     type TimeZone,
 } from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import {
@@ -32,14 +35,15 @@ import {
     useMemo,
     useReducer,
     useRef,
+    useState,
     type FC,
 } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
-    type useChartVersionResultsMutation,
-    type useQueryResults,
+    useQueryResults,
+    type QueryResultsProps,
 } from '../../hooks/useQueryResults';
 import ExplorerContext from './context';
 import {
@@ -88,7 +92,7 @@ const defaultState: ExplorerReduceState = {
         customDimension: {
             isOpen: false,
         },
-        additionalMetricWriteBack: {
+        writeBack: {
             isOpen: false,
         },
     },
@@ -799,13 +803,13 @@ function reducer(
                 },
             };
         }
-        case ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL: {
+        case ActionType.TOGGLE_WRITE_BACK_MODAL: {
             return {
                 ...state,
                 modals: {
                     ...state.modals,
-                    additionalMetricWriteBack: {
-                        isOpen: !state.modals.additionalMetricWriteBack.isOpen,
+                    writeBack: {
+                        isOpen: !state.modals.writeBack.isOpen,
                         ...(action.payload && { ...action.payload }),
                     },
                 },
@@ -1023,9 +1027,10 @@ const ExplorerProvider: FC<
         initialState?: ExplorerReduceState;
         savedChart?: SavedChart;
         defaultLimit?: number;
-        queryResults: ReturnType<
-            typeof useQueryResults | typeof useChartVersionResultsMutation
-        >;
+        viewModeQueryArgs?:
+            | { chartUuid: string; context?: string }
+            | { chartUuid: string; chartVersionUuid: string };
+        dateZoomGranularity?: DateGranularity;
     }>
 > = ({
     isEditMode = false,
@@ -1033,7 +1038,8 @@ const ExplorerProvider: FC<
     savedChart,
     defaultLimit,
     children,
-    queryResults,
+    viewModeQueryArgs,
+    dateZoomGranularity,
 }) => {
     const defaultStateWithConfig = useMemo(
         () => ({
@@ -1296,10 +1302,10 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const toggleAdditionalMetricWriteBackModal = useCallback(
-        (args?: { items?: AdditionalMetric[]; multiple?: boolean }) => {
+    const toggleWriteBackModal = useCallback(
+        (args?: { items?: CustomDimension[] | AdditionalMetric[] }) => {
             dispatch({
-                type: ActionType.TOGGLE_ADDITIONAL_METRIC_WRITE_BACK_MODAL,
+                type: ActionType.TOGGLE_WRITE_BACK_MODAL,
                 payload: args,
             });
         },
@@ -1489,42 +1495,75 @@ const ExplorerProvider: FC<
         ],
     );
 
-    // Fetch query results after state update
-    const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
-        queryResults;
+    const queryClient = useQueryClient();
+    const [validQueryArgs, setValidQueryArgs] =
+        useState<QueryResultsProps | null>(null);
+    const queryResults = useQueryResults(validQueryArgs);
+    const [lastSuccessfulResult, setLastSuccessfulResult] = useState<
+        ApiQueryResults | undefined
+    >(undefined);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { remove: clearQueryResults } = queryResults;
+    const resetQueryResults = useCallback(() => {
+        setValidQueryArgs(null);
+        clearQueryResults();
+    }, [clearQueryResults]);
 
-    const mutateAsync = useCallback(async () => {
-        try {
-            const result = await mutateAsyncQuery(
-                unsavedChartVersion.tableName,
-                unsavedChartVersion.metricQuery,
-            );
-
+    // Prepares and executes query if all required parameters exist
+    const runQuery = useCallback(() => {
+        const fields = new Set([
+            ...unsavedChartVersion.metricQuery.dimensions,
+            ...unsavedChartVersion.metricQuery.metrics,
+            ...unsavedChartVersion.metricQuery.tableCalculations.map(
+                ({ name }) => name,
+            ),
+        ]);
+        const hasFields = fields.size > 0;
+        if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
+            setValidQueryArgs({
+                projectUuid,
+                tableId: unsavedChartVersion.tableName,
+                query: unsavedChartVersion.metricQuery,
+                ...(isEditMode ? {} : viewModeQueryArgs),
+                dateZoomGranularity,
+            });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
                 payload: cloneDeep(unsavedChartVersion.metricQuery),
             });
-
-            return result;
-        } catch (e) {
-            console.error(e);
+        } else {
+            console.warn(
+                `Can't make SQL request, invalid state`,
+                unsavedChartVersion.tableName,
+                hasFields,
+                unsavedChartVersion.metricQuery,
+            );
         }
     }, [
-        mutateAsyncQuery,
-        unsavedChartVersion.tableName,
         unsavedChartVersion.metricQuery,
+        unsavedChartVersion.tableName,
+        projectUuid,
+        isEditMode,
+        viewModeQueryArgs,
+        dateZoomGranularity,
     ]);
 
     useEffect(() => {
         if (!state.shouldFetchResults) return;
+        runQuery();
+        dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
+    }, [runQuery, state.shouldFetchResults]);
 
-        async function fetchResults() {
-            await mutateAsync();
-            dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
+    useEffect(() => {
+        if (queryResults.data && !queryResults.isLoading) {
+            setLastSuccessfulResult(queryResults.data);
         }
 
-        void fetchResults();
-    }, [mutateAsync, state.shouldFetchResults]);
+        return () => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            setLastSuccessfulResult(undefined);
+        };
+    }, [queryResults.data, queryResults.isLoading]);
 
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
@@ -1569,20 +1608,32 @@ const ExplorerProvider: FC<
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
-            return mutateAsync();
+            // force new results even when query is the same
+            clearQueryResults();
+            runQuery();
         }
-    }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
+    }, [
+        unsavedChartVersion.metricQuery.sorts.length,
+        defaultSort,
+        setSortFields,
+        clearQueryResults,
+        runQuery,
+    ]);
 
     const cancelFetchResults = useCallback(async () => {
-        const cancelQuery =
-            'cancelQuery' in queryResults
-                ? queryResults.cancelQuery
-                : undefined; // cancelQuery is only available in useQueryResults (not useChartVersionResultsMutation)
+        if (!validQueryArgs?.chartUuid && !validQueryArgs?.chartVersionUuid) {
+            queryClient.cancelQueries({
+                queryKey: ['query-all-results', validQueryArgs],
+            });
 
-        if (cancelQuery) {
-            cancelQuery();
+            if (lastSuccessfulResult) {
+                queryClient.setQueryData(
+                    ['query-all-results', validQueryArgs],
+                    lastSuccessfulResult,
+                );
+            }
         }
-    }, [queryResults, resetQueryResults]);
+    }, [lastSuccessfulResult, queryClient, validQueryArgs]);
 
     const actions = useMemo(
         () => ({
@@ -1605,7 +1656,7 @@ const ExplorerProvider: FC<
             editAdditionalMetric,
             removeAdditionalMetric,
             toggleAdditionalMetricModal,
-            toggleAdditionalMetricWriteBackModal,
+            toggleWriteBackModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1658,7 +1709,7 @@ const ExplorerProvider: FC<
             toggleCustomDimensionModal,
             toggleFormatModal,
             updateMetricFormat,
-            toggleAdditionalMetricWriteBackModal,
+            toggleWriteBackModal,
             replaceFields,
         ],
     );

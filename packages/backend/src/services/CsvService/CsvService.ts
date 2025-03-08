@@ -986,6 +986,8 @@ This method can be memory intensive
             ...csvOptions,
             csvLimit,
             userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid || '',
+            projectUuid: csvOptions.projectUuid,
         };
         const { jobId } = await this.schedulerClient.downloadCsvJob(payload);
 

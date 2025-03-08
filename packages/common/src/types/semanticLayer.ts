@@ -9,6 +9,7 @@ import type {
     SemanticLayerType,
     SortByDirection,
     SpaceSummary,
+    TraceTaskBase,
     VizAggregationOptions,
 } from '..';
 import { type FieldType } from './field';
@@ -144,10 +145,7 @@ export interface SemanticLayerClient {
     getMaxQueryLimit: () => number;
 }
 
-export type SemanticLayerQueryPayload = {
-    projectUuid: string;
-    organizationUuid: string;
-    userUuid: string;
+export type SemanticLayerQueryPayload = TraceTaskBase & {
     query: SemanticLayerQuery;
     context: QueryExecutionContext.SEMANTIC_VIEWER;
     chartUuid?: string;
@@ -158,8 +156,6 @@ export const isSemanticLayerTimeDimension = (
 ): field is SemanticLayerTimeDimension => 'granularity' in field;
 
 // Semantic Layer Scheduler Job
-
-export const semanticLayerQueryJob = 'semanticLayer';
 
 export type SemanticLayerJobStatusSuccessDetails = {
     fileUrl: string;

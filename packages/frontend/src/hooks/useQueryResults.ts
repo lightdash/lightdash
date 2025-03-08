@@ -1,4 +1,5 @@
 import {
+    ParameterError,
     type ApiChartAndResults,
     type ApiError,
     type ApiQueryResults,
@@ -7,8 +8,8 @@ import {
     type MetricQuery,
     type SortField,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -16,15 +17,15 @@ import {
     convertDateDashboardFilters,
     convertDateFilters,
 } from '../utils/dateFilter';
-import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-type QueryResultsProps = {
+export type QueryResultsProps = {
     projectUuid: string;
     tableId: string;
     query?: MetricQuery;
     csvLimit?: number | null; //giving null returns all results (no limit)
     chartUuid?: string;
+    chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
     signal?: AbortSignal;
@@ -32,12 +33,9 @@ type QueryResultsProps = {
 
 const getChartResults = async ({
     chartUuid,
-    invalidateCache,
     context,
 }: {
     chartUuid?: string;
-    invalidateCache?: boolean;
-    dashboardSorts?: SortField[];
     context?: string;
 }) => {
     return lightdashApi<ApiQueryResults>({
@@ -45,9 +43,7 @@ const getChartResults = async ({
             context ? `?context=${context}` : ''
         }`,
         method: 'POST',
-        body: JSON.stringify({
-            ...(invalidateCache && { invalidateCache: true }),
-        }),
+        body: undefined,
     });
 };
 
@@ -111,147 +107,6 @@ const getQueryResults = async ({
         }),
         signal,
     });
-};
-
-export const useQueryResults = (props?: {
-    chartUuid?: string;
-    isViewOnly?: boolean;
-    dateZoomGranularity?: DateGranularity;
-    context?: string;
-}) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const setErrorResponse = useQueryError({
-        forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
-    });
-
-    // Need to maintain the same controller instance across renders
-    const controllerRef = useRef<AbortController | null>(null);
-    const lastSuccessfulDataRef = useRef<ApiQueryResults | null>(null);
-
-    const getController = useCallback(() => {
-        // Create a new controller for this request
-        controllerRef.current = new AbortController();
-        return controllerRef.current;
-    }, []);
-
-    const fetchQuery = async (queryProps: QueryResultsProps) => {
-        // Get a fresh controller for this specific query
-        const controller = getController();
-
-        try {
-            let result;
-            if (props?.isViewOnly === true) {
-                result = await getChartResults({
-                    ...queryProps,
-                });
-            } else {
-                result = await getQueryResults({
-                    ...queryProps,
-                    signal: controller.signal,
-                });
-            }
-
-            lastSuccessfulDataRef.current = result;
-            return result;
-        } catch (error) {
-            // If this is an abort error and we have previous data, return that instead
-            if (
-                (error as ApiError).error?.data?.name === 'AbortError' &&
-                lastSuccessfulDataRef.current
-            ) {
-                console.log('Request aborted, using previous successful data');
-                return lastSuccessfulDataRef.current;
-            }
-            throw error;
-        }
-    };
-
-    const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
-        fetchQuery,
-        {
-            mutationKey: ['queryResults'],
-            onError: (error) => {
-                if (error.error?.data?.name !== 'AbortError') {
-                    setErrorResponse(error);
-                }
-            },
-            onMutate: () => {
-                // Keep track of the current state (before mutation)
-                return { previousData: lastSuccessfulDataRef.current };
-            },
-        },
-    );
-
-    const cancelQuery = useCallback(() => {
-        console.log(
-            'Cancelling query: ',
-            mutation.isLoading,
-            mutation.status,
-            controllerRef.current?.signal.aborted,
-        );
-
-        if (mutation.isLoading && controllerRef.current) {
-            controllerRef.current.abort();
-            console.log(
-                'Query cancelled: ',
-                mutation,
-                controllerRef.current.signal.aborted,
-            );
-        }
-    }, [mutation]);
-
-    const { mutateAsync } = mutation;
-
-    const mutateAsyncOverride = useCallback(
-        async (tableName: string, metricQuery: MetricQuery) => {
-            const fields = new Set([
-                ...metricQuery.dimensions,
-                ...metricQuery.metrics,
-                ...metricQuery.tableCalculations.map(({ name }) => name),
-            ]);
-            const isValidQuery = fields.size > 0;
-            if (!!tableName && isValidQuery && projectUuid) {
-                try {
-                    return await mutateAsync({
-                        projectUuid,
-                        tableId: tableName,
-                        query: metricQuery,
-                        chartUuid: props?.chartUuid,
-                        dateZoomGranularity: props?.dateZoomGranularity,
-                        context: props?.context,
-                    });
-                } catch (error) {
-                    // If it's an abort error, don't reject - this was intentional
-                    if ((error as ApiError).error?.data?.name == 'AbortError') {
-                        console.log('Handling aborted request gracefully');
-                        return lastSuccessfulDataRef.current;
-                    }
-                    return Promise.reject(error);
-                }
-            } else {
-                console.warn(
-                    `Can't make SQL request, invalid state`,
-                    tableName,
-                    isValidQuery,
-                    metricQuery,
-                );
-                return Promise.reject();
-            }
-        },
-        [
-            mutateAsync,
-            projectUuid,
-            props?.chartUuid,
-            props?.dateZoomGranularity,
-            props?.context,
-        ],
-    );
-
-    return useMemo(
-        () => ({ ...mutation, cancelQuery, mutateAsync: mutateAsyncOverride }),
-        [mutation, mutateAsyncOverride, cancelQuery],
-    );
 };
 
 const getUnderlyingDataResults = async ({
@@ -401,40 +256,39 @@ const getChartVersionResults = async (
     });
 };
 
-export const useChartVersionResultsMutation = (
-    chartUuid: string | undefined,
-    versionUuid?: string,
-) => {
-    const { showToastApiError } = useToaster();
-    const mutation = useMutation<ApiQueryResults, ApiError>(
-        () =>
-            chartUuid && versionUuid
-                ? getChartVersionResults(chartUuid, versionUuid)
-                : Promise.reject(),
-        {
-            mutationKey: ['chartVersionResults', chartUuid, versionUuid],
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Error running query',
-                    apiError: error,
-                });
-            },
-        },
-    );
-    const { mutateAsync } = mutation;
-    // needs these args to work with ExplorerProvider
-    const mutateAsyncOverride = useCallback(
-        async (_tableName: string, _metricQuery: MetricQuery) => {
-            await mutateAsync();
-        },
-        [mutateAsync],
-    );
+export const useQueryResults = (data: QueryResultsProps | null) => {
+    const setErrorResponse = useQueryError({
+        forceToastOnForbidden: true,
+        forbiddenToastTitle: 'Error running query',
+    });
 
-    return useMemo(
-        () => ({
-            ...mutation,
-            mutateAsync: mutateAsyncOverride,
-        }),
-        [mutation, mutateAsyncOverride],
-    );
+    const result = useQuery<ApiQueryResults, ApiError>({
+        enabled: !!data,
+        queryKey: ['query-all-results', data],
+        queryFn: ({ signal }) => {
+            if (data?.chartUuid && data?.chartVersionUuid) {
+                return getChartVersionResults(
+                    data.chartUuid,
+                    data.chartVersionUuid,
+                );
+            } else if (data?.chartUuid) {
+                return getChartResults(data);
+            } else if (data) {
+                return getQueryResults({ ...data, signal });
+            }
+
+            return Promise.reject(
+                new ParameterError('Missing QueryResultsProps'),
+            );
+        },
+    });
+
+    // On Error
+    useEffect(() => {
+        if (result.error) {
+            setErrorResponse(result.error);
+        }
+    }, [result.error, setErrorResponse]);
+
+    return result;
 };

@@ -1,3 +1,31 @@
+## [0.1529.1](https://github.com/lightdash/lightdash/compare/0.1529.0...0.1529.1) (2025-03-05)
+
+
+### Bug Fixes
+
+*  disable calculate series color ([#13923](https://github.com/lightdash/lightdash/issues/13923)) ([d2744b2](https://github.com/lightdash/lightdash/commit/d2744b2f90b9f1a8e98b6091c9df04ab33f25f6a))
+
+# [0.1529.0](https://github.com/lightdash/lightdash/compare/0.1528.0...0.1529.0) (2025-03-05)
+
+
+### Features
+
+* **frontend:** Custom dimensions write back ([#13917](https://github.com/lightdash/lightdash/issues/13917)) ([c0aa312](https://github.com/lightdash/lightdash/commit/c0aa312f1d622fefa8c10e59a187a5622478ec4e))
+
+# [0.1528.0](https://github.com/lightdash/lightdash/compare/0.1527.2...0.1528.0) (2025-03-05)
+
+
+### Features
+
+* **API:** write back bin dimensions ([#13925](https://github.com/lightdash/lightdash/issues/13925)) ([a8d51fc](https://github.com/lightdash/lightdash/commit/a8d51fca995199ff333d440f585fb77354e4a9cf))
+
+## [0.1527.2](https://github.com/lightdash/lightdash/compare/0.1527.1...0.1527.2) (2025-03-04)
+
+
+### Bug Fixes
+
+* custom dimension table labels ([#13874](https://github.com/lightdash/lightdash/issues/13874)) ([87e785a](https://github.com/lightdash/lightdash/commit/87e785a7e9e68cd62fbeb529b98d3b35aaf9cd3e))
+
 ## [0.1527.1](https://github.com/lightdash/lightdash/compare/0.1527.0...0.1527.1) (2025-03-04)
 
 

@@ -98,7 +98,6 @@ import {
     type ApiJobStatusResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
-    type SchedulerWithLogs,
 } from './types/scheduler';
 import { type ApiSlackChannelsResponse } from './types/slack';
 import { type Space } from './types/space';
@@ -142,6 +141,7 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
     type ApiSemanticViewerChartCreate,
@@ -229,6 +229,8 @@ export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';
+export * from './types/schedulerLog';
+export * from './types/schedulerTaskList';
 export * from './types/search';
 export * from './types/semanticLayer';
 export * from './types/share';
@@ -257,6 +259,7 @@ export * from './utils/charts';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
+export * from './utils/customDimensions';
 export * from './utils/dashboard';
 export * from './utils/dbt';
 export * from './utils/email';
