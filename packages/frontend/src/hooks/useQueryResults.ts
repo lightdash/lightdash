@@ -8,7 +8,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -27,6 +27,7 @@ type QueryResultsProps = {
     chartUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
+    signal?: AbortSignal;
 };
 
 const getChartResults = async ({
@@ -91,6 +92,7 @@ const getQueryResults = async ({
     csvLimit,
     dateZoomGranularity,
     context,
+    signal,
 }: QueryResultsProps) => {
     const timezoneFixQuery = query && {
         ...query,
@@ -107,6 +109,7 @@ const getQueryResults = async ({
             csvLimit,
             context,
         }),
+        signal,
     });
 };
 
@@ -122,17 +125,81 @@ export const useQueryResults = (props?: {
         forbiddenToastTitle: 'Error running query',
     });
 
-    const fetchQuery =
-        props?.isViewOnly === true ? getChartResults : getQueryResults;
+    // Need to maintain the same controller instance across renders
+    const controllerRef = useRef<AbortController | null>(null);
+    const lastSuccessfulDataRef = useRef<ApiQueryResults | null>(null);
+
+    const getController = useCallback(() => {
+        // Create a new controller for this request
+        controllerRef.current = new AbortController();
+        return controllerRef.current;
+    }, []);
+
+    const fetchQuery = async (queryProps: QueryResultsProps) => {
+        // Get a fresh controller for this specific query
+        const controller = getController();
+
+        try {
+            let result;
+            if (props?.isViewOnly === true) {
+                result = await getChartResults({
+                    ...queryProps,
+                });
+            } else {
+                result = await getQueryResults({
+                    ...queryProps,
+                    signal: controller.signal,
+                });
+            }
+
+            lastSuccessfulDataRef.current = result;
+            return result;
+        } catch (error) {
+            // If this is an abort error and we have previous data, return that instead
+            if (
+                (error as ApiError).error?.data?.name === 'AbortError' &&
+                lastSuccessfulDataRef.current
+            ) {
+                console.log('Request aborted, using previous successful data');
+                return lastSuccessfulDataRef.current;
+            }
+            throw error;
+        }
+    };
+
     const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
         fetchQuery,
         {
             mutationKey: ['queryResults'],
             onError: (error) => {
-                setErrorResponse(error);
+                if (error.error?.data?.name !== 'AbortError') {
+                    setErrorResponse(error);
+                }
+            },
+            onMutate: () => {
+                // Keep track of the current state (before mutation)
+                return { previousData: lastSuccessfulDataRef.current };
             },
         },
     );
+
+    const cancelQuery = useCallback(() => {
+        console.log(
+            'Cancelling query: ',
+            mutation.isLoading,
+            mutation.status,
+            controllerRef.current?.signal.aborted,
+        );
+
+        if (mutation.isLoading && controllerRef.current) {
+            controllerRef.current.abort();
+            console.log(
+                'Query cancelled: ',
+                mutation,
+                controllerRef.current.signal.aborted,
+            );
+        }
+    }, [mutation]);
 
     const { mutateAsync } = mutation;
 
@@ -145,14 +212,23 @@ export const useQueryResults = (props?: {
             ]);
             const isValidQuery = fields.size > 0;
             if (!!tableName && isValidQuery && projectUuid) {
-                await mutateAsync({
-                    projectUuid,
-                    tableId: tableName,
-                    query: metricQuery,
-                    chartUuid: props?.chartUuid,
-                    dateZoomGranularity: props?.dateZoomGranularity,
-                    context: props?.context,
-                });
+                try {
+                    return await mutateAsync({
+                        projectUuid,
+                        tableId: tableName,
+                        query: metricQuery,
+                        chartUuid: props?.chartUuid,
+                        dateZoomGranularity: props?.dateZoomGranularity,
+                        context: props?.context,
+                    });
+                } catch (error) {
+                    // If it's an abort error, don't reject - this was intentional
+                    if ((error as ApiError).error?.data?.name == 'AbortError') {
+                        console.log('Handling aborted request gracefully');
+                        return lastSuccessfulDataRef.current;
+                    }
+                    return Promise.reject(error);
+                }
             } else {
                 console.warn(
                     `Can't make SQL request, invalid state`,
@@ -173,8 +249,8 @@ export const useQueryResults = (props?: {
     );
 
     return useMemo(
-        () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
-        [mutation, mutateAsyncOverride],
+        () => ({ ...mutation, cancelQuery, mutateAsync: mutateAsyncOverride }),
+        [mutation, mutateAsyncOverride, cancelQuery],
     );
 };
 

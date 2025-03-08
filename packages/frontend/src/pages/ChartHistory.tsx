@@ -234,7 +234,7 @@ const ChartHistory = () => {
                         variant="light"
                     >
                         <p>
-                            Version history preview changes chart configuration
+                            Version history preview changes in chart configuration
                             and setup, but always queries the latest version of
                             the data itself
                         </p>

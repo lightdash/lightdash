@@ -1573,6 +1573,17 @@ const ExplorerProvider: FC<
         }
     }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
 
+    const cancelFetchResults = useCallback(async () => {
+        const cancelQuery =
+            'cancelQuery' in queryResults
+                ? queryResults.cancelQuery
+                : undefined; // cancelQuery is only available in useQueryResults (not useChartVersionResultsMutation)
+
+        if (cancelQuery) {
+            cancelQuery();
+        }
+    }, [queryResults, resetQueryResults]);
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1602,6 +1613,7 @@ const ExplorerProvider: FC<
             setChartType,
             setChartConfig,
             fetchResults,
+            cancelFetchResults,
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
@@ -1638,6 +1650,7 @@ const ExplorerProvider: FC<
             setChartType,
             setChartConfig,
             fetchResults,
+            cancelFetchResults,
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,

@@ -2015,7 +2015,7 @@ export class ProjectService extends BaseService {
                 }
 
                 this.logger.debug(
-                    `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
+                    `Run query against warehouse with timezone ${metricQuery.timezone}`,
                 );
 
                 const warehouseResults = await wrapSentryTransaction(
