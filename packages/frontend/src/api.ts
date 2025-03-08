@@ -49,6 +49,7 @@ type LightdashApiProps = {
     body: BodyInit | null | undefined;
     headers?: Record<string, string> | undefined;
     version?: 'v1' | 'v2';
+    signal?: AbortSignal;
 };
 
 export const lightdashApi = async <T extends ApiResponse['results']>({
@@ -57,6 +58,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     body,
     headers,
     version = 'v1',
+    signal,
 }: LightdashApiProps): Promise<T> => {
     const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
@@ -90,6 +92,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
         },
         body,
+        signal,
     })
         .then((r) => {
             if (!r.ok) {

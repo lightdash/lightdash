@@ -30,7 +30,6 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
-import { useChartVersionResultsMutation } from '../hooks/useQueryResults';
 import {
     useChartHistory,
     useChartVersion,
@@ -63,11 +62,6 @@ const ChartHistory = () => {
     }, [selectedVersionUuid, historyQuery.data]);
 
     const chartVersionQuery = useChartVersion(
-        savedQueryUuid,
-        selectedVersionUuid,
-    );
-
-    const queryResults = useChartVersionResultsMutation(
         savedQueryUuid,
         selectedVersionUuid,
     );
@@ -234,7 +228,7 @@ const ChartHistory = () => {
                         variant="light"
                     >
                         <p>
-                            Version history preview changes chart configuration
+                            Version history preview changes in chart configuration
                             and setup, but always queries the latest version of
                             the data itself
                         </p>
@@ -252,7 +246,14 @@ const ChartHistory = () => {
             {chartVersionQuery.data && (
                 <ExplorerProvider
                     key={selectedVersionUuid}
-                    queryResults={queryResults}
+                    viewModeQueryArgs={
+                        savedQueryUuid && selectedVersionUuid
+                            ? {
+                                  chartUuid: savedQueryUuid,
+                                  chartVersionUuid: selectedVersionUuid,
+                              }
+                            : undefined
+                    }
                     initialState={{
                         shouldFetchResults: true,
                         previouslyFetchedState: undefined,

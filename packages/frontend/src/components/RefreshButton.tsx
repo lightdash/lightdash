@@ -8,8 +8,8 @@ import {
     type MantineSize,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlay } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { IconPlayerPlay, IconX } from '@tabler/icons-react';
+import { memo, useCallback, useState, type FC } from 'react';
 import useHealth from '../hooks/health/useHealth';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
@@ -32,11 +32,16 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         (context) => context.state.isValidQuery,
     );
     const isLoading = useExplorerContext(
-        (context) => context.queryResults.isLoading,
+        (context) => context.queryResults.isFetching,
     );
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,
     );
+    const cancelFetchResults = useExplorerContext(
+        (context) => context.actions.cancelFetchResults,
+    );
+
+    const [hasUserRunQuery, setHasUserRunQuery] = useState(false);
 
     const canRunQuery = isValidQuery;
 
@@ -44,12 +49,49 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
 
     const onClick = useCallback(() => {
         if (canRunQuery) {
+            setHasUserRunQuery(true);
             fetchResults();
             track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
         }
     }, [fetchResults, track, canRunQuery]);
 
-    useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
+    useHotkeys([
+        ['mod + enter', onClick, { preventDefault: true }],
+        [
+            'escape',
+            () => {
+                if (isLoading && hasUserRunQuery) {
+                    cancelFetchResults();
+                }
+            },
+            { preventDefault: true },
+        ],
+    ]);
+
+    if (isLoading && hasUserRunQuery) {
+        return (
+            <Tooltip
+                label={
+                    <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+                        <Kbd fw={600}>esc</Kbd>
+                    </MantineProvider>
+                }
+                position="bottom"
+                withArrow
+                withinPortal
+            >
+                <Button
+                    size={size}
+                    leftIcon={<MantineIcon icon={IconX} />}
+                    onClick={cancelFetchResults}
+                    variant="outline"
+                    color="red"
+                >
+                    Cancel query
+                </Button>
+            </Tooltip>
+        );
+    }
 
     return (
         <Button.Group>
@@ -77,7 +119,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     size={size}
                     disabled={!isValidQuery}
                     leftIcon={<MantineIcon icon={IconPlayerPlay} />}
-                    loading={isLoading}
+                    loading={isLoading && !hasUserRunQuery}
                     onClick={onClick}
                     sx={(theme) => ({
                         flex: 1,
@@ -92,7 +134,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
             </Tooltip>
 
             <LimitButton
-                disabled={!isValidQuery}
+                disabled={isLoading || !isValidQuery}
                 size={size}
                 maxLimit={maxLimit}
                 limit={limit}
