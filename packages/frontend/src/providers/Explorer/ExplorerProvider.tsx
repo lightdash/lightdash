@@ -1,5 +1,4 @@
 import {
-    type ApiQueryResults,
     assertUnreachable,
     ChartType,
     convertFieldRefToFieldId,
@@ -13,6 +12,7 @@ import {
     toggleArrayValue,
     updateFieldIdInFilters,
     type AdditionalMetric,
+    type ApiQueryResults,
     type ChartConfig,
     type CustomDimension,
     type CustomFormat,
@@ -1558,11 +1558,6 @@ const ExplorerProvider: FC<
         if (queryResults.data && !queryResults.isLoading) {
             setLastSuccessfulResult(queryResults.data);
         }
-
-        return () => {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            setLastSuccessfulResult(undefined);
-        };
     }, [queryResults.data, queryResults.isLoading]);
 
     const clearExplore = useCallback(async () => {
@@ -1572,7 +1567,9 @@ const ExplorerProvider: FC<
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
+
         resetQueryResults();
+        setLastSuccessfulResult(undefined);
     }, [resetQueryResults, defaultStateWithConfig]);
 
     const navigate = useNavigate();
