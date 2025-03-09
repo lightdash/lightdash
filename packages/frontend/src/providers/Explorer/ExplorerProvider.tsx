@@ -1619,7 +1619,7 @@ const ExplorerProvider: FC<
 
     const cancelFetchResults = useCallback(async () => {
         if (!validQueryArgs?.chartUuid && !validQueryArgs?.chartVersionUuid) {
-            queryClient.cancelQueries({
+            await queryClient.cancelQueries({
                 queryKey: ['query-all-results', validQueryArgs],
             });
 
