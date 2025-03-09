@@ -449,7 +449,7 @@ This method can be memory intensive
         onlyRaw,
         truncated,
         customLabels,
-        showTableNames,
+        showTableNames = false,
     }: {
         name?: string;
         projectUuid: string;
@@ -462,7 +462,7 @@ This method can be memory intensive
         truncated: boolean;
         customLabels: Record<string, string> | undefined;
         metricsAsRows?: boolean;
-        showTableNames: boolean;
+        showTableNames?: boolean;
     }) {
         return wrapSentryTransaction<AttachmentUrl>(
             'downloadPivotTableCsv',

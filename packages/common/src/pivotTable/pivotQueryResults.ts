@@ -798,7 +798,7 @@ export const pivotResultsAsCsv = ({
     onlyRaw,
     maxColumnLimit,
     undefinedCharacter = '',
-    showTableNames,
+    showTableNames = false,
 }: {
     pivotConfig: PivotConfig;
     rows: ResultRow[];
@@ -808,7 +808,7 @@ export const pivotResultsAsCsv = ({
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
-    showTableNames: boolean;
+    showTableNames?: boolean;
 }) => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
