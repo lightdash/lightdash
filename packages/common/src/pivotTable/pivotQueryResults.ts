@@ -798,6 +798,7 @@ export const pivotResultsAsCsv = ({
     onlyRaw,
     maxColumnLimit,
     undefinedCharacter = '',
+    showTableNames,
 }: {
     pivotConfig: PivotConfig;
     rows: ResultRow[];
@@ -807,12 +808,18 @@ export const pivotResultsAsCsv = ({
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
+    showTableNames: boolean;
 }) => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
         if (customLabel !== undefined) return customLabel;
         const field = itemMap[fieldId];
-        return (field && isField(field) && field?.label) || fieldId;
+        if (field && isField(field)) {
+            return showTableNames
+                ? `${field.tableLabel} ${field.label}`
+                : field.label;
+        }
+        return fieldId;
     };
     const pivotedResults = pivotQueryResults({
         pivotConfig,
