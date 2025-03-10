@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import { lightdashConfig } from './config/lightdashConfig';
-import { VERSION } from './version';
+import { lightdashConfig } from '../config/lightdashConfig';
+import { VERSION } from '../version';
 
 export const IGNORE_ERRORS = [
     'WarehouseQueryError',

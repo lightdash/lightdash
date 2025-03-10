@@ -1,5 +1,5 @@
 import { Controller, Middlewares } from '@tsoa/runtime';
-import { sentrySetProjectUuidTagMiddleware } from '../middlewares/sentry';
+import { sentrySetProjectUuidTagMiddleware } from '../sentry/middlewares';
 import type { ServiceRepository } from '../services/ServiceRepository';
 
 /**

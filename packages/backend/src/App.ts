@@ -1,6 +1,6 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
-import './sentry'; // Sentry has to be initialized before anything else
+import './sentry/init'; // Sentry has to be initialized before anything else
 
 import {
     AnyType,
