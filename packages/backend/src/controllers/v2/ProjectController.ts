@@ -127,7 +127,6 @@ export class V2ProjectController extends BaseController {
                     dashboardFilters: body.dashboardFilters,
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
-                    autoRefresh: body.autoRefresh,
                 });
 
             return {

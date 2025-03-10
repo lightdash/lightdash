@@ -2223,7 +2223,6 @@ export class ProjectService extends BaseService {
         dashboardFilters,
         dashboardSorts,
         granularity,
-        autoRefresh,
         page,
         pageSize,
         context = QueryExecutionContext.DASHBOARD,
@@ -2316,9 +2315,7 @@ export class ProjectService extends BaseService {
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
-            query_context: autoRefresh
-                ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                : context,
+            query_context: context,
         };
 
         const exploreDimensions = getDimensions(explore);
