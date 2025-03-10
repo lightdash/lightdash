@@ -502,10 +502,6 @@ export default class App {
                     email: req.user.email,
                     username: req.user.email,
                 });
-                Sentry.setTags({
-                    'user.uuid': req.user.userUuid,
-                    'organization.uuid': req.user.organizationUuid,
-                });
             }
             next();
         });
