@@ -459,6 +459,7 @@ export class ServiceRepository
                     catalogModel: this.models.getCatalogModel(),
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
                 }),
         );
     }

@@ -165,6 +165,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -227,6 +228,7 @@ type ProjectServiceArguments = {
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
     contentModel: ContentModel;
+    queryHistoryModel: QueryHistoryModel;
     encryptionUtil: EncryptionUtil;
 };
 
