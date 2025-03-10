@@ -305,7 +305,95 @@ export const hasMatchingConditionalRules = (
 
                     throw new Error('Not implemented');
                 case ConditionalOperator.IN_BETWEEN:
+                    if (isStringDimension(field)) {
+                        throw new Error(
+                            `String dimensions are not supported for conditional formatting with ${rule.operator}`,
+                        );
+                    }
+
+                    if (shouldCompareFieldToValue) {
+                        if (typeof convertedValue !== 'number') {
+                            throw new Error(
+                                `Conditional formatting with ${rule.operator} requires a numeric value`,
+                            );
+                        }
+
+                        const ruleValues = rule.values;
+
+                        if (
+                            ruleValues.length !== 2 ||
+                            typeof ruleValues[0] !== 'number' ||
+                            typeof ruleValues[1] !== 'number'
+                        ) {
+                            return false;
+                        }
+
+                        return (
+                            convertedValue >= ruleValues[0] &&
+                            convertedValue <= ruleValues[1]
+                        );
+                    }
+
+                    if (shouldCompareFieldToTarget) {
+                        throw new Error(
+                            `Conditional formatting with ${rule.operator} does not support compare targets`,
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        throw new Error(
+                            `Conditional formatting with ${rule.operator} does not support target values`,
+                        );
+                    }
+
+                    // should never happen
+                    return false;
+
                 case ConditionalOperator.NOT_IN_BETWEEN:
+                    if (isStringDimension(field)) {
+                        throw new Error(
+                            `String dimensions are not supported for conditional formatting with ${rule.operator}`,
+                        );
+                    }
+
+                    if (shouldCompareFieldToValue) {
+                        if (typeof convertedValue !== 'number') {
+                            throw new Error(
+                                `Conditional formatting with ${rule.operator} requires a numeric value`,
+                            );
+                        }
+
+                        const ruleValues = rule.values;
+
+                        if (
+                            ruleValues.length !== 2 ||
+                            typeof ruleValues[0] !== 'number' ||
+                            typeof ruleValues[1] !== 'number'
+                        ) {
+                            return false;
+                        }
+
+                        return (
+                            convertedValue < ruleValues[0] ||
+                            convertedValue > ruleValues[1]
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        throw new Error(
+                            `Conditional formatting with ${rule.operator} does not support target values`,
+                        );
+                    }
+
+                    if (shouldCompareFieldToTarget) {
+                        throw new Error(
+                            `Conditional formatting with ${rule.operator} does not support compare targets`,
+                        );
+                    }
+
+                    // should never happen
+                    return false;
+
                 case ConditionalOperator.NOT_INCLUDE:
                 case ConditionalOperator.LESS_THAN_OR_EQUAL:
                 case ConditionalOperator.GREATER_THAN_OR_EQUAL:

@@ -23,10 +23,7 @@ import {
     type TableChartConfig,
     type TimeZone,
 } from '@lightdash/common';
-import {
-    type useChartVersionResultsMutation,
-    type useQueryResults,
-} from '../../hooks/useQueryResults';
+import { type useQueryResults } from '../../hooks/useQueryResults';
 
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
@@ -273,9 +270,7 @@ export interface ExplorerState extends ExplorerReduceState {
 
 export interface ExplorerContextType {
     state: ExplorerState;
-    queryResults: ReturnType<
-        typeof useQueryResults | typeof useChartVersionResultsMutation
-    >;
+    queryResults: ReturnType<typeof useQueryResults>;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
