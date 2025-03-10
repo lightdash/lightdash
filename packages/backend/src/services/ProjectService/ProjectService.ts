@@ -1838,12 +1838,11 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        const defaultedPage = page ?? 1;
         const defaultedPageSize = pageSize ?? queryHistory.defaultPageSize;
 
         validatePagination({
             pageSize: defaultedPageSize,
-            page: defaultedPage,
+            page,
             queryMaxLimit: this.lightdashConfig.query.maxPageSize,
         });
 
@@ -1851,7 +1850,7 @@ export class ProjectService extends BaseService {
             () =>
                 warehouseClient.getPaginatedResults(
                     {
-                        page: defaultedPage,
+                        page,
                         pageSize: defaultedPageSize,
                         tags: queryTags,
                         ...(queryHistory.warehouseQueryId
