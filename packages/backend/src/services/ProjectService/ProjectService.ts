@@ -1873,7 +1873,7 @@ export class ProjectService extends BaseService {
         } = result;
 
         const { nextPage, previousPage } = getNextAndPreviousPage(
-            defaultedPage,
+            page,
             totalPageCount,
         );
 
@@ -1884,7 +1884,7 @@ export class ProjectService extends BaseService {
             queryUuid: queryHistory.queryUuid,
             fields: queryHistory.fields,
             pageSize: defaultedPageSize,
-            page: defaultedPage,
+            page,
             nextPage,
             previousPage,
             initialQueryExecutionSeconds:
