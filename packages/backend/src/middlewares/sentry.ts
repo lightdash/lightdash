@@ -1,3 +1,5 @@
+/// <reference path="../@types/passport-openidconnect.d.ts" />
+/// <reference path="../@types/express-session.d.ts" />
 import { setTag, setTags } from '@sentry/node';
 import { RequestHandler } from 'express';
 
