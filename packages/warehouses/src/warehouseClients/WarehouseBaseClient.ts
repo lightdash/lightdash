@@ -89,7 +89,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             return {
                 fields,
                 rows,
-                queryId: '',
+                queryId: null,
                 pageCount: 1,
                 totalRows: rows.length,
             };

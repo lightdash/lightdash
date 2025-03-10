@@ -62,7 +62,7 @@ export type WarehousePaginatedResults<
     TFormattedRow extends Record<string, unknown>,
 > = {
     fields: Record<string, { type: DimensionType }>;
-    queryId: string;
+    queryId: string | null;
     pageCount: number;
     totalRows: number;
     rows: TFormattedRow[];

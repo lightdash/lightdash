@@ -56,7 +56,9 @@ export class QueryHistoryModel {
             })
             .returning('query_uuid');
 
-        return result;
+        return {
+            queryUuid: result.query_uuid,
+        };
     }
 
     async get(queryUuid: string, projectUuid: string) {

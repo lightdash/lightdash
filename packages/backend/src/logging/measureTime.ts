@@ -5,7 +5,7 @@ export const measureTime = async <T, C>(
     name: string,
     logger: Logger,
     context?: C,
-): Promise<T> => {
+): Promise<{ result: T; durationSeconds: number }> => {
     const start = performance.now();
     const result = await fn();
     const end = performance.now();
@@ -18,5 +18,8 @@ export const measureTime = async <T, C>(
         { name, duration, context },
     );
 
-    return result;
+    return {
+        result,
+        durationSeconds: duration / 1000,
+    };
 };

@@ -469,9 +469,11 @@ export type ApiQueryResults = {
 };
 
 export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
-    queryId: string;
+    queryUuid: string;
     rows: ResultRow[];
     fields: ItemsMap;
+    initialQueryExecutionSeconds: number;
+    resultsPageExecutionSeconds: number;
 };
 
 export type ApiChartAndResults = {
