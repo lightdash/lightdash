@@ -1,6 +1,6 @@
 import {
-    ChartType,
     assertUnreachable,
+    ChartType,
     convertFieldRefToFieldId,
     deepEqual,
     getFieldRef,
@@ -15,6 +15,7 @@ import {
     type ChartConfig,
     type CustomDimension,
     type CustomFormat,
+    type DateGranularity,
     type FieldId,
     type Metric,
     type MetricQuery,
@@ -32,14 +33,15 @@ import {
     useMemo,
     useReducer,
     useRef,
+    useState,
     type FC,
 } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
-    type useChartVersionResultsMutation,
-    type useQueryResults,
+    useQueryResults,
+    type QueryResultsProps,
 } from '../../hooks/useQueryResults';
 import ExplorerContext from './context';
 import {
@@ -1023,9 +1025,10 @@ const ExplorerProvider: FC<
         initialState?: ExplorerReduceState;
         savedChart?: SavedChart;
         defaultLimit?: number;
-        queryResults: ReturnType<
-            typeof useQueryResults | typeof useChartVersionResultsMutation
-        >;
+        viewModeQueryArgs?:
+            | { chartUuid: string; context?: string }
+            | { chartUuid: string; chartVersionUuid: string };
+        dateZoomGranularity?: DateGranularity;
     }>
 > = ({
     isEditMode = false,
@@ -1033,7 +1036,8 @@ const ExplorerProvider: FC<
     savedChart,
     defaultLimit,
     children,
-    queryResults,
+    viewModeQueryArgs,
+    dateZoomGranularity,
 }) => {
     const defaultStateWithConfig = useMemo(
         () => ({
@@ -1489,42 +1493,60 @@ const ExplorerProvider: FC<
         ],
     );
 
-    // Fetch query results after state update
-    const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
-        queryResults;
+    const [validQueryArgs, setValidQueryArgs] =
+        useState<QueryResultsProps | null>(null);
+    const queryResults = useQueryResults(validQueryArgs);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { remove: clearQueryResults } = queryResults;
+    const resetQueryResults = useCallback(() => {
+        setValidQueryArgs(null);
+        clearQueryResults();
+    }, [clearQueryResults]);
 
-    const mutateAsync = useCallback(async () => {
-        try {
-            const result = await mutateAsyncQuery(
-                unsavedChartVersion.tableName,
-                unsavedChartVersion.metricQuery,
-            );
-
+    // Prepares and executes query if all required parameters exist
+    const runQuery = useCallback(() => {
+        const fields = new Set([
+            ...unsavedChartVersion.metricQuery.dimensions,
+            ...unsavedChartVersion.metricQuery.metrics,
+            ...unsavedChartVersion.metricQuery.tableCalculations.map(
+                ({ name }) => name,
+            ),
+        ]);
+        const hasFields = fields.size > 0;
+        if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
+            setValidQueryArgs({
+                projectUuid,
+                tableId: unsavedChartVersion.tableName,
+                query: unsavedChartVersion.metricQuery,
+                ...(isEditMode ? {} : viewModeQueryArgs),
+                dateZoomGranularity,
+            });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
                 payload: cloneDeep(unsavedChartVersion.metricQuery),
             });
-
-            return result;
-        } catch (e) {
-            console.error(e);
+        } else {
+            console.warn(
+                `Can't make SQL request, invalid state`,
+                unsavedChartVersion.tableName,
+                hasFields,
+                unsavedChartVersion.metricQuery,
+            );
         }
     }, [
-        mutateAsyncQuery,
-        unsavedChartVersion.tableName,
         unsavedChartVersion.metricQuery,
+        unsavedChartVersion.tableName,
+        projectUuid,
+        isEditMode,
+        viewModeQueryArgs,
+        dateZoomGranularity,
     ]);
 
     useEffect(() => {
         if (!state.shouldFetchResults) return;
-
-        async function fetchResults() {
-            await mutateAsync();
-            dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
-        }
-
-        void fetchResults();
-    }, [mutateAsync, state.shouldFetchResults]);
+        runQuery();
+        dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
+    }, [runQuery, state.shouldFetchResults]);
 
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
@@ -1569,9 +1591,17 @@ const ExplorerProvider: FC<
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
-            return mutateAsync();
+            // force new results even when query is the same
+            clearQueryResults();
+            runQuery();
         }
-    }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
+    }, [
+        unsavedChartVersion.metricQuery.sorts.length,
+        defaultSort,
+        setSortFields,
+        clearQueryResults,
+        runQuery,
+    ]);
 
     const actions = useMemo(
         () => ({

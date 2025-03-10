@@ -11,7 +11,6 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useChartPinningMutation } from '../hooks/pinning/useChartPinningMutation';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
-import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
@@ -32,11 +31,6 @@ const SavedExplorer = () => {
 
     const { data, isInitialLoading, error } = useSavedQuery({
         id: savedQueryUuid,
-    });
-
-    const queryResults = useQueryResults({
-        chartUuid: savedQueryUuid,
-        isViewOnly: !isEditMode,
     });
 
     const { mutate: togglePinChart } = useChartPinningMutation();
@@ -84,8 +78,10 @@ const SavedExplorer = () => {
 
     return (
         <ExplorerProvider
-            queryResults={queryResults}
             isEditMode={isEditMode}
+            viewModeQueryArgs={
+                savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined
+            }
             initialState={
                 data
                     ? {
