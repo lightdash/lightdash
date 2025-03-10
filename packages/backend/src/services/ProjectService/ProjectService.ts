@@ -2053,7 +2053,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 exploreName: metricQuery.exploreName,
                 csvLimit,
-                context: QueryExecutionContext.EXPLORE,
+                context,
                 queryTags,
                 granularity: dateZoomGranularity,
                 page,
