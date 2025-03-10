@@ -11,7 +11,7 @@ type CommonPaginatedQueryRequestParams = {
 
 export type PaginatedMetricQueryRequestParams =
     CommonPaginatedQueryRequestParams & {
-        query: MetricQueryRequest;
+        query: Omit<MetricQueryRequest, 'csvLimit'>;
     };
 
 export type PaginatedQueryIdRequestParams =

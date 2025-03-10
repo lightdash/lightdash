@@ -51,6 +51,11 @@ export enum FeatureFlags {
      * Enable the ability to write back custom bin dimensions to dbt.
      */
     WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
+
+    /**
+     * Enable a new API endpoint that requests results page by page.
+     */
+    QueryPagination = 'query-pagination',
 }
 
 export type FeatureFlag = {
