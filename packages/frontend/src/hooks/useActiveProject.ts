@@ -1,3 +1,4 @@
+import { setTag } from '@sentry/react';
 import {
     useMutation,
     useQuery,
@@ -92,18 +93,27 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         paramProject?.projectUuid,
     ]);
 
+    const activeProjectUuid = isLoading
+        ? undefined
+        : paramProject?.projectUuid ||
+          lastProject?.projectUuid ||
+          defaultProject?.projectUuid;
+
+    useEffect(() => {
+        if (activeProjectUuid) {
+            setTag('project.uuid', activeProjectUuid);
+        }
+    }, [activeProjectUuid]);
+
     if (isLoading) {
         return {
             isLoading: true,
-            activeProjectUuid: undefined,
+            activeProjectUuid,
         };
     }
 
     return {
         isLoading: false,
-        activeProjectUuid:
-            paramProject?.projectUuid ||
-            lastProject?.projectUuid ||
-            defaultProject?.projectUuid,
+        activeProjectUuid,
     };
 };

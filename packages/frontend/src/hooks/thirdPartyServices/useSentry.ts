@@ -3,7 +3,7 @@ import {
     init,
     reactRouterV7BrowserTracingIntegration,
     replayIntegration,
-    setTag,
+    setTags,
     setUser,
 } from '@sentry/react';
 import { useEffect, useState } from 'react';
@@ -53,7 +53,10 @@ const useSentry = (
                 email: user.email,
                 username: user.email,
             });
-            setTag('organization', user.organizationUuid);
+            setTags({
+                'user.uuid': user.userUuid,
+                'organization.uuid': user.organizationUuid,
+            });
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
 };
