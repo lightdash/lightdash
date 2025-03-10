@@ -80,10 +80,7 @@ export type DashboardAsCode = Pick<
     spaceSlug: string;
     downloadedAt?: Date;
     filters: Omit<DashboardFilters, 'dimensions'> & {
-        dimensions: Omit<DashboardFilterRule, 'id'> &
-            {
-                id: DashboardFilterRule['id'] | undefined; // Allows us to remove the uuid from the object
-            }[];
+        dimensions: Omit<DashboardFilterRule, 'id'>[];
     };
 };
 

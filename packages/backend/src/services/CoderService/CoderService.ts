@@ -200,7 +200,7 @@ export class CoderService extends BaseService {
     /* Convert dashboard filters from tile slugs to tile uuids
      * DashboardAsCode to DashboardDAO
      */
-    private static getFiltersWithTileUuids(
+    static getFiltersWithTileUuids(
         dashboardAsCode: DashboardAsCode,
         tilesWithUuids: DashboardTile[],
     ): DashboardDAO['filters'] {
@@ -252,7 +252,7 @@ export class CoderService extends BaseService {
         }
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
-            (tile) => {
+            (tile): DashboardTileAsCode => {
                 if (isChartTile(tile)) {
                     return {
                         ...tile,
@@ -272,6 +272,7 @@ export class CoderService extends BaseService {
                 // Markdown and loom are returned as they are
                 return {
                     ...tile,
+                    tileSlug: undefined,
                     uuid: undefined,
                 };
             },

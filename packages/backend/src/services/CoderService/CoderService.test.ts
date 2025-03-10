@@ -1,94 +1,103 @@
 // CoderService.test.ts
 import {
     AnyType,
-    DashboardAsCode,
-    DashboardChartTileProperties,
     DashboardDAO,
     DashboardFilterRule,
-    DashboardTile,
     DashboardTileTarget,
+    DashboardTileTypes,
 } from '@lightdash/common';
 import { CoderService } from './CoderService';
 
-describe('CoderService.getFiltersWithTileSlugs', () => {
-    it('should convert tile UUIDs to slugs in filters', () => {
-        const mockDashboard: DashboardDAO = {
-            filters: {
-                dimensions: [
-                    {
-                        tileTargets: {
-                            'uuid-1': {
-                                fieldId: 'field-1',
-                            } as DashboardTileTarget,
-                            'uuid-2': {
-                                fieldId: 'field-2',
-                            } as DashboardTileTarget,
+describe('CoderService', () => {
+    describe('getFiltersWithTileSlugs', () => {
+        it('should convert tile UUIDs to slugs in filters', () => {
+            const mockDashboard: DashboardDAO = {
+                filters: {
+                    dimensions: [
+                        {
+                            tileTargets: {
+                                'uuid-1': {
+                                    fieldId: 'field-1',
+                                } as DashboardTileTarget,
+                                'uuid-2': {
+                                    fieldId: 'field-2',
+                                } as DashboardTileTarget,
+                            },
                         },
+                    ],
+                },
+                tiles: [
+                    {
+                        uuid: 'uuid-1',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { chartSlug: 'slug-1' },
+                    },
+                    {
+                        uuid: 'uuid-2',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { chartSlug: 'slug-2' },
+                    },
+                    {
+                        uuid: 'uuid-3',
+                        type: DashboardTileTypes.MARKDOWN,
+                        properties: {},
                     },
                 ],
-            },
-            tiles: [
-                { uuid: 'uuid-1', properties: { chartSlug: 'slug-1' } },
-                { uuid: 'uuid-2', properties: { chartSlug: 'slug-2' } },
-            ],
-        } as AnyType; // Use 'as any' to bypass type checks for simplicity
+            } as AnyType; // Use 'as any' to bypass type checks for simplicity
 
-        const result = CoderService.getFiltersWithTileSlugs(mockDashboard);
+            const result = CoderService.getFiltersWithTileSlugs(mockDashboard);
 
-        expect(
-            (result.dimensions[0] as DashboardFilterRule).tileTargets,
-        ).toEqual({
-            'slug-1': { fieldId: 'field-1' },
-            'slug-2': { fieldId: 'field-2' },
+            expect(
+                (result.dimensions[0] as DashboardFilterRule).tileTargets,
+            ).toEqual({
+                'slug-1': { fieldId: 'field-1' },
+                'slug-2': { fieldId: 'field-2' },
+            });
+        });
+
+        it('should handle filters with no tile targets', () => {
+            const mockDashboard: DashboardDAO = {
+                filters: {
+                    dimensions: [
+                        {
+                            tileTargets: {},
+                        },
+                    ],
+                },
+                tiles: [],
+            } as AnyType;
+
+            const result = CoderService.getFiltersWithTileSlugs(mockDashboard);
+
+            expect(
+                (result.dimensions[0] as DashboardFilterRule).tileTargets,
+            ).toEqual({});
+        });
+
+        it('should skip tile targets with no matching slug', () => {
+            const mockDashboard: DashboardDAO = {
+                filters: {
+                    dimensions: [
+                        {
+                            tileTargets: {
+                                'uuid-1': {
+                                    fieldId: 'field-1',
+                                } as DashboardTileTarget,
+                            },
+                        },
+                    ],
+                },
+                tiles: [],
+            } as AnyType;
+
+            const result = CoderService.getFiltersWithTileSlugs(mockDashboard);
+
+            expect(
+                (result.dimensions[0] as DashboardFilterRule).tileTargets,
+            ).toEqual({});
         });
     });
 
-    it('should handle filters with no tile targets', () => {
-        const mockDashboard: DashboardDAO = {
-            filters: {
-                dimensions: [
-                    {
-                        tileTargets: {},
-                    },
-                ],
-            },
-            tiles: [],
-        } as AnyType;
-
-        const result = CoderService.getFiltersWithTileSlugs(mockDashboard);
-
-        expect(
-            (result.dimensions[0] as DashboardFilterRule).tileTargets,
-        ).toEqual({});
-    });
-
-    it('should skip tile targets with no matching slug', () => {
-        const mockDashboard: DashboardDAO = {
-            filters: {
-                dimensions: [
-                    {
-                        tileTargets: {
-                            'uuid-1': {
-                                fieldId: 'field-1',
-                            } as DashboardTileTarget,
-                        },
-                    },
-                ],
-            },
-            tiles: [],
-        } as AnyType;
-
-        const result = CoderService.getFiltersWithTileSlugs(mockDashboard);
-
-        expect(
-            (result.dimensions[0] as DashboardFilterRule).tileTargets,
-        ).toEqual({});
-    });
-});
-
-/*
-
-describe('CoderService', () => {
     describe('getFiltersWithTileUuids', () => {
         it('should convert tile slugs to UUIDs in filters', () => {
             const dashboardAsCode = {
@@ -96,27 +105,48 @@ describe('CoderService', () => {
                     dimensions: [
                         {
                             tileTargets: {
-                                'chart-slug-1': { someTargetProperty: 'value1' },
-                                'chart-slug-2': { someTargetProperty: 'value2' },
+                                'chart-slug-1': {
+                                    someTargetProperty: 'value1',
+                                },
+                                'chart-slug-2': {
+                                    someTargetProperty: 'value2',
+                                },
                             },
                         },
-                     ],
-                } ,
+                    ],
+                },
                 // ... other properties
             };
 
             const tilesWithUuids = [
-                { uuid: 'uuid-1', properties: { chartSlug: 'chart-slug-1' } },
-                { uuid: 'uuid-2', properties: { chartSlug: 'chart-slug-2' } },
+                {
+                    uuid: 'uuid-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'chart-slug-1' },
+                },
+                {
+                    uuid: 'uuid-2',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'chart-slug-2' },
+                },
+                {
+                    uuid: 'uuid-3',
+                    type: DashboardTileTypes.MARKDOWN,
+                    properties: {},
+                },
             ];
 
-            const result = CoderService.getFiltersWithTileUuids(dashboardAsCode as AnyType, tilesWithUuids as AnyType);
+            const result = CoderService.getFiltersWithTileUuids(
+                dashboardAsCode as AnyType,
+                tilesWithUuids as AnyType,
+            );
 
             expect(result.dimensions[0].tileTargets).toEqual({
                 'uuid-1': { someTargetProperty: 'value1' },
                 'uuid-2': { someTargetProperty: 'value2' },
             });
-            expect(result.dimensions[0].id).toBe('mock-uuid');
+            expect(typeof result.dimensions[0].id).toBe('string'); // uuid
+            expect(result.dimensions[0].id.length).toBeGreaterThan(1);
         });
 
         it('should log an error if a tile slug does not match any UUID', () => {
@@ -127,7 +157,12 @@ describe('CoderService', () => {
                     dimensions: [
                         {
                             tileTargets: {
-                                'chart-slug-3': { someTargetProperty: 'value3' },
+                                'chart-slug-1': {
+                                    someTargetProperty: 'value1',
+                                },
+                                'chart-slug-3': {
+                                    someTargetProperty: 'value3',
+                                },
                             },
                         },
                     ],
@@ -135,15 +170,39 @@ describe('CoderService', () => {
                 // ... other properties
             };
 
-            const tilesWithUuids= [
-                { uuid: 'uuid-1', properties: { chartSlug: 'chart-slug-1' } },
-                { uuid: 'uuid-2', properties: { chartSlug: 'chart-slug-2' } },
+            const tilesWithUuids = [
+                {
+                    uuid: 'uuid-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'chart-slug-1' },
+                },
+                {
+                    uuid: 'uuid-2',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'chart-slug-2' },
+                },
+                {
+                    uuid: 'uuid-3',
+                    type: DashboardTileTypes.MARKDOWN,
+                    properties: {},
+                },
             ];
 
-            const result = CoderService.getFiltersWithTileUuids(dashboardAsCode as AnyType, tilesWithUuids as AnyType);
+            const result = CoderService.getFiltersWithTileUuids(
+                dashboardAsCode as AnyType,
+                tilesWithUuids as AnyType,
+            );
 
-            expect(console.error).toHaveBeenCalledWith('Tile with slug chart-slug-3 not found in tilesWithUuids');
-            expect(result.dimensions[0].tileTargets).toEqual({});
+            // We show an error for chart-slug-2
+            expect(console.error).toHaveBeenCalledWith(
+                'Tile with slug chart-slug-3 not found in tilesWithUuids',
+            );
+            // but chart-slug-1 should be fine
+            expect(result.dimensions[0].tileTargets).toEqual({
+                'uuid-1': {
+                    someTargetProperty: 'value1',
+                },
+            });
         });
     });
-}); */
+});
