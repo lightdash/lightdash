@@ -1,6 +1,5 @@
 import {
     ChartType,
-    FeatureFlags,
     assertUnreachable,
     isDimension,
     type ApiQueryResults,
@@ -28,7 +27,6 @@ import {
     calculateSeriesLikeIdentifier,
     isGroupedSeries,
 } from '../../hooks/useChartColorConfig/utils';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
@@ -194,10 +192,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         [calculateKeyColorAssignment, itemsMap],
     );
 
-    const isCalculateSeriesColorEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CalculateSeriesColor,
-    );
-
     /**
      * Gets a shared color for a given series.
      */
@@ -242,7 +236,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
              * If this series is grouped, figure out a shared color assignment from the series;
              * otherwise, pick a series color from the palette based on its order.
              */
-            return isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled
+            return isGroupedSeries(seriesLike)
                 ? calculateSeriesColorAssignment(seriesLike)
                 : fallbackColors[
                       // Note: we don't use getSeriesId since we may not be dealing with a Series type here
@@ -250,13 +244,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                   ];
         },
 
-        [
-            calculateSeriesColorAssignment,
-            fallbackColors,
-            chartConfig,
-            itemsMap,
-            isCalculateSeriesColorEnabled,
-        ],
+        [calculateSeriesColorAssignment, fallbackColors, chartConfig, itemsMap],
     );
 
     const value: Omit<
