@@ -8,11 +8,9 @@ import {
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
-    type ApiPaginatedQueryResults,
 } from '@lightdash/common';
 import {
     Body,
-    Hidden,
     Middlewares,
     OperationId,
     Path,
