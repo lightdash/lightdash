@@ -1,3 +1,10 @@
+## [0.1533.1](https://github.com/lightdash/lightdash/compare/0.1533.0...0.1533.1) (2025-03-10)
+
+
+### Bug Fixes
+
+* upgrade to getsentry/action-release@v3 ([#14012](https://github.com/lightdash/lightdash/issues/14012)) ([873dc0b](https://github.com/lightdash/lightdash/commit/873dc0b0dd2d6744cb9bb7f9d0cd4c36c706107d))
+
 # [0.1533.0](https://github.com/lightdash/lightdash/compare/0.1532.1...0.1533.0) (2025-03-10)
 
 
