@@ -47,6 +47,27 @@ export type WarehouseResults = {
     rows: Record<string, AnyType>[];
 };
 
+export type WarehousePaginationArgs = {
+    page: number;
+    pageSize: number;
+};
+
+export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
+    tags: Record<string, string>;
+    timezone?: string;
+    values?: AnyType[];
+} & ({ sql: string } | { queryId: string });
+
+export type WarehousePaginatedResults<
+    TFormattedRow extends Record<string, unknown>,
+> = {
+    fields: Record<string, { type: DimensionType }>;
+    queryId: string;
+    pageCount: number;
+    totalRows: number;
+    rows: TFormattedRow[];
+};
+
 export interface WarehouseClient {
     credentials: CreateWarehouseCredentials;
     getCatalog: (
@@ -66,6 +87,11 @@ export interface WarehouseClient {
             timezone?: string;
         },
     ): Promise<void>;
+
+    getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
+        args: WarehousePaginateQueryArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehousePaginatedResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results

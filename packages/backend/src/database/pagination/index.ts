@@ -1,7 +1,7 @@
 import {
     KnexPaginateArgs,
     KnexPaginatedData,
-    KnexPaginationError,
+    PaginationError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -13,13 +13,11 @@ export default class KnexPaginate {
         if (paginateArgs) {
             const { page, pageSize } = paginateArgs;
             if (page < 1) {
-                throw new KnexPaginationError('page should be greater than 0');
+                throw new PaginationError('page should be greater than 0');
             }
 
             if (pageSize < 1) {
-                throw new KnexPaginationError(
-                    'pageSize should be greater than 0',
-                );
+                throw new PaginationError('pageSize should be greater than 0');
             }
 
             const offset = (page - 1) * pageSize;
