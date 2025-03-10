@@ -13,7 +13,7 @@ export type CommonPaginateArgs = ResultsPaginationArgs & {
     user: SessionUser;
     projectUuid: string;
     invalidateCache?: boolean;
-    context?: QueryExecutionContext;
+    context: QueryExecutionContext;
 };
 
 export type PaginateMetricQueryArgs = CommonPaginateArgs & {

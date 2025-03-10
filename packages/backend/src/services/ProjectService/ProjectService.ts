@@ -2005,7 +2005,7 @@ export class ProjectService extends BaseService {
         user,
         projectUuid,
         dateZoomGranularity,
-        context = QueryExecutionContext.API,
+        context,
         metricQuery,
         csvLimit,
         page,
@@ -2066,7 +2066,7 @@ export class ProjectService extends BaseService {
     async runPaginatedQueryIdQuery({
         user,
         projectUuid,
-        context = QueryExecutionContext.API,
+        context,
         exploreName,
         ...rest
     }: PaginateQueryIdArgs): Promise<ApiPaginatedQueryResults> {
@@ -2127,7 +2127,7 @@ export class ProjectService extends BaseService {
         versionUuid,
         page,
         pageSize,
-        context = QueryExecutionContext.CHART,
+        context,
     }: PaginateSavedChartArgs): Promise<ApiPaginatedQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
@@ -2225,7 +2225,7 @@ export class ProjectService extends BaseService {
         granularity,
         page,
         pageSize,
-        context = QueryExecutionContext.DASHBOARD,
+        context,
     }: PaginateDashboardChartArgs): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');

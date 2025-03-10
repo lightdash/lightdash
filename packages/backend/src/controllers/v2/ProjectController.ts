@@ -5,6 +5,7 @@ import {
     isPaginatedQueryIdRequest,
     isPaginatedSavedChartRequest,
     ParameterError,
+    QueryExecutionContext,
     type ApiPaginatedQueryResults,
     type PaginatedQueryRequestParams,
 } from '@lightdash/common';
@@ -52,7 +53,6 @@ export class V2ProjectController extends BaseController {
         const commonArgs = {
             user: req.user!,
             projectUuid,
-            context,
             page: body.page,
             pageSize: body.pageSize,
         };
@@ -65,6 +65,7 @@ export class V2ProjectController extends BaseController {
                     queryId: body.queryId,
                     fields: body.fields,
                     exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId,
+                    context: context ?? QueryExecutionContext.API,
                 });
 
             return {
@@ -94,6 +95,7 @@ export class V2ProjectController extends BaseController {
                     ...commonArgs,
                     metricQuery,
                     csvLimit: body.query.csvLimit,
+                    context: context ?? QueryExecutionContext.EXPLORE,
                 });
 
             return {
@@ -109,6 +111,7 @@ export class V2ProjectController extends BaseController {
                     ...commonArgs,
                     chartUuid: body.chartUuid,
                     versionUuid: body.versionUuid,
+                    context: context ?? QueryExecutionContext.CHART,
                 });
 
             return {
@@ -127,6 +130,7 @@ export class V2ProjectController extends BaseController {
                     dashboardFilters: body.dashboardFilters,
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
+                    context: context ?? QueryExecutionContext.DASHBOARD,
                 });
 
             return {
