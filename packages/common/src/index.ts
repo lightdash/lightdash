@@ -162,6 +162,7 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
+import { getOrganizationNameSchema } from './utils/organization';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -271,6 +272,7 @@ export * from './utils/i18n';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/organization';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
@@ -574,13 +576,15 @@ export const hasInviteCode = (
     data: RegisterOrActivateUser,
 ): data is ActivateUserWithInviteCode => 'inviteCode' in data;
 
-export type CompleteUserArgs = {
-    organizationName?: string;
-    jobTitle: string;
-    isMarketingOptedIn: boolean;
-    isTrackingAnonymized: boolean;
-    enableEmailDomainAccess: boolean;
-};
+export const CompleteUserSchema = z.object({
+    organizationName: getOrganizationNameSchema().optional(),
+    jobTitle: z.string().min(0),
+    enableEmailDomainAccess: z.boolean().default(false),
+    isMarketingOptedIn: z.boolean().default(true),
+    isTrackingAnonymized: z.boolean().default(false),
+});
+
+export type CompleteUserArgs = z.infer<typeof CompleteUserSchema>;
 
 export type UpdateUserArgs = {
     firstName: string;
