@@ -1,3 +1,10 @@
+## [0.1532.1](https://github.com/lightdash/lightdash/compare/0.1532.0...0.1532.1) (2025-03-10)
+
+
+### Bug Fixes
+
+* improve org name validation ([#13997](https://github.com/lightdash/lightdash/issues/13997)) ([18e4c5c](https://github.com/lightdash/lightdash/commit/18e4c5c165e643b6efaf069ac2af47951f0ad8a5))
+
 # [0.1532.0](https://github.com/lightdash/lightdash/compare/0.1531.10...0.1532.0) (2025-03-10)
 
 
