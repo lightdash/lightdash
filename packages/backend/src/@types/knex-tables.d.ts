@@ -172,7 +172,7 @@ import {
 import {
     QueryHistoryTable,
     QueryHistoryTableName,
-} from '../database/entities/query_history';
+} from '../database/entities/queryHistory';
 import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,

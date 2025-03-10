@@ -2,6 +2,7 @@ import type {
     ItemsMap,
     MetricQuery,
     PaginatedQueryRequestParams,
+    QueryExecutionContext,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -12,7 +13,7 @@ export type DbQueryHistory = {
     project_uuid: string | null;
     organization_uuid: string;
     warehouse_query_id: string | null;
-    context: string;
+    context: QueryExecutionContext;
     default_page_size: number;
     compiled_sql: string;
     warehouse_execution_time_seconds: number;
