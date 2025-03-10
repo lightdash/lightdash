@@ -5,6 +5,7 @@ import {
     isPaginatedQueryIdRequest,
     isPaginatedSavedChartRequest,
     ParameterError,
+    type ApiPaginatedQueryResults,
     type PaginatedQueryRequestParams,
 } from '@lightdash/common';
 import {
@@ -24,7 +25,11 @@ import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
-import type { ApiRunPaginatedQueryResponse } from '../runQueryController';
+
+export type ApiRunPaginatedQueryResponse = {
+    status: 'ok';
+    results: ApiPaginatedQueryResults;
+};
 
 @Route('/api/v2/projects')
 @Response<ApiErrorPayload>('default', 'Error')

@@ -38,11 +38,6 @@ export type ApiRunQueryResponse = {
     };
 };
 
-export type ApiRunPaginatedQueryResponse = {
-    status: 'ok';
-    results: ApiPaginatedQueryResults;
-};
-
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Exploring')
