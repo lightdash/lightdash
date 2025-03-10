@@ -1,3 +1,11 @@
+## [0.1531.10](https://github.com/lightdash/lightdash/compare/0.1531.9...0.1531.10) (2025-03-10)
+
+
+### Bug Fixes
+
+* new dashboard menu item is missing for developers and editors ([#13984](https://github.com/lightdash/lightdash/issues/13984)) ([ba94e41](https://github.com/lightdash/lightdash/commit/ba94e41efe444bb12b0513610fb2ac6956861411))
+* **refactor:** query results hook ([#13987](https://github.com/lightdash/lightdash/issues/13987)) ([ade55a3](https://github.com/lightdash/lightdash/commit/ade55a39367d00502204b9a36c57af40e4eb7663))
+
 ## [0.1531.9](https://github.com/lightdash/lightdash/compare/0.1531.8...0.1531.9) (2025-03-07)
 
 
