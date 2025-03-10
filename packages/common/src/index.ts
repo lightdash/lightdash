@@ -1222,24 +1222,7 @@ export function formatRows(
     rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
-    return rows.map((row) => {
-        const resultRow: ResultRow = {};
-        const columnNames = Object.keys(row || {});
-
-        for (const columnName of columnNames) {
-            const value = row[columnName];
-            const item = itemsMap[columnName];
-
-            resultRow[columnName] = {
-                value: {
-                    raw: formatRawValue(item, value),
-                    formatted: formatItemValue(item, value),
-                },
-            };
-        }
-
-        return resultRow;
-    });
+    return rows.map((row) => formatRow(row, itemsMap));
 }
 
 const isObject = (object: AnyType) =>
