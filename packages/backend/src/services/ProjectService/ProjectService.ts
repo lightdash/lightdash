@@ -2232,10 +2232,10 @@ export class ProjectService extends BaseService {
         }
 
         const savedChart = await this.savedChartModel.get(chartUuid);
-        const { organizationUuid, projectUuid: dashboardProjectUuid } =
+        const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 
-        if (dashboardProjectUuid !== projectUuid) {
+        if (savedChartProjectUuid !== projectUuid) {
             throw new ForbiddenError('Dashboard does not belong to project');
         }
 
