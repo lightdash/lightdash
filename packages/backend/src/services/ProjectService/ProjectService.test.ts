@@ -7,6 +7,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    QueryExecutionContext,
     SessionUser,
     type ItemsMap,
 } from '@lightdash/common';
@@ -474,6 +475,7 @@ describe('ProjectService', () => {
                 csvLimit: null,
                 page: 1,
                 pageSize: 10,
+                context: QueryExecutionContext.API,
             });
 
             // Get the formatter function that was passed
@@ -531,6 +533,7 @@ describe('ProjectService', () => {
                 ...baseArgs,
                 metricQuery: metricQueryMock,
                 csvLimit: null,
+                context: QueryExecutionContext.API,
             });
 
             expect(getPaginatedResultsMock).toHaveBeenCalledWith(
