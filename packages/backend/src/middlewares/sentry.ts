@@ -1,3 +1,5 @@
+/// <reference path="../@types/passport-openidconnect.d.ts" />
+/// <reference path="../@types/express-session.d.ts" />
 import { setTag, setTags } from '@sentry/node';
 import { RequestHandler } from 'express';
 
@@ -11,10 +13,15 @@ export const sentrySetProjectUuidTagMiddleware: RequestHandler = (
     }
 
     if (req.user) {
-        setTags({
-            'user.uuid': req.user.userUuid,
-            'organization.uuid': req.user.organizationUuid,
-        });
+        if (req.user.userUuid && typeof req.user.userUuid === 'string') {
+            setTag('user.uuid', req.user.userUuid);
+        }
+        if (
+            req.user.organizationUuid &&
+            typeof req.user.organizationUuid === 'string'
+        ) {
+            setTag('organization.uuid', req.user.organizationUuid);
+        }
     }
     next();
 };
