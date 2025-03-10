@@ -1,8 +1,8 @@
 import { ModelRepository } from '../models/ModelRepository';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { type OperationContext } from '../services/ServiceRepository';
-import { S3Client } from './Aws/s3';
 import { S3CacheClient } from './Aws/S3CacheClient';
+import { S3Client } from './Aws/S3Client';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { SlackClient } from './Slack/SlackClient';

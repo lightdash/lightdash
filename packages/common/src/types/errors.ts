@@ -452,3 +452,17 @@ export class ReadFileError extends LightdashError {
         });
     }
 }
+
+export class S3Error extends LightdashError {
+    constructor(
+        message = 'Error occurred while interacting with S3',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'S3Error',
+            statusCode: 500,
+            data,
+        });
+    }
+}

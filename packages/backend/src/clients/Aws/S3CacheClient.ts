@@ -5,7 +5,13 @@ import {
     PutObjectCommand,
     PutObjectCommandInput,
     S3,
+    S3ServiceException,
 } from '@aws-sdk/client-s3';
+import {
+    getErrorMessage,
+    MissingConfigError,
+    S3Error,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -91,10 +97,31 @@ export class S3CacheClient {
                     ContentType: 'application/json',
                     Metadata: sanitizedMetadata,
                 });
-                const response = await this.s3.send(command);
+                await this.s3.send(command);
             } catch (error) {
-                Logger.error(`Failed to upload results to s3. ${error}`);
-                Sentry.captureException(error);
+                if (error instanceof S3ServiceException) {
+                    Logger.error(
+                        `Failed to upload results to s3. ${error.name} - ${error.message}`,
+                    );
+                } else {
+                    Logger.error(
+                        `Failed to upload results to s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+
+                Sentry.captureException(
+                    new S3Error(
+                        `Failed to upload results to s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                        {
+                            key,
+                        },
+                    ),
+                );
+
                 throw error;
             }
         });
@@ -109,7 +136,7 @@ export class S3CacheClient {
                     this.configuration.bucket === undefined ||
                     this.s3 === undefined
                 ) {
-                    throw new Error(
+                    throw new MissingConfigError(
                         "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
                     );
                 }
@@ -123,10 +150,30 @@ export class S3CacheClient {
                     if (error instanceof NotFound) {
                         return undefined;
                     }
-                    Logger.error(
-                        `Failed to get results metadata from s3. ${error}`,
+
+                    if (error instanceof S3ServiceException) {
+                        Logger.error(
+                            `Failed to get results metadata from s3. ${error.name} - ${error.message}`,
+                        );
+                    } else {
+                        Logger.error(
+                            `Failed to get results metadata from s3. ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+
+                    Sentry.captureException(
+                        new S3Error(
+                            `Failed to get results metadata from s3. ${getErrorMessage(
+                                error,
+                            )}`,
+                            {
+                                key,
+                            },
+                        ),
                     );
-                    Sentry.captureException(error);
+
                     throw error;
                 }
             },
@@ -139,7 +186,7 @@ export class S3CacheClient {
                 this.configuration.bucket === undefined ||
                 this.s3 === undefined
             ) {
-                throw new Error(
+                throw new MissingConfigError(
                     "Results caching is not enabled or is missing S3 configuration, can't get results cache",
                 );
             }
@@ -150,10 +197,29 @@ export class S3CacheClient {
                 });
                 return await this.s3.send(command);
             } catch (error) {
-                Logger.error(
-                    `Failed to get results metadata from s3. ${error}`,
+                if (error instanceof S3ServiceException) {
+                    Logger.error(
+                        `Failed to get results from s3. ${error.name} - ${error.message}`,
+                    );
+                } else {
+                    Logger.error(
+                        `Failed to get results from s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+
+                Sentry.captureException(
+                    new S3Error(
+                        `Failed to get results from s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                        {
+                            key,
+                        },
+                    ),
                 );
-                Sentry.captureException(error);
+
                 throw error;
             }
         });
