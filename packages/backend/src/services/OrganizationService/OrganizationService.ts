@@ -6,6 +6,7 @@ import {
     CreateGroup,
     CreateOrganization,
     ForbiddenError,
+    getOrganizationNameSchema,
     Group,
     GroupWithMembers,
     isUserWithOrg,
@@ -28,6 +29,7 @@ import {
     UpdateColorPalette,
     UpdateOrganization,
     validateOrganizationEmailDomains,
+    validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -121,7 +123,7 @@ export class OrganizationService extends BaseService {
     }
 
     async updateOrg(
-        { organizationUuid, organizationName, userUuid, ability }: SessionUser,
+        { organizationUuid, userUuid, ability }: SessionUser,
         data: UpdateOrganization,
     ): Promise<void> {
         if (
@@ -134,6 +136,9 @@ export class OrganizationService extends BaseService {
         }
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
+        }
+        if (data.name) {
+            validateOrganizationNameOrThrow(data.name);
         }
         const org = await this.organizationModel.update(organizationUuid, data);
         this.analytics.track({

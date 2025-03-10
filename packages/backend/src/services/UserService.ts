@@ -40,6 +40,7 @@ import {
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
     validateOrganizationEmailDomains,
+    validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
@@ -926,6 +927,9 @@ export class UserService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
+
+            validateOrganizationNameOrThrow(organizationName);
+
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
             });
