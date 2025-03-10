@@ -14,8 +14,10 @@ export class QueryHistoryModel {
     }
 
     private static convertDbQueryHistoryToQueryHistory(
-        queryHistory: DbQueryHistory,
-    ): QueryHistory {
+        queryHistory: DbQueryHistory | undefined,
+    ): QueryHistory | undefined {
+        if (!queryHistory) return undefined;
+
         return {
             queryUuid: queryHistory.query_uuid,
             createdAt: queryHistory.created_at,
@@ -63,6 +65,6 @@ export class QueryHistoryModel {
             .andWhere('project_uuid', projectUuid)
             .first();
 
-        return result;
+        return QueryHistoryModel.convertDbQueryHistoryToQueryHistory(result);
     }
 }
