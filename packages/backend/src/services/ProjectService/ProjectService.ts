@@ -2076,27 +2076,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
+        // TODO paginate: when we have metadata, check if projectUuid is same as the projectUuid argument + authenticated user is the same as the user that created the query
         if (
             user.ability.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
         }
-
-        // TODO paginate: we need metadata to be able enforce this permission
-        // if (
-        //     metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-        //     user.ability.cannot(
-        //         'manage',
-        //         subject('CustomSql', { organizationUuid, projectUuid }),
-        //     )
-        // ) {
-        //     throw new ForbiddenError(
-        //         'User cannot run queries with custom SQL dimensions',
-        //     );
-        // }
 
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
