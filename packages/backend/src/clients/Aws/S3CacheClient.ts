@@ -5,6 +5,7 @@ import {
     PutObjectCommand,
     PutObjectCommandInput,
     S3,
+    S3ServiceException,
 } from '@aws-sdk/client-s3';
 import {
     getErrorMessage,
@@ -98,15 +99,30 @@ export class S3CacheClient {
                 });
                 await this.s3.send(command);
             } catch (error) {
-                const s3Error = new S3Error(
-                    `Failed to upload results to s3. ${getErrorMessage(error)}`,
-                    {
-                        key,
-                    },
+                if (error instanceof S3ServiceException) {
+                    Logger.error(
+                        `Failed to upload results to s3. ${error.name} - ${error.message}`,
+                    );
+                } else {
+                    Logger.error(
+                        `Failed to upload results to s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+
+                Sentry.captureException(
+                    new S3Error(
+                        `Failed to upload results to s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                        {
+                            key,
+                        },
+                    ),
                 );
-                Logger.error(s3Error.message);
-                Sentry.captureException(s3Error);
-                throw s3Error;
+
+                throw error;
             }
         });
     }
@@ -135,17 +151,30 @@ export class S3CacheClient {
                         return undefined;
                     }
 
-                    const s3Error = new S3Error(
-                        `Failed to get results metadata from s3. ${getErrorMessage(
-                            error,
-                        )}`,
-                        {
-                            key,
-                        },
+                    if (error instanceof S3ServiceException) {
+                        Logger.error(
+                            `Failed to get results metadata from s3. ${error.name} - ${error.message}`,
+                        );
+                    } else {
+                        Logger.error(
+                            `Failed to get results metadata from s3. ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+
+                    Sentry.captureException(
+                        new S3Error(
+                            `Failed to get results metadata from s3. ${getErrorMessage(
+                                error,
+                            )}`,
+                            {
+                                key,
+                            },
+                        ),
                     );
-                    Logger.error(s3Error.message);
-                    Sentry.captureException(s3Error);
-                    throw s3Error;
+
+                    throw error;
                 }
             },
         );
@@ -168,15 +197,30 @@ export class S3CacheClient {
                 });
                 return await this.s3.send(command);
             } catch (error) {
-                const s3Error = new S3Error(
-                    `Failed to get results from s3. ${getErrorMessage(error)}`,
-                    {
-                        key,
-                    },
+                if (error instanceof S3ServiceException) {
+                    Logger.error(
+                        `Failed to get results from s3. ${error.name} - ${error.message}`,
+                    );
+                } else {
+                    Logger.error(
+                        `Failed to get results from s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+
+                Sentry.captureException(
+                    new S3Error(
+                        `Failed to get results from s3. ${getErrorMessage(
+                            error,
+                        )}`,
+                        {
+                            key,
+                        },
+                    ),
                 );
-                Logger.error(s3Error.message);
-                Sentry.captureException(s3Error);
-                throw s3Error;
+
+                throw error;
             }
         });
     }

@@ -2,6 +2,7 @@ import {
     GetObjectCommand,
     PutObjectCommandInput,
     S3,
+    S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -90,22 +91,32 @@ export class S3Client {
             );
             return url;
         } catch (error) {
-            Logger.error(
-                `Failed to upload file to s3 with endpoint: ${
-                    this.lightdashConfig.s3.endpoint ?? 'no endpoint'
-                }. ${error}`,
-            );
-            const s3Error = new S3Error(
-                `Failed to upload file to S3: ${getErrorMessage(error)}`,
-                {
-                    fileId,
-                    endpoint: this.lightdashConfig.s3.endpoint,
-                },
+            if (error instanceof S3ServiceException) {
+                Logger.error(
+                    `Failed to upload file to s3 with endpoint: ${
+                        this.lightdashConfig.s3.endpoint ?? 'no endpoint'
+                    }. ${error.name} - ${error.message}`,
+                );
+            } else {
+                Logger.error(
+                    `Failed to upload file to s3 with endpoint: ${
+                        this.lightdashConfig.s3.endpoint ?? 'no endpoint'
+                    }. ${getErrorMessage(error)}`,
+                );
+            }
+
+            Sentry.captureException(
+                new S3Error(
+                    `Failed to upload file to s3 with endpoint: ${
+                        this.lightdashConfig.s3.endpoint ?? 'no endpoint'
+                    }. ${getErrorMessage(error)}`,
+                    {
+                        fileId,
+                    },
+                ),
             );
 
-            Sentry.captureException(s3Error);
-
-            throw s3Error;
+            throw error;
         }
     }
 
@@ -158,24 +169,32 @@ export class S3Client {
                 await upload.done();
                 return fileId; // We don't need to return signed url, we will stream the file from the fileId
             } catch (error) {
-                Logger.error(
-                    `Failed to stream results to S3 on upload: ${
-                        this.lightdashConfig.s3?.endpoint ?? 'no endpoint'
-                    }. ${error}`,
-                );
-                const s3Error = new S3Error(
-                    `Failed to stream results to S3 on upload: ${getErrorMessage(
-                        error,
-                    )}`,
-                    {
-                        fileId,
-                        endpoint:
-                            this.lightdashConfig.s3?.endpoint ?? 'no endpoint',
-                    },
-                );
-                Sentry.captureException(s3Error);
+                if (error instanceof S3ServiceException) {
+                    Logger.error(
+                        `Failed to stream results to S3 on upload: ${
+                            this.lightdashConfig.s3?.endpoint ?? 'no endpoint'
+                        }. ${error.name} - ${error.message}`,
+                    );
+                } else {
+                    Logger.error(
+                        `Failed to stream results to S3 on upload: ${
+                            this.lightdashConfig.s3?.endpoint ?? 'no endpoint'
+                        }. ${getErrorMessage(error)}`,
+                    );
+                }
 
-                throw s3Error;
+                Sentry.captureException(
+                    new S3Error(
+                        `Failed to stream results to S3 on upload: ${
+                            this.lightdashConfig.s3?.endpoint ?? 'no endpoint'
+                        }. ${getErrorMessage(error)}`,
+                        {
+                            fileId,
+                        },
+                    ),
+                );
+
+                throw error;
             }
         };
 
@@ -199,17 +218,26 @@ export class S3Client {
                 Sentry.captureException(error);
                 throw error;
             }
-            const s3Error = new S3Error(
-                `Failed to fetch file from S3: ${getErrorMessage(error)}`,
-                {
-                    fileId,
-                    endpoint:
-                        this.lightdashConfig.s3?.endpoint ?? 'no endpoint',
-                },
-            );
-            Sentry.captureException(s3Error);
+            if (error instanceof S3ServiceException) {
+                Logger.error(
+                    `Failed to fetch file from S3: ${error.name} - ${error.message}`,
+                );
+            } else {
+                Logger.error(
+                    `Failed to fetch file from S3: ${getErrorMessage(error)}`,
+                );
+            }
 
-            throw s3Error;
+            Sentry.captureException(
+                new S3Error(
+                    `Failed to fetch file from S3: ${getErrorMessage(error)}`,
+                    {
+                        fileId,
+                    },
+                ),
+            );
+
+            throw error;
         }
     }
 
