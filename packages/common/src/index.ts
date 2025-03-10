@@ -140,6 +140,7 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
+import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
@@ -162,6 +163,7 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
+import { getOrganizationNameSchema } from './utils/organization';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -182,6 +184,7 @@ export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
+export * from './types/api/paginatedQuery';
 export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/spotlight';
@@ -217,6 +220,7 @@ export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/paginateResults';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -271,6 +275,7 @@ export * from './utils/i18n';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/organization';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
@@ -462,6 +467,12 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
+export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
+    queryId: string;
+    rows: ResultRow[];
+    fields: ItemsMap;
+};
+
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;
@@ -574,13 +585,15 @@ export const hasInviteCode = (
     data: RegisterOrActivateUser,
 ): data is ActivateUserWithInviteCode => 'inviteCode' in data;
 
-export type CompleteUserArgs = {
-    organizationName?: string;
-    jobTitle: string;
-    isMarketingOptedIn: boolean;
-    isTrackingAnonymized: boolean;
-    enableEmailDomainAccess: boolean;
-};
+export const CompleteUserSchema = z.object({
+    organizationName: getOrganizationNameSchema().optional(),
+    jobTitle: z.string().min(0),
+    enableEmailDomainAccess: z.boolean().default(false),
+    isMarketingOptedIn: z.boolean().default(true),
+    isTrackingAnonymized: z.boolean().default(false),
+});
+
+export type CompleteUserArgs = z.infer<typeof CompleteUserSchema>;
 
 export type UpdateUserArgs = {
     firstName: string;
@@ -751,7 +764,8 @@ type ApiResults =
     | ApiGetMetricsTree['results']
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
-    | ApiCalculateSubtotalsResponse['results'];
+    | ApiCalculateSubtotalsResponse['results']
+    | ApiPaginatedQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1186,28 +1200,33 @@ export function formatRawRows(
     });
 }
 
+export function formatRow(
+    row: { [col: string]: AnyType },
+    itemsMap: ItemsMap,
+): ResultRow {
+    const resultRow: ResultRow = {};
+    const columnNames = Object.keys(row || {});
+
+    for (const columnName of columnNames) {
+        const value = row[columnName];
+        const item = itemsMap[columnName];
+
+        resultRow[columnName] = {
+            value: {
+                raw: formatRawValue(item, value),
+                formatted: formatItemValue(item, value),
+            },
+        };
+    }
+
+    return resultRow;
+}
+
 export function formatRows(
     rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
 ): ResultRow[] {
-    return rows.map((row) => {
-        const resultRow: ResultRow = {};
-        const columnNames = Object.keys(row || {});
-
-        for (const columnName of columnNames) {
-            const value = row[columnName];
-            const item = itemsMap[columnName];
-
-            resultRow[columnName] = {
-                value: {
-                    raw: formatRawValue(item, value),
-                    formatted: formatItemValue(item, value),
-                },
-            };
-        }
-
-        return resultRow;
-    });
+    return rows.map((row) => formatRow(row, itemsMap));
 }
 
 const isObject = (object: AnyType) =>

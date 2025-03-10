@@ -341,11 +341,11 @@ export class NotEnoughResults extends LightdashError {
     }
 }
 
-export class KnexPaginationError extends LightdashError {
+export class PaginationError extends LightdashError {
     constructor(message: string) {
         super({
             message,
-            name: 'KnexPaginationError',
+            name: 'PaginationError',
             statusCode: 422,
             data: {},
         });
@@ -448,6 +448,20 @@ export class ReadFileError extends LightdashError {
             message,
             name: 'ReadFileError',
             statusCode: 404,
+            data,
+        });
+    }
+}
+
+export class S3Error extends LightdashError {
+    constructor(
+        message = 'Error occurred while interacting with S3',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'S3Error',
+            statusCode: 500,
             data,
         });
     }

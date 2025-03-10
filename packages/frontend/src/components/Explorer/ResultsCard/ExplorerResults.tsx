@@ -38,7 +38,16 @@ export const ExplorerResults = memo(() => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const status = useExplorerContext((context) => context.queryResults.status);
+    const status = useExplorerContext((context) => {
+        // Don't return context.queryResults.status because we changed from mutation to query so 'loading' as a different meaning
+        if (context.queryResults.isFetching) {
+            return 'loading';
+        } else if (context.queryResults.status === 'loading') {
+            return 'idle';
+        } else {
+            return context.queryResults.status;
+        }
+    });
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );

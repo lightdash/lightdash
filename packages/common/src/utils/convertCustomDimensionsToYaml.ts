@@ -97,6 +97,9 @@ const warehouseClientMock: WarehouseClient = {
     streamQuery() {
         throw new NotImplementedError('getCatalog not implemented');
     },
+    getPaginatedResults() {
+        throw new NotImplementedError('getCatalog not implemented');
+    },
     test() {
         throw new NotImplementedError('getCatalog not implemented');
     },

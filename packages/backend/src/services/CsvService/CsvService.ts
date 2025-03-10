@@ -59,7 +59,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';

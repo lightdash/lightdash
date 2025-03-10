@@ -1,4 +1,5 @@
 import {
+    CompleteUserSchema,
     LightdashMode,
     getEmailDomain,
     validateOrganizationEmailDomains,
@@ -17,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import shuffle from 'lodash/shuffle';
+import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import useApp from '../../providers/App/useApp';
@@ -50,6 +52,7 @@ const UserCompletionModal: FC = () => {
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
         },
+        validate: zodResolver(CompleteUserSchema),
     });
 
     const { isLoading, mutate, isSuccess } = useUserCompleteMutation();

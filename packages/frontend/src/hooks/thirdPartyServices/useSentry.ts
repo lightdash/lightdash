@@ -4,6 +4,7 @@ import {
     reactRouterV7BrowserTracingIntegration,
     replayIntegration,
     setTag,
+    setTags,
     setUser,
 } from '@sentry/react';
 import { useEffect, useState } from 'react';
@@ -12,6 +13,7 @@ import {
     matchRoutes,
     useLocation,
     useNavigationType,
+    useParams,
 } from 'react-router';
 
 const useSentry = (
@@ -53,9 +55,20 @@ const useSentry = (
                 email: user.email,
                 username: user.email,
             });
-            setTag('organization', user.organizationUuid);
+            setTags({
+                'user.uuid': user.userUuid,
+                'organization.uuid': user.organizationUuid,
+            });
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
+
+    const { projectUuid } = useParams<{ projectUuid?: string }>();
+    const location = useLocation();
+    useEffect(() => {
+        if (projectUuid) {
+            setTag('project.uuid', projectUuid);
+        }
+    }, [location, projectUuid]);
 };
 
 export default useSentry;

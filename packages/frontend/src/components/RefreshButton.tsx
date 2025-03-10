@@ -32,7 +32,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         (context) => context.state.isValidQuery,
     );
     const isLoading = useExplorerContext(
-        (context) => context.queryResults.isLoading,
+        (context) => context.queryResults.isFetching,
     );
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,

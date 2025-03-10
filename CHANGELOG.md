@@ -1,3 +1,32 @@
+# [0.1533.0](https://github.com/lightdash/lightdash/compare/0.1532.1...0.1533.0) (2025-03-10)
+
+
+### Features
+
+* pagination interface for warehouse and snowflake implementation ([#13927](https://github.com/lightdash/lightdash/issues/13927)) ([0d798bd](https://github.com/lightdash/lightdash/commit/0d798bde62b46abadad0a3e184420af1941dd03f))
+
+## [0.1532.1](https://github.com/lightdash/lightdash/compare/0.1532.0...0.1532.1) (2025-03-10)
+
+
+### Bug Fixes
+
+* improve org name validation ([#13997](https://github.com/lightdash/lightdash/issues/13997)) ([18e4c5c](https://github.com/lightdash/lightdash/commit/18e4c5c165e643b6efaf069ac2af47951f0ad8a5))
+
+# [0.1532.0](https://github.com/lightdash/lightdash/compare/0.1531.10...0.1532.0) (2025-03-10)
+
+
+### Features
+
+* allow opening search resutls in a new tab ([#13981](https://github.com/lightdash/lightdash/issues/13981)) ([e7a2a25](https://github.com/lightdash/lightdash/commit/e7a2a25b222b5a1cfab8e5d692b676f49477d7c1))
+
+## [0.1531.10](https://github.com/lightdash/lightdash/compare/0.1531.9...0.1531.10) (2025-03-10)
+
+
+### Bug Fixes
+
+* new dashboard menu item is missing for developers and editors ([#13984](https://github.com/lightdash/lightdash/issues/13984)) ([ba94e41](https://github.com/lightdash/lightdash/commit/ba94e41efe444bb12b0513610fb2ac6956861411))
+* **refactor:** query results hook ([#13987](https://github.com/lightdash/lightdash/issues/13987)) ([ade55a3](https://github.com/lightdash/lightdash/commit/ade55a39367d00502204b9a36c57af40e4eb7663))
+
 ## [0.1531.9](https://github.com/lightdash/lightdash/compare/0.1531.8...0.1531.9) (2025-03-07)
 
 
