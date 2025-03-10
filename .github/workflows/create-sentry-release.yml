@@ -33,7 +33,7 @@ jobs:
             - name: List output backend files - debugging
               run: ls -R ./packages/backend/dist/
             - name: Create Sentry release (Frontend)
-              uses: getsentry/action-release@v1
+              uses: getsentry/action-release@v3
               env:
                   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
                   SENTRY_ORG: lightdash
@@ -43,7 +43,7 @@ jobs:
                   environment: 'cloud_beta'
                   sourcemaps: './packages/frontend/build/assets/'
             - name: Create Sentry release (Backend)
-              uses: getsentry/action-release@v1
+              uses: getsentry/action-release@v3
               env:
                   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
                   SENTRY_ORG: lightdash
