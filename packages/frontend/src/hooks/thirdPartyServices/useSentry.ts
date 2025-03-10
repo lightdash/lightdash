@@ -66,7 +66,6 @@ const useSentry = (
     const location = useLocation();
     useEffect(() => {
         if (projectUuid) {
-            console.log('setting project.uuid', projectUuid);
             setTag('project.uuid', projectUuid);
         }
     }, [location, projectUuid]);
