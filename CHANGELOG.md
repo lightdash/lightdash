@@ -1,3 +1,10 @@
+# [0.1532.0](https://github.com/lightdash/lightdash/compare/0.1531.10...0.1532.0) (2025-03-10)
+
+
+### Features
+
+* allow opening search resutls in a new tab ([#13981](https://github.com/lightdash/lightdash/issues/13981)) ([e7a2a25](https://github.com/lightdash/lightdash/commit/e7a2a25b222b5a1cfab8e5d692b676f49477d7c1))
+
 ## [0.1531.10](https://github.com/lightdash/lightdash/compare/0.1531.9...0.1531.10) (2025-03-10)
 
 
