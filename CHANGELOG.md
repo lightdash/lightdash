@@ -1,3 +1,10 @@
+# [0.1533.0](https://github.com/lightdash/lightdash/compare/0.1532.1...0.1533.0) (2025-03-10)
+
+
+### Features
+
+* pagination interface for warehouse and snowflake implementation ([#13927](https://github.com/lightdash/lightdash/issues/13927)) ([0d798bd](https://github.com/lightdash/lightdash/commit/0d798bde62b46abadad0a3e184420af1941dd03f))
+
 ## [0.1532.1](https://github.com/lightdash/lightdash/compare/0.1532.0...0.1532.1) (2025-03-10)
 
 
