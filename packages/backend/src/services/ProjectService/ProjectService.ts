@@ -1847,6 +1847,8 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
+                    span.setAttribute('query.page', page);
+                    span.setAttribute('query.pageSize', pageSize);
 
                     let sql = '';
                     let fieldsMap: ItemsMap = {};
