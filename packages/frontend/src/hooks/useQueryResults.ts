@@ -333,7 +333,6 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                                 exploreName: data.tableId,
                                 granularity: data.dateZoomGranularity,
                             },
-                            pageSize: 20,
                         };
                     return getQueryPaginatedResults(
                         data.projectUuid,
