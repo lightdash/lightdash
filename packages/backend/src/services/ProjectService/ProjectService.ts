@@ -1844,7 +1844,7 @@ export class ProjectService extends BaseService {
         validatePagination({
             pageSize: defaultedPageSize,
             page: defaultedPage,
-            queryMaxLimit: this.lightdashConfig.query.maxLimit,
+            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
         });
 
         const { result, durationSeconds } = await measureTime(
@@ -1951,7 +1951,7 @@ export class ProjectService extends BaseService {
                     validatePagination({
                         pageSize,
                         page,
-                        queryMaxLimit: this.lightdashConfig.query.maxLimit,
+                        queryMaxLimit: this.lightdashConfig.query.maxPageSize,
                     });
 
                     const explore = await this.getExplore(
