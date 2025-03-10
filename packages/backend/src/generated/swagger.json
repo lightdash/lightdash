@@ -8007,6 +8007,7 @@
             "SchedulerTaskName": {
                 "type": "string",
                 "enum": [
+                    "slackAiPrompt",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -8022,7 +8023,8 @@
                     "sqlRunnerPivotQuery",
                     "replaceCustomFields",
                     "indexCatalog",
-                    "generateDailyJobs"
+                    "generateDailyJobs",
+                    "exportCsvDashboard"
                 ]
             },
             "SchedulerJobStatus": {
@@ -14728,6 +14730,280 @@
                 },
                 "type": "object"
             },
+            "ResultsPaginationMetadata_ResultRow_": {
+                "allOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "properties": {
+                            "previousPage": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "nextPage": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ResultValue": {
+                "properties": {
+                    "formatted": {
+                        "type": "string"
+                    },
+                    "raw": {}
+                },
+                "required": ["formatted", "raw"],
+                "type": "object"
+            },
+            "Record_string._value-ResultValue__": {
+                "properties": {},
+                "additionalProperties": {
+                    "properties": {
+                        "value": {
+                            "$ref": "#/components/schemas/ResultValue"
+                        }
+                    },
+                    "required": ["value"],
+                    "type": "object"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultRow": {
+                "$ref": "#/components/schemas/Record_string._value-ResultValue__"
+            },
+            "ApiPaginatedQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
+                    },
+                    {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "rows": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ResultRow"
+                                },
+                                "type": "array"
+                            },
+                            "queryId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["fields", "rows", "queryId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiRunPaginatedQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiPaginatedQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "QueryExecutionContext": {
+                "enum": [
+                    "dashboardView",
+                    "autorefreshedDashboard",
+                    "exploreView",
+                    "filterAutocomplete",
+                    "chartView",
+                    "sqlChartView",
+                    "sqlRunner",
+                    "viewUnderlyingData",
+                    "alert",
+                    "scheduledDelivery",
+                    "csvDownload",
+                    "gsheets",
+                    "scheduledGsheetsChart",
+                    "scheduledGsheetsDashboard",
+                    "scheduledChart",
+                    "scheduledDashboard",
+                    "calculateTotal",
+                    "calculateSubtotal",
+                    "embed",
+                    "ai",
+                    "api",
+                    "cli",
+                    "semanticViewer",
+                    "metricsExplorer"
+                ],
+                "type": "string"
+            },
+            "Partial_KnexPaginateArgs_": {
+                "properties": {
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "ResultsPaginationArgs": {
+                "$ref": "#/components/schemas/Partial_KnexPaginateArgs_"
+            },
+            "CommonPaginatedQueryRequestParams": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "context": {
+                                "$ref": "#/components/schemas/QueryExecutionContext"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ResultsPaginationArgs"
+                    }
+                ]
+            },
+            "PaginatedMetricQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "query": {
+                                "$ref": "#/components/schemas/MetricQueryRequest"
+                            }
+                        },
+                        "required": ["query"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedQueryIdRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "queryId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["exploreName", "fields", "queryId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedSavedChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedDashboardChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "granularity": {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dashboardSorts",
+                            "dashboardFilters",
+                            "dashboardUuid",
+                            "chartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PaginatedQueryRequestParams": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PaginatedMetricQueryRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaginatedQueryIdRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaginatedSavedChartRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaginatedDashboardChartRequestParams"
+                    }
+                ]
+            },
             "FeatureFlag": {
                 "properties": {
                     "enabled": {
@@ -15122,7 +15398,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1528.0",
+        "version": "0.1531.10",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

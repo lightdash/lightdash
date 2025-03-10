@@ -1,12 +1,14 @@
+import { getOrganizationNameSchema } from '@lightdash/common';
 import { Button, Flex, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, type FC } from 'react';
 import { z } from 'zod';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 
 const validationSchema = z.object({
-    organizationName: z.string().nonempty(),
+    organizationName: getOrganizationNameSchema(),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -26,6 +28,7 @@ const OrganizationPanel: FC = () => {
         initialValues: {
             organizationName: '',
         },
+        validate: zodResolver(validationSchema),
     });
 
     useEffect(() => {
