@@ -341,22 +341,11 @@ export class NotEnoughResults extends LightdashError {
     }
 }
 
-export class KnexPaginationError extends LightdashError {
+export class PaginationError extends LightdashError {
     constructor(message: string) {
         super({
             message,
-            name: 'KnexPaginationError',
-            statusCode: 422,
-            data: {},
-        });
-    }
-}
-
-export class ResultsPaginationError extends LightdashError {
-    constructor(message: string) {
-        super({
-            message,
-            name: 'ResultsPaginationError',
+            name: 'PaginationError',
             statusCode: 422,
             data: {},
         });

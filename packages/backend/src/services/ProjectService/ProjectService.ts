@@ -50,6 +50,7 @@ import {
     MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
+    PaginationError,
     ParameterError,
     PivotChartData,
     PivotValuesColumn,
@@ -65,7 +66,6 @@ import {
     ReplaceableCustomFields,
     RequestMethod,
     ResultRow,
-    ResultsPaginationError,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
@@ -2672,17 +2672,15 @@ export class ProjectService extends BaseService {
         page,
     }: Required<ResultsPaginationArgs>) {
         if (page < 1) {
-            throw new ResultsPaginationError('page should be greater than 0');
+            throw new PaginationError('page should be greater than 0');
         }
 
         if (pageSize < 1) {
-            throw new ResultsPaginationError(
-                `page size should be greater than 0`,
-            );
+            throw new PaginationError(`page size should be greater than 0`);
         }
 
         if (pageSize > this.lightdashConfig.query.maxLimit) {
-            throw new ResultsPaginationError(
+            throw new PaginationError(
                 `page size is too large, max is ${this.lightdashConfig.query.maxLimit}`,
             );
         }
