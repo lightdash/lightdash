@@ -59,10 +59,11 @@ export class QueryHistoryModel {
         };
     }
 
-    async get(queryUuid: string, projectUuid: string) {
+    async get(queryUuid: string, projectUuid: string, userUuid: string) {
         const result = await this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
+            .andWhere('created_by_user_uuid', userUuid)
             .first();
 
         if (!result) {

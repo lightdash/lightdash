@@ -1793,15 +1793,14 @@ export class ProjectService extends BaseService {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
+            user.userUuid,
         );
 
         if (
             user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
-            ) ||
-            projectUuid !== queryHistory.projectUuid ||
-            user.userUuid !== queryHistory.createdByUserUuid
+            )
         ) {
             throw new ForbiddenError();
         }
