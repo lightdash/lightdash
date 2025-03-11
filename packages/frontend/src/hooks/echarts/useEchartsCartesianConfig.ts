@@ -1623,14 +1623,12 @@ const useEchartsCartesianConfig = (
         if (!itemsMap || !validCartesianConfig || !resultsData) {
             return [];
         }
-
         return getEchartsSeries(
             itemsMap,
             validCartesianConfig,
             pivotDimensions,
         );
     }, [validCartesianConfig, resultsData, itemsMap, pivotDimensions]);
-
     const resultsAndMinsAndMaxes = useMemo(
         () => getResultValueArray(rows, true, true),
         [rows],
