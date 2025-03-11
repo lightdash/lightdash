@@ -1796,10 +1796,6 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
 
-        if (!queryHistory) {
-            throw new NotFoundError(`Query with uuid ${queryUuid} not found`);
-        }
-
         if (
             user.ability.cannot(
                 'view',

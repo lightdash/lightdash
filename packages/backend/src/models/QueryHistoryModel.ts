@@ -1,4 +1,4 @@
-import { QueryHistory } from '@lightdash/common';
+import { NotFoundError, QueryHistory } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbQueryHistory,
@@ -13,10 +13,8 @@ export class QueryHistoryModel {
     }
 
     private static convertDbQueryHistoryToQueryHistory(
-        queryHistory: DbQueryHistory | undefined,
-    ): QueryHistory | undefined {
-        if (!queryHistory) return undefined;
-
+        queryHistory: DbQueryHistory,
+    ): QueryHistory {
         return {
             queryUuid: queryHistory.query_uuid,
             createdAt: queryHistory.created_at,
@@ -66,6 +64,12 @@ export class QueryHistoryModel {
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
             .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Query ${queryUuid} not found for project ${projectUuid}`,
+            );
+        }
 
         return QueryHistoryModel.convertDbQueryHistoryToQueryHistory(result);
     }
