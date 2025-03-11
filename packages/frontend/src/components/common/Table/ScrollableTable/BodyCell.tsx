@@ -64,7 +64,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
     const item = cell.column.columnDef.meta?.item;
-    const hasUrls = isField(item) ? item.urls && item.urls.length > 0 : false;
+    const hasUrls = isField(item) && item.urls ? item.urls.length > 0 : false;
 
     const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
     const shouldRenderTooltip =
@@ -129,23 +129,16 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 $fontColor={fontColor}
                 $hasData={hasData}
                 $isNaN={!hasData || !isNumericItem}
+                $hasUrls={hasUrls}
+                $hasNewlines={
+                    typeof displayValue === 'string' &&
+                    displayValue.includes('\n')
+                }
                 onClick={canHaveMenu ? toggleMenu : undefined}
                 onMouseEnter={canHaveTooltip ? openTooltip : undefined}
                 onMouseLeave={canHaveTooltip ? closeTooltip : undefined}
             >
-                <span
-                    style={{
-                        textDecoration: hasUrls ? 'underline' : 'none',
-                        textDecorationStyle: 'dotted',
-                        whiteSpace:
-                            typeof displayValue === 'string' &&
-                            displayValue.includes('\n')
-                                ? 'pre-line'
-                                : 'nowrap',
-                    }}
-                >
-                    {children}
-                </span>
+                <span>{children}</span>
             </Td>
 
             {shouldRenderMenu ? (
