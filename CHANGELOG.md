@@ -1,3 +1,10 @@
+## [0.1533.2](https://github.com/lightdash/lightdash/compare/0.1533.1...0.1533.2) (2025-03-11)
+
+
+### Bug Fixes
+
+* table body cell should expand if text is too long ([#13986](https://github.com/lightdash/lightdash/issues/13986)) ([86af8fd](https://github.com/lightdash/lightdash/commit/86af8fd330b20546a729473f7c25aebcf8d1a921))
+
 ## [0.1533.1](https://github.com/lightdash/lightdash/compare/0.1533.0...0.1533.1) (2025-03-10)
 
 
