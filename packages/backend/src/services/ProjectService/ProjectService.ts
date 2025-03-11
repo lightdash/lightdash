@@ -1848,7 +1848,11 @@ export class ProjectService extends BaseService {
                         pageSize: defaultedPageSize,
                         tags: queryTags,
                         ...(queryHistory.warehouseQueryId
-                            ? { queryId: queryHistory.warehouseQueryId }
+                            ? {
+                                  queryId: queryHistory.warehouseQueryId,
+                                  queryMetadata:
+                                      queryHistory.warehouseQueryMetadata,
+                              }
                             : { sql: queryHistory.compiledSql }),
                     },
                     formatter,

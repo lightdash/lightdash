@@ -57,7 +57,10 @@ export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
     tags: Record<string, string>;
     timezone?: string;
     values?: AnyType[];
-} & ({ sql: string } | { queryId: string });
+} & (
+        | { sql: string }
+        | { queryId: string; queryMetadata: WarehouseQueryMetadata | null }
+    );
 
 export type WarehousePaginatedResults<
     TFormattedRow extends Record<string, unknown>,
@@ -93,6 +96,7 @@ export interface WarehouseClient {
     getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
         args: WarehousePaginateQueryArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+        warehouseQueryMetadata?: WarehouseQueryMetadata,
     ): Promise<WarehousePaginatedResults<TFormattedRow>>;
 
     /**

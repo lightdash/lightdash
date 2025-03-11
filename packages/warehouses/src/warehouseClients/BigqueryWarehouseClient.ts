@@ -21,7 +21,9 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTypes,
     getErrorMessage,
+    isBigQueryWarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Transform, Writable, pipeline } from 'stream';
 import {
@@ -210,10 +212,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         });
     }
 
-    private async getJob(id: string) {
+    private async getJob(id: string, location: string) {
         const [job] = await this.client
             .job(id, {
-                location: this.client.location, // Bigquery can't find a job unless we define the location. TODO: get location from query metadata once available
+                location, // Bigquery can't find a job unless we define the location.
             })
             .get({
                 autoCreate: false,
@@ -530,7 +532,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     tags,
                 });
             } else if ('queryId' in queryArgs) {
-                job = await this.getJob(queryArgs.queryId);
+                if (
+                    !isBigQueryWarehouseQueryMetadata(queryArgs.queryMetadata)
+                ) {
+                    throw new WarehouseQueryError(
+                        `Invalid warehouse query metadata for query ${queryArgs.queryId}. Please contact support.`,
+                    );
+                }
+
+                job = await this.getJob(
+                    queryArgs.queryId,
+                    queryArgs.queryMetadata.jobLocation,
+                );
             } else {
                 throw new WarehouseQueryError('Invalid query');
             }
@@ -538,6 +551,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             if (!job.id) {
                 throw new WarehouseQueryError(
                     'Missing BigQuery job ID. Please contact support.',
+                );
+            }
+            if (!job.location) {
+                throw new WarehouseQueryError(
+                    'Missing BigQuery job location. Please contact support.',
                 );
             }
 
@@ -565,6 +583,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     ? (rows as TFormattedRow[]).map(rowFormatter)
                     : rows,
                 queryId: job.id,
+                warehouseQueryMetadata: {
+                    type: WarehouseTypes.BIGQUERY,
+                    jobLocation: job.location,
+                },
                 pageCount: Math.ceil(totalRows / queryArgs.pageSize),
                 totalRows,
             };
