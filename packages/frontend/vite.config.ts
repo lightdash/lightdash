@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import reactPlugin from '@vitejs/plugin-react';
 import { compression } from 'vite-plugin-compression2';
 import dts from 'vite-plugin-dts';
@@ -16,10 +17,9 @@ export default defineConfig({
         svgrPlugin(),
         reactPlugin(),
         compression({
-            include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
+            include: [/\.(js)$/, /\.(css)$/],
             filename: '[path][base].gzip',
         }),
-
         ...(isLib
             ? [
                   dts({
@@ -32,6 +32,15 @@ export default defineConfig({
                       languageWorkers: ['json'],
                   }),
               ]),
+        sentryVitePlugin({
+            org: 'lightdash',
+            project: 'lightdash-frontend',
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            release: {
+                name: process.env.SENTRY_RELEASE_VERSION,
+                inject: true,
+            },
+        }),
     ],
     css: {
         transformer: 'lightningcss',
