@@ -1,3 +1,10 @@
+# [0.1534.0](https://github.com/lightdash/lightdash/compare/0.1533.2...0.1534.0) (2025-03-11)
+
+
+### Features
+
+* **explore:** request results with new endpoint ([#14011](https://github.com/lightdash/lightdash/issues/14011)) ([e8fd408](https://github.com/lightdash/lightdash/commit/e8fd408baab8fc4cb410cdd1e97c9d9aac6b6201))
+
 ## [0.1533.2](https://github.com/lightdash/lightdash/compare/0.1533.1...0.1533.2) (2025-03-11)
 
 
