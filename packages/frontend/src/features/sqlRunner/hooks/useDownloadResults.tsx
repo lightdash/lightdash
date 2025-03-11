@@ -22,7 +22,19 @@ export const downloadCsv = async (
         );
     }
     const csvBody = rows.map((row) =>
-        csvColumnIds.map((reference) => row[reference] || '-'),
+        csvColumnIds.map((reference) => {
+            const value = row[reference];
+            if (value === null) {
+                return '∅';
+            }
+            if (value === undefined) {
+                return '-';
+            }
+            if (value === false) {
+                return 'false';
+            }
+            return value;
+        }),
     );
     const csvContent: string = await new Promise<string>((resolve, reject) => {
         stringify(
