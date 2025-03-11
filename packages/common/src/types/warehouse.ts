@@ -96,7 +96,6 @@ export interface WarehouseClient {
     getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
         args: WarehousePaginateQueryArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-        warehouseQueryMetadata?: WarehouseQueryMetadata,
     ): Promise<WarehousePaginatedResults<TFormattedRow>>;
 
     /**
