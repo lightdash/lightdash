@@ -264,7 +264,7 @@ const getChartVersionResults = async (
 const getQueryPaginatedResults = async (
     projectUuid: string,
     data: PaginatedMetricQueryRequestParams,
-): Promise<ApiQueryResults & { queryId: string }> => {
+): Promise<ApiQueryResults & { queryUuid: string }> => {
     const firstPage = await lightdashApi<ApiPaginatedQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
@@ -281,18 +281,15 @@ const getQueryPaginatedResults = async (
             version: 'v2',
             method: 'POST',
             body: JSON.stringify({
-                queryId: firstPage.queryId,
+                queryUuid: firstPage.queryUuid,
                 page: currentPage.nextPage,
-                fields: firstPage.fields, // todo: to be removed once we have save query metadata in the DB
-                exploreName: data.query.exploreName, // todo: to be removed once we have save query metadata in the DB
-                pageSize: data.pageSize, // todo: to be removed once we have save query metadata in the DB
             }),
         });
         allRows = allRows.concat(currentPage.rows);
     }
     return {
-        queryId: firstPage.queryId,
-        metricQuery: data.query, // todo: to be replaced once we have save query metadata in the DB
+        queryUuid: firstPage.queryUuid,
+        metricQuery: firstPage.metricQuery,
         cacheMetadata: {
             // todo: to be replaced once we have save query metadata in the DB
             cacheHit: false,

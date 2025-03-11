@@ -26,6 +26,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -141,6 +142,10 @@ describe('ProjectService', () => {
         catalogModel: {} as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
+        queryHistoryModel: {
+            create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
+            get: jest.fn(async () => undefined),
+        } as unknown as QueryHistoryModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -459,7 +464,8 @@ describe('ProjectService', () => {
                 fields: {},
                 pageCount: 0,
                 totalRows: 0,
-                queryId: '',
+                queryId: null,
+                warehouseQueryMetadata: null,
             });
 
             (
@@ -518,7 +524,8 @@ describe('ProjectService', () => {
                 fields: {},
                 pageCount: 0,
                 totalRows: 0,
-                queryId: '',
+                queryId: null,
+                warehouseQueryMetadata: null,
             });
 
             (

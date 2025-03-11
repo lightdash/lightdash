@@ -1,5 +1,4 @@
 import type { QueryExecutionContext } from '../analytics';
-import type { ItemsMap } from '../field';
 import type { DashboardFilters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { ResultsPaginationArgs } from '../paginateResults';
@@ -14,11 +13,9 @@ export type PaginatedMetricQueryRequestParams =
         query: Omit<MetricQueryRequest, 'csvLimit'>;
     };
 
-export type PaginatedQueryIdRequestParams =
+export type PaginatedQueryUuidRequestParams =
     CommonPaginatedQueryRequestParams & {
-        queryId: string;
-        fields: ItemsMap;
-        exploreName: string;
+        queryUuid: string;
     };
 
 export type PaginatedSavedChartRequestParams =
@@ -39,7 +36,7 @@ export type PaginatedDashboardChartRequestParams =
 // When paginated with queryId, we need to pass the fields so they can be returned back, this is because atm we cannot calculate the fields because we don't know the metricQuery
 export type PaginatedQueryRequestParams =
     | PaginatedMetricQueryRequestParams
-    | PaginatedQueryIdRequestParams
+    | PaginatedQueryUuidRequestParams
     | PaginatedSavedChartRequestParams
     | PaginatedDashboardChartRequestParams;
 
@@ -49,10 +46,10 @@ export function isPaginatedMetricQueryRequest(
     return 'query' in query;
 }
 
-export function isPaginatedQueryIdRequest(
+export function isPaginatedQueryUuidRequest(
     query: PaginatedQueryRequestParams,
-): query is PaginatedQueryIdRequestParams {
-    return 'queryId' in query && 'fields' in query && 'exploreName' in query;
+): query is PaginatedQueryUuidRequestParams {
+    return 'queryUuid' in query;
 }
 
 export function isPaginatedDashboardChartRequest(
