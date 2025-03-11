@@ -158,6 +158,7 @@ const VisualizationCard: FC<{
     if (health.isInitialLoading || !health.data) {
         return null;
     }
+
     return (
         <ErrorBoundary>
             <VisualizationProvider
