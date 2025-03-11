@@ -52,5 +52,5 @@ export function isPaginateQueryIdArgs(
 export function isPaginateMetricQueryArgs(
     args: PaginateQueryArgs,
 ): args is PaginateMetricQueryArgs {
-    return 'metricQuery' in args && 'csvLimit' in args;
+    return 'metricQuery' in args;
 }
