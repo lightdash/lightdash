@@ -49,7 +49,7 @@ export function isPaginatedMetricQueryRequest(
 export function isPaginatedQueryUuidRequest(
     query: PaginatedQueryRequestParams,
 ): query is PaginatedQueryUuidRequestParams {
-    return 'queryUuid' in query && 'fields' in query && 'exploreName' in query;
+    return 'queryUuid' in query;
 }
 
 export function isPaginatedDashboardChartRequest(
