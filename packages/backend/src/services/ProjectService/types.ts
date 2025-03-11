@@ -18,15 +18,13 @@ export type CommonPaginateArgs = ResultsPaginationArgs & {
 
 export type PaginateMetricQueryArgs = CommonPaginateArgs & {
     metricQuery: MetricQuery;
-    csvLimit: number | null | undefined;
     dateZoomGranularity?: DateGranularity;
 };
 
 export type PaginateQueryIdArgs = CommonPaginateArgs & {
     queryId: string;
-    fields: ItemsMap;
-    exploreName: string;
-    dateZoomGranularity?: DateGranularity;
+    fields: ItemsMap; // todo: to be removed once we have save query metadata in the DB
+    exploreName: string; // todo: to be removed once we have save query metadata in the DB
 };
 
 export type PaginateSavedChartArgs = CommonPaginateArgs & {
@@ -40,7 +38,6 @@ export type PaginateDashboardChartArgs = CommonPaginateArgs & {
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
     granularity?: DateGranularity;
-    autoRefresh?: boolean;
 };
 
 // TODO: Not including PaginateSavedChartArgs since it is the same as PaginateMetricQueryArgs after we get the chart from the db, in the future, this function will only take PaginateMetricQueryArgs, first we need queryId metadata
@@ -55,5 +52,5 @@ export function isPaginateQueryIdArgs(
 export function isPaginateMetricQueryArgs(
     args: PaginateQueryArgs,
 ): args is PaginateMetricQueryArgs {
-    return 'metricQuery' in args && 'csvLimit' in args;
+    return 'metricQuery' in args;
 }

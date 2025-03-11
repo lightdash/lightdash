@@ -14076,6 +14076,126 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CompiledDimension.name-or-label_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                filters: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tableCalculations: { dataType: 'any' },
+                        metrics: { dataType: 'any' },
+                        dimensions: { dataType: 'any' },
+                    },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                granularity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateGranularity' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                exploreName: { dataType: 'string', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                    required: true,
+                },
+                additionalMetrics: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refObject',
+                                ref: 'AdditionalMetric',
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                customDimensions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'CustomDimension',
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                metadata: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                hasADateDimension: {
+                                    ref: 'Pick_CompiledDimension.name-or-label_',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                timezone: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                metricOverrides: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MetricOverrides' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_MetricQueryRequest.csvLimit_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PaginatedMetricQueryRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -14085,7 +14205,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        query: { ref: 'MetricQueryRequest', required: true },
+                        query: {
+                            ref: 'Omit_MetricQueryRequest.csvLimit_',
+                            required: true,
+                        },
                     },
                 },
             ],

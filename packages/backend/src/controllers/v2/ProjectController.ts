@@ -94,7 +94,6 @@ export class V2ProjectController extends BaseController {
                 .runPaginatedMetricQuery({
                     ...commonArgs,
                     metricQuery,
-                    csvLimit: body.query.csvLimit,
                     context: context ?? QueryExecutionContext.EXPLORE,
                 });
 

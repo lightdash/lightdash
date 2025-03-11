@@ -472,7 +472,6 @@ describe('ProjectService', () => {
             await service.runPaginatedMetricQuery({
                 ...baseArgs,
                 metricQuery: metricQueryMock,
-                csvLimit: null,
                 page: 1,
                 pageSize: 10,
                 context: QueryExecutionContext.API,
@@ -532,7 +531,6 @@ describe('ProjectService', () => {
             await service.runPaginatedMetricQuery({
                 ...baseArgs,
                 metricQuery: metricQueryMock,
-                csvLimit: null,
                 context: QueryExecutionContext.API,
             });
 

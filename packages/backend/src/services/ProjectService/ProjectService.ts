@@ -1854,7 +1854,7 @@ export class ProjectService extends BaseService {
                     let fieldsMap: ItemsMap = {};
 
                     if (isPaginateMetricQueryArgs(args)) {
-                        const { metricQuery, csvLimit } = args;
+                        const { metricQuery } = args;
                         const userAttributes =
                             await this.userAttributesModel.getAttributeValuesForOrgMember(
                                 {
@@ -1871,13 +1871,8 @@ export class ProjectService extends BaseService {
                             ? getIntrinsicUserAttributes(user)
                             : {};
 
-                        const metricQueryWithLimit = this.metricQueryWithLimit(
-                            metricQuery,
-                            csvLimit,
-                        );
-
                         const fullQuery = await ProjectService._compileQuery(
-                            metricQueryWithLimit,
+                            metricQuery,
                             explore,
                             warehouseClient,
                             intrinsicUserAttributes,
@@ -2007,7 +2002,6 @@ export class ProjectService extends BaseService {
         dateZoomGranularity,
         context,
         metricQuery,
-        csvLimit,
         page,
         pageSize,
     }: PaginateMetricQueryArgs): Promise<ApiPaginatedQueryResults> {
@@ -2052,7 +2046,6 @@ export class ProjectService extends BaseService {
                 metricQuery,
                 projectUuid,
                 exploreName: metricQuery.exploreName,
-                csvLimit,
                 context,
                 queryTags,
                 granularity: dateZoomGranularity,
@@ -2197,7 +2190,6 @@ export class ProjectService extends BaseService {
                 queryTags,
                 invalidateCache: false,
                 metricQuery,
-                csvLimit: undefined,
             },
             formatRow,
         );
@@ -2331,7 +2323,6 @@ export class ProjectService extends BaseService {
             projectUuid,
             exploreName: savedChart.tableName,
             metricQuery: metricQueryWithDashboardOverrides,
-            csvLimit: undefined,
             context,
             queryTags,
             invalidateCache: false,

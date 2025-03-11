@@ -1,11 +1,15 @@
 import {
-    ParameterError,
     type ApiChartAndResults,
     type ApiError,
+    type ApiPaginatedQueryResults,
     type ApiQueryResults,
     type DashboardFilters,
     type DateGranularity,
+    FeatureFlags,
     type MetricQuery,
+    type PaginatedMetricQueryRequestParams,
+    ParameterError,
+    QueryExecutionContext,
     type SortField,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,6 +21,7 @@ import {
     convertDateDashboardFilters,
     convertDateFilters,
 } from '../utils/dateFilter';
+import { useFeatureFlagEnabled } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -253,11 +258,58 @@ const getChartVersionResults = async (
     });
 };
 
+/**
+ * Aggregates pagination results for a query
+ */
+const getQueryPaginatedResults = async (
+    projectUuid: string,
+    data: PaginatedMetricQueryRequestParams,
+): Promise<ApiQueryResults & { queryId: string }> => {
+    const firstPage = await lightdashApi<ApiPaginatedQueryResults>({
+        url: `/projects/${projectUuid}/query`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+    // Get all page rows in sequence
+    let allRows: ApiPaginatedQueryResults['rows'] = firstPage.rows;
+    let currentPage = firstPage;
+    while (currentPage.nextPage) {
+        currentPage = await lightdashApi<ApiPaginatedQueryResults>({
+            url: `/projects/${projectUuid}/query`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify({
+                queryId: firstPage.queryId,
+                page: currentPage.nextPage,
+                fields: firstPage.fields, // todo: to be removed once we have save query metadata in the DB
+                exploreName: data.query.exploreName, // todo: to be removed once we have save query metadata in the DB
+                pageSize: data.pageSize, // todo: to be removed once we have save query metadata in the DB
+            }),
+        });
+        allRows = allRows.concat(currentPage.rows);
+    }
+    return {
+        queryId: firstPage.queryId,
+        metricQuery: data.query, // todo: to be replaced once we have save query metadata in the DB
+        cacheMetadata: {
+            // todo: to be replaced once we have save query metadata in the DB
+            cacheHit: false,
+        },
+        rows: allRows,
+        fields: firstPage.fields,
+    };
+};
+
 export const useQueryResults = (data: QueryResultsProps | null) => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
+    const queryPaginationEnabled = useFeatureFlagEnabled(
+        FeatureFlags.QueryPagination,
+    );
     const result = useQuery<ApiQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['query-all-results', data],
@@ -269,7 +321,24 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                 );
             } else if (data?.chartUuid) {
                 return getChartResults(data);
-            } else if (data) {
+            } else if (data?.query) {
+                if (queryPaginationEnabled) {
+                    const queryWithOverrides: PaginatedMetricQueryRequestParams =
+                        {
+                            context: QueryExecutionContext.EXPLORE,
+                            query: {
+                                ...data.query,
+                                filters: convertDateFilters(data.query.filters),
+                                timezone: data.query.timezone ?? undefined,
+                                exploreName: data.tableId,
+                                granularity: data.dateZoomGranularity,
+                            },
+                        };
+                    return getQueryPaginatedResults(
+                        data.projectUuid,
+                        queryWithOverrides,
+                    );
+                }
                 return getQueryResults(data);
             }
 
