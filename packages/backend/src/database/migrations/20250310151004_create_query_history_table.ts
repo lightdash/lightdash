@@ -42,7 +42,7 @@ export async function up(knex: Knex): Promise<void> {
         table.string('warehouse_query_id').nullable();
         table.string('context').notNullable();
         table.integer('default_page_size').notNullable();
-        table.string('compiled_sql').notNullable();
+        table.text('compiled_sql').notNullable();
         table.integer('warehouse_execution_time_ms').notNullable();
         table.integer('total_row_count').notNullable();
         table.jsonb('metric_query').notNullable();
