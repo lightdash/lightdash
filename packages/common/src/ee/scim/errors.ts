@@ -38,6 +38,7 @@ export class ScimError extends Error {
         status: number;
     }) {
         super(detail);
+        this.name = 'ScimError';
         this.scimType = scimType;
         this.schemas = [
             'urn:ietf:params:scim:api:messages:2.0:Error',

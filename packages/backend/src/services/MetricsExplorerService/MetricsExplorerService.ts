@@ -243,7 +243,7 @@ export class MetricsExplorerService<
         timeDimensionOverride: TimeDimensionConfig | undefined,
         filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
-        return measureTime(
+        const { result } = await measureTime(
             () =>
                 this._runMetricExplorerQuery(
                     user,
@@ -265,6 +265,8 @@ export class MetricsExplorerService<
                 timeDimensionOverride,
             },
         );
+
+        return result;
     }
 
     private async _getTopNSegments(
@@ -568,7 +570,7 @@ export class MetricsExplorerService<
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
     ): Promise<MetricTotalResults> {
-        return measureTime(
+        const { result } = await measureTime(
             () =>
                 this._getMetricTotal(
                     user,
@@ -587,6 +589,8 @@ export class MetricsExplorerService<
                 comparisonType,
             },
         );
+
+        return result;
     }
 
     private async _getMetricTotal(

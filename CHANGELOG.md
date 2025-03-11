@@ -1,3 +1,43 @@
+# [0.1535.0](https://github.com/lightdash/lightdash/compare/0.1534.2...0.1535.0) (2025-03-11)
+
+
+### Bug Fixes
+
+* clear values on close palette ([#14025](https://github.com/lightdash/lightdash/issues/14025)) ([83b6a4f](https://github.com/lightdash/lightdash/commit/83b6a4f042b7b23b9ea6b940fb3fa7c27f2ca4bb))
+
+
+### Features
+
+* add query history table ([#14016](https://github.com/lightdash/lightdash/issues/14016)) ([f3473d5](https://github.com/lightdash/lightdash/commit/f3473d541889e0ee219a1c099f9511bf505a0e55))
+
+## [0.1534.2](https://github.com/lightdash/lightdash/compare/0.1534.1...0.1534.2) (2025-03-11)
+
+
+### Bug Fixes
+
+* empty colors on dashboards ([#14020](https://github.com/lightdash/lightdash/issues/14020)) ([3e67a6a](https://github.com/lightdash/lightdash/commit/3e67a6a281ee6617ec3f08fe9ed920674ae7e95c))
+
+## [0.1534.1](https://github.com/lightdash/lightdash/compare/0.1534.0...0.1534.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* optimize sql runner search ([#13967](https://github.com/lightdash/lightdash/issues/13967)) ([72f1ee0](https://github.com/lightdash/lightdash/commit/72f1ee0880f2343ffa29268b490e1a766bfee39f))
+
+# [0.1534.0](https://github.com/lightdash/lightdash/compare/0.1533.2...0.1534.0) (2025-03-11)
+
+
+### Features
+
+* **explore:** request results with new endpoint ([#14011](https://github.com/lightdash/lightdash/issues/14011)) ([e8fd408](https://github.com/lightdash/lightdash/commit/e8fd408baab8fc4cb410cdd1e97c9d9aac6b6201))
+
+## [0.1533.2](https://github.com/lightdash/lightdash/compare/0.1533.1...0.1533.2) (2025-03-11)
+
+
+### Bug Fixes
+
+* table body cell should expand if text is too long ([#13986](https://github.com/lightdash/lightdash/issues/13986)) ([86af8fd](https://github.com/lightdash/lightdash/commit/86af8fd330b20546a729473f7c25aebcf8d1a921))
+
 ## [0.1533.1](https://github.com/lightdash/lightdash/compare/0.1533.0...0.1533.1) (2025-03-10)
 
 
