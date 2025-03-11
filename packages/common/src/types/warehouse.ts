@@ -4,6 +4,7 @@ import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
+import type { WarehouseQueryMetadata } from './queryHistory';
 
 export type RunQueryTags = {
     project_uuid?: string;
@@ -66,6 +67,7 @@ export type WarehousePaginatedResults<
     pageCount: number;
     totalRows: number;
     rows: TFormattedRow[];
+    warehouseQueryMetadata: WarehouseQueryMetadata | null;
 };
 
 export interface WarehouseClient {

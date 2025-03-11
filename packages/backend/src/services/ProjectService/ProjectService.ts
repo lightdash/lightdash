@@ -2086,8 +2086,6 @@ export class ProjectService extends BaseService {
                         projectUuid,
                         organizationUuid,
                         createdByUserUuid: user.userUuid,
-                        warehouseQueryId: queryId,
-                        warehouseExecutionTimeMs: roundedDurationMs,
                         defaultPageSize: pageSize,
                         context,
                         fields: fieldsMap,
@@ -2095,6 +2093,9 @@ export class ProjectService extends BaseService {
                         requestParameters,
                         metricQuery,
                         totalRowCount: totalResults,
+                        warehouseQueryId: queryId,
+                        warehouseExecutionTimeMs: roundedDurationMs,
+                        warehouseQueryMetadata: result.warehouseQueryMetadata,
                     });
 
                     return {

@@ -2,7 +2,6 @@ import { QueryHistory } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbQueryHistory,
-    DbQueryHistoryIn,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 
@@ -24,15 +23,16 @@ export class QueryHistoryModel {
             createdByUserUuid: queryHistory.created_by_user_uuid,
             organizationUuid: queryHistory.organization_uuid,
             projectUuid: queryHistory.project_uuid,
-            warehouseQueryId: queryHistory.warehouse_query_id,
             compiledSql: queryHistory.compiled_sql,
             defaultPageSize: queryHistory.default_page_size,
             context: queryHistory.context,
             metricQuery: queryHistory.metric_query,
             fields: queryHistory.fields,
             requestParameters: queryHistory.request_parameters,
-            warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
             totalRowCount: queryHistory.total_row_count,
+            warehouseQueryId: queryHistory.warehouse_query_id,
+            warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
+            warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
         };
     }
 
@@ -42,16 +42,17 @@ export class QueryHistoryModel {
                 created_by_user_uuid: queryHistory.createdByUserUuid,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
-                warehouse_query_id: queryHistory.warehouseQueryId,
                 compiled_sql: queryHistory.compiledSql,
                 default_page_size: queryHistory.defaultPageSize,
                 context: queryHistory.context,
                 metric_query: queryHistory.metricQuery,
                 fields: queryHistory.fields,
                 request_parameters: queryHistory.requestParameters,
+                total_row_count: queryHistory.totalRowCount,
+                warehouse_query_id: queryHistory.warehouseQueryId,
                 warehouse_execution_time_ms:
                     queryHistory.warehouseExecutionTimeMs,
-                total_row_count: queryHistory.totalRowCount,
+                warehouse_query_metadata: queryHistory.warehouseQueryMetadata,
             })
             .returning('query_uuid');
 

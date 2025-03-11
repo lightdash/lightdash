@@ -464,7 +464,8 @@ describe('ProjectService', () => {
                 fields: {},
                 pageCount: 0,
                 totalRows: 0,
-                queryId: '',
+                queryId: null,
+                warehouseQueryMetadata: null,
             });
 
             (
@@ -523,7 +524,8 @@ describe('ProjectService', () => {
                 fields: {},
                 pageCount: 0,
                 totalRows: 0,
-                queryId: '',
+                queryId: null,
+                warehouseQueryMetadata: null,
             });
 
             (
