@@ -1,5 +1,4 @@
-/// <reference path="../@types/passport-openidconnect.d.ts" />
-/// <reference path="../@types/express-session.d.ts" />
+import { SessionUser } from '@lightdash/common';
 import { setTag, setTags } from '@sentry/node';
 import { RequestHandler } from 'express';
 
@@ -13,15 +12,11 @@ export const sentrySetProjectUuidTagMiddleware: RequestHandler = (
     }
 
     if (req.user) {
-        if (req.user.userUuid && typeof req.user.userUuid === 'string') {
-            setTag('user.uuid', req.user.userUuid);
-        }
-        if (
-            req.user.organizationUuid &&
-            typeof req.user.organizationUuid === 'string'
-        ) {
-            setTag('organization.uuid', req.user.organizationUuid);
-        }
+        const user = req.user as SessionUser;
+        setTags({
+            'user.uuid': user.userUuid,
+            'organization.uuid': user.organizationUuid,
+        });
     }
     next();
 };
