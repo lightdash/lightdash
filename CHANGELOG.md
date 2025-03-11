@@ -1,3 +1,15 @@
+# [0.1535.0](https://github.com/lightdash/lightdash/compare/0.1534.2...0.1535.0) (2025-03-11)
+
+
+### Bug Fixes
+
+* clear values on close palette ([#14025](https://github.com/lightdash/lightdash/issues/14025)) ([83b6a4f](https://github.com/lightdash/lightdash/commit/83b6a4f042b7b23b9ea6b940fb3fa7c27f2ca4bb))
+
+
+### Features
+
+* add query history table ([#14016](https://github.com/lightdash/lightdash/issues/14016)) ([f3473d5](https://github.com/lightdash/lightdash/commit/f3473d541889e0ee219a1c099f9511bf505a0e55))
+
 ## [0.1534.2](https://github.com/lightdash/lightdash/compare/0.1534.1...0.1534.2) (2025-03-11)
 
 
