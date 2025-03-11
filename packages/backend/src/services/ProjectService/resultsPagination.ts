@@ -4,7 +4,7 @@ import { PaginationError } from '@lightdash/common';
 
 export function getNextAndPreviousPage(page: number, totalPageCount: number) {
     const nextPage =
-        page === totalPageCount || totalPageCount === 0 ? undefined : page + 1;
+        page >= totalPageCount || totalPageCount === 0 ? undefined : page + 1;
 
     const previousPage = page > 1 ? page - 1 : undefined;
 
