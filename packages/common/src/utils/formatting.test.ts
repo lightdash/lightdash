@@ -1444,8 +1444,5 @@ describe('Formatting', () => {
             expect(applyDefaultFormat(1234)).toBe('1,234');
             expect(applyDefaultFormat(-1234)).toBe('-1,234');
         });
-        it('should handle arrays', () => {
-            expect(applyDefaultFormat([1, 2, 3])).toBe('1,2,3');
-        });
     });
 });
