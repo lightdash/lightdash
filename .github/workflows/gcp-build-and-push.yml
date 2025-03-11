@@ -29,4 +29,10 @@ jobs:
         run: 'gcloud info'
 
       - name: Build and push
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: lightdash
+          SENTRY_FRONTEND_PROJECT: lightdash-frontend
+          SENTRY_BACKEND_PROJECT: lightdash-backend
+          SENTRY_ENVIRONMENT: cloud_beta
         run: bash ./scripts/gcp-build-and-push.sh
