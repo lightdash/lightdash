@@ -21,7 +21,10 @@ export type PaginateMetricQueryArgs = CommonPaginateArgs & {
     dateZoomGranularity?: DateGranularity;
 };
 
-export type PaginateQueryUuidArgs = Omit<CommonPaginateArgs, 'context'> & {
+export type PaginateQueryUuidArgs = Omit<
+    CommonPaginateArgs,
+    'context' | 'invalidateCache'
+> & {
     queryUuid: string;
 };
 

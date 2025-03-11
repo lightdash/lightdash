@@ -1783,7 +1783,6 @@ export class ProjectService extends BaseService {
         queryUuid,
         page = 1,
         pageSize,
-        invalidateCache, // TODO paginate: need to handle caching
     }: PaginateQueryUuidArgs): Promise<ApiPaginatedQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
