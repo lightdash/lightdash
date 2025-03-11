@@ -1,5 +1,8 @@
-import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
-import { applyDefaultFormat } from '@lightdash/common';
+import {
+    type RawResultRow,
+    type VizColumnsConfig,
+    applyDefaultFormat,
+} from '@lightdash/common';
 import { stringify } from 'csv-stringify/browser/esm';
 import { useCallback } from 'react';
 import { useAppSelector } from '../store/hooks';
