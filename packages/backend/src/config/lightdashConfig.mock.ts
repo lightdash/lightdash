@@ -148,8 +148,8 @@ export const lightdashConfigMock: LightdashConfig = {
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
-        maxPageSize: 5000,
-        maxLimit: 500,
+        maxPageSize: 2500,
+        maxLimit: 5000,
         defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
