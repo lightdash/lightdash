@@ -1,3 +1,10 @@
+## [0.1534.1](https://github.com/lightdash/lightdash/compare/0.1534.0...0.1534.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* optimize sql runner search ([#13967](https://github.com/lightdash/lightdash/issues/13967)) ([72f1ee0](https://github.com/lightdash/lightdash/commit/72f1ee0880f2343ffa29268b490e1a766bfee39f))
+
 # [0.1534.0](https://github.com/lightdash/lightdash/compare/0.1533.2...0.1534.0) (2025-03-11)
 
 
