@@ -73,6 +73,7 @@ const AppearanceColorSettings: FC = () => {
             </Stack>
 
             <CreatePaletteModal
+                key={`create-palette-modal-${isCreatePaletteModalOpen}`}
                 opened={isCreatePaletteModalOpen}
                 onClose={() => {
                     setIsCreatePaletteModalOpen(false);
