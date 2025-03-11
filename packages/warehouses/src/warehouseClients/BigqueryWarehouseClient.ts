@@ -211,9 +211,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     private async getJob(id: string) {
-        const [job] = await this.client.job(id).get({
-            autoCreate: false,
-        });
+        const [job] = await this.client
+            .job(id, {
+                location: this.client.location, // Bigquery can't find a job unless we define the location. TODO: get location from query metadata once available
+            })
+            .get({
+                autoCreate: false,
+            });
         return job;
     }
 
@@ -520,18 +524,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
     ): Promise<WarehousePaginatedResults<TFormattedRow>> {
         try {
-            console.log('getPaginatedResults', queryArgs);
             let job: Job;
             if ('sql' in queryArgs) {
                 [job] = await this.createJob(queryArgs.sql, {
                     tags,
                 });
-                if (job.id) {
-                    const job2 = await this.getJob(job.id);
-                    console.log('job2');
-                }
             } else if ('queryId' in queryArgs) {
-                [job] = await this.getJob(queryArgs.queryId);
+                job = await this.getJob(queryArgs.queryId);
             } else {
                 throw new WarehouseQueryError('Invalid query');
             }
@@ -571,7 +570,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             };
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
-                console.log(e);
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
                 if (responseError) {
