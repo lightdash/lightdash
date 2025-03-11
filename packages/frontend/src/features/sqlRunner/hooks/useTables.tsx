@@ -48,52 +48,6 @@ export const useTables = ({ projectUuid }: GetTablesParams) => {
             }),
         retry: false,
         enabled: !!projectUuid,
-        /*select(data) {
-        
-
-            if (!search)
-                return {
-                    database: Object.keys(data)[0],
-                    tablesBySchema,
-                };
-
-            const searchResults: TablesBySchema = tablesBySchema
-                .map((schemaData) => {
-                    const { schema, tables } = schemaData;
-                    const tableNames = Object.keys(tables);
-
-                    const fuse = new Fuse(tableNames, {
-                        threshold: 0.3,
-                        isCaseSensitive: false,
-                    });
-
-                    const fuseResult = fuse
-                        .search(search)
-                        .map((res) => res.item);
-
-                    return {
-                        schema,
-                        tables: fuseResult.reduce<typeof tables>(
-                            (acc, tableName) => {
-                                acc[tableName] = tables[tableName];
-                                return acc;
-                            },
-                            {},
-                        ),
-                    };
-                })
-                .filter(
-                    (schemaData) => Object.keys(schemaData.tables).length > 0,
-                );
-
-            if (searchResults.length === 0) {
-                return undefined;
-            } else
-                return {
-                    database: Object.keys(data)[0],
-                    tablesBySchema: searchResults,
-                };
-        },*/
     });
 };
 

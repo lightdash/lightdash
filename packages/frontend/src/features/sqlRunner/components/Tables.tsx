@@ -343,33 +343,42 @@ export const Tables: FC = () => {
     return (
         <>
             <Box px="sm">
-                <TextInput
-                    size="xs"
-                    disabled={!data && !debouncedSearch}
-                    icon={
-                        isLoading ? (
-                            <Loader size="xs" />
-                        ) : (
-                            <MantineIcon icon={IconSearch} />
-                        )
-                    }
-                    rightSection={
-                        search ? (
-                            <ActionIcon size="xs" onClick={() => setSearch('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search tables"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    styles={(theme) => ({
-                        input: {
-                            borderRadius: theme.radius.md,
-                            border: `1px solid ${theme.colors.gray[3]}`,
-                        },
-                    })}
-                />
+                <Tooltip
+                    opened={search.length > 0 && search.length < 3}
+                    label="Enter at least 3 characters to search"
+                    withinPortal
+                >
+                    <TextInput
+                        size="xs"
+                        disabled={!data && !debouncedSearch}
+                        icon={
+                            isLoading ? (
+                                <Loader size="xs" />
+                            ) : (
+                                <MantineIcon icon={IconSearch} />
+                            )
+                        }
+                        rightSection={
+                            search ? (
+                                <ActionIcon
+                                    size="xs"
+                                    onClick={() => setSearch('')}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        styles={(theme) => ({
+                            input: {
+                                borderRadius: theme.radius.md,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                        })}
+                    />
+                </Tooltip>
             </Box>
 
             <ScrollArea
