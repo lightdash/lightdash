@@ -263,7 +263,7 @@ const ValidDashboardChartTileMinimal: FC<{
     if (health.isInitialLoading || !health.data) {
         return null;
     }
-
+    console.log('daschboard chart config', chart.chartConfig)
     return (
         <VisualizationProvider
             minimal

@@ -65,6 +65,7 @@ import {
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
+import { nextLine } from 'pdf-lib';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -425,7 +426,7 @@ export default class App {
                     policy: 'strict-origin-when-cross-origin',
                 },
                 noSniff: true,
-                xFrameOptions: false,
+                //xFrameOptions:  false,
                 crossOriginOpenerPolicy: {
                     policy: [LightdashMode.DEMO, LightdashMode.PR].includes(
                         this.lightdashConfig.mode,
@@ -433,11 +434,12 @@ export default class App {
                         ? 'unsafe-none'
                         : 'same-origin',
                 },
-            }),
-        );
+            })
+         );
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
+            res.setHeader('X-Frame-Options', 'DENY');
             res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
             res.setHeader(LightdashVersionHeader, VERSION);
             next();

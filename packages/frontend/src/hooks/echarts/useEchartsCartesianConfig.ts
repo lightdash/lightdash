@@ -2003,7 +2003,7 @@ const useEchartsCartesianConfig = (
             theme?.other?.chartFont,
         ],
     );
-
+    console.log('eChartsOptions', eChartsOptions)
     if (
         !itemsMap ||
         rows.length <= 0 ||

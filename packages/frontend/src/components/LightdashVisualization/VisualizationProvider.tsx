@@ -87,6 +87,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         return resultsData?.fields;
     }, [resultsData]);
 
+    console.log('itemsMap', itemsMap)
     const chartRef = useRef<EChartsReact | null>(null);
     useEffect(() => {
         if (setEchartsRef)
@@ -99,7 +100,31 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         initialPivotDimensions,
         lastValidResultsData,
     );
+    console.log('validPivotDimensions', validPivotDimensions)
+    console.log('resultsData', resultsData)
+    console.log('initialPivotDimensions', initialPivotDimensions)
+    console.log('chartConfig', chartConfig)
 
+    // BUT WHY THIS DOES NOT FAIL ON VIEW CHART ? What do we do different ? 
+    const differentPivotValues = useMemo(() => {
+        if (!resultsData?.rows || !validPivotDimensions?.length) return [];
+
+        const pivotField = validPivotDimensions[0];
+        const uniqueValues = new Set<string>();
+
+        resultsData.rows.forEach((row) => {
+            const value = row[pivotField];
+            if (value !== undefined && value !== null) {
+                uniqueValues.add(String(value.value.raw));
+            }
+        });
+
+        // TODO  Respect order of series in chartConfig.config.eChartsConfig.series
+        return Array.from(uniqueValues).sort();
+        
+    }, [resultsData, validPivotDimensions])
+
+    console.log('differentPivotValues', differentPivotValues)
     const setChartType = useCallback(
         (value: ChartType) => onChartTypeChange?.(value),
         [onChartTypeChange],
@@ -134,6 +159,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         }
     }, [resultsData?.metricQuery, columnOrder]);
 
+    console.log('defaultColumnOrder', defaultColumnOrder)
     /**
      * Build a local set of fallback colors, used when dealing with ungrouped series.
      *
@@ -143,7 +169,22 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         if (!chartConfig?.config || chartConfig.type !== ChartType.CARTESIAN) {
             return {};
         }
+        const yFields = ['payments_total_revenue']
+        console.log('chartConfig.config.eChartsConfig.series', chartConfig.config.eChartsConfig.series)
+        const allYFieldCombinations = yFields.flatMap(yField => {
+            if (differentPivotValues && differentPivotValues.length > 0) {
+                return differentPivotValues.map(pivotValue => `${yField}|${pivotValue}`);
+            }
+            return [yField];
+        });
+        console.log('allYFieldCombinations', allYFieldCombinations);
 
+        // {payments_total_revenue|bank_transfer: '#5470c6'}
+
+/*
+        return allYFieldCombinations.reduce((acc, yFieldCombination, i) => {
+            return {...acc, [yFieldCombination]: colorPalette[i % colorPalette.length]}
+        }, {})*/
         return Object.fromEntries(
             (chartConfig.config.eChartsConfig.series ?? []).map((series, i) => {
                 return [
@@ -152,7 +193,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                 ];
             }),
         );
-    }, [chartConfig, colorPalette]);
+    }, [chartConfig, colorPalette, differentPivotValues]);
 
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {
@@ -197,6 +238,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     const isCalculateSeriesColorEnabled = useFeatureFlagEnabled(
         FeatureFlags.CalculateSeriesColor,
     );
+    console.log('isCalculateSeriesColorEnabled', isCalculateSeriesColorEnabled)
 
     /**
      * Gets a shared color for a given series.
@@ -238,11 +280,13 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                 }
             }
 
+            console.log('fallbackColors', fallbackColors)
+            console.log('seriesLike', seriesLike, calculateSeriesLikeIdentifier(seriesLike).join('|'))
             /**
              * If this series is grouped, figure out a shared color assignment from the series;
              * otherwise, pick a series color from the palette based on its order.
              */
-            return isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled
+            return isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled && false 
                 ? calculateSeriesColorAssignment(seriesLike)
                 : fallbackColors[
                       // Note: we don't use getSeriesId since we may not be dealing with a Series type here
