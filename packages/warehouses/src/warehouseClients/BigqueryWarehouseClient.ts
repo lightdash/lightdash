@@ -5,7 +5,9 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
+    QueryRowsResponse,
 } from '@google-cloud/bigquery';
+import { Job } from '@google-cloud/bigquery/build/src/job';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
@@ -22,7 +24,12 @@ import {
     getErrorMessage,
 } from '@lightdash/common';
 import { Transform, Writable, pipeline } from 'stream';
-import { WarehouseCatalog, WarehouseTableSchema } from '../types';
+import {
+    WarehouseCatalog,
+    type WarehousePaginateQueryArgs,
+    type WarehousePaginatedResults,
+    WarehouseTableSchema,
+} from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum BigqueryFieldType {
@@ -111,6 +118,10 @@ const parseRow = (row: Record<string, AnyType>[]) =>
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
 
+type BigqueryError = {
+    errors: bigquery.IErrorProto[];
+};
+
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     client: BigQuery;
 
@@ -132,6 +143,80 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
+    static isBigqueryError(error: unknown): error is BigqueryError {
+        return error !== null && typeof error === 'object' && 'errors' in error;
+    }
+
+    /**
+     * Sanitize label key and values.
+     * Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed.
+     * But also, keys can't be longer than 60 characters, or empty.
+     */
+    static sanitizeLabelsWithValues(
+        labels?: Record<string, string>,
+    ): Record<string, string> | undefined {
+        return labels
+            ? Object.fromEntries(
+                  Object.entries(labels).map(([key, value]) => [
+                      key
+                          .toLowerCase()
+                          .replace(/[^a-z0-9_-]/g, '_')
+                          .substring(0, 60) || 'empty_key',
+                      value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9_-]/g, '_')
+                          .substring(0, 60) || 'empty_value',
+                  ]),
+              )
+            : undefined;
+    }
+
+    static getFieldsFromResponse(response: QueryRowsResponse[2] | undefined) {
+        return (response?.schema?.fields || []).reduce<
+            Record<string, { type: DimensionType }>
+        >((acc, field) => {
+            if (field.name) {
+                return {
+                    ...acc,
+                    [field.name]: { type: mapFieldType(field.type) },
+                };
+            }
+            return acc;
+        }, {});
+    }
+
+    private async createJob(
+        query: string,
+        options: {
+            values?: AnyType[];
+            tags?: Record<string, string>;
+        },
+    ) {
+        return this.client.createQueryJob({
+            query,
+            params: options?.values,
+            useLegacySql: false,
+            maximumBytesBilled:
+                this.credentials.maximumBytesBilled === undefined
+                    ? undefined
+                    : `${this.credentials.maximumBytesBilled}`,
+            priority: this.credentials.priority,
+            jobTimeoutMs:
+                this.credentials.timeoutSeconds &&
+                this.credentials.timeoutSeconds * 1000,
+            labels: BigqueryWarehouseClient.sanitizeLabelsWithValues(
+                options?.tags,
+            ),
+        });
+    }
+
+    private async getJob(id: string) {
+        const [job] = await this.client.job(id).get({
+            autoCreate: false,
+        });
+        return job;
+    }
+
     async streamQuery(
         query: string,
         streamCallback: (data: WarehouseResults) => void,
@@ -142,37 +227,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         },
     ): Promise<void> {
         try {
-            // Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed.
-            // But also, keys can't be longer than 60 characters, or empty.
-            const labels = options?.tags
-                ? Object.fromEntries(
-                      Object.entries(options.tags).map(([key, value]) => [
-                          key
-                              .toLowerCase()
-                              .replace(/[^a-z0-9_-]/g, '_')
-                              .substring(0, 60) || 'empty_key',
-                          value
-                              .toLowerCase()
-                              .replace(/[^a-z0-9_-]/g, '_')
-                              .substring(0, 60) || 'empty_value',
-                      ]),
-                  )
-                : undefined;
-
-            const [job] = await this.client.createQueryJob({
-                query,
-                params: options?.values,
-                useLegacySql: false,
-                maximumBytesBilled:
-                    this.credentials.maximumBytesBilled === undefined
-                        ? undefined
-                        : `${this.credentials.maximumBytesBilled}`,
-                priority: this.credentials.priority,
-                jobTimeoutMs:
-                    this.credentials.timeoutSeconds &&
-                    this.credentials.timeoutSeconds * 1000,
-                labels,
-            });
+            const [job] = await this.createJob(query, options);
 
             // Get the full api response but we can request zero rows
             const [, , response] = await job.getQueryResults({
@@ -181,17 +236,8 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 maxResults: 0, // don't fetch any results
             });
 
-            const fields = (response?.schema?.fields || []).reduce<
-                Record<string, { type: DimensionType }>
-            >((acc, field) => {
-                if (field.name) {
-                    return {
-                        ...acc,
-                        [field.name]: { type: mapFieldType(field.type) },
-                    };
-                }
-                return acc;
-            }, {});
+            const fields =
+                BigqueryWarehouseClient.getFieldsFromResponse(response);
 
             const streamPromise = new Promise<void>((resolve, reject) => {
                 pipeline(
@@ -220,14 +266,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             await streamPromise;
         } catch (e: unknown) {
-            type BigqueryError = {
-                errors: bigquery.IErrorProto[];
-            };
-            const isBigqueryError = (error: unknown): error is BigqueryError =>
-                error !== null &&
-                typeof error === 'object' &&
-                'errors' in error;
-            if (isBigqueryError(e)) {
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
                 if (responseError) {
@@ -474,5 +513,75 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return new WarehouseQueryError(
             `Bigquery warehouse error: ${error?.reason}`,
         );
+    }
+
+    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
+        { timezone, tags, ...queryArgs }: WarehousePaginateQueryArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
+        try {
+            console.log('getPaginatedResults', queryArgs);
+            let job: Job;
+            if ('sql' in queryArgs) {
+                [job] = await this.createJob(queryArgs.sql, {
+                    tags,
+                });
+                if (job.id) {
+                    const job2 = await this.getJob(job.id);
+                    console.log('job2');
+                }
+            } else if ('queryId' in queryArgs) {
+                [job] = await this.getJob(queryArgs.queryId);
+            } else {
+                throw new WarehouseQueryError('Invalid query');
+            }
+
+            if (!job.id) {
+                throw new WarehouseQueryError(
+                    'Missing BigQuery job ID. Please contact support.',
+                );
+            }
+
+            const startIndex = (queryArgs.page - 1) * queryArgs.pageSize;
+            const [rows, , response] = await job.getQueryResults({
+                startIndex: startIndex.toString(),
+                maxResults: queryArgs.pageSize,
+            });
+
+            if (!response) {
+                throw new WarehouseQueryError(
+                    'Missing BigQuery response. Please contact support.',
+                );
+            }
+
+            const fields =
+                BigqueryWarehouseClient.getFieldsFromResponse(response);
+
+            const totalRows: number = response.totalRows
+                ? parseInt(response.totalRows, 10)
+                : 1;
+            return {
+                fields,
+                rows: rowFormatter
+                    ? (rows as TFormattedRow[]).map(rowFormatter)
+                    : rows,
+                queryId: job.id,
+                pageCount: Math.ceil(totalRows / queryArgs.pageSize),
+                totalRows,
+            };
+        } catch (e: unknown) {
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                console.log(e);
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(
+                        responseError,
+                        'sql' in queryArgs ? queryArgs.sql : '',
+                    );
+                }
+            }
+            throw e;
+        }
     }
 }
