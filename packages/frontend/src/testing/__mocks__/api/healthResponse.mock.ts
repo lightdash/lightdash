@@ -37,6 +37,7 @@ export default function mockHealthResponse(
         staticIp: '',
         posthog: undefined,
         query: {
+            maxPageSize: 2500,
             maxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,

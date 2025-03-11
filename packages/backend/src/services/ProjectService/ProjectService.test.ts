@@ -142,7 +142,10 @@ describe('ProjectService', () => {
         catalogModel: {} as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
-        queryHistoryModel: {} as QueryHistoryModel,
+        queryHistoryModel: {
+            create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
+            get: jest.fn(async () => undefined),
+        } as unknown as QueryHistoryModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

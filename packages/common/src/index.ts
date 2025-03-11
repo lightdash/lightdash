@@ -904,6 +904,7 @@ export type HealthState = {
         maxLimit: number;
         defaultLimit: number;
         csvCellsLimit: number;
+        maxPageSize: number;
     };
     pivotTable: {
         maxColumnLimit: number;
