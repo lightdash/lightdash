@@ -474,6 +474,7 @@ export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
     fields: ItemsMap;
     initialQueryExecutionMs: number;
     resultsPageExecutionMs: number;
+    metricQuery: MetricQuery;
 };
 
 export type ApiChartAndResults = {

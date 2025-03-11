@@ -283,16 +283,13 @@ const getQueryPaginatedResults = async (
             body: JSON.stringify({
                 queryUuid: firstPage.queryUuid,
                 page: currentPage.nextPage,
-                fields: firstPage.fields, // todo: to be removed once we have save query metadata in the DB
-                exploreName: data.query.exploreName, // todo: to be removed once we have save query metadata in the DB
-                pageSize: data.pageSize, // todo: to be removed once we have save query metadata in the DB
             }),
         });
         allRows = allRows.concat(currentPage.rows);
     }
     return {
         queryUuid: firstPage.queryUuid,
-        metricQuery: data.query, // todo: to be replaced once we have save query metadata in the DB
+        metricQuery: firstPage.metricQuery,
         cacheMetadata: {
             // todo: to be replaced once we have save query metadata in the DB
             cacheHit: false,

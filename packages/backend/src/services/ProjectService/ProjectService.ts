@@ -1883,6 +1883,7 @@ export class ProjectService extends BaseService {
             totalResults,
             queryUuid: queryHistory.queryUuid,
             fields: queryHistory.fields,
+            metricQuery,
             pageSize: defaultedPageSize,
             page,
             nextPage,
@@ -2110,6 +2111,7 @@ export class ProjectService extends BaseService {
                         nextPage,
                         previousPage,
                         fields: fieldsMap,
+                        metricQuery,
                         // Since this is the initial query execution, we use the same value for both initial and query execution seconds
                         initialQueryExecutionMs: roundedDurationMs,
                         resultsPageExecutionMs: roundedDurationMs,

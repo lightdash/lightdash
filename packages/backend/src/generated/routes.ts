@@ -13974,6 +13974,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        metricQuery: { ref: 'MetricQuery', required: true },
                         resultsPageExecutionMs: {
                             dataType: 'double',
                             required: true,
@@ -14233,8 +14234,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        exploreName: { dataType: 'string', required: true },
-                        fields: { ref: 'ItemsMap', required: true },
                         queryUuid: { dataType: 'string', required: true },
                     },
                 },

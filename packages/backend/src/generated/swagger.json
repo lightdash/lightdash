@@ -14802,6 +14802,9 @@
                     },
                     {
                         "properties": {
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
                             "resultsPageExecutionMs": {
                                 "type": "number",
                                 "format": "double"
@@ -14824,6 +14827,7 @@
                             }
                         },
                         "required": [
+                            "metricQuery",
                             "resultsPageExecutionMs",
                             "initialQueryExecutionMs",
                             "fields",
@@ -15025,17 +15029,11 @@
                     },
                     {
                         "properties": {
-                            "exploreName": {
-                                "type": "string"
-                            },
-                            "fields": {
-                                "$ref": "#/components/schemas/ItemsMap"
-                            },
                             "queryUuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["exploreName", "fields", "queryUuid"],
+                        "required": ["queryUuid"],
                         "type": "object"
                     }
                 ]

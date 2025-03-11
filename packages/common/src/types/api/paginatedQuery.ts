@@ -1,5 +1,4 @@
 import type { QueryExecutionContext } from '../analytics';
-import type { ItemsMap } from '../field';
 import type { DashboardFilters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { ResultsPaginationArgs } from '../paginateResults';
@@ -17,8 +16,6 @@ export type PaginatedMetricQueryRequestParams =
 export type PaginatedQueryUuidRequestParams =
     CommonPaginatedQueryRequestParams & {
         queryUuid: string;
-        fields: ItemsMap;
-        exploreName: string;
     };
 
 export type PaginatedSavedChartRequestParams =
