@@ -13974,11 +13974,11 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        resultsPageExecutionSeconds: {
+                        resultsPageExecutionMs: {
                             dataType: 'double',
                             required: true,
                         },
-                        initialQueryExecutionSeconds: {
+                        initialQueryExecutionMs: {
                             dataType: 'double',
                             required: true,
                         },

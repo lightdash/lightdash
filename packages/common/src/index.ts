@@ -472,8 +472,8 @@ export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     rows: ResultRow[];
     fields: ItemsMap;
-    initialQueryExecutionSeconds: number;
-    resultsPageExecutionSeconds: number;
+    initialQueryExecutionMs: number;
+    resultsPageExecutionMs: number;
 };
 
 export type ApiChartAndResults = {

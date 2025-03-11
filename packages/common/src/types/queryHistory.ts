@@ -13,7 +13,7 @@ export type QueryHistory = {
     context: QueryExecutionContext;
     defaultPageSize: number;
     compiledSql: string;
-    warehouseExecutionTimeSeconds: number;
+    warehouseExecutionTimeMs: number;
     totalRowCount: number;
     metricQuery: MetricQuery;
     fields: ItemsMap;

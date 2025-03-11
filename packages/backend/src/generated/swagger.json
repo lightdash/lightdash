@@ -14802,11 +14802,11 @@
                     },
                     {
                         "properties": {
-                            "resultsPageExecutionSeconds": {
+                            "resultsPageExecutionMs": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "initialQueryExecutionSeconds": {
+                            "initialQueryExecutionMs": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -14824,8 +14824,8 @@
                             }
                         },
                         "required": [
-                            "resultsPageExecutionSeconds",
-                            "initialQueryExecutionSeconds",
+                            "resultsPageExecutionMs",
+                            "initialQueryExecutionMs",
                             "fields",
                             "rows",
                             "queryUuid"

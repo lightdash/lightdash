@@ -16,7 +16,7 @@ export type DbQueryHistory = {
     context: QueryExecutionContext;
     default_page_size: number;
     compiled_sql: string;
-    warehouse_execution_time_seconds: number;
+    warehouse_execution_time_ms: number;
     total_row_count: number;
     metric_query: MetricQuery;
     fields: ItemsMap;

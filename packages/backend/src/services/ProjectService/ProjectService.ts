@@ -1846,7 +1846,7 @@ export class ProjectService extends BaseService {
             queryMaxLimit: this.lightdashConfig.query.maxPageSize,
         });
 
-        const { result, durationSeconds } = await measureTime(
+        const { result, durationMs } = await measureTime(
             () =>
                 warehouseClient.getPaginatedResults(
                     {
@@ -1887,9 +1887,8 @@ export class ProjectService extends BaseService {
             page,
             nextPage,
             previousPage,
-            initialQueryExecutionSeconds:
-                queryHistory.warehouseExecutionTimeSeconds,
-            resultsPageExecutionSeconds: durationSeconds,
+            initialQueryExecutionMs: queryHistory.warehouseExecutionTimeMs,
+            resultsPageExecutionMs: Math.round(durationMs),
         };
     }
 
@@ -2051,7 +2050,7 @@ export class ProjectService extends BaseService {
                             ? rowFormatter(row, fieldsMap)
                             : (row as TFormattedRow);
 
-                    const { result, durationSeconds } = await measureTime(
+                    const { result, durationMs } = await measureTime(
                         () =>
                             warehouseClient.getPaginatedResults(
                                 {
@@ -2081,12 +2080,13 @@ export class ProjectService extends BaseService {
                         totalPageCount,
                     );
 
+                    const roundedDurationMs = Math.round(durationMs);
                     const queryHistory = await this.queryHistoryModel.create({
                         projectUuid,
                         organizationUuid,
                         createdByUserUuid: user.userUuid,
                         warehouseQueryId: queryId,
-                        warehouseExecutionTimeSeconds: durationSeconds,
+                        warehouseExecutionTimeMs: roundedDurationMs,
                         defaultPageSize: pageSize,
                         context,
                         fields: fieldsMap,
@@ -2111,8 +2111,8 @@ export class ProjectService extends BaseService {
                         previousPage,
                         fields: fieldsMap,
                         // Since this is the initial query execution, we use the same value for both initial and query execution seconds
-                        initialQueryExecutionSeconds: durationSeconds,
-                        resultsPageExecutionSeconds: durationSeconds,
+                        initialQueryExecutionMs: roundedDurationMs,
+                        resultsPageExecutionMs: roundedDurationMs,
                     };
                 } catch (e) {
                     span.setStatus({

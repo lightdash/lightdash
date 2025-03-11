@@ -31,8 +31,7 @@ export class QueryHistoryModel {
             metricQuery: queryHistory.metric_query,
             fields: queryHistory.fields,
             requestParameters: queryHistory.request_parameters,
-            warehouseExecutionTimeSeconds:
-                queryHistory.warehouse_execution_time_seconds,
+            warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
             totalRowCount: queryHistory.total_row_count,
         };
     }
@@ -50,8 +49,8 @@ export class QueryHistoryModel {
                 metric_query: queryHistory.metricQuery,
                 fields: queryHistory.fields,
                 request_parameters: queryHistory.requestParameters,
-                warehouse_execution_time_seconds:
-                    queryHistory.warehouseExecutionTimeSeconds,
+                warehouse_execution_time_ms:
+                    queryHistory.warehouseExecutionTimeMs,
                 total_row_count: queryHistory.totalRowCount,
             })
             .returning('query_uuid');
