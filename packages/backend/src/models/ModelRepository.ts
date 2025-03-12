@@ -314,7 +314,7 @@ export class ModelRepository
     public getOrganizationModel(): OrganizationModel {
         return this.getModel(
             'organizationModel',
-            () => new OrganizationModel(this.database),
+            () => new OrganizationModel(this.database, this.lightdashConfig),
         );
     }
 
