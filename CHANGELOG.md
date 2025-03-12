@@ -1,3 +1,10 @@
+## [0.1535.2](https://github.com/lightdash/lightdash/compare/0.1535.1...0.1535.2) (2025-03-12)
+
+
+### Bug Fixes
+
+* don't treat all falsey values as undefined in sql-runner ([#14026](https://github.com/lightdash/lightdash/issues/14026)) ([8f9074e](https://github.com/lightdash/lightdash/commit/8f9074e569259ca9924fc7c24f7c1c486705dd06))
+
 ## [0.1535.1](https://github.com/lightdash/lightdash/compare/0.1535.0...0.1535.1) (2025-03-12)
 
 
