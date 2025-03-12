@@ -252,11 +252,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to retrieve SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 404,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -395,11 +396,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to create SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: 'Failed to create SCIM user',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -525,11 +527,12 @@ export class ScimService extends BaseService {
                                 error,
                             )}`,
                         );
-                        Sentry.captureException(error);
-                        throw new ScimError({
+                        const scimError = new ScimError({
                             detail: 'Failed to patch SCIM user',
                             status: ScimService.getErrorStatus(error) ?? 500,
                         });
+                        Sentry.captureException(scimError);
+                        throw scimError;
                 }
             }
             throw new ScimError({
@@ -599,11 +602,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to delete SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: 'Failed to delete SCIM user',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -635,11 +639,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to retrieve SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -707,11 +712,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to retrieve SCIM groups: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -771,11 +777,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to replace SCIM group: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -850,11 +857,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to replace SCIM group: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -935,11 +943,12 @@ export class ScimService extends BaseService {
                                 error,
                             )}`,
                         );
-                        Sentry.captureException(error);
-                        throw new ScimError({
+                        const scimError = new ScimError({
                             detail: 'Failed to patch SCIM group',
                             status: ScimService.getErrorStatus(error) ?? 500,
                         });
+                        Sentry.captureException(scimError);
+                        throw scimError;
                 }
             }
             throw new ScimError({
@@ -987,11 +996,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to delete SCIM group: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 

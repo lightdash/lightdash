@@ -2,7 +2,7 @@ import {
     ApiErrorPayload,
     isPaginatedDashboardChartRequest,
     isPaginatedMetricQueryRequest,
-    isPaginatedQueryIdRequest,
+    isPaginatedQueryUuidRequest,
     isPaginatedSavedChartRequest,
     ParameterError,
     QueryExecutionContext,
@@ -57,15 +57,12 @@ export class V2ProjectController extends BaseController {
             pageSize: body.pageSize,
         };
 
-        if (isPaginatedQueryIdRequest(body)) {
+        if (isPaginatedQueryUuidRequest(body)) {
             const results = await this.services
                 .getProjectService()
-                .runPaginatedQueryIdQuery({
+                .runPaginatedQueryUuid({
                     ...commonArgs,
-                    queryId: body.queryId,
-                    fields: body.fields,
-                    exploreName: body.exploreName, // TODO paginate: needed until we have the metadata for the queryId,
-                    context: context ?? QueryExecutionContext.API,
+                    queryUuid: body.queryUuid,
                 });
 
             return {
@@ -94,7 +91,6 @@ export class V2ProjectController extends BaseController {
                 .runPaginatedMetricQuery({
                     ...commonArgs,
                     metricQuery,
-                    csvLimit: body.query.csvLimit,
                     context: context ?? QueryExecutionContext.EXPLORE,
                 });
 

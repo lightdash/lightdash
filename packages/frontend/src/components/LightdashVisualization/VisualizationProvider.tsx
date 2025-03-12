@@ -1,12 +1,13 @@
 import {
+    assertUnreachable,
     ChartType,
     FeatureFlags,
-    assertUnreachable,
     isDimension,
     type ApiQueryResults,
     type ChartConfig,
     type DashboardFilters,
     type PivotValue,
+    type Series,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
@@ -61,6 +62,7 @@ type Props = {
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];
     setEchartsRef?: (ref: RefObject<EChartsReact | null>) => void;
+    computedSeries?: Series[];
 };
 
 const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -82,6 +84,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     colorPalette,
     tableCalculationsMetadata,
     setEchartsRef,
+    computedSeries,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -137,6 +140,8 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     /**
      * Build a local set of fallback colors, used when dealing with ungrouped series.
      *
+     * On dashboards, these must be passed in computedSeries prop
+     * On charts, these are computed from the chartConfig
      * Colors are pre-calculated per-series, and re-calculated when series change.
      */
     const fallbackColors = useMemo<Record<string, string>>(() => {
@@ -144,15 +149,19 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             return {};
         }
 
+        const allSeries =
+            computedSeries && computedSeries.length > 0
+                ? computedSeries
+                : chartConfig.config.eChartsConfig.series;
         return Object.fromEntries(
-            (chartConfig.config.eChartsConfig.series ?? []).map((series, i) => {
+            (allSeries ?? []).map((series, i) => {
                 return [
                     calculateSeriesLikeIdentifier(series).join('|'),
                     colorPalette[i % colorPalette.length],
                 ];
             }),
         );
-    }, [chartConfig, colorPalette]);
+    }, [chartConfig, colorPalette, computedSeries]);
 
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {
