@@ -1,3 +1,10 @@
+## [0.1535.4](https://github.com/lightdash/lightdash/compare/0.1535.3...0.1535.4) (2025-03-12)
+
+
+### Bug Fixes
+
+* show write back on sql runner ([#14044](https://github.com/lightdash/lightdash/issues/14044)) ([ca34c41](https://github.com/lightdash/lightdash/commit/ca34c4140032cae600f471896503189f2f491a0e))
+
 ## [0.1535.3](https://github.com/lightdash/lightdash/compare/0.1535.2...0.1535.3) (2025-03-12)
 
 
