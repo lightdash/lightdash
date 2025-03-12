@@ -498,6 +498,7 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
+        Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
