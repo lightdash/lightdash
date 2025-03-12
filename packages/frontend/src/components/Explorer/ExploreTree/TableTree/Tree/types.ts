@@ -48,5 +48,5 @@ export type TreeProviderProps = {
 export type TableTreeContext = TreeProviderProps & {
     nodeMap: NodeMap;
     isSearching: boolean;
-    searchResults: Set<string>;
+    searchResults: string[];
 };

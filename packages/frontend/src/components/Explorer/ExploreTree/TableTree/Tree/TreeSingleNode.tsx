@@ -67,7 +67,7 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
     const isSelected = selectedItems.has(node.key);
-    const isVisible = !isSearching || searchResults.has(node.key);
+    const isVisible = !isSearching || searchResults.includes(node.key);
 
     const item = itemsMap[node.key];
 
