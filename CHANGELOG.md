@@ -1,3 +1,10 @@
+## [0.1535.1](https://github.com/lightdash/lightdash/compare/0.1535.0...0.1535.1) (2025-03-12)
+
+
+### Bug Fixes
+
+* returns actual page size in response ([#14037](https://github.com/lightdash/lightdash/issues/14037)) ([1450399](https://github.com/lightdash/lightdash/commit/145039985ea9d8318cc431e11174c9e9bb2d4292))
+
 # [0.1535.0](https://github.com/lightdash/lightdash/compare/0.1534.2...0.1535.0) (2025-03-11)
 
 
