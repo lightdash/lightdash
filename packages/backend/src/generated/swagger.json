@@ -14795,7 +14795,7 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue__"
             },
-            "ApiPaginatedQueryResults": {
+            "ApiGetAsyncQueryResults": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
@@ -14838,10 +14838,33 @@
                     }
                 ]
             },
-            "ApiRunPaginatedQueryResponse": {
+            "ApiGetAsyncQueryResultsResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiPaginatedQueryResults"
+                        "$ref": "#/components/schemas/ApiGetAsyncQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncQueryResults": {
+                "properties": {
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["queryUuid"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResults"
                     },
                     "status": {
                         "type": "string",
@@ -15006,7 +15029,7 @@
                 "$ref": "#/components/schemas/Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "PaginatedMetricQueryRequestParams": {
+            "ExecuteAsyncMetricQueryRequestParams": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
@@ -15022,23 +15045,7 @@
                     }
                 ]
             },
-            "PaginatedQueryUuidRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "queryUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["queryUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "PaginatedSavedChartRequestParams": {
+            "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
@@ -15057,7 +15064,7 @@
                     }
                 ]
             },
-            "PaginatedDashboardChartRequestParams": {
+            "ExecuteAsyncDashboardChartRequestParams": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
@@ -15093,19 +15100,16 @@
                     }
                 ]
             },
-            "PaginatedQueryRequestParams": {
+            "ExecuteAsyncQueryRequestParams": {
                 "anyOf": [
                     {
-                        "$ref": "#/components/schemas/PaginatedMetricQueryRequestParams"
+                        "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
                     },
                     {
-                        "$ref": "#/components/schemas/PaginatedQueryUuidRequestParams"
+                        "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
                     },
                     {
-                        "$ref": "#/components/schemas/PaginatedSavedChartRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PaginatedDashboardChartRequestParams"
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
                     }
                 ]
             },

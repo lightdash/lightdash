@@ -1,0 +1,36 @@
+import { DEFAULT_RESULTS_PAGE_SIZE } from '@lightdash/common';
+import { Knex } from 'knex';
+
+const QUERY_HISTORY_TABLE = 'query_history';
+
+export async function up(knex: Knex): Promise<void> {
+    await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
+        table.integer('total_row_count').nullable().alter();
+        table.integer('default_page_size').nullable().alter();
+        table.string('status').notNullable().defaultTo('completed'); // TODO paginate: status needs to be typed
+        table.string('error').nullable();
+    });
+}
+
+export async function down(knex: Knex): Promise<void> {
+    await knex.transaction(async (trx) => {
+        await trx(QUERY_HISTORY_TABLE)
+            .update({
+                total_row_count: 0,
+            })
+            .whereNull('total_row_count');
+
+        await trx(QUERY_HISTORY_TABLE)
+            .update({
+                default_page_size: DEFAULT_RESULTS_PAGE_SIZE,
+            })
+            .whereNull('default_page_size');
+    });
+
+    await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
+        table.integer('total_row_count').notNullable().alter();
+        table.integer('default_page_size').notNullable().alter();
+        table.dropColumn('status');
+        table.dropColumn('error');
+    });
+}

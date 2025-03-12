@@ -13965,7 +13965,7 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string._value-ResultValue__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiPaginatedQueryResults: {
+    ApiGetAsyncQueryResults: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -13997,12 +13997,35 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiRunPaginatedQueryResponse: {
+    ApiGetAsyncQueryResultsResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'ApiPaginatedQueryResults', required: true },
+                results: { ref: 'ApiGetAsyncQueryResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExecuteAsyncQueryResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                queryUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExecuteAsyncQueryResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ApiExecuteAsyncQueryResults', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -14205,7 +14228,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedMetricQueryRequestParams: {
+    ExecuteAsyncMetricQueryRequestParams: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -14225,24 +14248,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedQueryUuidRequestParams: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'CommonPaginatedQueryRequestParams' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        queryUuid: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedSavedChartRequestParams: {
+    ExecuteAsyncSavedChartRequestParams: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -14260,7 +14266,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedDashboardChartRequestParams: {
+    ExecuteAsyncDashboardChartRequestParams: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -14288,15 +14294,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedQueryRequestParams: {
+    ExecuteAsyncQueryRequestParams: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
             subSchemas: [
-                { ref: 'PaginatedMetricQueryRequestParams' },
-                { ref: 'PaginatedQueryUuidRequestParams' },
-                { ref: 'PaginatedSavedChartRequestParams' },
-                { ref: 'PaginatedDashboardChartRequestParams' },
+                { ref: 'ExecuteAsyncMetricQueryRequestParams' },
+                { ref: 'ExecuteAsyncSavedChartRequestParams' },
+                { ref: 'ExecuteAsyncDashboardChartRequestParams' },
             ],
             validators: {},
         },
@@ -28984,32 +28989,34 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_query: Record<
+    const argsV2ProjectController_getAsyncQueryResults: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'PaginatedQueryRequestParams',
-        },
         projectUuid: {
             in: 'path',
             name: 'projectUuid',
             required: true,
             dataType: 'string',
         },
+        queryUuid: {
+            in: 'path',
+            name: 'queryUuid',
+            required: true,
+            dataType: 'string',
+        },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
     };
-    app.post(
-        '/api/v2/projects/:projectUuid/query',
+    app.get(
+        '/api/v2/projects/:projectUuid/query/:queryUuid',
         ...fetchMiddlewares<RequestHandler>(V2ProjectController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.query,
+            V2ProjectController.prototype.getAsyncQueryResults,
         ),
 
-        async function V2ProjectController_query(
+        async function V2ProjectController_getAsyncQueryResults(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -29019,7 +29026,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_query,
+                    args: argsV2ProjectController_getAsyncQueryResults,
                     request,
                     response,
                 });
@@ -29038,7 +29045,74 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'query',
+                    methodName: 'getAsyncQueryResults',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsV2ProjectController_executeAsyncQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ExecuteAsyncQueryRequestParams',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query',
+        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            V2ProjectController.prototype.executeAsyncQuery,
+        ),
+
+        async function V2ProjectController_executeAsyncQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsV2ProjectController_executeAsyncQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<V2ProjectController>(
+                        V2ProjectController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncQuery',
                     controller,
                     response,
                     next,

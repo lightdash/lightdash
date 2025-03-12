@@ -468,7 +468,11 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
-export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
+export type ApiExecuteAsyncQueryResults = {
+    queryUuid: string;
+};
+
+export type ApiGetAsyncQueryResults = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     rows: ResultRow[];
     fields: ItemsMap;
@@ -769,7 +773,8 @@ type ApiResults =
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
-    | ApiPaginatedQueryResults;
+    | ApiExecuteAsyncQueryResults
+    | ApiGetAsyncQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

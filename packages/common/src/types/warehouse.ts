@@ -53,24 +53,35 @@ export type WarehousePaginationArgs = {
     pageSize: number;
 };
 
-export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
+export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
     timezone?: string;
     values?: AnyType[];
-} & (
-        | { sql: string }
-        | { queryId: string; queryMetadata: WarehouseQueryMetadata | null }
+    sql: string;
+};
+
+export type WarehouseExecuteAsyncQuery = {
+    queryId: string | null;
+    warehouseQueryMetadata: WarehouseQueryMetadata | null;
+};
+
+export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
+    (
+        | (WarehouseExecuteAsyncQueryArgs & {
+              queryId: null;
+          })
+        | (Omit<WarehouseExecuteAsyncQueryArgs, 'sql'> & {
+              queryId: string;
+          })
     );
 
-export type WarehousePaginatedResults<
+export type WarehouseGetAsyncQueryResults<
     TFormattedRow extends Record<string, unknown>,
-> = {
+> = Omit<WarehouseExecuteAsyncQuery, 'warehouseQueryMetadata'> & {
     fields: Record<string, { type: DimensionType }>;
-    queryId: string | null;
     pageCount: number;
     totalRows: number;
     rows: TFormattedRow[];
-    warehouseQueryMetadata: WarehouseQueryMetadata | null;
 };
 
 export interface WarehouseClient {
@@ -93,10 +104,14 @@ export interface WarehouseClient {
         },
     ): Promise<void>;
 
-    getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
-        args: WarehousePaginateQueryArgs,
+    executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery>;
+
+    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        args: WarehouseGetAsyncQueryResultsArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehousePaginatedResults<TFormattedRow>>;
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results

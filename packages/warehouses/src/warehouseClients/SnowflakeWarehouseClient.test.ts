@@ -1,7 +1,7 @@
 import {
     DimensionType,
     type ResultRow,
-    type WarehousePaginatedResults,
+    type WarehouseGetAsyncQueryResults,
 } from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
 import { Readable } from 'stream';
@@ -83,13 +83,14 @@ describe('SnowflakeWarehouseClient', () => {
             expectedWarehouseSchema,
         );
     });
-    describe('getPaginatedResults', () => {
+    describe('getAsyncQueryResults', () => {
         it('should return raw results', async () => {
             const client = new SnowflakeWarehouseClient(credentials);
 
             // Execute test
-            const result = await client.getPaginatedResults({
+            const result = await client.getAsyncQueryResults({
                 sql: 'SELECT * FROM test',
+                queryId: null,
                 page: 1,
                 pageSize: 10,
                 tags: {},
@@ -117,8 +118,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                warehouseQueryMetadata: null,
-            } satisfies WarehousePaginatedResults<Record<string, unknown>>);
+            } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
 
         it('should return formatted results when using a formatter', async () => {
@@ -138,7 +138,7 @@ describe('SnowflakeWarehouseClient', () => {
                 );
             }
 
-            const result = await client.getPaginatedResults(
+            const result = await client.getAsyncQueryResults(
                 {
                     sql: 'SELECT * FROM test',
                     page: 1,
@@ -146,6 +146,7 @@ describe('SnowflakeWarehouseClient', () => {
                     tags: {},
                     timezone: 'UTC',
                     values: [],
+                    queryId: null,
                 },
                 formatter,
             );
@@ -171,14 +172,13 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                warehouseQueryMetadata: null,
-            } satisfies WarehousePaginatedResults<ResultRow>);
+            } satisfies WarehouseGetAsyncQueryResults<ResultRow>);
         });
 
         it('should not execute any query when using queryId', async () => {
             const client = new SnowflakeWarehouseClient(credentials);
 
-            const result = await client.getPaginatedResults({
+            const result = await client.getAsyncQueryResults({
                 queryId: 'queryId',
                 queryMetadata: null,
                 page: 1,
@@ -208,8 +208,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                warehouseQueryMetadata: null,
-            } satisfies WarehousePaginatedResults<Record<string, unknown>>);
+            } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
     });
 });

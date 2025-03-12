@@ -1,7 +1,7 @@
 import type {
+    ExecuteAsyncQueryRequestParams,
     ItemsMap,
     MetricQuery,
-    PaginatedQueryRequestParams,
     QueryExecutionContext,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
@@ -14,15 +14,17 @@ export type DbQueryHistory = {
     project_uuid: string | null;
     organization_uuid: string;
     context: QueryExecutionContext;
-    default_page_size: number;
+    default_page_size: number | null;
     compiled_sql: string;
     warehouse_query_id: string | null;
     warehouse_execution_time_ms: number;
     warehouse_query_metadata: WarehouseQueryMetadata | null;
-    total_row_count: number;
+    total_row_count: number | null;
+    status: string;
+    error: string | null;
     metric_query: MetricQuery;
     fields: ItemsMap;
-    request_parameters: PaginatedQueryRequestParams;
+    request_parameters: ExecuteAsyncQueryRequestParams;
 };
 
 export type DbQueryHistoryIn = Omit<

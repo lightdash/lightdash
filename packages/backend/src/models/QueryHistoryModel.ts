@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 import {
     DbQueryHistory,
     QueryHistoryTableName,
+    type DbQueryHistoryIn,
 } from '../database/entities/queryHistory';
 
 export class QueryHistoryModel {
@@ -31,6 +32,8 @@ export class QueryHistoryModel {
             warehouseQueryId: queryHistory.warehouse_query_id,
             warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
             warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
+            status: queryHistory.status,
+            error: queryHistory.error,
         };
     }
 
@@ -51,12 +54,27 @@ export class QueryHistoryModel {
                 warehouse_execution_time_ms:
                     queryHistory.warehouseExecutionTimeMs,
                 warehouse_query_metadata: queryHistory.warehouseQueryMetadata,
+                status: queryHistory.status,
+                error: queryHistory.error,
             })
             .returning('query_uuid');
 
         return {
             queryUuid: result.query_uuid,
         };
+    }
+
+    async update(
+        queryUuid: string,
+        projectUuid: string,
+        userUuid: string,
+        queryHistory: Partial<DbQueryHistoryIn>,
+    ) {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere('created_by_user_uuid', userUuid)
+            .update(queryHistory);
     }
 
     async get(queryUuid: string, projectUuid: string, userUuid: string) {

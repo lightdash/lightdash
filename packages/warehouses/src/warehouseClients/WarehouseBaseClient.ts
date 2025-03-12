@@ -8,13 +8,13 @@ import {
     WarehouseCatalog,
     WarehouseResults,
     WeekDay,
-    type ItemsMap,
-    type ResultRow,
+    type WarehouseExecuteAsyncQuery,
+    type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
 import {
     type WarehouseClient,
-    type WarehousePaginateQueryArgs,
-    type WarehousePaginatedResults,
+    type WarehouseGetAsyncQueryResults,
+    type WarehouseGetAsyncQueryResultsArgs,
 } from '../types';
 import { getDefaultMetricSql } from '../utils/sql';
 
@@ -60,12 +60,21 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         throw new Error('Warehouse method not implemented.');
     }
 
-    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
-        { tags, timezone, values, ...args }: WarehousePaginateQueryArgs,
+    async executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery> {
+        return {
+            queryId: null,
+            warehouseQueryMetadata: null,
+        };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        { tags, timezone, values, ...args }: WarehouseGetAsyncQueryResultsArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
-        // When there's no method implemented, we use the run query method and just return the results
-        if ('sql' in args) {
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        // When warehouse doesn't support async queries we run the compiled sql and return all the results
+        if (args.queryId === null) {
             let fields: WarehouseResults['fields'] = {};
             const rows: TFormattedRow[] = [];
 
@@ -92,7 +101,6 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
                 queryId: null,
                 pageCount: 1,
                 totalRows: rows.length,
-                warehouseQueryMetadata: null,
             };
         }
 

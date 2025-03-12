@@ -127,13 +127,14 @@ import {
     replaceDimensionInExplore,
     snakeCaseName,
     type ApiCreateProjectResults,
-    type ApiPaginatedQueryResults,
+    type ApiExecuteAsyncQueryResults,
+    type ApiGetAsyncQueryResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
-    type PaginatedDashboardChartRequestParams,
-    type PaginatedMetricQueryRequestParams,
-    type PaginatedQueryRequestParams,
-    type PaginatedSavedChartRequestParams,
+    type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncQueryRequestParams,
+    type ExecuteAsyncSavedChartRequestParams,
     type RunQueryTags,
     type SemanticLayerConnectionUpdate,
     type Tag,
@@ -201,10 +202,10 @@ import {
     validatePagination,
 } from './resultsPagination';
 import {
-    type PaginateDashboardChartArgs,
-    type PaginateMetricQueryArgs,
-    type PaginateQueryUuidArgs,
-    type PaginateSavedChartArgs,
+    type ExecuteAsyncDashboardChartQueryArgs,
+    type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncSavedChartQueryArgs,
+    type GetAsyncQueryResultsArgs,
 } from './types';
 
 type ProjectServiceArguments = {
@@ -1778,13 +1779,13 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async runPaginatedQueryUuid({
+    async getAsyncQueryResults({
         user,
         projectUuid,
         queryUuid,
         page = 1,
         pageSize,
-    }: PaginateQueryUuidArgs): Promise<ApiPaginatedQueryResults> {
+    }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1833,7 +1834,10 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        const defaultedPageSize = pageSize ?? queryHistory.defaultPageSize;
+        const defaultedPageSize =
+            pageSize ??
+            queryHistory.defaultPageSize ??
+            DEFAULT_RESULTS_PAGE_SIZE;
 
         validatePagination({
             pageSize: defaultedPageSize,
@@ -1843,22 +1847,17 @@ export class ProjectService extends BaseService {
 
         const { result, durationMs } = await measureTime(
             () =>
-                warehouseClient.getPaginatedResults(
+                warehouseClient.getAsyncQueryResults(
                     {
                         page,
                         pageSize: defaultedPageSize,
                         tags: queryTags,
-                        ...(queryHistory.warehouseQueryId
-                            ? {
-                                  queryId: queryHistory.warehouseQueryId,
-                                  queryMetadata:
-                                      queryHistory.warehouseQueryMetadata,
-                              }
-                            : { sql: queryHistory.compiledSql }),
+                        queryId: queryHistory.warehouseQueryId,
+                        sql: queryHistory.compiledSql,
                     },
                     formatter,
                 ),
-            'getPaginatedResults',
+            'getAsyncQueryResults',
             this.logger,
             context,
         );
@@ -1870,6 +1869,30 @@ export class ProjectService extends BaseService {
             pageCount: totalPageCount,
             totalRows: totalResults,
         } = result;
+
+        if (
+            queryHistory.totalRowCount === null ||
+            queryHistory.defaultPageSize === null
+        ) {
+            // Update query history with total row count and default page size after the query has been executed
+            await this.queryHistoryModel.update(
+                queryHistory.queryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    ...(queryHistory.totalRowCount === null
+                        ? {
+                              total_row_count: totalResults,
+                          }
+                        : {}),
+                    ...(queryHistory.defaultPageSize === null
+                        ? {
+                              default_page_size: defaultedPageSize,
+                          }
+                        : {}),
+                },
+            );
+        }
 
         const { nextPage, previousPage } = getNextAndPreviousPage(
             page,
@@ -1892,25 +1915,15 @@ export class ProjectService extends BaseService {
         };
     }
 
-    private async runPaginatedQuery<
-        TFormattedRow extends Record<string, unknown>,
-    >(
-        args: PaginateMetricQueryArgs & {
-            user: SessionUser;
-            projectUuid: string;
-            invalidateCache?: boolean;
+    private async executeAsyncQuery(
+        args: ExecuteAsyncMetricQueryArgs & {
+            queryTags: RunQueryTags;
             exploreName: string;
-            granularity?: DateGranularity;
-            queryTags: RunQueryTags; // We already have context in the context parameter
         },
-        requestParameters: PaginatedQueryRequestParams,
-        rowFormatter?: (
-            row: Record<string, unknown>,
-            fields: ItemsMap,
-        ) => TFormattedRow,
+        requestParameters: ExecuteAsyncQueryRequestParams,
     ) {
         return wrapSentryTransaction(
-            'ProjectService.runPaginatedQuery',
+            'ProjectService.executeAsyncQuery',
             {},
             async (span) => {
                 const {
@@ -1918,8 +1931,6 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     context,
                     granularity,
-                    page = 1,
-                    pageSize = DEFAULT_RESULTS_PAGE_SIZE,
                     queryTags,
                     exploreName,
                 } = args;
@@ -1946,12 +1957,6 @@ export class ProjectService extends BaseService {
                         throw new ForbiddenError();
                     }
 
-                    validatePagination({
-                        pageSize,
-                        page,
-                        queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-                    });
-
                     const explore = await this.getExplore(
                         user,
                         projectUuid,
@@ -1976,8 +1981,6 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    span.setAttribute('query.page', page);
-                    span.setAttribute('query.pageSize', pageSize);
 
                     const { metricQuery } = args;
                     const userAttributes =
@@ -2043,74 +2046,40 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    const formatter = (
-                        row: Record<string, unknown>,
-                    ): TFormattedRow =>
-                        rowFormatter
-                            ? rowFormatter(row, fieldsMap)
-                            : (row as TFormattedRow);
-
                     const { result, durationMs } = await measureTime(
                         () =>
-                            warehouseClient.getPaginatedResults(
-                                {
-                                    sql: query,
-                                    page,
-                                    pageSize,
-                                    tags: queryTags,
-                                },
-                                formatter,
-                            ),
-                        'getPaginatedResults',
+                            warehouseClient.executeAsyncQuery({
+                                sql: query,
+                                tags: queryTags,
+                            }),
+                        'getAsyncQueryResults',
                         this.logger,
                         context,
                     );
 
-                    const {
-                        rows,
-                        pageCount: totalPageCount,
-                        totalRows: totalResults,
-                        queryId,
-                    } = result;
-
                     await sshTunnel.disconnect();
-
-                    const { nextPage, previousPage } = getNextAndPreviousPage(
-                        page,
-                        totalPageCount,
-                    );
 
                     const roundedDurationMs = Math.round(durationMs);
                     const queryHistory = await this.queryHistoryModel.create({
                         projectUuid,
                         organizationUuid,
                         createdByUserUuid: user.userUuid,
-                        defaultPageSize: pageSize,
+                        defaultPageSize: null,
                         context,
                         fields: fieldsMap,
                         compiledSql: query,
                         requestParameters,
                         metricQuery,
-                        totalRowCount: totalResults,
-                        warehouseQueryId: queryId,
+                        totalRowCount: null,
+                        error: null,
+                        warehouseQueryId: result.queryId,
                         warehouseExecutionTimeMs: roundedDurationMs,
                         warehouseQueryMetadata: result.warehouseQueryMetadata,
+                        status: 'completed', // TODO paginate: status needs to be typed
                     });
 
                     return {
-                        rows,
                         queryUuid: queryHistory.queryUuid,
-                        totalPageCount,
-                        totalResults,
-                        page,
-                        pageSize: rows.length,
-                        nextPage,
-                        previousPage,
-                        fields: fieldsMap,
-                        metricQuery,
-                        // Since this is the initial query execution, we use the same value for both initial and query execution seconds
-                        initialQueryExecutionMs: roundedDurationMs,
-                        resultsPageExecutionMs: roundedDurationMs,
                     };
                 } catch (e) {
                     span.setStatus({
@@ -2125,15 +2094,13 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async runPaginatedMetricQuery({
+    async executeAsyncMetricQuery({
         user,
         projectUuid,
-        dateZoomGranularity,
+        granularity,
         context,
         metricQuery,
-        page,
-        pageSize,
-    }: PaginateMetricQueryArgs): Promise<ApiPaginatedQueryResults> {
+    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2161,10 +2128,8 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const requestParameters: PaginatedMetricQueryRequestParams = {
+        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
-            page,
-            pageSize,
             query: metricQuery,
         };
 
@@ -2176,7 +2141,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.runPaginatedQuery(
+        return this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -2184,24 +2149,19 @@ export class ProjectService extends BaseService {
                 exploreName: metricQuery.exploreName,
                 context,
                 queryTags,
-                granularity: dateZoomGranularity,
-                page,
-                pageSize,
+                granularity,
             },
             requestParameters,
-            formatRow,
         );
     }
 
-    async runPaginatedSavedChartQuery({
+    async executeAsyncSavedChartQuery({
         user,
         projectUuid,
         chartUuid,
         versionUuid,
-        page,
-        pageSize,
         context,
-    }: PaginateSavedChartArgs): Promise<ApiPaginatedQueryResults> {
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2256,10 +2216,8 @@ export class ProjectService extends BaseService {
             user.userUuid,
         );
 
-        const requestParameters: PaginatedSavedChartRequestParams = {
+        const requestParameters: ExecuteAsyncSavedChartRequestParams = {
             context,
-            page,
-            pageSize,
             chartUuid,
             versionUuid,
         };
@@ -2273,24 +2231,21 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.runPaginatedQuery(
+        return this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
                 exploreName: savedChartTableName,
-                page,
-                pageSize,
                 context,
                 queryTags,
                 invalidateCache: false,
                 metricQuery,
             },
             requestParameters,
-            formatRow,
         );
     }
 
-    async runPaginatedDashboardChartQuery({
+    async executeAsyncDashboardChartQuery({
         user,
         projectUuid,
         chartUuid,
@@ -2298,10 +2253,8 @@ export class ProjectService extends BaseService {
         dashboardFilters,
         dashboardSorts,
         granularity,
-        page,
-        pageSize,
         context,
-    }: PaginateDashboardChartArgs): Promise<ApiPaginatedQueryResults> {
+    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2403,10 +2356,8 @@ export class ProjectService extends BaseService {
             };
         }
 
-        const requestParameters: PaginatedDashboardChartRequestParams = {
+        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
             context,
-            page,
-            pageSize,
             chartUuid,
             dashboardUuid,
             dashboardFilters,
@@ -2424,7 +2375,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.runPaginatedQuery(
+        return this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2433,12 +2384,9 @@ export class ProjectService extends BaseService {
                 context,
                 queryTags,
                 invalidateCache: false,
-                page,
-                pageSize,
                 granularity,
             },
             requestParameters,
-            formatRow,
         );
     }
 

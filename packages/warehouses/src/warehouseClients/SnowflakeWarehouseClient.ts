@@ -11,6 +11,9 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    type WarehouseExecuteAsyncQuery,
+    type WarehouseExecuteAsyncQueryArgs,
+    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
@@ -24,11 +27,7 @@ import {
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
-import {
-    WarehouseCatalog,
-    type WarehousePaginatedResults,
-    type WarehousePaginateQueryArgs,
-} from '../types';
+import { WarehouseCatalog, type WarehouseGetAsyncQueryResults } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 const assertIsSnowflakeLoggingLevel = (
@@ -284,10 +283,34 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : {};
     }
 
-    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
-        { timezone, tags, ...queryArgs }: WarehousePaginateQueryArgs,
+    async executeAsyncQuery({
+        sql,
+        values,
+        tags,
+        timezone,
+    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
+        const connection = await this.getConnection();
+        await this.prepareWarehouse(connection, {
+            timezone,
+            tags,
+        });
+
+        const { queryId } = await this.executeAsyncStatement(connection, sql, {
+            values,
+        });
+
+        return { queryId, warehouseQueryMetadata: null };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        {
+            timezone,
+            tags,
+            values,
+            ...queryArgs
+        }: WarehouseGetAsyncQueryResultsArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
         const connection = await this.getConnection();
         let sql: string = '';
 
@@ -300,20 +323,27 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const start = (queryArgs.page - 1) * queryArgs.pageSize;
             const end = start + queryArgs.pageSize - 1;
 
-            let currentQueryId: string;
+            let currentQueryId: string | null;
 
-            if ('sql' in queryArgs) {
-                const { queryId, sqlText } = await this.executeAsyncStatement(
+            if (queryArgs.queryId === null) {
+                const { queryId } = await this.executeAsyncStatement(
                     connection,
                     queryArgs.sql,
+                    {
+                        values,
+                    },
                 );
 
-                sql = sqlText;
+                sql = queryArgs.sql;
                 currentQueryId = queryId;
             } else if ('queryId' in queryArgs) {
                 currentQueryId = queryArgs.queryId;
             } else {
                 throw new WarehouseQueryError('Invalid query');
+            }
+
+            if (!currentQueryId) {
+                throw new WarehouseQueryError('Query ID is required');
             }
 
             const { rows, fields, numRows } =
@@ -331,7 +361,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 queryId: currentQueryId,
                 pageCount: Math.ceil(numRows / queryArgs.pageSize),
                 totalRows: numRows,
-                warehouseQueryMetadata: null,
             };
         } catch (e) {
             const error = e as SnowflakeError;

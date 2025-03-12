@@ -1,13 +1,15 @@
 import {
     type ApiChartAndResults,
     type ApiError,
-    type ApiPaginatedQueryResults,
+    type ApiExecuteAsyncQueryResults,
+    type ApiGetAsyncQueryResults,
     type ApiQueryResults,
     type DashboardFilters,
     type DateGranularity,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncQueryRequestParams,
     FeatureFlags,
     type MetricQuery,
-    type PaginatedMetricQueryRequestParams,
     ParameterError,
     QueryExecutionContext,
     type SortField,
@@ -263,9 +265,9 @@ const getChartVersionResults = async (
  */
 const getQueryPaginatedResults = async (
     projectUuid: string,
-    data: PaginatedMetricQueryRequestParams,
+    data: ExecuteAsyncQueryRequestParams,
 ): Promise<ApiQueryResults & { queryUuid: string }> => {
-    const firstPage = await lightdashApi<ApiPaginatedQueryResults>({
+    const firstPage = await lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
         method: 'POST',
@@ -273,29 +275,30 @@ const getQueryPaginatedResults = async (
     });
 
     // Get all page rows in sequence
-    let allRows: ApiPaginatedQueryResults['rows'] = firstPage.rows;
-    let currentPage = firstPage;
-    while (currentPage.nextPage) {
-        currentPage = await lightdashApi<ApiPaginatedQueryResults>({
-            url: `/projects/${projectUuid}/query`,
+    let allRows: ApiGetAsyncQueryResults['rows'] = [];
+    let currentPage: ApiGetAsyncQueryResults | undefined;
+
+    while (!currentPage || currentPage.nextPage) {
+        currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
+            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${
+                currentPage?.nextPage ?? 1
+            }`,
             version: 'v2',
-            method: 'POST',
-            body: JSON.stringify({
-                queryUuid: firstPage.queryUuid,
-                page: currentPage.nextPage,
-            }),
+            method: 'GET',
+            body: undefined,
         });
         allRows = allRows.concat(currentPage.rows);
     }
+
     return {
-        queryUuid: firstPage.queryUuid,
-        metricQuery: firstPage.metricQuery,
+        queryUuid: currentPage.queryUuid,
+        metricQuery: currentPage.metricQuery,
         cacheMetadata: {
             // todo: to be replaced once we have save query metadata in the DB
             cacheHit: false,
         },
         rows: allRows,
-        fields: firstPage.fields,
+        fields: currentPage.fields,
     };
 };
 
@@ -320,7 +323,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                 return getChartResults(data);
             } else if (data?.query) {
                 if (queryPaginationEnabled) {
-                    const queryWithOverrides: PaginatedMetricQueryRequestParams =
+                    const queryWithOverrides: ExecuteAsyncMetricQueryRequestParams =
                         {
                             context: QueryExecutionContext.EXPLORE,
                             query: {

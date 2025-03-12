@@ -458,8 +458,8 @@ describe('ProjectService', () => {
             service.warehouseClients = {};
         });
 
-        test('should pass formatRow as formatter to getPaginatedResults', async () => {
-            const getPaginatedResultsMock = jest.fn().mockResolvedValue({
+        test('should pass formatRow as formatter to getAsyncQueryResults', async () => {
+            const getAsyncQueryResultsMock = jest.fn().mockResolvedValue({
                 rows: [],
                 fields: {},
                 pageCount: 0,
@@ -472,19 +472,18 @@ describe('ProjectService', () => {
                 projectModel.getWarehouseClientFromCredentials as jest.Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
-                getPaginatedResults: getPaginatedResultsMock,
+                getAsyncQueryResults: getAsyncQueryResultsMock,
             }));
 
-            await service.runPaginatedMetricQuery({
+            await service.getAsyncQueryResults({
                 ...baseArgs,
-                metricQuery: metricQueryMock,
+                queryUuid: 'queryUuid',
                 page: 1,
                 pageSize: 10,
-                context: QueryExecutionContext.API,
             });
 
             // Get the formatter function that was passed
-            const formatterFn = getPaginatedResultsMock.mock.calls[0][1];
+            const formatterFn = getAsyncQueryResultsMock.mock.calls[0][1];
 
             // Create a test row
             const testRow = { test_field: 123 };
@@ -519,7 +518,7 @@ describe('ProjectService', () => {
         });
 
         test('should use default pagination values when not provided', async () => {
-            const getPaginatedResultsMock = jest.fn().mockResolvedValue({
+            const getAsyncQueryResultsMock = jest.fn().mockResolvedValue({
                 rows: [],
                 fields: {},
                 pageCount: 0,
@@ -532,16 +531,15 @@ describe('ProjectService', () => {
                 projectModel.getWarehouseClientFromCredentials as jest.Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
-                getPaginatedResults: getPaginatedResultsMock,
+                getAsyncQueryResults: getAsyncQueryResultsMock,
             }));
 
-            await service.runPaginatedMetricQuery({
+            await service.getAsyncQueryResults({
                 ...baseArgs,
-                metricQuery: metricQueryMock,
-                context: QueryExecutionContext.API,
+                queryUuid: 'queryUuid',
             });
 
-            expect(getPaginatedResultsMock).toHaveBeenCalledWith(
+            expect(getAsyncQueryResultsMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     page: 1,
                     pageSize: DEFAULT_RESULTS_PAGE_SIZE,

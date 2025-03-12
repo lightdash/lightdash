@@ -1,5 +1,5 @@
 import type { QueryExecutionContext } from './analytics';
-import type { PaginatedQueryRequestParams } from './api/paginatedQuery';
+import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import { WarehouseTypes } from './projects';
@@ -31,11 +31,13 @@ export type QueryHistory = {
     warehouseQueryId: string | null;
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
     context: QueryExecutionContext;
-    defaultPageSize: number;
+    defaultPageSize: number | null;
     compiledSql: string;
     warehouseExecutionTimeMs: number;
-    totalRowCount: number;
+    totalRowCount: number | null;
     metricQuery: MetricQuery;
     fields: ItemsMap;
-    requestParameters: PaginatedQueryRequestParams;
+    requestParameters: ExecuteAsyncQueryRequestParams;
+    status: string;
+    error: string | null;
 };

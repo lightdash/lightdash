@@ -91,13 +91,16 @@ export const createTemporaryVirtualView = (
         },
         getCatalog: async () => ({}),
         streamQuery: async () => {},
-        getPaginatedResults: async () => ({
+        executeAsyncQuery: async () => ({
+            queryId: null,
+            warehouseQueryMetadata: null,
+        }),
+        getAsyncQueryResults: async () => ({
             fields: {},
             rows: [],
             queryId: null,
             pageCount: 0,
             totalRows: 0,
-            warehouseQueryMetadata: null,
         }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},
