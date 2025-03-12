@@ -54,10 +54,48 @@ export const HeaderCreate: FC = () => {
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
     const health = useHealth();
-    const isGithubIntegrationEnabled =
-        health?.data?.hasGithub &&
-        project?.dbtConnection.type === DbtProjectType.GITHUB;
     const { data: gitIntegration } = useGitIntegration();
+
+    const [writeBackDisabledMessage, writeBackOpenUrl] = useMemo(() => {
+        const hasGithubEnabled = gitIntegration?.enabled;
+        const hasGithubProject =
+            project?.dbtConnection.type === DbtProjectType.GITHUB;
+        const hasGithubIntegration = health?.data?.hasGithub;
+
+        if (!hasGithubIntegration) {
+            return [
+                'Github integration is not enabled on this instance, click here to see more details ',
+                'https://docs.lightdash.com/self-host/customize-deployment/environment-variables#github-integration',
+            ];
+        }
+        if (!hasGithubEnabled) {
+            return [
+                `Github integration is not active on this organization, click here to open integrations page`,
+                `${health?.data?.siteUrl}/generalSettings/integrations`,
+            ];
+        }
+        if (!hasGithubProject) {
+            return [
+                <Text key="writeBackDisabledMessage">
+                    This project{' '}
+                    <Text span fw={600}>
+                        {project?.name}
+                    </Text>{' '}
+                    is not connected to a Github repository, click here to open
+                    project settings page
+                </Text>,
+                `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
+            ];
+        }
+        return [undefined, undefined];
+    }, [
+        gitIntegration?.enabled,
+        health?.data?.hasGithub,
+        health?.data?.siteUrl,
+        project?.dbtConnection.type,
+        project?.name,
+        projectUuid,
+    ]);
 
     const isCreateVirtualViewModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.createVirtualViewModal.isOpen,
@@ -271,59 +309,69 @@ export const HeaderCreate: FC = () => {
                                         </Stack>
                                     </Menu.Item>
 
-                                    {isGithubIntegrationEnabled && (
-                                        <Tooltip
-                                            label={
-                                                'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
-                                            }
-                                            position="top"
-                                            withArrow
-                                            withinPortal
-                                            disabled={gitIntegration?.enabled}
+                                    <Tooltip
+                                        label={writeBackDisabledMessage}
+                                        multiline
+                                        maw={400}
+                                        position="top"
+                                        withArrow
+                                        withinPortal
+                                        disabled={
+                                            writeBackDisabledMessage ===
+                                            undefined
+                                        }
+                                        onClick={() => {
+                                            if (writeBackOpenUrl)
+                                                window.open(
+                                                    writeBackOpenUrl,
+                                                    '_blank',
+                                                );
+                                        }}
+                                    >
+                                        <Group
+                                            sx={{
+                                                cursor: 'pointer',
+                                            }}
                                         >
-                                            <Group>
-                                                <Menu.Item
-                                                    disabled={
-                                                        !gitIntegration?.enabled
-                                                    }
-                                                    onClick={() => {
-                                                        setCtaAction(
-                                                            'writeBackToDbt',
-                                                        );
-                                                    }}
-                                                >
-                                                    <Stack spacing="two">
-                                                        <Text
-                                                            fw={600}
-                                                            fz="xs"
-                                                            c={
-                                                                ctaAction ===
-                                                                'writeBackToDbt'
-                                                                    ? 'blue'
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'writeBackToDbt',
-                                                                ).label
-                                                            }
-                                                        </Text>
-                                                        <Text
-                                                            fz={10}
-                                                            c="gray.6"
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'writeBackToDbt',
-                                                                ).description
-                                                            }
-                                                        </Text>
-                                                    </Stack>
-                                                </Menu.Item>
-                                            </Group>
-                                        </Tooltip>
-                                    )}
+                                            <Menu.Item
+                                                disabled={
+                                                    writeBackDisabledMessage !==
+                                                    undefined
+                                                }
+                                                onClick={() => {
+                                                    setCtaAction(
+                                                        'writeBackToDbt',
+                                                    );
+                                                }}
+                                            >
+                                                <Stack spacing="two">
+                                                    <Text
+                                                        fw={600}
+                                                        fz="xs"
+                                                        c={
+                                                            ctaAction ===
+                                                            'writeBackToDbt'
+                                                                ? 'blue'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {
+                                                            getCtaLabels(
+                                                                'writeBackToDbt',
+                                                            ).label
+                                                        }
+                                                    </Text>
+                                                    <Text fz={10} c="gray.6">
+                                                        {
+                                                            getCtaLabels(
+                                                                'writeBackToDbt',
+                                                            ).description
+                                                        }
+                                                    </Text>
+                                                </Stack>
+                                            </Menu.Item>
+                                        </Group>
+                                    </Tooltip>
                                 </Menu.Dropdown>
                             </Menu>
                         </Button.Group>
