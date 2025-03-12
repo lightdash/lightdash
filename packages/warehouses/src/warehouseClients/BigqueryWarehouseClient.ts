@@ -5,14 +5,17 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
+    Job,
+    QueryResultsOptions,
     QueryRowsResponse,
 } from '@google-cloud/bigquery';
-import { Job } from '@google-cloud/bigquery/build/src/job';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
     CreateBigqueryCredentials,
     DimensionType,
+    getErrorMessage,
+    isBigQueryWarehouseQueryMetadata,
     Metric,
     MetricType,
     PartitionColumn,
@@ -22,14 +25,12 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
-    getErrorMessage,
-    isBigQueryWarehouseQueryMetadata,
 } from '@lightdash/common';
-import { Transform, Writable, pipeline } from 'stream';
+import { pipeline, Transform } from 'stream';
 import {
     WarehouseCatalog,
-    type WarehousePaginateQueryArgs,
     type WarehousePaginatedResults,
+    type WarehousePaginateQueryArgs,
     WarehouseTableSchema,
 } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -223,6 +224,42 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return job;
     }
 
+    private async getJobResultsMetadata(job: Job) {
+        // Get the full api response but we can request zero rows
+        const [, , response] = await job.getQueryResults({
+            autoPaginate: false, // v. important, without this we wouldn't get the apiResponse object
+            maxApiCalls: 1, // only allow one api call - not sure how essential this is
+            maxResults: 0, // don't fetch any results
+        });
+        return response;
+    }
+
+    private async streamResults(
+        job: Job,
+        streamCallback: (data: WarehouseResults['rows'][number]) => void,
+        options: QueryResultsOptions = {},
+    ) {
+        return new Promise<void>((resolve, reject) => {
+            pipeline(
+                job.getQueryResultsStream(options),
+                new Transform({
+                    objectMode: true,
+                    transform(chunk, _encoding, callback) {
+                        const chunkParsed = parseRow(chunk);
+                        streamCallback(chunkParsed);
+                        callback();
+                    },
+                }),
+                async (err) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    resolve();
+                },
+            );
+        });
+    }
+
     async streamQuery(
         query: string,
         streamCallback: (data: WarehouseResults) => void,
@@ -235,42 +272,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         try {
             const [job] = await this.createJob(query, options);
 
-            // Get the full api response but we can request zero rows
-            const [, , response] = await job.getQueryResults({
-                autoPaginate: false, // v. important, without this we wouldn't get the apiResponse object
-                maxApiCalls: 1, // only allow one api call - not sure how essential this is
-                maxResults: 0, // don't fetch any results
-            });
+            const resultsMetadata = await this.getJobResultsMetadata(job);
 
             const fields =
-                BigqueryWarehouseClient.getFieldsFromResponse(response);
+                BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
-            const streamPromise = new Promise<void>((resolve, reject) => {
-                pipeline(
-                    job.getQueryResultsStream(),
-                    new Transform({
-                        objectMode: true,
-                        transform(chunk, _encoding, callback) {
-                            callback(null, parseRow(chunk));
-                        },
-                    }),
-                    new Writable({
-                        objectMode: true,
-                        write(chunk, _encoding, callback) {
-                            streamCallback({ fields, rows: [chunk] });
-                            callback();
-                        },
-                    }),
-                    async (err) => {
-                        if (err) {
-                            reject(err);
-                        }
-                        resolve();
-                    },
-                );
-            });
-
-            await streamPromise;
+            await this.streamResults(job, (chunk) =>
+                streamCallback({ fields, rows: [chunk] }),
+            );
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =
@@ -560,28 +569,37 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             }
 
             const startIndex = (queryArgs.page - 1) * queryArgs.pageSize;
-            const [rows, , response] = await job.getQueryResults({
-                startIndex: startIndex.toString(),
-                maxResults: queryArgs.pageSize,
-            });
-
-            if (!response) {
+            const resultsMetadata = await this.getJobResultsMetadata(job);
+            if (!resultsMetadata) {
                 throw new WarehouseQueryError(
                     'Missing BigQuery response. Please contact support.',
                 );
             }
+            const rows: TFormattedRow[] = [];
+            await this.streamResults(
+                job,
+                (row) => {
+                    if (rowFormatter) {
+                        rows.push(rowFormatter(row));
+                    } else {
+                        rows.push(row as TFormattedRow);
+                    }
+                },
+                {
+                    startIndex: startIndex.toString(),
+                    maxResults: queryArgs.pageSize,
+                },
+            );
 
             const fields =
-                BigqueryWarehouseClient.getFieldsFromResponse(response);
+                BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
-            const totalRows: number = response.totalRows
-                ? parseInt(response.totalRows, 10)
+            const totalRows: number = resultsMetadata.totalRows
+                ? parseInt(resultsMetadata.totalRows, 10)
                 : 1;
             return {
                 fields,
-                rows: rowFormatter
-                    ? (rows as TFormattedRow[]).map(rowFormatter)
-                    : rows,
+                rows,
                 queryId: job.id,
                 warehouseQueryMetadata: {
                     type: WarehouseTypes.BIGQUERY,
