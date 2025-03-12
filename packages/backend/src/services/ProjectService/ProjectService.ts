@@ -498,6 +498,7 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
+        Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
@@ -1848,7 +1849,11 @@ export class ProjectService extends BaseService {
                         pageSize: defaultedPageSize,
                         tags: queryTags,
                         ...(queryHistory.warehouseQueryId
-                            ? { queryId: queryHistory.warehouseQueryId }
+                            ? {
+                                  queryId: queryHistory.warehouseQueryId,
+                                  queryMetadata:
+                                      queryHistory.warehouseQueryMetadata,
+                              }
                             : { sql: queryHistory.compiledSql }),
                     },
                     formatter,
@@ -1878,7 +1883,7 @@ export class ProjectService extends BaseService {
             queryUuid: queryHistory.queryUuid,
             fields: queryHistory.fields,
             metricQuery,
-            pageSize: defaultedPageSize,
+            pageSize: rows.length,
             page,
             nextPage,
             previousPage,
@@ -2098,11 +2103,7 @@ export class ProjectService extends BaseService {
                         totalPageCount,
                         totalResults,
                         page,
-                        // This is to take into account the page size override for warehouses that don't support pagination yet
-                        pageSize:
-                            totalPageCount > pageSize
-                                ? totalPageCount
-                                : pageSize,
+                        pageSize: rows.length,
                         nextPage,
                         previousPage,
                         fields: fieldsMap,

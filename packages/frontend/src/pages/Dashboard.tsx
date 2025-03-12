@@ -511,13 +511,23 @@ const Dashboard: FC = () => {
         void Promise.resolve().then(() => {
             return navigate(
                 {
-                    pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                    pathname:
+                        dashboardTabs.length > 0
+                            ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTab?.uuid}`
+                            : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                     search: '',
                 },
                 { replace: true },
             );
         });
-    }, [projectUuid, dashboardUuid, resetDashboardFilters, navigate]);
+    }, [
+        projectUuid,
+        dashboardUuid,
+        resetDashboardFilters,
+        navigate,
+        activeTab?.uuid,
+        dashboardTabs.length,
+    ]);
 
     if (dashboardError) {
         return <ErrorState error={dashboardError.error} />;

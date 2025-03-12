@@ -234,7 +234,7 @@ export function formatNumberValue(
     }
 }
 
-function applyDefaultFormat(value: unknown) {
+export function applyDefaultFormat(value: unknown) {
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (!isNumber(value)) {

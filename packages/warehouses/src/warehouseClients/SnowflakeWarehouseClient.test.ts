@@ -180,6 +180,7 @@ describe('SnowflakeWarehouseClient', () => {
 
             const result = await client.getPaginatedResults({
                 queryId: 'queryId',
+                queryMetadata: null,
                 page: 1,
                 pageSize: 10,
                 tags: {},

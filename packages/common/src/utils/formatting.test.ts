@@ -12,6 +12,7 @@ import {
 import { TimeFrames } from '../types/timeFrames';
 import {
     applyCustomFormat,
+    applyDefaultFormat,
     convertCustomFormatToFormatExpression,
     currencies,
     formatItemValue,
@@ -1421,6 +1422,27 @@ describe('Formatting', () => {
                     formattedValueWithCustomFormat,
                 );
             });
+        });
+    });
+
+    describe.only('applyDefaultFormatting', () => {
+        it('should handle boolean values', () => {
+            expect(applyDefaultFormat(true)).toBe('true');
+            expect(applyDefaultFormat(false)).toBe('false');
+        });
+        it('should handle falsey values', () => {
+            expect(applyDefaultFormat(undefined)).toBe('-');
+            expect(applyDefaultFormat(null)).toBe('∅');
+            expect(applyDefaultFormat(0)).toBe('0');
+            expect(applyDefaultFormat('')).toBe('');
+        });
+        it('should handle strings', () => {
+            expect(applyDefaultFormat('foo')).toBe('foo');
+        });
+        it('should handle numbers', () => {
+            expect(applyDefaultFormat(1234567)).toBe('1,234,567');
+            expect(applyDefaultFormat(1234)).toBe('1,234');
+            expect(applyDefaultFormat(-1234)).toBe('-1,234');
         });
     });
 });

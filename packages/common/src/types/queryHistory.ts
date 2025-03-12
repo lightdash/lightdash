@@ -17,9 +17,9 @@ export interface BigQueryWarehouseQueryMetadata
 export type WarehouseQueryMetadata = BigQueryWarehouseQueryMetadata;
 
 export function isBigQueryWarehouseQueryMetadata(
-    metadata: WarehouseQueryMetadata,
+    metadata: WarehouseQueryMetadata | null,
 ): metadata is BigQueryWarehouseQueryMetadata {
-    return metadata.type === WarehouseTypes.BIGQUERY;
+    return !!metadata && metadata.type === WarehouseTypes.BIGQUERY;
 }
 
 export type QueryHistory = {
