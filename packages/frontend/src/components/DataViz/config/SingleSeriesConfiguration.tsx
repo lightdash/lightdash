@@ -92,6 +92,7 @@ export const SingleSeriesConfiguration = ({
                             <Box w="20px">
                                 <ColorSelector
                                     color={color}
+                                    withAlpha
                                     onColorChange={(c) =>
                                         onColorChange(reference, c)
                                     }
