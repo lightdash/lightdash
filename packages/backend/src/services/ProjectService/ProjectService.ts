@@ -1878,7 +1878,7 @@ export class ProjectService extends BaseService {
             queryUuid: queryHistory.queryUuid,
             fields: queryHistory.fields,
             metricQuery,
-            pageSize: defaultedPageSize,
+            pageSize: rows.length,
             page,
             nextPage,
             previousPage,
@@ -2098,11 +2098,7 @@ export class ProjectService extends BaseService {
                         totalPageCount,
                         totalResults,
                         page,
-                        // This is to take into account the page size override for warehouses that don't support pagination yet
-                        pageSize:
-                            totalPageCount > pageSize
-                                ? totalPageCount
-                                : pageSize,
+                        pageSize: rows.length,
                         nextPage,
                         previousPage,
                         fields: fieldsMap,
