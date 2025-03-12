@@ -7,7 +7,6 @@ import {
     assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
-    type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     FeatureFlags,
     type MetricQuery,
@@ -359,31 +358,38 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
         queryKey: ['query-all-results', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
+                if (queryPaginationEnabled) {
+                    return getQueryPaginatedResults(data.projectUuid, {
+                        context: QueryExecutionContext.CHART_HISTORY,
+                        chartUuid: data.chartUuid,
+                        versionUuid: data.chartVersionUuid,
+                    });
+                }
                 return getChartVersionResults(
                     data.chartUuid,
                     data.chartVersionUuid,
                 );
             } else if (data?.chartUuid) {
+                if (queryPaginationEnabled) {
+                    return getQueryPaginatedResults(data.projectUuid, {
+                        context: QueryExecutionContext.CHART,
+                        chartUuid: data.chartUuid,
+                    });
+                }
                 return getChartResults(data);
             } else if (data?.query) {
                 if (queryPaginationEnabled) {
-                    const queryWithOverrides: ExecuteAsyncMetricQueryRequestParams =
-                        {
-                            context: QueryExecutionContext.EXPLORE,
-                            query: {
-                                ...data.query,
-                                filters: convertDateFilters(data.query.filters),
-                                timezone: data.query.timezone ?? undefined,
-                                exploreName: data.tableId,
-                                granularity: data.dateZoomGranularity,
-                            },
-                        };
-                    return getQueryPaginatedResults(
-                        data.projectUuid,
-                        queryWithOverrides,
-                    );
+                    return getQueryPaginatedResults(data.projectUuid, {
+                        context: QueryExecutionContext.EXPLORE,
+                        query: {
+                            ...data.query,
+                            filters: convertDateFilters(data.query.filters),
+                            timezone: data.query.timezone ?? undefined,
+                            exploreName: data.tableId,
+                            granularity: data.dateZoomGranularity,
+                        },
+                    });
                 }
-                return getQueryResults(data);
             }
 
             return Promise.reject(
