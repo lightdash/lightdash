@@ -1,3 +1,10 @@
+## [0.1535.3](https://github.com/lightdash/lightdash/compare/0.1535.2...0.1535.3) (2025-03-12)
+
+
+### Bug Fixes
+
+* keep the selected tab on dashbaord edit ([#14042](https://github.com/lightdash/lightdash/issues/14042)) ([9a263bd](https://github.com/lightdash/lightdash/commit/9a263bd6db4da3d2f3435745401164d40c63d441))
+
 ## [0.1535.2](https://github.com/lightdash/lightdash/compare/0.1535.1...0.1535.2) (2025-03-12)
 
 
