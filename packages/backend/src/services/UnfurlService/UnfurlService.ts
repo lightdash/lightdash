@@ -30,13 +30,18 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
-import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
+const legacyMetricQueryEndpointRegex = /\/runQuery/;
+const createQueryEndpointRegex = /\/query/;
+const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
+const legacyChartAndResultsEndpointRegex =
+    /\/saved\/[a-f0-9-]+\/chart-and-results/;
+const legacyChartResultsEndpointRegex = /\/saved\/[a-f0-9-]+\/results/;
 
 const viewport = {
     width: 1400,
@@ -127,6 +132,43 @@ export class UnfurlService extends BaseService {
         this.s3Client = s3Client;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
+    }
+
+    static async waitForAllPaginatedResultsResponse(
+        page: playwright.Page,
+        expectedResponses: number,
+        timeout: number,
+    ) {
+        let responseCount = 0;
+
+        const responsePromise = new Promise<void>((resolve, reject) => {
+            const responseHandler = (response: playwright.Response) => {
+                if (response.url().match(paginatedQueryEndpointRegex)) {
+                    responseCount += 1;
+                    if (responseCount === expectedResponses) {
+                        page.off('response', responseHandler); // Clean up the listener
+                        resolve();
+                    }
+                }
+            };
+            page.on('response', responseHandler);
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+                reject(
+                    new Error(
+                        `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
+                    ),
+                );
+            }, timeout);
+        });
+
+        return Promise.race([responsePromise, timeoutPromise]);
+    }
+
+    static async waitForPaginatedResultsResponse(page: playwright.Page) {
+        return UnfurlService.waitForAllPaginatedResultsResponse(page, 1, 60000);
     }
 
     async getTitleAndDescription(parsedUrl: ParsedUrl): Promise<
@@ -527,18 +569,22 @@ export class UnfurlService extends BaseService {
                         }
                     });
 
-                    let chartRequests = 0;
-                    let chartRequestErrors = 0;
-
+                    // Log all query results errors
                     page.on('response', async (response) => {
                         const responseUrl = response.url();
-                        const regexUrlToMatch =
-                            lightdashPage === LightdashPage.EXPLORE ||
-                            lightdashPage === LightdashPage.CHART
-                                ? /\/saved\/[a-f0-9-]+\/results/
-                                : /\/saved\/[a-f0-9-]+\/chart-and-results/; // NOTE: Chart endpoint in Dashboards is different
-                        if (responseUrl.match(regexUrlToMatch)) {
-                            chartRequests += 1;
+                        const resultsEndpointRegexes = [
+                            legacyMetricQueryEndpointRegex, // legacy endpoint for explorer page
+                            legacyChartResultsEndpointRegex, // legacy endpoint for chart view page
+                            legacyChartAndResultsEndpointRegex, // legacy endpoint for dashboard page
+                            createQueryEndpointRegex, // create query
+                            paginatedQueryEndpointRegex, // get paginated results
+                        ];
+                        const isResultsEndpointMatch =
+                            resultsEndpointRegexes.some((regex) =>
+                                regex.test(responseUrl),
+                            );
+
+                        if (isResultsEndpointMatch) {
                             response.body().then(
                                 (buffer) => {
                                     const status = response.status();
@@ -546,7 +592,12 @@ export class UnfurlService extends BaseService {
                                         this.logger.error(
                                             `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
                                         );
-                                        chartRequestErrors += 1;
+                                    } else if (
+                                        paginatedQueryEndpointRegex.test(
+                                            responseUrl,
+                                        )
+                                    ) {
+                                        // todo: for paginated results check status error
                                     }
                                 },
                                 (error) => {
@@ -555,31 +606,52 @@ export class UnfurlService extends BaseService {
                                             error,
                                         )}`,
                                     );
-                                    chartRequestErrors += 1;
                                 },
                             );
                         }
                     });
-                    let timeout = false;
+
                     try {
                         let chartResultsPromises:
-                            | (Promise<playwright.Response> | undefined)[]
+                            | (Promise<unknown> | undefined)[]
                             | undefined;
 
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for the all charts to load if we are in a dashboard
+                            let exploreChartResultsPromise:
+                                | Promise<unknown>
+                                | undefined;
+                            if (chartTileUuids) {
+                                const legacyExploreChartResultsPromises =
+                                    chartTileUuids.map((id) => {
+                                        if (page) {
+                                            const responsePattern = new RegExp(
+                                                `${id}/chart-and-results`,
+                                            );
 
-                            const exploreChartResultsPromises =
-                                chartTileUuids?.map((id) => {
-                                    const responsePattern = new RegExp(
-                                        `${id}/chart-and-results`,
-                                    );
-
-                                    return page?.waitForResponse(
-                                        responsePattern,
-                                        { timeout: 60000 },
+                                            return page?.waitForResponse(
+                                                responsePattern,
+                                                { timeout: 60000 },
+                                            ); // NOTE: No await here
+                                        }
+                                        return undefined;
+                                    });
+                                const expectedPaginatedResponses =
+                                    chartTileUuids.length;
+                                const paginatedQueryPromise =
+                                    UnfurlService.waitForAllPaginatedResultsResponse(
+                                        page,
+                                        expectedPaginatedResponses,
+                                        expectedPaginatedResponses * 60000,
                                     ); // NOTE: No await here
-                                });
+
+                                exploreChartResultsPromise = Promise.race([
+                                    Promise.allSettled(
+                                        legacyExploreChartResultsPromises,
+                                    ),
+                                    paginatedQueryPromise,
+                                ]);
+                            }
 
                             // Create separate arrays for each type of SQL response
                             let sqlInitialLoadPromises:
@@ -643,7 +715,7 @@ export class UnfurlService extends BaseService {
                             }
 
                             chartResultsPromises = [
-                                ...(exploreChartResultsPromises || []),
+                                exploreChartResultsPromise,
                                 ...(sqlInitialLoadPromises || []),
                                 ...(sqlResultsJobPromises || []),
                                 ...(sqlResultsPromises || []),
@@ -654,20 +726,42 @@ export class UnfurlService extends BaseService {
                             const responsePattern = new RegExp(
                                 `${resourceUuid}/results`,
                             );
+                            // Wait for the visualization to load if we are in an unsaved explore page
+                            const legacyQueryPromise = page?.waitForResponse(
+                                responsePattern,
+                                {
+                                    timeout: 60000,
+                                },
+                            ); // NOTE: No await here
+                            const paginatedQueryPromise =
+                                UnfurlService.waitForPaginatedResultsResponse(
+                                    page,
+                                ); // NOTE: No await here
 
                             chartResultsPromises = [
-                                page?.waitForResponse(responsePattern, {
-                                    timeout: 60000,
-                                }), // NOTE: No await here
+                                Promise.race([
+                                    legacyQueryPromise,
+                                    paginatedQueryPromise,
+                                ]),
                             ];
                         } else if (lightdashPage === LightdashPage.EXPLORE) {
                             // Wait for the visualization to load if we are in an unsaved explore page
-                            const responsePattern = /\/runQuery/;
+                            const legacyQueryPromise = page?.waitForResponse(
+                                legacyMetricQueryEndpointRegex,
+                                {
+                                    timeout: 60000,
+                                },
+                            ); // NOTE: No await here
+                            const paginatedQueryPromise =
+                                UnfurlService.waitForPaginatedResultsResponse(
+                                    page,
+                                ); // NOTE: No await here
 
                             chartResultsPromises = [
-                                page?.waitForResponse(responsePattern, {
-                                    timeout: 60000,
-                                }), // NOTE: No await here
+                                Promise.race([
+                                    legacyQueryPromise,
+                                    paginatedQueryPromise,
+                                ]),
                             ];
                         }
 
@@ -680,7 +774,6 @@ export class UnfurlService extends BaseService {
                             await Promise.allSettled(chartResultsPromises);
                         }
                     } catch (e) {
-                        timeout = true;
                         this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
