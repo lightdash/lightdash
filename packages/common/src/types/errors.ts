@@ -466,3 +466,14 @@ export class S3Error extends LightdashError {
         });
     }
 }
+
+export class TimeoutError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'TimeoutError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
