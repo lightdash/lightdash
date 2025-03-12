@@ -96,7 +96,7 @@ export const createTemporaryVirtualView = (
         streamQuery: async () => {},
         executeAsyncQuery: async () => ({
             queryId: null,
-            warehouseQueryMetadata: null,
+            queryMetadata: null,
         }),
         getAsyncQueryResults: async () => ({
             fields: {},

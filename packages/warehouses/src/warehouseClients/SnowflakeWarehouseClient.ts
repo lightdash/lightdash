@@ -301,7 +301,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values,
         });
 
-        return { queryId, warehouseQueryMetadata: null };
+        return { queryId, queryMetadata: null };
     }
 
     async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(

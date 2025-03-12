@@ -41,7 +41,7 @@ export const warehouseClientMock: WarehouseClient = {
     },
     executeAsyncQuery: async () => ({
         queryId: null,
-        warehouseQueryMetadata: null,
+        queryMetadata: null,
     }),
     getAsyncQueryResults: async () => ({
         rows: [],

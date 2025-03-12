@@ -1855,6 +1855,7 @@ export class ProjectService extends BaseService {
                         tags: queryTags,
                         queryId: queryHistory.warehouseQueryId,
                         sql: queryHistory.compiledSql,
+                        queryMetadata: queryHistory.warehouseQueryMetadata,
                     },
                     formatter,
                 ),
@@ -2106,8 +2107,8 @@ export class ProjectService extends BaseService {
                         error: null,
                         warehouseQueryId: result.queryId,
                         warehouseExecutionTimeMs: roundedDurationMs,
-                        warehouseQueryMetadata: result.warehouseQueryMetadata,
-                        status: 'completed', // TODO paginate: status needs to be typed
+                        warehouseQueryMetadata: result.queryMetadata,
+                        status: WarehouseAsyncQueryStatus.PENDING,
                     });
 
                     return {

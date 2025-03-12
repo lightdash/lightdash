@@ -66,7 +66,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     ): Promise<WarehouseExecuteAsyncQuery> {
         return {
             queryId: null,
-            warehouseQueryMetadata: null,
+            queryMetadata: null,
         };
     }
 

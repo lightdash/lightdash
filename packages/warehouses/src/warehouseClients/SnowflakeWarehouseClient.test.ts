@@ -99,6 +99,7 @@ describe('SnowflakeWarehouseClient', () => {
                 tags: {},
                 timezone: 'UTC',
                 values: [],
+                queryMetadata: null,
             });
 
             // Assertions
@@ -143,6 +144,7 @@ describe('SnowflakeWarehouseClient', () => {
                     timezone: 'UTC',
                     values: [],
                     queryId: 'queryId',
+                    queryMetadata: null,
                 },
                 formatter,
             );

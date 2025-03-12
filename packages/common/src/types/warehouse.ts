@@ -62,7 +62,7 @@ export type WarehouseExecuteAsyncQueryArgs = {
 
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
-    warehouseQueryMetadata: WarehouseQueryMetadata | null;
+    queryMetadata: WarehouseQueryMetadata | null;
 };
 
 export enum WarehouseAsyncQueryStatus {
@@ -75,6 +75,7 @@ export enum WarehouseAsyncQueryStatus {
 export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
     WarehouseExecuteAsyncQueryArgs & {
         queryId: string | null;
+        queryMetadata: WarehouseQueryMetadata | null;
     };
 
 type WarehouseAsyncQueryCommonResults = {

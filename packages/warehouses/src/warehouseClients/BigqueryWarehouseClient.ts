@@ -21,6 +21,7 @@ import {
     PartitionColumn,
     PartitionType,
     SupportedDbtAdapter,
+    WarehouseAsyncQueryStatus,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -29,8 +30,10 @@ import {
 import { pipeline, Transform } from 'stream';
 import {
     WarehouseCatalog,
-    type WarehousePaginatedResults,
-    type WarehousePaginateQueryArgs,
+    WarehouseExecuteAsyncQuery,
+    WarehouseExecuteAsyncQueryArgs,
+    WarehouseGetAsyncQueryResults,
+    WarehouseGetAsyncQueryResultsArgs,
     WarehouseTableSchema,
 } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -530,38 +533,61 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         );
     }
 
-    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
-        { timezone, tags, ...queryArgs }: WarehousePaginateQueryArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
-        try {
-            let job: Job;
-            if ('sql' in queryArgs) {
-                [job] = await this.createJob(queryArgs.sql, {
-                    tags,
-                });
-            } else if ('queryId' in queryArgs) {
-                if (
-                    !isBigQueryWarehouseQueryMetadata(queryArgs.queryMetadata)
-                ) {
-                    throw new WarehouseQueryError(
-                        `Invalid warehouse query metadata for query ${queryArgs.queryId}. Please contact support.`,
-                    );
-                }
+    async executeAsyncQuery({
+        sql,
+        tags,
+    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
+        const [job] = await this.createJob(sql, {
+            tags,
+        });
 
-                job = await this.getJob(
-                    queryArgs.queryId,
-                    queryArgs.queryMetadata.jobLocation,
-                );
-            } else {
+        if (!job.id) {
+            throw new WarehouseQueryError(
+                'Missing BigQuery job ID. Please contact support.',
+            );
+        }
+
+        if (!job.location) {
+            throw new WarehouseQueryError(
+                'Missing BigQuery job location. Please contact support.',
+            );
+        }
+
+        return {
+            queryId: job.id,
+            queryMetadata: {
+                type: WarehouseTypes.BIGQUERY,
+                jobLocation: job.location,
+            },
+        };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        queryArgs: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        try {
+            if (!queryArgs.queryId) {
                 throw new WarehouseQueryError('Invalid query');
             }
+
+            if (!isBigQueryWarehouseQueryMetadata(queryArgs.queryMetadata)) {
+                throw new WarehouseQueryError(
+                    `Invalid warehouse query metadata for query ${queryArgs.queryId}. Please contact support.`,
+                );
+            }
+
+            const job = await this.getJob(
+                queryArgs.queryId,
+                queryArgs.queryMetadata?.jobLocation,
+            );
 
             if (!job.id) {
                 throw new WarehouseQueryError(
                     'Missing BigQuery job ID. Please contact support.',
                 );
             }
+
             if (!job.location) {
                 throw new WarehouseQueryError(
                     'Missing BigQuery job location. Please contact support.',
@@ -597,26 +623,26 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const totalRows: number = resultsMetadata.totalRows
                 ? parseInt(resultsMetadata.totalRows, 10)
                 : 1;
+
             return {
                 fields,
                 rows,
                 queryId: job.id,
-                warehouseQueryMetadata: {
-                    type: WarehouseTypes.BIGQUERY,
-                    jobLocation: job.location,
-                },
                 pageCount: Math.ceil(totalRows / queryArgs.pageSize),
                 totalRows,
+                status: WarehouseAsyncQueryStatus.COMPLETED,
             };
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
                 if (responseError) {
-                    throw this.parseError(
-                        responseError,
-                        'sql' in queryArgs ? queryArgs.sql : '',
-                    );
+                    return {
+                        status: WarehouseAsyncQueryStatus.ERROR,
+                        error: this.parseError(responseError, queryArgs.sql)
+                            .message,
+                        queryId: queryArgs.queryId,
+                    };
                 }
             }
             throw e;
