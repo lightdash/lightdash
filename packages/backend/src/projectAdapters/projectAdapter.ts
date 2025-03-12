@@ -32,6 +32,7 @@ export const projectAdapterFromConfig = async (
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
     );
+
     const warehouseClient =
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;

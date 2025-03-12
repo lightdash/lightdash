@@ -1,11 +1,13 @@
 import { WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
+    Group,
     FileInput,
     NumberInput,
     Select,
     Stack,
     TextInput,
+    Radio,
 } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
@@ -59,8 +61,13 @@ const BigQueryForm: FC<{
     const { register } = useFormContext();
     const [temporaryFile, setTemporaryFile] = useState<File>();
     const { savedProject } = useProjectFormContext();
-    const requireSecrets: boolean =
-        savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
+    const [authMethod, setAuthMethod] = useState<'keyfile' | 'oauth-secrets'>(
+        'keyfile',
+    );
+     const requireSecrets: boolean =
+          savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY ||
+          (savedProject?.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
+          !!(savedProject.warehouseConnection as any).authClientOptions);
 
     return (
         <>
@@ -104,58 +111,108 @@ const BigQueryForm: FC<{
                     disabled={disabled}
                 />
 
-                <Controller
-                    name="warehouse.keyfileContents"
-                    render={({ field }) => (
-                        <FileInput
-                            {...field}
-                            label="Key File"
-                            // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                            // @ts-ignore
-                            placeholder={
-                                !requireSecrets
-                                    ? '**************'
-                                    : 'Choose file...'
-                            }
-                            description={
-                                <p>
-                                    This is the JSON key file. You can see{' '}
-                                    <Anchor
-                                        target="_blank"
-                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
-                                        rel="noreferrer"
-                                    >
-                                        how to create a key here
-                                    </Anchor>
-                                    .
-                                </p>
-                            }
-                            {...register('warehouse.keyfileContents')}
-                            required={requireSecrets}
-                            accept="application/json"
-                            value={temporaryFile}
-                            onChange={(file) => {
-                                if (file) {
-                                    const fileReader = new FileReader();
-                                    fileReader.onload = function (event) {
-                                        const contents = event.target?.result;
-                                        if (typeof contents === 'string') {
-                                            setTemporaryFile(file);
-                                            field.onChange(
-                                                JSON.parse(contents),
-                                            );
-                                        } else {
-                                            field.onChange(null);
-                                        }
-                                    };
-                                    fileReader.readAsText(file);
-                                }
-                                field.onChange(null);
-                            }}
+                <Radio.Group
+                    label="Authentication method"
+                    description="Choose how to authenticate with BigQuery"
+                    value={authMethod}
+                    onChange={(value) => setAuthMethod(value as "keyfile" | "oauth-secrets")}
+                    required
+                >
+                    <Group mt="xs">
+                        <Radio value="keyfile" label="Key file" />
+                        <Radio value="oauth-secrets" label="OAuth token" />
+                    </Group>
+                </Radio.Group>
+
+                {authMethod === 'oauth-secrets' && (
+                    <>
+                        <Input
+                            name="warehouse.authClientOptions.credentials.access_token"
+                            label="Access token"
+                            description="Access token for authenticating"
+
                             disabled={disabled}
                         />
-                    )}
-                />
+
+                        <Input
+                            name="warehouse.authClientOptions.credentials.refresh_token"
+                            label="Refresh token"
+                            description="Refresh token for generating access tokens. This is required to refresh the access token."
+                            disabled={disabled}
+                        />
+
+                        <Input
+                            name="warehouse.authClientOptions.clientId"
+                            label="Client ID"
+                            description="The OAuth client ID for authenticating, your own app or the Google Cloud SDK client ID: 32555940559.apps.googleusercontent.com"
+                            placeholder="32555940559.apps.googleusercontent.com" // Google Cloud SDK client ID
+                            disabled={disabled}
+                        />
+
+                        <Input
+                            name="warehouse.authClientOptions.clientSecret"
+                            label="Client Secret"
+                            description="The OAuth client secret for authenticating, your own app or the Google Cloud SDK client secret: ZmssLNjJy2998hD4CTg2ejr2"
+                            placeholder="ZmssLNjJy2998hD4CTg2ejr2" // Google Cloud SDK client secret
+
+                            disabled={disabled}
+                        />
+                    </>
+                )}
+
+                {authMethod === 'keyfile' && (
+                    <Controller
+                        name="warehouse.keyfileContents"
+                        render={({ field }) => (
+                                <FileInput
+                                    {...field}
+                                    label="Key File"
+                                    // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                                    // @ts-ignore
+                                    placeholder={
+                                        !requireSecrets
+                                            ? '**************'
+                                            : 'Choose file...'
+                                    }
+                                    description={
+                                        <p>
+                                            This is the JSON key file. You can see{' '}
+                                            <Anchor
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
+                                                rel="noreferrer"
+                                            >
+                                                how to create a key here
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    required={requireSecrets}
+                                    accept="application/json"
+                                    value={temporaryFile}
+                                    onChange={(file) => {
+                                        if (file) {
+                                            const fileReader = new FileReader();
+                                            fileReader.onload = function (event) {
+                                                const contents = event.target?.result;
+                                                if (typeof contents === 'string') {
+                                                    setTemporaryFile(file);
+                                                    field.onChange(
+                                                        JSON.parse(contents),
+                                                    );
+                                                } else {
+                                                    field.onChange(null);
+                                                }
+                                            };
+                                            fileReader.readAsText(file);
+                                        }
+                                        setTemporaryFile(file || undefined);
+                                    }}
+                                    disabled={disabled}
+                                />
+                        )}
+                    />
+                )}
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>

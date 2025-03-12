@@ -101,6 +101,7 @@ export const createProject = async (
 
     if (
         credentials.type === WarehouseTypes.BIGQUERY &&
+        credentials.keyfileContents &&
         'project_id' in credentials.keyfileContents &&
         credentials.keyfileContents.project_id &&
         credentials.keyfileContents.project_id !== credentials.project

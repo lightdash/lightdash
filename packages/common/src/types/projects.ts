@@ -1,3 +1,5 @@
+import type { OAuth2ClientOptions } from 'google-auth-library';
+
 import { type WeekDay } from '../utils/timeFrames';
 import { type ProjectGroupAccess } from './projectGroupAccess';
 
@@ -46,7 +48,8 @@ export type CreateBigqueryCredentials = {
     threads?: number;
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
-    keyfileContents: Record<string, string>;
+    keyfileContents?: Record<string, string>;
+    authClientOptions?: OAuth2ClientOptions;
     requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
@@ -58,6 +61,7 @@ export const sensitiveCredentialsFieldNames = [
     'user',
     'password',
     'keyfileContents',
+    'authClientOptions',
     'personalAccessToken',
     'privateKey',
     'privateKeyPass',
