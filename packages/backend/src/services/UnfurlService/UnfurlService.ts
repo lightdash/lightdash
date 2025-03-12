@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ApiPaginatedQueryResults,
     assertUnreachable,
     AuthorizationError,
     ChartType,
@@ -38,7 +39,7 @@ const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const legacyMetricQueryEndpointRegex = /\/runQuery/;
 const createQueryEndpointRegex = /\/query/;
-const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
+const paginatedQueryEndpointRegex = /\/query/; // TODO: once new endpoint is done. new RegExp(`/query/${uuid}`);
 const legacyChartAndResultsEndpointRegex =
     /\/saved\/[a-f0-9-]+\/chart-and-results/;
 const legacyChartResultsEndpointRegex = /\/saved\/[a-f0-9-]+\/results/;
@@ -142,12 +143,20 @@ export class UnfurlService extends BaseService {
         let responseCount = 0;
 
         const responsePromise = new Promise<void>((resolve, reject) => {
-            const responseHandler = (response: playwright.Response) => {
+            const responseHandler = async (response: playwright.Response) => {
                 if (response.url().match(paginatedQueryEndpointRegex)) {
-                    responseCount += 1;
-                    if (responseCount === expectedResponses) {
-                        page.off('response', responseHandler); // Clean up the listener
-                        resolve();
+                    const body = await response.body();
+                    const json = JSON.parse(body.toString()) as {
+                        status: 'ok';
+                        results: ApiPaginatedQueryResults;
+                    };
+                    // Check if is last page (aka has no next page)
+                    if (!json.results.nextPage) {
+                        responseCount += 1;
+                        if (responseCount === expectedResponses) {
+                            page.off('response', responseHandler); // Clean up the listener
+                            resolve();
+                        }
                     }
                 }
             };
