@@ -20,7 +20,7 @@ gcloud auth configure-docker us-docker.pkg.dev
 # Check if Sentry environment variables are set
 SENTRY_BUILD_ARGS=""
 if [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ] && [ -n "$SENTRY_FRONTEND_PROJECT" ] && [ -n "$SENTRY_BACKEND_PROJECT" ] && [ -n "$SENTRY_ENVIRONMENT" ]; then
-    echo "Sentry environment variables detected, building with sourcemaps"
+    echo "Sentry environment variables detected, uploading sourcemaps to sentry."
     SENTRY_BUILD_ARGS="--build-arg SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN \
                       --build-arg SENTRY_ORG=$SENTRY_ORG \
                       --build-arg SENTRY_RELEASE_VERSION=$version \
@@ -28,10 +28,10 @@ if [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ] && [ -n "$SENTRY_FRONTEND
                       --build-arg SENTRY_BACKEND_PROJECT=$SENTRY_BACKEND_PROJECT \
                       --build-arg SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT"
 else
-    echo "Sentry environment variables not detected, building without sourcemaps"
+    echo "Sentry environment variables not detected, skipping sourcemaps upload."
 fi
 
-# Build Docker image with Sentry build args if available
+# Build Docker image 
 docker build . $SENTRY_BUILD_ARGS -t "$image:beta" -t "$image:$timestamp" -t "$image:$version-commercial"
 
 for tag in "$version-commercial" "beta" "$timestamp"; do
