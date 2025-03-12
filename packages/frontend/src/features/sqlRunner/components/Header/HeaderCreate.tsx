@@ -54,13 +54,14 @@ export const HeaderCreate: FC = () => {
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
     const health = useHealth();
-    const hasGithubIntegration = health?.data?.hasGithub;
-    const hasGithubProject =
-        project?.dbtConnection.type === DbtProjectType.GITHUB;
     const { data: gitIntegration } = useGitIntegration();
-    const hasGithubEnabled = gitIntegration?.enabled;
 
     const [writeBackDisabledMessage, writeBackOpenUrl] = useMemo(() => {
+        const hasGithubEnabled = gitIntegration?.enabled;
+        const hasGithubProject =
+            project?.dbtConnection.type === DbtProjectType.GITHUB;
+        const hasGithubIntegration = health?.data?.hasGithub;
+
         if (!hasGithubIntegration) {
             return [
                 'Github integration is not enabled on this instance, click here to see more details ',
@@ -88,11 +89,11 @@ export const HeaderCreate: FC = () => {
         }
         return [undefined, undefined];
     }, [
-        hasGithubIntegration,
-        hasGithubEnabled,
-        hasGithubProject,
-        project?.name,
+        gitIntegration?.enabled,
+        health?.data?.hasGithub,
         health?.data?.siteUrl,
+        project?.dbtConnection.type,
+        project?.name,
         projectUuid,
     ]);
 
