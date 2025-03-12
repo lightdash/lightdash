@@ -40,6 +40,10 @@ export default defineConfig({
                 name: process.env.SENTRY_RELEASE_VERSION,
                 inject: true,
             },
+            // Sourcemaps are already uploaded by the Sentry CLI
+            sourcemaps: {
+                disable: true,
+            },
         }),
     ],
     css: {

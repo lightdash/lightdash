@@ -159,17 +159,8 @@ RUN pnpm -F @lightdash/warehouses build
 
 # Build backend
 COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src
-
-# Create a tsconfig.sentry.json file for backend so we can build with sourcemaps
-RUN echo '{\n\
-    "extends": "./tsconfig.json",\n\
-    "compilerOptions": {\n\
-    "sourceMap": true,\n\
-    "inlineSources": true,\n\
-    "sourceRoot": "/"\n\
-    }\n\
-    }' > ./packages/backend/tsconfig.sentry.json
 
 # Conditionally build backend with sourcemaps if Sentry environment variables are set
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
@@ -183,7 +174,13 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
 # Build frontend
 COPY packages/frontend ./packages/frontend
 # Build frontend with sourcemaps (Vite generates them by default)
-RUN pnpm -F frontend build
+RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
+    echo "Building frontend with Sentry integration"; \
+    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN} SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} pnpm -F frontend build; \
+    else \
+    echo "Building frontend without Sentry integration"; \
+    pnpm -F frontend build; \
+    fi
 
 # Process and upload sourcemaps to Sentry if environment variables are set
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
