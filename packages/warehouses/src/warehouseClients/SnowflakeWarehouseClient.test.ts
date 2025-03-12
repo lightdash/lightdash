@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    WarehouseAsyncQueryStatus,
     type ResultRow,
     type WarehouseGetAsyncQueryResults,
 } from '@lightdash/common';
@@ -55,6 +56,8 @@ jest.mock('snowflake-sdk', () => ({
         execute: executeMock,
         destroy: jest.fn((callback) => callback(null, {})),
         getResultsFromQueryId: getResultsFromQueryIdMock,
+        getQueryStatus: jest.fn(() => 'SUCCESS'),
+        isStillRunning: jest.fn(() => false),
     })),
 }));
 
@@ -90,7 +93,7 @@ describe('SnowflakeWarehouseClient', () => {
             // Execute test
             const result = await client.getAsyncQueryResults({
                 sql: 'SELECT * FROM test',
-                queryId: null,
+                queryId: 'queryId',
                 page: 1,
                 pageSize: 10,
                 tags: {},
@@ -99,14 +102,6 @@ describe('SnowflakeWarehouseClient', () => {
             });
 
             // Assertions
-
-            expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText: 'SELECT * FROM test',
-                asyncExec: true,
-                binds: undefined,
-                complete: expect.any(Function),
-            });
-
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
                 sqlText: '',
                 queryId: 'queryId',
@@ -118,6 +113,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
+                status: WarehouseAsyncQueryStatus.COMPLETED,
             } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
 
@@ -146,7 +142,7 @@ describe('SnowflakeWarehouseClient', () => {
                     tags: {},
                     timezone: 'UTC',
                     values: [],
-                    queryId: null,
+                    queryId: 'queryId',
                 },
                 formatter,
             );
@@ -154,13 +150,6 @@ describe('SnowflakeWarehouseClient', () => {
             const expectedFormattedRow = formatter(expectedRow);
 
             // Assertions
-            expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText: 'SELECT * FROM test',
-                asyncExec: true,
-                binds: undefined,
-                complete: expect.any(Function),
-            });
-
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
                 sqlText: '',
                 queryId: 'queryId',
@@ -172,6 +161,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
+                status: WarehouseAsyncQueryStatus.COMPLETED,
             } satisfies WarehouseGetAsyncQueryResults<ResultRow>);
         });
 
@@ -186,6 +176,7 @@ describe('SnowflakeWarehouseClient', () => {
                 tags: {},
                 timezone: 'UTC',
                 values: [],
+                sql: 'SELECT * FROM test',
             });
 
             // Assertions
@@ -208,6 +199,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
+                status: WarehouseAsyncQueryStatus.COMPLETED,
             } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
     });

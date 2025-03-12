@@ -158,7 +158,10 @@ import {
     type ApiUpdateSqlChart,
 } from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
-import { type ApiWarehouseTableFields } from './types/warehouse';
+import {
+    type ApiWarehouseTableFields,
+    type WarehouseAsyncQueryStatus,
+} from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
@@ -472,14 +475,31 @@ export type ApiExecuteAsyncQueryResults = {
     queryUuid: string;
 };
 
-export type ApiGetAsyncQueryResults = ResultsPaginationMetadata<ResultRow> & {
-    queryUuid: string;
-    rows: ResultRow[];
-    fields: ItemsMap;
-    initialQueryExecutionMs: number;
-    resultsPageExecutionMs: number;
-    metricQuery: MetricQuery;
-};
+export type ApiGetAsyncQueryResults =
+    | (ResultsPaginationMetadata<ResultRow> & {
+          queryUuid: string;
+          rows: ResultRow[];
+          fields: ItemsMap;
+          initialQueryExecutionMs: number;
+          resultsPageExecutionMs: number;
+          metricQuery: MetricQuery;
+          status: WarehouseAsyncQueryStatus.COMPLETED;
+      })
+    | {
+          status:
+              | WarehouseAsyncQueryStatus.PENDING
+              | WarehouseAsyncQueryStatus.CANCELLED;
+          queryUuid: string;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
+      }
+    | {
+          status: WarehouseAsyncQueryStatus.ERROR;
+          queryUuid: string;
+          error: string;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
+      };
 
 export type ApiChartAndResults = {
     chart: SavedChart;

@@ -13965,31 +13965,98 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string._value-ResultValue__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseAsyncQueryStatus.COMPLETED': {
+        dataType: 'refEnum',
+        enums: ['completed'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseAsyncQueryStatus.PENDING': {
+        dataType: 'refEnum',
+        enums: ['pending'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseAsyncQueryStatus.CANCELLED': {
+        dataType: 'refEnum',
+        enums: ['cancelled'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseAsyncQueryStatus.ERROR': {
+        dataType: 'refEnum',
+        enums: ['error'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetAsyncQueryResults: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
+            dataType: 'union',
             subSchemas: [
-                { ref: 'ResultsPaginationMetadata_ResultRow_' },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'ResultsPaginationMetadata_ResultRow_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                status: {
+                                    ref: 'WarehouseAsyncQueryStatus.COMPLETED',
+                                    required: true,
+                                },
+                                metricQuery: {
+                                    ref: 'MetricQuery',
+                                    required: true,
+                                },
+                                resultsPageExecutionMs: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                initialQueryExecutionMs: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                fields: { ref: 'ItemsMap', required: true },
+                                rows: {
+                                    dataType: 'array',
+                                    array: {
+                                        dataType: 'refAlias',
+                                        ref: 'ResultRow',
+                                    },
+                                    required: true,
+                                },
+                                queryUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        metricQuery: { ref: 'MetricQuery', required: true },
-                        resultsPageExecutionMs: {
-                            dataType: 'double',
-                            required: true,
-                        },
-                        initialQueryExecutionMs: {
-                            dataType: 'double',
-                            required: true,
-                        },
                         fields: { ref: 'ItemsMap', required: true },
-                        rows: {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'ResultRow' },
+                        metricQuery: { ref: 'MetricQuery', required: true },
+                        queryUuid: { dataType: 'string', required: true },
+                        status: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'WarehouseAsyncQueryStatus.PENDING' },
+                                { ref: 'WarehouseAsyncQueryStatus.CANCELLED' },
+                            ],
                             required: true,
                         },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fields: { ref: 'ItemsMap', required: true },
+                        metricQuery: { ref: 'MetricQuery', required: true },
+                        error: { dataType: 'string', required: true },
                         queryUuid: { dataType: 'string', required: true },
+                        status: {
+                            ref: 'WarehouseAsyncQueryStatus.ERROR',
+                            required: true,
+                        },
                     },
                 },
             ],

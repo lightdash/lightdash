@@ -5,6 +5,7 @@ import {
     Metric,
     PartitionColumn,
     SupportedDbtAdapter,
+    WarehouseAsyncQueryStatus,
     WarehouseCatalog,
     WarehouseResults,
     WeekDay,
@@ -74,37 +75,34 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
     ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
         // When warehouse doesn't support async queries we run the compiled sql and return all the results
-        if (args.queryId === null) {
-            let fields: WarehouseResults['fields'] = {};
-            const rows: TFormattedRow[] = [];
+        let fields: WarehouseResults['fields'] = {};
+        const rows: TFormattedRow[] = [];
 
-            await this.streamQuery(
-                args.sql,
-                (data) => {
-                    fields = data.fields;
-                    rows.push(
-                        ...((rowFormatter
-                            ? data.rows.map(rowFormatter)
-                            : data.rows) as TFormattedRow[]),
-                    );
-                },
-                {
-                    values,
-                    tags,
-                    timezone,
-                },
-            );
+        await this.streamQuery(
+            args.sql,
+            (data) => {
+                fields = data.fields;
+                rows.push(
+                    ...((rowFormatter
+                        ? data.rows.map(rowFormatter)
+                        : data.rows) as TFormattedRow[]),
+                );
+            },
+            {
+                values,
+                tags,
+                timezone,
+            },
+        );
 
-            return {
-                fields,
-                rows,
-                queryId: null,
-                pageCount: 1,
-                totalRows: rows.length,
-            };
-        }
-
-        throw new Error('Warehouse method not implemented.');
+        return {
+            fields,
+            rows,
+            queryId: null,
+            pageCount: 1,
+            totalRows: rows.length,
+            status: WarehouseAsyncQueryStatus.COMPLETED,
+        };
     }
 
     async runQuery(

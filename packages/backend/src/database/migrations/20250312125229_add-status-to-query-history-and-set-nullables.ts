@@ -1,4 +1,7 @@
-import { DEFAULT_RESULTS_PAGE_SIZE } from '@lightdash/common';
+import {
+    DEFAULT_RESULTS_PAGE_SIZE,
+    WarehouseAsyncQueryStatus,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 const QUERY_HISTORY_TABLE = 'query_history';
@@ -7,7 +10,10 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
         table.integer('total_row_count').nullable().alter();
         table.integer('default_page_size').nullable().alter();
-        table.string('status').notNullable().defaultTo('completed'); // TODO paginate: status needs to be typed
+        table
+            .string('status')
+            .notNullable()
+            .defaultTo(WarehouseAsyncQueryStatus.COMPLETED);
         table.string('error').nullable();
     });
 }

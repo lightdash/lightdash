@@ -4,6 +4,7 @@ import {
     type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryResults,
+    assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
     type ExecuteAsyncMetricQueryRequestParams,
@@ -12,7 +13,9 @@ import {
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
+    type ResultRow,
     type SortField,
+    WarehouseAsyncQueryStatus,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -275,19 +278,42 @@ const getQueryPaginatedResults = async (
     });
 
     // Get all page rows in sequence
-    let allRows: ApiGetAsyncQueryResults['rows'] = [];
+    let allRows: ResultRow[] = [];
     let currentPage: ApiGetAsyncQueryResults | undefined;
 
-    while (!currentPage || currentPage.nextPage) {
+    while (
+        !currentPage ||
+        currentPage.status === WarehouseAsyncQueryStatus.PENDING ||
+        (currentPage.status === WarehouseAsyncQueryStatus.COMPLETED &&
+            currentPage.nextPage)
+    ) {
+        const page =
+            currentPage?.status === WarehouseAsyncQueryStatus.COMPLETED
+                ? currentPage?.nextPage
+                : 1;
+
         currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${
-                currentPage?.nextPage ?? 1
-            }`,
+            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${page}`,
             version: 'v2',
             method: 'GET',
             body: undefined,
         });
-        allRows = allRows.concat(currentPage.rows);
+
+        const { status } = currentPage;
+
+        switch (status) {
+            case WarehouseAsyncQueryStatus.CANCELLED:
+                throw new Error('Query cancelled');
+            case WarehouseAsyncQueryStatus.ERROR:
+                throw new Error(currentPage.error || 'Query failed');
+            case WarehouseAsyncQueryStatus.COMPLETED:
+                allRows = allRows.concat(currentPage.rows);
+                break;
+            case WarehouseAsyncQueryStatus.PENDING:
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
     }
 
     return {

@@ -65,24 +65,50 @@ export type WarehouseExecuteAsyncQuery = {
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
 };
 
-export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
-    (
-        | (WarehouseExecuteAsyncQueryArgs & {
-              queryId: null;
-          })
-        | (Omit<WarehouseExecuteAsyncQueryArgs, 'sql'> & {
-              queryId: string;
-          })
-    );
+export enum WarehouseAsyncQueryStatus {
+    PENDING = 'pending',
+    COMPLETED = 'completed',
+    ERROR = 'error',
+    CANCELLED = 'cancelled',
+}
 
-export type WarehouseGetAsyncQueryResults<
+export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
+    WarehouseExecuteAsyncQueryArgs & {
+        queryId: string | null;
+    };
+
+type WarehouseAsyncQueryCommonResults = {
+    queryId: string | null;
+};
+
+type WarehouseAsyncQueryResultsSuccess<
     TFormattedRow extends Record<string, unknown>,
-> = Omit<WarehouseExecuteAsyncQuery, 'warehouseQueryMetadata'> & {
+> = WarehouseAsyncQueryCommonResults & {
     fields: Record<string, { type: DimensionType }>;
     pageCount: number;
     totalRows: number;
     rows: TFormattedRow[];
+    status: WarehouseAsyncQueryStatus.COMPLETED;
 };
+
+type WarehouseAsyncQueryResultsError = WarehouseAsyncQueryCommonResults & {
+    status: WarehouseAsyncQueryStatus.ERROR;
+    error: string;
+};
+
+type WarehouseAsyncQueryResultsNonCompleted =
+    WarehouseAsyncQueryCommonResults & {
+        status:
+            | WarehouseAsyncQueryStatus.PENDING
+            | WarehouseAsyncQueryStatus.CANCELLED;
+    };
+
+export type WarehouseGetAsyncQueryResults<
+    TFormattedRow extends Record<string, unknown>,
+> =
+    | WarehouseAsyncQueryResultsSuccess<TFormattedRow>
+    | WarehouseAsyncQueryResultsError
+    | WarehouseAsyncQueryResultsNonCompleted;
 
 export interface WarehouseClient {
     credentials: CreateWarehouseCredentials;

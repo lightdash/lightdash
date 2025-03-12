@@ -85,6 +85,7 @@ import {
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
+    WarehouseAsyncQueryStatus,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTableSchema,
@@ -1864,12 +1865,6 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        const {
-            rows,
-            pageCount: totalPageCount,
-            totalRows: totalResults,
-        } = result;
-
         if (
             queryHistory.totalRowCount === null ||
             queryHistory.defaultPageSize === null
@@ -1880,9 +1875,10 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 user.userUuid,
                 {
-                    ...(queryHistory.totalRowCount === null
+                    ...(result.status === WarehouseAsyncQueryStatus.COMPLETED &&
+                    queryHistory.totalRowCount === null
                         ? {
-                              total_row_count: totalResults,
+                              total_row_count: result.totalRows,
                           }
                         : {}),
                     ...(queryHistory.defaultPageSize === null
@@ -1890,29 +1886,65 @@ export class ProjectService extends BaseService {
                               default_page_size: defaultedPageSize,
                           }
                         : {}),
+                    ...(result.status !== queryHistory.status
+                        ? {
+                              status: result.status,
+                              ...(result.status ===
+                              WarehouseAsyncQueryStatus.ERROR
+                                  ? {
+                                        error: result.error,
+                                    }
+                                  : {}),
+                          }
+                        : {}),
                 },
             );
         }
 
-        const { nextPage, previousPage } = getNextAndPreviousPage(
-            page,
-            totalPageCount,
-        );
+        const { status } = result;
 
-        return {
-            rows,
-            totalPageCount,
-            totalResults,
-            queryUuid: queryHistory.queryUuid,
-            fields: queryHistory.fields,
-            metricQuery,
-            pageSize: rows.length,
-            page,
-            nextPage,
-            previousPage,
-            initialQueryExecutionMs: queryHistory.warehouseExecutionTimeMs,
-            resultsPageExecutionMs: Math.round(durationMs),
-        };
+        switch (status) {
+            case WarehouseAsyncQueryStatus.COMPLETED:
+                const { nextPage, previousPage } = getNextAndPreviousPage(
+                    page,
+                    result.pageCount,
+                );
+
+                return {
+                    rows: result.rows,
+                    totalPageCount: result.pageCount,
+                    totalResults: result.totalRows,
+                    queryUuid: queryHistory.queryUuid,
+                    fields: queryHistory.fields,
+                    metricQuery,
+                    pageSize: result.rows.length,
+                    page,
+                    nextPage,
+                    previousPage,
+                    initialQueryExecutionMs:
+                        queryHistory.warehouseExecutionTimeMs,
+                    resultsPageExecutionMs: Math.round(durationMs),
+                    status: WarehouseAsyncQueryStatus.COMPLETED,
+                };
+            case WarehouseAsyncQueryStatus.PENDING:
+            case WarehouseAsyncQueryStatus.CANCELLED:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
+            case WarehouseAsyncQueryStatus.ERROR:
+                return {
+                    status,
+                    queryUuid,
+                    error: result.error,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
     }
 
     private async executeAsyncQuery(

@@ -14795,44 +14795,125 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue__"
             },
+            "WarehouseAsyncQueryStatus.COMPLETED": {
+                "enum": ["completed"],
+                "type": "string"
+            },
+            "WarehouseAsyncQueryStatus.PENDING": {
+                "enum": ["pending"],
+                "type": "string"
+            },
+            "WarehouseAsyncQueryStatus.CANCELLED": {
+                "enum": ["cancelled"],
+                "type": "string"
+            },
+            "WarehouseAsyncQueryStatus.ERROR": {
+                "enum": ["error"],
+                "type": "string"
+            },
             "ApiGetAsyncQueryResults": {
-                "allOf": [
+                "anyOf": [
                     {
-                        "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
+                            },
+                            {
+                                "properties": {
+                                    "status": {
+                                        "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.COMPLETED"
+                                    },
+                                    "metricQuery": {
+                                        "$ref": "#/components/schemas/MetricQuery"
+                                    },
+                                    "resultsPageExecutionMs": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "initialQueryExecutionMs": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "fields": {
+                                        "$ref": "#/components/schemas/ItemsMap"
+                                    },
+                                    "rows": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ResultRow"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "queryUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "status",
+                                    "metricQuery",
+                                    "resultsPageExecutionMs",
+                                    "initialQueryExecutionMs",
+                                    "fields",
+                                    "rows",
+                                    "queryUuid"
+                                ],
+                                "type": "object"
+                            }
+                        ]
                     },
                     {
                         "properties": {
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            },
-                            "resultsPageExecutionMs": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "initialQueryExecutionMs": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "fields": {
                                 "$ref": "#/components/schemas/ItemsMap"
                             },
-                            "rows": {
-                                "items": {
-                                    "$ref": "#/components/schemas/ResultRow"
-                                },
-                                "type": "array"
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
                             },
                             "queryUuid": {
                                 "type": "string"
+                            },
+                            "status": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.PENDING"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.CANCELLED"
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "metricQuery",
-                            "resultsPageExecutionMs",
-                            "initialQueryExecutionMs",
                             "fields",
-                            "rows",
-                            "queryUuid"
+                            "metricQuery",
+                            "queryUuid",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
+                            "error": {
+                                "type": "string"
+                            },
+                            "queryUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.ERROR"
+                            }
+                        },
+                        "required": [
+                            "fields",
+                            "metricQuery",
+                            "error",
+                            "queryUuid",
+                            "status"
                         ],
                         "type": "object"
                     }

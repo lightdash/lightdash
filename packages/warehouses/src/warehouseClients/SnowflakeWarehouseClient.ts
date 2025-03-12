@@ -8,6 +8,7 @@ import {
     MetricType,
     ParseError,
     SupportedDbtAdapter,
+    WarehouseAsyncQueryStatus,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -23,6 +24,7 @@ import {
     createConnection,
     SnowflakeError,
     type FileAndStageBindStatement,
+    type QueryStatus,
     type RowStatement,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
@@ -311,8 +313,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }: WarehouseGetAsyncQueryResultsArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
     ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        if (queryArgs.queryId === null) {
+            throw new WarehouseQueryError('Query ID is required');
+        }
+
         const connection = await this.getConnection();
-        let sql: string = '';
 
         try {
             await this.prepareWarehouse(connection, {
@@ -323,48 +328,36 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             const start = (queryArgs.page - 1) * queryArgs.pageSize;
             const end = start + queryArgs.pageSize - 1;
 
-            let currentQueryId: string | null;
+            const results = await this.getAsyncStatementResults(
+                connection,
+                queryArgs.queryId,
+                start,
+                end,
+                rowFormatter,
+            );
 
-            if (queryArgs.queryId === null) {
-                const { queryId } = await this.executeAsyncStatement(
-                    connection,
-                    queryArgs.sql,
-                    {
-                        values,
-                    },
-                );
-
-                sql = queryArgs.sql;
-                currentQueryId = queryId;
-            } else if ('queryId' in queryArgs) {
-                currentQueryId = queryArgs.queryId;
-            } else {
-                throw new WarehouseQueryError('Invalid query');
+            if (results.status === WarehouseAsyncQueryStatus.PENDING) {
+                return {
+                    queryId: queryArgs.queryId,
+                    status: results.status,
+                };
             }
-
-            if (!currentQueryId) {
-                throw new WarehouseQueryError('Query ID is required');
-            }
-
-            const { rows, fields, numRows } =
-                await this.getAsyncStatementResults(
-                    connection,
-                    currentQueryId,
-                    start,
-                    end,
-                    rowFormatter,
-                );
 
             return {
-                fields,
-                rows,
-                queryId: currentQueryId,
-                pageCount: Math.ceil(numRows / queryArgs.pageSize),
-                totalRows: numRows,
+                fields: results.fields,
+                rows: results.rows,
+                queryId: queryArgs.queryId,
+                pageCount: Math.ceil(results.numRows / queryArgs.pageSize),
+                totalRows: results.numRows,
+                status: results.status,
             };
         } catch (e) {
             const error = e as SnowflakeError;
-            throw this.parseError(error, sql);
+            return {
+                status: WarehouseAsyncQueryStatus.ERROR,
+                error: this.parseError(error, queryArgs.sql).message,
+                queryId: queryArgs.queryId,
+            };
         } finally {
             await new Promise((resolve, reject) => {
                 connection.destroy((err, conn) => {
@@ -414,11 +407,27 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         start: number,
         end: number,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<{
-        fields: Record<string, { type: DimensionType }>;
-        rows: TFormattedRow[];
-        numRows: number;
-    }> {
+    ): Promise<
+        | {
+              status: WarehouseAsyncQueryStatus.COMPLETED;
+              rows: TFormattedRow[];
+              fields: Record<string, { type: DimensionType }>;
+              numRows: number;
+          }
+        | {
+              status: WarehouseAsyncQueryStatus.PENDING;
+          }
+    > {
+        const queryStatus = (await connection.getQueryStatus(
+            queryId,
+        )) as QueryStatus; // ! Typed as string in the snowflake sdk
+
+        if (connection.isStillRunning(queryStatus)) {
+            return {
+                status: WarehouseAsyncQueryStatus.PENDING,
+            };
+        }
+
         const statement = await connection.getResultsFromQueryId({
             sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
             queryId,
@@ -452,6 +461,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             rows,
             fields: this.getFieldsFromStatement(statement),
             numRows: statement.getNumRows(),
+            status: WarehouseAsyncQueryStatus.COMPLETED,
         };
     }
 

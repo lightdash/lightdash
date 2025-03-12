@@ -3,6 +3,7 @@ import type {
     ItemsMap,
     MetricQuery,
     QueryExecutionContext,
+    WarehouseAsyncQueryStatus,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -20,7 +21,7 @@ export type DbQueryHistory = {
     warehouse_execution_time_ms: number;
     warehouse_query_metadata: WarehouseQueryMetadata | null;
     total_row_count: number | null;
-    status: string;
+    status: WarehouseAsyncQueryStatus;
     error: string | null;
     metric_query: MetricQuery;
     fields: ItemsMap;

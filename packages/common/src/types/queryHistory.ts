@@ -3,6 +3,7 @@ import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import { WarehouseTypes } from './projects';
+import type { WarehouseAsyncQueryStatus } from './warehouse';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -38,6 +39,6 @@ export type QueryHistory = {
     metricQuery: MetricQuery;
     fields: ItemsMap;
     requestParameters: ExecuteAsyncQueryRequestParams;
-    status: string;
+    status: WarehouseAsyncQueryStatus;
     error: string | null;
 };
