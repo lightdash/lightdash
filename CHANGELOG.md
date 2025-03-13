@@ -1,3 +1,10 @@
+# [0.1537.0](https://github.com/lightdash/lightdash/compare/0.1536.0...0.1537.0) (2025-03-13)
+
+
+### Features
+
+* Enable API call to operate warehouse credentials ([#14022](https://github.com/lightdash/lightdash/issues/14022)) ([9e41f09](https://github.com/lightdash/lightdash/commit/9e41f091376fb917114592dc02f612a9af8e9f76))
+
 # [0.1536.0](https://github.com/lightdash/lightdash/compare/0.1535.4...0.1536.0) (2025-03-12)
 
 
