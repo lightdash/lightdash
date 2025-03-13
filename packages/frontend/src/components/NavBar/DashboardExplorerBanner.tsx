@@ -74,6 +74,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
+        //
         void navigate(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
                 savedQueryUuid ? 'view' : 'edit'
