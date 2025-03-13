@@ -123,6 +123,7 @@ type DbtColumnLightdashConfig = {
 export type DbtColumnLightdashDimension = {
     name?: string;
     label?: string;
+    html?: string;
     type?: DimensionType;
     description?: string;
     sql?: string;

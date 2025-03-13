@@ -703,6 +703,8 @@ export function formatItemValue(
                         return `${value}`;
                     }
                     break;
+                case DimensionType.HTML:
+                    return item.html
                 default:
             }
         }

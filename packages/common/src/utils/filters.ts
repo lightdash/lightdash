@@ -114,6 +114,7 @@ export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
     const type = getItemType(item);
     switch (type) {
         case DimensionType.STRING:
+        case DimensionType.HTML:
         case MetricType.STRING:
         case TableCalculationType.STRING:
             return FilterType.STRING;

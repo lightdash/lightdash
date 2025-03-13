@@ -438,6 +438,7 @@ export const renderFilterRuleSql = (
         : field.compiledSql;
 
     switch (fieldType) {
+        case DimensionType.HTML:
         case DimensionType.STRING:
         case MetricType.STRING: {
             return renderStringFilterSql(

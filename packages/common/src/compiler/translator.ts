@@ -179,6 +179,7 @@ const convertDimension = (
             ? { urls: column.meta.dimension.urls }
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
+        html: column.meta.dimension?.html,
         groups,
         isIntervalBase,
         ...(column.meta.dimension && column.meta.dimension.tags

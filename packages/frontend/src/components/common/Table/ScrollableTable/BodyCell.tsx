@@ -21,6 +21,7 @@ import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
+import { renderTemplatedUrl } from '@lightdash/common';
 
 interface CommonBodyCellProps {
     cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
@@ -133,19 +134,22 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 onMouseEnter={canHaveTooltip ? openTooltip : undefined}
                 onMouseLeave={canHaveTooltip ? closeTooltip : undefined}
             >
-                <span
-                    style={{
-                        textDecoration: hasUrls ? 'underline' : 'none',
-                        textDecorationStyle: 'dotted',
-                        whiteSpace:
-                            typeof displayValue === 'string' &&
-                            displayValue.includes('\n')
-                                ? 'pre-line'
-                                : 'nowrap',
-                    }}
-                >
+                {item?.type === 'html' ?
+                    <div dangerouslySetInnerHTML={{ __html: renderTemplatedUrl(item.html, cell.getValue()?.value, {}) }}></div>
+                    :
+                    <span
+                        style={{
+                            textDecoration: hasUrls ? 'underline' : 'none',
+                            textDecorationStyle: 'dotted',
+                            whiteSpace:
+                                typeof displayValue === 'string' &&
+                                displayValue.includes('\n')
+                                    ? 'pre-line'
+                                    : 'nowrap',
+                        }}
+                    >
                     {children}
-                </span>
+                </span>}
             </Td>
 
             {shouldRenderMenu ? (

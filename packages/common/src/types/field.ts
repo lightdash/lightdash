@@ -265,6 +265,7 @@ export interface Field {
     urls?: FieldUrl[];
     index?: number;
     tags?: string[];
+    html?: string;
 }
 
 export const isField = (field: AnyType): field is Field =>
@@ -315,6 +316,7 @@ export enum DimensionType {
     TIMESTAMP = 'timestamp',
     DATE = 'date',
     BOOLEAN = 'boolean',
+    HTML = 'html',
 }
 
 export interface Dimension extends Field {
@@ -329,6 +331,7 @@ export interface Dimension extends Field {
     timeIntervalBaseDimensionName?: string;
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
+    html?: string;
     isIntervalBase?: boolean;
 }
 
@@ -363,7 +366,8 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.NUMBER
         | DimensionType.DATE
         | DimensionType.TIMESTAMP
-        | DimensionType.BOOLEAN;
+        | DimensionType.BOOLEAN
+    | DimensionType.HTML;
 }
 
 export type FieldRef = string;

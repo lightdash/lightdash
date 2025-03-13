@@ -172,6 +172,7 @@ export const getBasicType = (
 ): string => {
     const { type } = field;
     switch (type) {
+        case DimensionType.HTML:
         case DimensionType.STRING:
         case MetricType.STRING:
             return 'string';

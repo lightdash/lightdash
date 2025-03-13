@@ -73,7 +73,7 @@
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                    "enum": ["string", "number", "boolean", "date", "timestamp", "html"]
                 },
                 "description": {
                     "type": "string"
@@ -123,6 +123,9 @@
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
+                },
+                "html": {
+                    "type": "string"
                 }
             }
         },
