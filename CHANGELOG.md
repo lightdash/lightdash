@@ -1,3 +1,38 @@
+## [0.1537.4](https://github.com/lightdash/lightdash/compare/0.1537.3...0.1537.4) (2025-03-13)
+
+
+### Bug Fixes
+
+* sidebar search react max depth error ([#14051](https://github.com/lightdash/lightdash/issues/14051)) ([8f22b72](https://github.com/lightdash/lightdash/commit/8f22b72a51433809cdf8d3f79f29c7758c8237f6))
+
+## [0.1537.3](https://github.com/lightdash/lightdash/compare/0.1537.2...0.1537.3) (2025-03-13)
+
+
+### Bug Fixes
+
+* add fetch depth 0 to checkout action ([#14059](https://github.com/lightdash/lightdash/issues/14059)) ([ae4175a](https://github.com/lightdash/lightdash/commit/ae4175a92c8f738cdd47e9e8a8a274b8783eee2b))
+
+## [0.1537.2](https://github.com/lightdash/lightdash/compare/0.1537.1...0.1537.2) (2025-03-13)
+
+
+### Bug Fixes
+
+* sentry release and sourcemaps on both projects ([#14038](https://github.com/lightdash/lightdash/issues/14038)) ([1c69312](https://github.com/lightdash/lightdash/commit/1c693121b74bbb7f5b704d1c5ccc2446de8ea2fa))
+
+## [0.1537.1](https://github.com/lightdash/lightdash/compare/0.1537.0...0.1537.1) (2025-03-13)
+
+
+### Bug Fixes
+
+* filters on dashboards as code ([#14000](https://github.com/lightdash/lightdash/issues/14000)) ([2bf3682](https://github.com/lightdash/lightdash/commit/2bf36824f558eb5ac7d2e5e8295a3bfaa94681ac))
+
+# [0.1537.0](https://github.com/lightdash/lightdash/compare/0.1536.0...0.1537.0) (2025-03-13)
+
+
+### Features
+
+* Enable API call to operate warehouse credentials ([#14022](https://github.com/lightdash/lightdash/issues/14022)) ([9e41f09](https://github.com/lightdash/lightdash/commit/9e41f091376fb917114592dc02f612a9af8e9f76))
+
 # [0.1536.0](https://github.com/lightdash/lightdash/compare/0.1535.4...0.1536.0) (2025-03-12)
 
 
