@@ -1,3 +1,10 @@
+## [0.1537.2](https://github.com/lightdash/lightdash/compare/0.1537.1...0.1537.2) (2025-03-13)
+
+
+### Bug Fixes
+
+* sentry release and sourcemaps on both projects ([#14038](https://github.com/lightdash/lightdash/issues/14038)) ([1c69312](https://github.com/lightdash/lightdash/commit/1c693121b74bbb7f5b704d1c5ccc2446de8ea2fa))
+
 ## [0.1537.1](https://github.com/lightdash/lightdash/compare/0.1537.0...0.1537.1) (2025-03-13)
 
 
