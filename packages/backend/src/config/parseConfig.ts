@@ -550,7 +550,7 @@ export const parseConfig = (): LightdashConfig => {
                 ),
                 frameAncestors: iframeEmbeddingEnabled
                     ? iframeAllowedDomains
-                    : ['https://*'],
+                    : [],
                 reportUri: process.env.LIGHTDASH_CSP_REPORT_URI,
             },
             crossOriginResourceSharingPolicy: {
