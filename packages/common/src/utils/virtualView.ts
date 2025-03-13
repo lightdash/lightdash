@@ -94,9 +94,10 @@ export const createTemporaryVirtualView = (
         getPaginatedResults: async () => ({
             fields: {},
             rows: [],
-            queryId: '',
+            queryId: null,
             pageCount: 0,
             totalRows: 0,
+            warehouseQueryMetadata: null,
         }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},

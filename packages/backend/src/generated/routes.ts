@@ -13974,13 +13974,22 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        metricQuery: { ref: 'MetricQuery', required: true },
+                        resultsPageExecutionMs: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                        initialQueryExecutionMs: {
+                            dataType: 'double',
+                            required: true,
+                        },
                         fields: { ref: 'ItemsMap', required: true },
                         rows: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'ResultRow' },
                             required: true,
                         },
-                        queryId: { dataType: 'string', required: true },
+                        queryUuid: { dataType: 'string', required: true },
                     },
                 },
             ],
@@ -14216,7 +14225,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PaginatedQueryIdRequestParams: {
+    PaginatedQueryUuidRequestParams: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -14225,9 +14234,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        exploreName: { dataType: 'string', required: true },
-                        fields: { ref: 'ItemsMap', required: true },
-                        queryId: { dataType: 'string', required: true },
+                        queryUuid: { dataType: 'string', required: true },
                     },
                 },
             ],
@@ -14287,7 +14294,7 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { ref: 'PaginatedMetricQueryRequestParams' },
-                { ref: 'PaginatedQueryIdRequestParams' },
+                { ref: 'PaginatedQueryUuidRequestParams' },
                 { ref: 'PaginatedSavedChartRequestParams' },
                 { ref: 'PaginatedDashboardChartRequestParams' },
             ],

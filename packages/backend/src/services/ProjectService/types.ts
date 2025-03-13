@@ -21,10 +21,11 @@ export type PaginateMetricQueryArgs = CommonPaginateArgs & {
     dateZoomGranularity?: DateGranularity;
 };
 
-export type PaginateQueryIdArgs = CommonPaginateArgs & {
-    queryId: string;
-    fields: ItemsMap; // todo: to be removed once we have save query metadata in the DB
-    exploreName: string; // todo: to be removed once we have save query metadata in the DB
+export type PaginateQueryUuidArgs = Omit<
+    CommonPaginateArgs,
+    'context' | 'invalidateCache'
+> & {
+    queryUuid: string;
 };
 
 export type PaginateSavedChartArgs = CommonPaginateArgs & {
@@ -41,12 +42,12 @@ export type PaginateDashboardChartArgs = CommonPaginateArgs & {
 };
 
 // TODO: Not including PaginateSavedChartArgs since it is the same as PaginateMetricQueryArgs after we get the chart from the db, in the future, this function will only take PaginateMetricQueryArgs, first we need queryId metadata
-export type PaginateQueryArgs = PaginateMetricQueryArgs | PaginateQueryIdArgs;
+export type PaginateQueryArgs = PaginateMetricQueryArgs | PaginateQueryUuidArgs;
 
-export function isPaginateQueryIdArgs(
+export function isPaginateQueryUuidArgs(
     args: PaginateQueryArgs,
-): args is PaginateQueryIdArgs {
-    return 'queryId' in args && 'fields' in args && 'exploreName' in args;
+): args is PaginateQueryUuidArgs {
+    return 'queryUuid' in args;
 }
 
 export function isPaginateMetricQueryArgs(

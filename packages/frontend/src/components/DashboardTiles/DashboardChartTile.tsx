@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    CartesianSeriesType,
     ChartType,
-    DashboardTileTypes,
     createDashboardFilterRuleFromField,
+    DashboardTileTypes,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -12,7 +13,9 @@ import {
     getPivotConfig,
     getVisibleFields,
     hasCustomDimension,
+    isCartesianChartConfig,
     isChartTile,
+    isCompleteLayout,
     isFilterableField,
     isTableChartConfig,
     type ApiChartAndResults,
@@ -27,6 +30,7 @@ import {
     type PivotReference,
     type ResultValue,
     type SavedChart,
+    type Series,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -66,6 +70,10 @@ import { downloadCsvFromSavedChart } from '../../api/csv';
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
+import {
+    getExpectedSeriesMap,
+    mergeExistingAndExpectedSeries,
+} from '../../hooks/cartesianChartConfig/utils';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
@@ -211,6 +219,55 @@ const ValidDashboardChartTile: FC<{
         [rows, metricQuery, cacheMetadata, fields],
     );
 
+    /**
+     * We need to compute these series on dashboards to populate properly fallbackColors in VisualizationProvider
+     * otherwise, some series will appear as transparent
+     * on view charts, this information is refreshed from the explore.
+     * This is the most basic function that runs on useEchartsCartesianConfig to generate series
+     *
+     * This is passed to computedSeries prop in VisualizationProvider
+     * We don't want to override the chartConfig, to cause conflicts with other visualization stuff.
+     */
+    const computedSeries: Series[] = useMemo(() => {
+        if (!resultData?.fields || !chart.chartConfig || !resultData) {
+            return [];
+        }
+
+        if (
+            isCartesianChartConfig(chart.chartConfig.config) &&
+            isCompleteLayout(chart.chartConfig.config.layout)
+        ) {
+            const firstSerie =
+                chart.chartConfig.config.eChartsConfig.series?.[0];
+            const expectedSeriesMap = getExpectedSeriesMap({
+                defaultSmooth: firstSerie?.smooth,
+                defaultShowSymbol: firstSerie?.showSymbol,
+                defaultAreaStyle: firstSerie?.areaStyle,
+                defaultCartesianType: CartesianSeriesType.BAR,
+                availableDimensions: chart.metricQuery.dimensions,
+                isStacked: false,
+                pivotKeys: chart.pivotConfig?.columns,
+                resultsData: resultData,
+                xField: chart.chartConfig.config.layout.xField,
+                yFields: chart.chartConfig.config.layout.yField,
+                defaultLabel: firstSerie?.label,
+            });
+            const newSeries = mergeExistingAndExpectedSeries({
+                expectedSeriesMap,
+                existingSeries:
+                    chart.chartConfig.config.eChartsConfig.series || [],
+            });
+            return newSeries;
+        }
+
+        return [];
+    }, [
+        resultData,
+        chart.chartConfig,
+        chart.metricQuery.dimensions,
+        chart.pivotConfig?.columns,
+    ]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -229,6 +286,7 @@ const ValidDashboardChartTile: FC<{
             invalidateCache={invalidateCache}
             colorPalette={chart.colorPalette}
             setEchartsRef={setEchartsRef}
+            computedSeries={computedSeries}
         >
             <LightdashVisualization
                 isDashboard
@@ -259,7 +317,6 @@ const ValidDashboardChartTileMinimal: FC<{
         () => ({ rows, metricQuery, cacheMetadata, fields }),
         [rows, metricQuery, cacheMetadata, fields],
     );
-
     if (health.isInitialLoading || !health.data) {
         return null;
     }

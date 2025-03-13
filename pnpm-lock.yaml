@@ -1141,8 +1141,8 @@ importers:
         specifier: 1.8.4
         version: 1.8.4(encoding@0.1.13)
       '@google-cloud/bigquery':
-        specifier: ^7.2.0
-        version: 7.8.0(encoding@0.1.13)
+        specifier: ^7.9.2
+        version: 7.9.2(encoding@0.1.13)
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
@@ -2288,8 +2288,8 @@ packages:
   '@godaddy/terminus@4.12.0':
     resolution: {integrity: sha512-zbl6gKxPAnAoAAGCyRN1kOMHTXgiW3C09w8McLKZWSSHQlsiRZlMZzBwSv1aK9PaRU25w80cnOlt3ow+uQwR1Q==}
 
-  '@google-cloud/bigquery@7.8.0':
-    resolution: {integrity: sha512-SVWjoNkLixBGi6ZZSuQYDviSJJwUHd3LDCWoy3IDDXP10MxZWjfClc2FLILgsYz2BL4y4L/tdy3DEqSSt+92EA==}
+  '@google-cloud/bigquery@7.9.2':
+    resolution: {integrity: sha512-Yo7oYE6m7bBT28tYDn6dBwbXZxCt+nWREj/0y5aoUq0rFUGwLUDKAXwgt6OQJ2htDzGiQ3s0yltCBjKFtqVCmA==}
     engines: {node: '>=14.0.0'}
 
   '@google-cloud/common@5.0.2':
@@ -5017,7 +5017,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -14246,7 +14245,7 @@ snapshots:
     dependencies:
       stoppable: 1.1.0
 
-  '@google-cloud/bigquery@7.8.0(encoding@0.1.13)':
+  '@google-cloud/bigquery@7.9.2(encoding@0.1.13)':
     dependencies:
       '@google-cloud/common': 5.0.2(encoding@0.1.13)
       '@google-cloud/paginator': 5.0.2

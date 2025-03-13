@@ -4,6 +4,7 @@ import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
+import type { WarehouseQueryMetadata } from './queryHistory';
 
 export type RunQueryTags = {
     project_uuid?: string;
@@ -56,16 +57,20 @@ export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
     tags: Record<string, string>;
     timezone?: string;
     values?: AnyType[];
-} & ({ sql: string } | { queryId: string });
+} & (
+        | { sql: string }
+        | { queryId: string; queryMetadata: WarehouseQueryMetadata | null }
+    );
 
 export type WarehousePaginatedResults<
     TFormattedRow extends Record<string, unknown>,
 > = {
     fields: Record<string, { type: DimensionType }>;
-    queryId: string;
+    queryId: string | null;
     pageCount: number;
     totalRows: number;
     rows: TFormattedRow[];
+    warehouseQueryMetadata: WarehouseQueryMetadata | null;
 };
 
 export interface WarehouseClient {

@@ -41,9 +41,10 @@ export const warehouseClientMock: WarehouseClient = {
     getPaginatedResults: async () => ({
         rows: [],
         fields: {},
-        queryId: '',
+        queryId: null,
         pageCount: 0,
         totalRows: 0,
+        warehouseQueryMetadata: null,
     }),
     runQuery: () =>
         Promise.resolve({

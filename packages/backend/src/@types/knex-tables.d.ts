@@ -170,6 +170,10 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    QueryHistoryTable,
+    QueryHistoryTableName,
+} from '../database/entities/queryHistory';
+import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
     SavedSemanticViewerChartVersionsTable,
@@ -332,5 +336,6 @@ declare module 'knex/types/tables' {
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
+        [QueryHistoryTableName]: QueryHistoryTable;
     }
 }

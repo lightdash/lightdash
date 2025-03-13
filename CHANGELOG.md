@@ -1,3 +1,57 @@
+# [0.1536.0](https://github.com/lightdash/lightdash/compare/0.1535.4...0.1536.0) (2025-03-12)
+
+
+### Features
+
+* **API:** Bigquery pagination ([#14039](https://github.com/lightdash/lightdash/issues/14039)) ([242a881](https://github.com/lightdash/lightdash/commit/242a881669331c50cbcf5676a5209c4f0d1ce929))
+
+## [0.1535.4](https://github.com/lightdash/lightdash/compare/0.1535.3...0.1535.4) (2025-03-12)
+
+
+### Bug Fixes
+
+* show write back on sql runner ([#14044](https://github.com/lightdash/lightdash/issues/14044)) ([ca34c41](https://github.com/lightdash/lightdash/commit/ca34c4140032cae600f471896503189f2f491a0e))
+
+## [0.1535.3](https://github.com/lightdash/lightdash/compare/0.1535.2...0.1535.3) (2025-03-12)
+
+
+### Bug Fixes
+
+* keep the selected tab on dashbaord edit ([#14042](https://github.com/lightdash/lightdash/issues/14042)) ([9a263bd](https://github.com/lightdash/lightdash/commit/9a263bd6db4da3d2f3435745401164d40c63d441))
+
+## [0.1535.2](https://github.com/lightdash/lightdash/compare/0.1535.1...0.1535.2) (2025-03-12)
+
+
+### Bug Fixes
+
+* don't treat all falsey values as undefined in sql-runner ([#14026](https://github.com/lightdash/lightdash/issues/14026)) ([8f9074e](https://github.com/lightdash/lightdash/commit/8f9074e569259ca9924fc7c24f7c1c486705dd06))
+
+## [0.1535.1](https://github.com/lightdash/lightdash/compare/0.1535.0...0.1535.1) (2025-03-12)
+
+
+### Bug Fixes
+
+* returns actual page size in response ([#14037](https://github.com/lightdash/lightdash/issues/14037)) ([1450399](https://github.com/lightdash/lightdash/commit/145039985ea9d8318cc431e11174c9e9bb2d4292))
+
+# [0.1535.0](https://github.com/lightdash/lightdash/compare/0.1534.2...0.1535.0) (2025-03-11)
+
+
+### Bug Fixes
+
+* clear values on close palette ([#14025](https://github.com/lightdash/lightdash/issues/14025)) ([83b6a4f](https://github.com/lightdash/lightdash/commit/83b6a4f042b7b23b9ea6b940fb3fa7c27f2ca4bb))
+
+
+### Features
+
+* add query history table ([#14016](https://github.com/lightdash/lightdash/issues/14016)) ([f3473d5](https://github.com/lightdash/lightdash/commit/f3473d541889e0ee219a1c099f9511bf505a0e55))
+
+## [0.1534.2](https://github.com/lightdash/lightdash/compare/0.1534.1...0.1534.2) (2025-03-11)
+
+
+### Bug Fixes
+
+* empty colors on dashboards ([#14020](https://github.com/lightdash/lightdash/issues/14020)) ([3e67a6a](https://github.com/lightdash/lightdash/commit/3e67a6a281ee6617ec3f08fe9ed920674ae7e95c))
+
 ## [0.1534.1](https://github.com/lightdash/lightdash/compare/0.1534.0...0.1534.1) (2025-03-11)
 
 
