@@ -1872,21 +1872,43 @@ export class ProjectService extends BaseService {
 
         const { result, durationMs } = await measureTime(
             () =>
-                warehouseClient.getAsyncQueryResults(
-                    {
-                        page,
-                        pageSize: defaultedPageSize,
-                        tags: queryTags,
-                        queryId: queryHistory.warehouseQueryId,
-                        sql: queryHistory.compiledSql,
-                        queryMetadata: queryHistory.warehouseQueryMetadata,
-                    },
-                    formatter,
-                ),
+                warehouseClient
+                    .getAsyncQueryResults(
+                        {
+                            page,
+                            pageSize: defaultedPageSize,
+                            tags: queryTags,
+                            queryId: queryHistory.warehouseQueryId,
+                            sql: queryHistory.compiledSql,
+                            queryMetadata: queryHistory.warehouseQueryMetadata,
+                        },
+                        formatter,
+                    )
+                    .catch((e) => ({ errorMessage: getErrorMessage(e) })),
             'getAsyncQueryResults',
             this.logger,
             context,
         );
+
+        if ('errorMessage' in result) {
+            await this.queryHistoryModel.update(
+                queryHistory.queryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: result.errorMessage,
+                },
+            );
+
+            return {
+                status: QueryHistoryStatus.ERROR,
+                error: result.errorMessage,
+                queryUuid: queryHistory.queryUuid,
+                metricQuery,
+                fields: queryHistory.fields,
+            };
+        }
 
         const roundedDurationMs = Math.round(durationMs);
 
