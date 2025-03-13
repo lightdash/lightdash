@@ -82,7 +82,6 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             savedQueryUuid ? 'view' : 'edit'
         }`;
 
-        console.log('activeTabUuid', activeTabUuid);
         if (activeTabUuid) {
             returnUrl += `/tabs/${activeTabUuid}`;
         }
