@@ -1,13 +1,13 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
-import React, { useEffect, type FC } from 'react';
-import { Controller, useWatch } from 'react-hook-form';
+import { useEffect, type FC } from 'react';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
 import TrinoForm from './WarehouseForms/TrinoForm';
+import { useFormContext } from './formContext';
 
 const WarehouseTypeLabels = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
@@ -40,10 +40,10 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     setSelectedWarehouse,
     isProjectUpdate,
 }) => {
-    const warehouseType: WarehouseTypes = useWatch({
-        name: 'warehouse.type',
-        defaultValue: WarehouseTypes.BIGQUERY,
-    });
+    const form = useFormContext();
+
+    const warehouseType: WarehouseTypes =
+        form.values?.warehouse?.type ?? WarehouseTypes.BIGQUERY;
 
     const WarehouseForm =
         (selectedWarehouse && WarehouseTypeForms[selectedWarehouse]) ||
@@ -61,26 +61,21 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
             {isProjectUpdate && (
-                <Controller
-                    name="warehouse.type"
+                <Select
                     defaultValue={WarehouseTypes.BIGQUERY}
-                    render={({ field }) => (
-                        <Select
-                            label="Type"
-                            data={Object.entries(WarehouseTypeLabels).map(
-                                ([value, label]) => ({
-                                    value,
-                                    label,
-                                }),
-                            )}
-                            required
-                            value={field.value}
-                            onChange={field.onChange}
-                            disabled={disabled}
-                        />
+                    label="Type"
+                    data={Object.entries(WarehouseTypeLabels).map(
+                        ([value, label]) => ({
+                            value,
+                            label,
+                        }),
                     )}
+                    required
+                    {...form.getInputProps('warehouse.type')}
+                    disabled={disabled}
                 />
             )}
+
             <WarehouseForm disabled={disabled} />
         </div>
     );

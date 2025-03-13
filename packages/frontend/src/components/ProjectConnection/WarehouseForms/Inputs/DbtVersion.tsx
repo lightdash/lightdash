@@ -6,35 +6,33 @@ import {
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
-import { Controller } from 'react-hook-form';
+import { useFormContext } from '../../formContext';
 
 const DbtVersionSelect: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const form = useFormContext();
+    const field = form.getInputProps('dbtVersion');
+
     return (
-        <Controller
-            name="dbtVersion"
+        <Select
+            label="dbt version"
             defaultValue={DefaultSupportedDbtVersion}
-            render={({ field }) => (
-                <Select
-                    label="dbt version"
-                    data={[
-                        {
-                            value: DbtVersionOptionLatest.LATEST,
-                            label: `latest (${getLatestSupportDbtVersion()})`,
-                        },
-                        ...Object.values(SupportedDbtVersions)
-                            .reverse()
-                            .map((version) => ({
-                                value: version,
-                                label: version,
-                            })),
-                    ]}
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={disabled}
-                />
-            )}
+            data={[
+                {
+                    value: DbtVersionOptionLatest.LATEST,
+                    label: `latest (${getLatestSupportDbtVersion()})`,
+                },
+                ...Object.values(SupportedDbtVersions)
+                    .reverse()
+                    .map((version) => ({
+                        value: version,
+                        label: version,
+                    })),
+            ]}
+            value={field.value}
+            onChange={field.onChange}
+            disabled={disabled}
         />
     );
 };

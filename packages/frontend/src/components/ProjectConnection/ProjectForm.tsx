@@ -1,7 +1,6 @@
 import { type DbtProjectType, type WarehouseTypes } from '@lightdash/common';
 import { Avatar, Flex, Stack, Text, TextInput, Title } from '@mantine/core';
 import { type FC, useState } from 'react';
-import { useFormContext } from 'react-hook-form';
 import useApp from '../../providers/App/useApp';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -9,6 +8,7 @@ import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
+import { useForm, useFormContext } from './formContext';
 
 interface Props {
     showGeneralSettings: boolean;
@@ -27,7 +27,7 @@ export const ProjectForm: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const [warehouse, setWarehouse] = useState(selectedWarehouse);
-    const { register } = useFormContext();
+    const form = useFormContext();
 
     return (
         <Stack spacing="xl">
@@ -42,7 +42,7 @@ export const ProjectForm: FC<Props> = ({
                             label="Project name"
                             required
                             disabled={disabled}
-                            {...register('name')}
+                            {...form.getInputProps('name')}
                         />
                     </div>
                 </SettingsGridCard>
@@ -78,7 +78,7 @@ export const ProjectForm: FC<Props> = ({
                 </div>
             </SettingsGridCard>
 
-            <SettingsGridCard>
+            {/* <SettingsGridCard>
                 <div>
                     <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
@@ -99,7 +99,7 @@ export const ProjectForm: FC<Props> = ({
                         selectedWarehouse={warehouse}
                     />
                 </div>
-            </SettingsGridCard>
+            </SettingsGridCard> */}
         </Stack>
     );
 };
