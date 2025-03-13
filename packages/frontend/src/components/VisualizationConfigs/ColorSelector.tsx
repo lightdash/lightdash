@@ -17,6 +17,7 @@ interface Props {
     swatches: string[];
     onColorChange?: (newColor: string) => void;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
+    withAlpha?: boolean;
 }
 
 const ColorSelector: FC<Props> = ({
@@ -25,6 +26,7 @@ const ColorSelector: FC<Props> = ({
     swatches,
     onColorChange,
     colorSwatchProps,
+    withAlpha = false,
 }) => {
     const isValidHexColor = color && isHexCodeColor(color);
 
@@ -48,7 +50,7 @@ const ColorSelector: FC<Props> = ({
                 <Stack spacing="xs">
                     <MantineColorPicker
                         size="sm"
-                        format="hex"
+                        format={withAlpha ? 'hexa' : 'hex'}
                         swatches={swatches}
                         swatchesPerRow={8}
                         value={color ?? defaultColor}
@@ -62,10 +64,12 @@ const ColorSelector: FC<Props> = ({
                     <TextInput
                         size="xs"
                         icon={<MantineIcon icon={IconHash} />}
-                        placeholder="Type in a custom HEX color"
+                        placeholder={`Type in a custom ${
+                            withAlpha ? 'HEXA' : 'HEX'
+                        }  color`}
                         error={
                             color && !isValidHexColor
-                                ? 'Invalid HEX color'
+                                ? `Invalid ${withAlpha ? 'HEXA' : 'HEX'} color`
                                 : undefined
                         }
                         value={(color ?? '').replace('#', '')}

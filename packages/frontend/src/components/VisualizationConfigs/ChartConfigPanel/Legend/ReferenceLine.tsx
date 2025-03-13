@@ -331,6 +331,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                     <ColorSelector
                         color={lineColor}
                         swatches={colorPalette}
+                        withAlpha
                         onColorChange={(c) => onColorChange(c)}
                     />
                 }

@@ -4,7 +4,8 @@ import {
 } from '@lightdash/common';
 import Color from 'colorjs.io';
 
-const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
+const IS_HEX_CODE_COLOR_REGEX =
+    /^#(?:[a-fA-F0-9]{3}|[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$/;
 export const isHexCodeColor = (color: string): boolean => {
     return IS_HEX_CODE_COLOR_REGEX.test(color);
 };
