@@ -28,10 +28,18 @@ export type SentryInfo = {
 };
 
 const addSentryTraceId = winston.format(
-    (info): winston.Logform.TransformableInfo & SentryInfo => ({
-        ...info,
-        sentryTraceId: getActiveSpan()?.spanContext().traceId,
-    }),
+    (info): winston.Logform.TransformableInfo & SentryInfo => {
+        const gcpProjectId = lightdashConfig.googleCloudPlatform.projectId;
+        const traceId = getActiveSpan()?.spanContext().traceId;
+        return {
+            ...info,
+            sentryTraceId: traceId,
+            ...(gcpProjectId &&
+                traceId && {
+                    trace: `projects/${gcpProjectId}/traces/${traceId}`,
+                }),
+        };
+    },
 );
 
 export type ExecutionContextInfo = {

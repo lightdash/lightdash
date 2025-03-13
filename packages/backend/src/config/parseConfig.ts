@@ -335,6 +335,9 @@ export type LightdashConfig = {
     contentAsCode: {
         maxDownloads: number;
     };
+    googleCloudPlatform: {
+        projectId?: string;
+    };
 };
 
 export type SlackConfig = {
@@ -928,6 +931,9 @@ export const parseConfig = (): LightdashConfig => {
             maxDownloads:
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
                 100,
+        },
+        googleCloudPlatform: {
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
     };
 };
