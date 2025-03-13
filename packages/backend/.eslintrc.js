@@ -21,18 +21,7 @@ module.exports = {
         'no-template-curly-in-string': 'off',
         'no-restricted-syntax': 'off',
         eqeqeq: 'error',
-        // '@typescript-eslint/no-floating-promises': [
-        //     'error',
-        //     {
-        //         allowForKnownSafePromises: [
-        //             {
-        //                 from: 'package',
-        //                 name: 'QueryBuilder',
-        //                 package: 'knex',
-        //             }
-        //         ]
-        //     }
-        // ]
+        '@typescript-eslint/no-floating-promises': 'error'
     },
     overrides: [
         
