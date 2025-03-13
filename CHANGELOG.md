@@ -1,3 +1,10 @@
+## [0.1538.1](https://github.com/lightdash/lightdash/compare/0.1538.0...0.1538.1) (2025-03-13)
+
+
+### Bug Fixes
+
+* common imports from src ([#14068](https://github.com/lightdash/lightdash/issues/14068)) ([dc0595a](https://github.com/lightdash/lightdash/commit/dc0595a7c23e9e18fd028753788742634dbda9d6))
+
 # [0.1538.0](https://github.com/lightdash/lightdash/compare/0.1537.4...0.1538.0) (2025-03-13)
 
 
