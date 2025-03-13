@@ -82,7 +82,9 @@ export const Layout: FC<Props> = ({ items }) => {
         const { dirtyLayout } = visualizationConfig.chartConfig;
 
         return items.filter(
-            (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
+            (item) =>
+                !dirtyLayout?.yField?.includes(getItemId(item)) &&
+                getItemId(item) !== dirtyLayout?.xField,
         );
     }, [isCartesianChart, items, visualizationConfig]);
 
@@ -162,9 +164,9 @@ export const Layout: FC<Props> = ({ items }) => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>{`${
-                            validConfig?.layout.flipAxes ? 'Y' : 'X'
-                        }-axis`}</Config.Heading>
+                        <Config.Heading>
+                            {validConfig?.layout.flipAxes ? 'Y' : 'X'}-axis
+                        </Config.Heading>
                         <Group spacing="two">
                             <Tooltip variant="xs" label="Flip Axes">
                                 <ActionIcon
@@ -207,9 +209,9 @@ export const Layout: FC<Props> = ({ items }) => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>{`${
-                            validConfig?.layout.flipAxes ? 'X' : 'Y'
-                        }-axis`}</Config.Heading>
+                        <Config.Heading>
+                            {validConfig?.layout.flipAxes ? 'X' : 'Y'}-axis
+                        </Config.Heading>
                         {availableYFields.length > 0 && (
                             <AddButton
                                 onClick={() =>
