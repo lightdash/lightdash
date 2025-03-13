@@ -12,6 +12,7 @@ import {
     type AdditionalMetric,
     type Item,
 } from '@lightdash/common';
+import { isCompiledMetric } from '@lightdash/common/src';
 import {
     ActionIcon,
     Group,
@@ -72,13 +73,35 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
     const item = itemsMap[node.key];
 
     const metricInfo = useMemo(() => {
-        if (isMetric(item)) {
+        if (isCompiledMetric(item)) {
             return {
                 type: item.type,
-                sql: item.sql,
+                sql: item.compiledSql,
             };
         }
+        return undefined;
     }, [item]);
+
+    const description = isField(item) ? item.description : undefined;
+
+    const isMissing =
+        (isAdditionalMetric(item) &&
+            missingCustomMetrics &&
+            missingCustomMetrics.includes(item)) ||
+        (isCustomDimension(item) &&
+            missingCustomDimensions &&
+            missingCustomDimensions.includes(item));
+
+    const isHoverCardDisabled = useMemo(() => {
+        // Show metric info if either metric info or description is present
+        if (isCompiledMetric(item) && (!!metricInfo || !!description)) {
+            return false;
+        }
+        // Show description if it's not missing
+        if (!description && !isMissing) return true;
+
+        return false;
+    }, [description, isMissing, item, metricInfo]);
 
     if (!item || !isVisible) return null;
 
@@ -96,17 +119,7 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
             ? timeIntervalLabel || item.label || item.name
             : item.name;
 
-    const isMissing =
-        (isAdditionalMetric(item) &&
-            missingCustomMetrics &&
-            missingCustomMetrics.includes(item)) ||
-        (isCustomDimension(item) &&
-            missingCustomDimensions &&
-            missingCustomDimensions.includes(item));
-
     const alerts = itemsAlerts?.[getItemId(item)];
-
-    const description = isField(item) ? item.description : undefined;
 
     const bgColor = getItemBgColor(item);
 
@@ -185,11 +198,11 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
                         shadow="subtle"
                         withinPortal
                         withArrow
-                        disabled={!description && !isMissing}
+                        disabled={isHoverCardDisabled}
                         position="right"
                         radius="md"
                         /** Ensures the hover card does not overlap with the right-hand menu. */
-                        offset={isFiltered ? 80 : 40}
+                        offset={80}
                     >
                         <HoverCard.Target>
                             <Highlight
