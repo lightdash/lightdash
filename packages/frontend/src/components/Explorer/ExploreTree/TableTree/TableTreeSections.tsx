@@ -164,6 +164,11 @@ const TableTreeSections: FC<Props> = ({
         }, {});
     }, [metrics, additionalMetrics]);
 
+    const searchResults = useMemo(
+        () => getSearchResults(dimensions, searchQuery),
+        [dimensions, searchQuery],
+    );
+
     return (
         <>
             {missingFields && missingFields.all.length > 0 && (
@@ -215,8 +220,7 @@ const TableTreeSections: FC<Props> = ({
                 </>
             )}
 
-            {isSearching &&
-            getSearchResults(dimensions, searchQuery).size === 0 ? null : (
+            {isSearching && searchResults.length === 0 ? null : (
                 <Group mt="sm" mb="xs" position={'apart'}>
                     <Text fw={600} color="blue.9">
                         Dimensions
@@ -266,8 +270,7 @@ const TableTreeSections: FC<Props> = ({
                 </Center>
             )}
 
-            {isSearching &&
-            getSearchResults(metrics, searchQuery).size === 0 ? null : (
+            {isSearching && searchResults.length === 0 ? null : (
                 <Group position="apart" mt="sm" mb="xs" pr="sm">
                     <Text fw={600} color="yellow.9">
                         Metrics
@@ -310,10 +313,7 @@ const TableTreeSections: FC<Props> = ({
             ) : null}
 
             {hasCustomMetrics &&
-            !(
-                isSearching &&
-                getSearchResults(customMetrics, searchQuery).size === 0
-            ) ? (
+            !(isSearching && searchResults.length === 0) ? (
                 <Group position="apart" mt="sm" mb="xs" pr="sm">
                     <Group>
                         <Text fw={600} color="yellow.9">
@@ -389,10 +389,7 @@ const TableTreeSections: FC<Props> = ({
 
             {hasCustomDimensions &&
             customDimensionsMap &&
-            !(
-                isSearching &&
-                getSearchResults(customDimensionsMap, searchQuery).size === 0
-            ) ? (
+            !(isSearching && searchResults.length === 0) ? (
                 <Group position="apart" mt="sm" mb="xs" pr="sm">
                     <Group>
                         <Text fw={600} color="blue.9">
