@@ -1,6 +1,5 @@
 import {
     DimensionType,
-    WarehouseAsyncQueryStatus,
     type ResultRow,
     type WarehouseGetAsyncQueryResults,
 } from '@lightdash/common';
@@ -114,7 +113,6 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                status: WarehouseAsyncQueryStatus.COMPLETED,
             } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
 
@@ -163,7 +161,6 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                status: WarehouseAsyncQueryStatus.COMPLETED,
             } satisfies WarehouseGetAsyncQueryResults<ResultRow>);
         });
 
@@ -201,7 +198,6 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                status: WarehouseAsyncQueryStatus.COMPLETED,
             } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
     });

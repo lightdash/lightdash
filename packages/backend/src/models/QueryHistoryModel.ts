@@ -1,10 +1,39 @@
-import { NotFoundError, QueryHistory } from '@lightdash/common';
+import {
+    assertUnreachable,
+    NotFoundError,
+    QueryHistory,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    DbQueryHistory,
     QueryHistoryTableName,
-    type DbQueryHistoryIn,
+    type DbQueryHistory,
+    type DbQueryHistoryUpdate,
 } from '../database/entities/queryHistory';
+
+function convertDbQueryHistoryToQueryHistory(
+    queryHistory: DbQueryHistory,
+): QueryHistory {
+    return {
+        queryUuid: queryHistory.query_uuid,
+        createdAt: queryHistory.created_at,
+        createdByUserUuid: queryHistory.created_by_user_uuid,
+        organizationUuid: queryHistory.organization_uuid,
+        projectUuid: queryHistory.project_uuid,
+        compiledSql: queryHistory.compiled_sql,
+        defaultPageSize: queryHistory.default_page_size,
+        context: queryHistory.context,
+        metricQuery: queryHistory.metric_query,
+        fields: queryHistory.fields,
+        requestParameters: queryHistory.request_parameters,
+        warehouseQueryId: queryHistory.warehouse_query_id,
+        warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
+        status: queryHistory.status,
+        totalRowCount: queryHistory.total_row_count,
+        warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
+        error: queryHistory.error,
+    };
+}
 
 export class QueryHistoryModel {
     readonly database: Knex;
@@ -13,49 +42,37 @@ export class QueryHistoryModel {
         this.database = database;
     }
 
-    private static convertDbQueryHistoryToQueryHistory(
-        queryHistory: DbQueryHistory,
-    ): QueryHistory {
-        return {
-            queryUuid: queryHistory.query_uuid,
-            createdAt: queryHistory.created_at,
-            createdByUserUuid: queryHistory.created_by_user_uuid,
-            organizationUuid: queryHistory.organization_uuid,
-            projectUuid: queryHistory.project_uuid,
-            compiledSql: queryHistory.compiled_sql,
-            defaultPageSize: queryHistory.default_page_size,
-            context: queryHistory.context,
-            metricQuery: queryHistory.metric_query,
-            fields: queryHistory.fields,
-            requestParameters: queryHistory.request_parameters,
-            totalRowCount: queryHistory.total_row_count,
-            warehouseQueryId: queryHistory.warehouse_query_id,
-            warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
-            warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
-            status: queryHistory.status,
-            error: queryHistory.error,
-        };
-    }
-
-    async create(queryHistory: Omit<QueryHistory, 'queryUuid' | 'createdAt'>) {
+    async create(
+        queryHistory: Omit<
+            QueryHistory,
+            | 'status'
+            | 'queryUuid'
+            | 'createdAt'
+            | 'defaultPageSize'
+            | 'totalRowCount'
+            | 'warehouseQueryId'
+            | 'warehouseQueryMetadata'
+            | 'warehouseExecutionTimeMs'
+            | 'error'
+        >,
+    ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
+                status: QueryHistoryStatus.PENDING,
                 created_by_user_uuid: queryHistory.createdByUserUuid,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
-                default_page_size: queryHistory.defaultPageSize,
+                default_page_size: null,
                 context: queryHistory.context,
                 metric_query: queryHistory.metricQuery,
                 fields: queryHistory.fields,
                 request_parameters: queryHistory.requestParameters,
-                total_row_count: queryHistory.totalRowCount,
-                warehouse_query_id: queryHistory.warehouseQueryId,
-                warehouse_execution_time_ms:
-                    queryHistory.warehouseExecutionTimeMs,
-                warehouse_query_metadata: queryHistory.warehouseQueryMetadata,
-                status: queryHistory.status,
-                error: queryHistory.error,
+                total_row_count: null,
+                warehouse_query_id: null,
+                warehouse_execution_time_ms: null,
+                warehouse_query_metadata: null,
+                error: null,
             })
             .returning('query_uuid');
 
@@ -68,13 +85,13 @@ export class QueryHistoryModel {
         queryUuid: string,
         projectUuid: string,
         userUuid: string,
-        queryHistory: Partial<DbQueryHistoryIn>,
+        update: DbQueryHistoryUpdate,
     ) {
         return this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
             .andWhere('created_by_user_uuid', userUuid)
-            .update(queryHistory);
+            .update(update);
     }
 
     async get(queryUuid: string, projectUuid: string, userUuid: string) {
@@ -90,6 +107,6 @@ export class QueryHistoryModel {
             );
         }
 
-        return QueryHistoryModel.convertDbQueryHistoryToQueryHistory(result);
+        return convertDbQueryHistoryToQueryHistory(result);
     }
 }

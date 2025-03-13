@@ -15,7 +15,6 @@ import {
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
-    WarehouseAsyncQueryStatus,
     WarehouseCatalog,
     WarehouseClient,
     WarehouseTables,
@@ -45,6 +44,8 @@ export const warehouseClientMock: WarehouseClient = {
     executeAsyncQuery: async () => ({
         queryId: null,
         queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
     }),
     getAsyncQueryResults: async () => ({
         fields: {},
@@ -52,7 +53,6 @@ export const warehouseClientMock: WarehouseClient = {
         queryId: null,
         pageCount: 0,
         totalRows: 0,
-        status: WarehouseAsyncQueryStatus.COMPLETED,
     }),
     runQuery: () =>
         Promise.resolve({
@@ -121,6 +121,8 @@ export const bigqueryClientMock: WarehouseClient = {
     executeAsyncQuery: async () => ({
         queryId: null,
         queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
     }),
     getAsyncQueryResults: async () => ({
         fields: {},
@@ -128,7 +130,6 @@ export const bigqueryClientMock: WarehouseClient = {
         queryId: null,
         pageCount: 0,
         totalRows: 0,
-        status: WarehouseAsyncQueryStatus.COMPLETED,
     }),
     runQuery: () =>
         Promise.resolve({

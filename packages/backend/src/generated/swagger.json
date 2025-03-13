@@ -14921,19 +14921,19 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue__"
             },
-            "WarehouseAsyncQueryStatus.COMPLETED": {
-                "enum": ["completed"],
+            "QueryHistoryStatus.READY": {
+                "enum": ["ready"],
                 "type": "string"
             },
-            "WarehouseAsyncQueryStatus.PENDING": {
+            "QueryHistoryStatus.PENDING": {
                 "enum": ["pending"],
                 "type": "string"
             },
-            "WarehouseAsyncQueryStatus.CANCELLED": {
+            "QueryHistoryStatus.CANCELLED": {
                 "enum": ["cancelled"],
                 "type": "string"
             },
-            "WarehouseAsyncQueryStatus.ERROR": {
+            "QueryHistoryStatus.ERROR": {
                 "enum": ["error"],
                 "type": "string"
             },
@@ -14947,7 +14947,7 @@
                             {
                                 "properties": {
                                     "status": {
-                                        "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.COMPLETED"
+                                        "$ref": "#/components/schemas/QueryHistoryStatus.READY"
                                     },
                                     "metricQuery": {
                                         "$ref": "#/components/schemas/MetricQuery"
@@ -15000,10 +15000,10 @@
                             "status": {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.PENDING"
+                                        "$ref": "#/components/schemas/QueryHistoryStatus.PENDING"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.CANCELLED"
+                                        "$ref": "#/components/schemas/QueryHistoryStatus.CANCELLED"
                                     }
                                 ]
                             }
@@ -15025,13 +15025,14 @@
                                 "$ref": "#/components/schemas/MetricQuery"
                             },
                             "error": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "queryUuid": {
                                 "type": "string"
                             },
                             "status": {
-                                "$ref": "#/components/schemas/WarehouseAsyncQueryStatus.ERROR"
+                                "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
                             }
                         },
                         "required": [

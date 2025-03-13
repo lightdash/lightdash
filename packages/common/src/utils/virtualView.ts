@@ -8,10 +8,7 @@ import {
     type Dimension,
 } from '../types/field';
 import { WarehouseTypes } from '../types/projects';
-import {
-    WarehouseAsyncQueryStatus,
-    type WarehouseClient,
-} from '../types/warehouse';
+import { type WarehouseClient } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
 import { getFieldQuoteChar } from './warehouse';
@@ -97,6 +94,8 @@ export const createTemporaryVirtualView = (
         executeAsyncQuery: async () => ({
             queryId: null,
             queryMetadata: null,
+            totalRows: null,
+            durationMs: null,
         }),
         getAsyncQueryResults: async () => ({
             fields: {},
@@ -104,7 +103,6 @@ export const createTemporaryVirtualView = (
             queryId: null,
             pageCount: 0,
             totalRows: 0,
-            status: WarehouseAsyncQueryStatus.COMPLETED,
         }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},

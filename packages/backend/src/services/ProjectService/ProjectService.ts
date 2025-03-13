@@ -60,6 +60,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceableCustomFields,
@@ -85,7 +86,6 @@ import {
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
-    WarehouseAsyncQueryStatus,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTableSchema,
@@ -1808,13 +1808,37 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, context } = queryHistory;
+        const { metricQuery, context, status } = queryHistory;
+
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+            case QueryHistoryStatus.PENDING:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
+            case QueryHistoryStatus.ERROR:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                    error: queryHistory.error,
+                };
+            case QueryHistoryStatus.READY:
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
 
         const explore = await this.getExplore(
             user,
             projectUuid,
             metricQuery.exploreName,
         );
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
@@ -1864,88 +1888,62 @@ export class ProjectService extends BaseService {
             context,
         );
 
-        await sshTunnel.disconnect();
+        const roundedDurationMs = Math.round(durationMs);
 
+        /**
+         * Update the query history with non null values
+         * defaultPageSize is null when user never fetched the results
+         * warehouseExecutionTimeMs is null when warehouse doesn't support async queries
+         * totalRowCount is null when warehouse doesn't support async queries
+         */
         if (
-            queryHistory.totalRowCount === null ||
-            queryHistory.defaultPageSize === null
+            queryHistory.defaultPageSize === null ||
+            queryHistory.warehouseExecutionTimeMs === null ||
+            queryHistory.totalRowCount === null
         ) {
-            // Update query history with total row count and default page size after the query has been executed
             await this.queryHistoryModel.update(
                 queryHistory.queryUuid,
                 projectUuid,
                 user.userUuid,
                 {
-                    ...(result.status === WarehouseAsyncQueryStatus.COMPLETED &&
-                    queryHistory.totalRowCount === null
-                        ? {
-                              total_row_count: result.totalRows,
-                          }
-                        : {}),
                     ...(queryHistory.defaultPageSize === null
+                        ? { default_page_size: defaultedPageSize }
+                        : {}),
+                    ...(queryHistory.warehouseExecutionTimeMs === null
                         ? {
-                              default_page_size: defaultedPageSize,
+                              warehouse_execution_time_ms: roundedDurationMs,
                           }
                         : {}),
-                    ...(result.status !== queryHistory.status
-                        ? {
-                              status: result.status,
-                              ...(result.status ===
-                              WarehouseAsyncQueryStatus.ERROR
-                                  ? {
-                                        error: result.error,
-                                    }
-                                  : {}),
-                          }
+                    ...(queryHistory.totalRowCount === null
+                        ? { total_row_count: result.totalRows }
                         : {}),
                 },
             );
         }
 
-        const { status } = result;
+        await sshTunnel.disconnect();
 
-        switch (status) {
-            case WarehouseAsyncQueryStatus.COMPLETED:
-                const { nextPage, previousPage } = getNextAndPreviousPage(
-                    page,
-                    result.pageCount,
-                );
+        const { nextPage, previousPage } = getNextAndPreviousPage(
+            page,
+            result.pageCount,
+        );
 
-                return {
-                    rows: result.rows,
-                    totalPageCount: result.pageCount,
-                    totalResults: result.totalRows,
-                    queryUuid: queryHistory.queryUuid,
-                    fields: queryHistory.fields,
-                    metricQuery,
-                    pageSize: result.rows.length,
-                    page,
-                    nextPage,
-                    previousPage,
-                    initialQueryExecutionMs:
-                        queryHistory.warehouseExecutionTimeMs,
-                    resultsPageExecutionMs: Math.round(durationMs),
-                    status: WarehouseAsyncQueryStatus.COMPLETED,
-                };
-            case WarehouseAsyncQueryStatus.PENDING:
-            case WarehouseAsyncQueryStatus.CANCELLED:
-                return {
-                    status,
-                    queryUuid,
-                    metricQuery,
-                    fields: queryHistory.fields,
-                };
-            case WarehouseAsyncQueryStatus.ERROR:
-                return {
-                    status,
-                    queryUuid,
-                    error: result.error,
-                    metricQuery,
-                    fields: queryHistory.fields,
-                };
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
+        return {
+            rows: result.rows,
+            totalPageCount: result.pageCount,
+            totalResults: result.totalRows,
+            queryUuid: queryHistory.queryUuid,
+            fields: queryHistory.fields,
+            metricQuery,
+            pageSize: result.rows.length,
+            page,
+            nextPage,
+            previousPage,
+            initialQueryExecutionMs:
+                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
+            resultsPageExecutionMs: roundedDurationMs,
+            status,
+        };
     }
 
     private async executeAsyncQuery(
@@ -2079,40 +2077,63 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    const { result, durationMs } = await measureTime(
-                        () =>
-                            warehouseClient.executeAsyncQuery({
-                                sql: query,
-                                tags: queryTags,
-                            }),
-                        'getAsyncQueryResults',
-                        this.logger,
-                        context,
-                    );
+                    const { queryUuid: queryHistoryUuid } =
+                        await this.queryHistoryModel.create({
+                            projectUuid,
+                            organizationUuid,
+                            createdByUserUuid: user.userUuid,
+                            context,
+                            fields: fieldsMap,
+                            compiledSql: query,
+                            requestParameters,
+                            metricQuery,
+                        });
 
-                    await sshTunnel.disconnect();
-
-                    const roundedDurationMs = Math.round(durationMs);
-                    const queryHistory = await this.queryHistoryModel.create({
-                        projectUuid,
-                        organizationUuid,
-                        createdByUserUuid: user.userUuid,
-                        defaultPageSize: null,
-                        context,
-                        fields: fieldsMap,
-                        compiledSql: query,
-                        requestParameters,
-                        metricQuery,
-                        totalRowCount: null,
-                        error: null,
-                        warehouseQueryId: result.queryId,
-                        warehouseExecutionTimeMs: roundedDurationMs,
-                        warehouseQueryMetadata: result.queryMetadata,
-                        status: WarehouseAsyncQueryStatus.PENDING,
-                    });
+                    // Trigger query in the background, update query history when complete
+                    warehouseClient
+                        .executeAsyncQuery({
+                            sql: query,
+                            tags: queryTags,
+                        })
+                        .then(
+                            ({
+                                queryId,
+                                queryMetadata,
+                                totalRows,
+                                durationMs,
+                            }) =>
+                                this.queryHistoryModel.update(
+                                    queryHistoryUuid,
+                                    projectUuid,
+                                    user.userUuid,
+                                    {
+                                        warehouse_query_id: queryId,
+                                        warehouse_query_metadata: queryMetadata,
+                                        status: QueryHistoryStatus.READY,
+                                        error: null,
+                                        warehouse_execution_time_ms:
+                                            durationMs !== null
+                                                ? Math.round(durationMs)
+                                                : null,
+                                        total_row_count: totalRows,
+                                    },
+                                ),
+                        )
+                        .catch((e) =>
+                            this.queryHistoryModel.update(
+                                queryHistoryUuid,
+                                projectUuid,
+                                user.userUuid,
+                                {
+                                    status: QueryHistoryStatus.ERROR,
+                                    error: getErrorMessage(e),
+                                },
+                            ),
+                        )
+                        .finally(() => sshTunnel.disconnect());
 
                     return {
-                        queryUuid: queryHistory.queryUuid,
+                        queryUuid: queryHistoryUuid,
                     };
                 } catch (e) {
                     span.setStatus({

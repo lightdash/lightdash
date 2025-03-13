@@ -142,6 +142,7 @@ import type {
 } from './types/metricsExplorer';
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import type { QueryHistoryStatus } from './types/queryHistory';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
@@ -158,10 +159,7 @@ import {
     type ApiUpdateSqlChart,
 } from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
-import {
-    type ApiWarehouseTableFields,
-    type WarehouseAsyncQueryStatus,
-} from './types/warehouse';
+import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
@@ -285,6 +283,7 @@ export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/semanticLayer';
+export * from './utils/sleep';
 export * from './utils/slugs';
 export * from './utils/subtotals';
 export * from './utils/time';
@@ -483,20 +482,18 @@ export type ApiGetAsyncQueryResults =
           initialQueryExecutionMs: number;
           resultsPageExecutionMs: number;
           metricQuery: MetricQuery;
-          status: WarehouseAsyncQueryStatus.COMPLETED;
+          status: QueryHistoryStatus.READY;
       })
     | {
-          status:
-              | WarehouseAsyncQueryStatus.PENDING
-              | WarehouseAsyncQueryStatus.CANCELLED;
+          status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
           queryUuid: string;
           metricQuery: MetricQuery;
           fields: ItemsMap;
       }
     | {
-          status: WarehouseAsyncQueryStatus.ERROR;
+          status: QueryHistoryStatus.ERROR;
           queryUuid: string;
-          error: string;
+          error: string | null;
           metricQuery: MetricQuery;
           fields: ItemsMap;
       };

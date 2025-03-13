@@ -14,7 +14,6 @@ import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { type CreateWarehouseCredentials } from '../types/projects';
 import { TimeFrames } from '../types/timeFrames';
 import {
-    WarehouseAsyncQueryStatus,
     type WarehouseCatalog,
     type WarehouseClient,
     type WarehouseTables,
@@ -42,6 +41,8 @@ export const warehouseClientMock: WarehouseClient = {
     executeAsyncQuery: async () => ({
         queryId: null,
         queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
     }),
     getAsyncQueryResults: async () => ({
         rows: [],
@@ -49,7 +50,6 @@ export const warehouseClientMock: WarehouseClient = {
         queryId: null,
         pageCount: 0,
         totalRows: 0,
-        status: WarehouseAsyncQueryStatus.COMPLETED,
     }),
     runQuery: () =>
         Promise.resolve({

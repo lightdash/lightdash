@@ -14125,22 +14125,22 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string._value-ResultValue__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'WarehouseAsyncQueryStatus.COMPLETED': {
+    'QueryHistoryStatus.READY': {
         dataType: 'refEnum',
-        enums: ['completed'],
+        enums: ['ready'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'WarehouseAsyncQueryStatus.PENDING': {
+    'QueryHistoryStatus.PENDING': {
         dataType: 'refEnum',
         enums: ['pending'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'WarehouseAsyncQueryStatus.CANCELLED': {
+    'QueryHistoryStatus.CANCELLED': {
         dataType: 'refEnum',
         enums: ['cancelled'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'WarehouseAsyncQueryStatus.ERROR': {
+    'QueryHistoryStatus.ERROR': {
         dataType: 'refEnum',
         enums: ['error'],
     },
@@ -14158,7 +14158,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
                                 status: {
-                                    ref: 'WarehouseAsyncQueryStatus.COMPLETED',
+                                    ref: 'QueryHistoryStatus.READY',
                                     required: true,
                                 },
                                 metricQuery: {
@@ -14199,8 +14199,8 @@ const models: TsoaRoute.Models = {
                         status: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'WarehouseAsyncQueryStatus.PENDING' },
-                                { ref: 'WarehouseAsyncQueryStatus.CANCELLED' },
+                                { ref: 'QueryHistoryStatus.PENDING' },
+                                { ref: 'QueryHistoryStatus.CANCELLED' },
                             ],
                             required: true,
                         },
@@ -14211,10 +14211,17 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         fields: { ref: 'ItemsMap', required: true },
                         metricQuery: { ref: 'MetricQuery', required: true },
-                        error: { dataType: 'string', required: true },
+                        error: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         queryUuid: { dataType: 'string', required: true },
                         status: {
-                            ref: 'WarehouseAsyncQueryStatus.ERROR',
+                            ref: 'QueryHistoryStatus.ERROR',
                             required: true,
                         },
                     },

@@ -13,9 +13,10 @@ import {
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
+    QueryHistoryStatus,
     type ResultRow,
+    sleep,
     type SortField,
-    WarehouseAsyncQueryStatus,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -283,12 +284,12 @@ const getQueryPaginatedResults = async (
 
     while (
         !currentPage ||
-        currentPage.status === WarehouseAsyncQueryStatus.PENDING ||
-        (currentPage.status === WarehouseAsyncQueryStatus.COMPLETED &&
+        currentPage.status === QueryHistoryStatus.PENDING ||
+        (currentPage.status === QueryHistoryStatus.READY &&
             currentPage.nextPage)
     ) {
         const page =
-            currentPage?.status === WarehouseAsyncQueryStatus.COMPLETED
+            currentPage?.status === QueryHistoryStatus.READY
                 ? currentPage?.nextPage
                 : 1;
 
@@ -302,14 +303,15 @@ const getQueryPaginatedResults = async (
         const { status } = currentPage;
 
         switch (status) {
-            case WarehouseAsyncQueryStatus.CANCELLED:
+            case QueryHistoryStatus.CANCELLED:
                 throw new Error('Query cancelled');
-            case WarehouseAsyncQueryStatus.ERROR:
+            case QueryHistoryStatus.ERROR:
                 throw new Error(currentPage.error || 'Query failed');
-            case WarehouseAsyncQueryStatus.COMPLETED:
+            case QueryHistoryStatus.READY:
                 allRows = allRows.concat(currentPage.rows);
                 break;
-            case WarehouseAsyncQueryStatus.PENDING:
+            case QueryHistoryStatus.PENDING:
+                await sleep(200);
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');

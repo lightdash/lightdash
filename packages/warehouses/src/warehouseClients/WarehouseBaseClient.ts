@@ -5,7 +5,6 @@ import {
     Metric,
     PartitionColumn,
     SupportedDbtAdapter,
-    WarehouseAsyncQueryStatus,
     WarehouseCatalog,
     WarehouseResults,
     WeekDay,
@@ -67,6 +66,8 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         return {
             queryId: null,
             queryMetadata: null,
+            durationMs: null,
+            totalRows: null,
         };
     }
 
@@ -101,7 +102,6 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             queryId: null,
             pageCount: 1,
             totalRows: rows.length,
-            status: WarehouseAsyncQueryStatus.COMPLETED,
         };
     }
 

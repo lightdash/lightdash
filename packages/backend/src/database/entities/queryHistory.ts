@@ -3,7 +3,7 @@ import type {
     ItemsMap,
     MetricQuery,
     QueryExecutionContext,
-    WarehouseAsyncQueryStatus,
+    QueryHistoryStatus,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -18,14 +18,14 @@ export type DbQueryHistory = {
     default_page_size: number | null;
     compiled_sql: string;
     warehouse_query_id: string | null;
-    warehouse_execution_time_ms: number;
     warehouse_query_metadata: WarehouseQueryMetadata | null;
-    total_row_count: number | null;
-    status: WarehouseAsyncQueryStatus;
-    error: string | null;
     metric_query: MetricQuery;
     fields: ItemsMap;
     request_parameters: ExecuteAsyncQueryRequestParams;
+    total_row_count: number | null;
+    warehouse_execution_time_ms: number | null;
+    error: string | null;
+    status: QueryHistoryStatus;
 };
 
 export type DbQueryHistoryIn = Omit<
@@ -33,9 +33,23 @@ export type DbQueryHistoryIn = Omit<
     'query_uuid' | 'created_at'
 >;
 
+export type DbQueryHistoryUpdate = Partial<
+    Pick<
+        DbQueryHistory,
+        | 'status'
+        | 'error'
+        | 'warehouse_execution_time_ms'
+        | 'total_row_count'
+        | 'warehouse_query_id'
+        | 'warehouse_query_metadata'
+        | 'default_page_size'
+    >
+>;
+
 export type QueryHistoryTable = Knex.CompositeTableType<
     DbQueryHistory,
-    DbQueryHistoryIn
+    DbQueryHistoryIn,
+    DbQueryHistoryUpdate
 >;
 
 export const QueryHistoryTableName = 'query_history';

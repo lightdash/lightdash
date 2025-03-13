@@ -3,7 +3,6 @@ import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import { WarehouseTypes } from './projects';
-import type { WarehouseAsyncQueryStatus } from './warehouse';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -23,6 +22,13 @@ export function isBigQueryWarehouseQueryMetadata(
     return !!metadata && metadata.type === WarehouseTypes.BIGQUERY;
 }
 
+export enum QueryHistoryStatus {
+    PENDING = 'pending',
+    READY = 'ready',
+    ERROR = 'error',
+    CANCELLED = 'cancelled',
+}
+
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
@@ -34,11 +40,11 @@ export type QueryHistory = {
     context: QueryExecutionContext;
     defaultPageSize: number | null;
     compiledSql: string;
-    warehouseExecutionTimeMs: number;
-    totalRowCount: number | null;
     metricQuery: MetricQuery;
     fields: ItemsMap;
     requestParameters: ExecuteAsyncQueryRequestParams;
-    status: WarehouseAsyncQueryStatus;
+    status: QueryHistoryStatus;
+    totalRowCount: number | null;
+    warehouseExecutionTimeMs: number | null;
     error: string | null;
 };

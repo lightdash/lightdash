@@ -20,8 +20,8 @@ import {
     MetricType,
     PartitionColumn,
     PartitionType,
+    sleep,
     SupportedDbtAdapter,
-    WarehouseAsyncQueryStatus,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -537,29 +537,66 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         sql,
         tags,
     }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
-        const [job] = await this.createJob(sql, {
-            tags,
-        });
+        try {
+            const [job] = await this.createJob(sql, {
+                tags,
+            });
 
-        if (!job.id) {
-            throw new WarehouseQueryError(
-                'Missing BigQuery job ID. Please contact support.',
+            if (!job.id) {
+                throw new WarehouseQueryError(
+                    'Missing BigQuery job ID. Please contact support.',
+                );
+            }
+
+            if (!job.location) {
+                throw new WarehouseQueryError(
+                    'Missing BigQuery job location. Please contact support.',
+                );
+            }
+
+            const startTime = job.metadata?.statistics?.startTime;
+            const endTime = job.metadata?.statistics?.endTime;
+            const initialMetadata = await this.getJobResultsMetadata(job);
+            const resultsMetadata = await this.awaitQueryCompletion(
+                job,
+                initialMetadata,
             );
+            const totalRows: number = resultsMetadata.totalRows
+                ? parseInt(resultsMetadata.totalRows, 10)
+                : 1;
+
+            return {
+                queryId: job.id,
+                queryMetadata: {
+                    type: WarehouseTypes.BIGQUERY,
+                    jobLocation: job.location,
+                },
+                totalRows,
+                durationMs: startTime && endTime ? endTime - startTime : 0,
+            };
+        } catch (e: unknown) {
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(responseError, sql);
+                }
+            }
+            throw e;
+        }
+    }
+
+    private async awaitQueryCompletion(
+        job: Job,
+        response?: QueryRowsResponse[2],
+    ): Promise<NonNullable<QueryRowsResponse[2]>> {
+        if (!response || !response.jobComplete) {
+            await sleep(200);
+            const newResponse = await this.getJobResultsMetadata(job);
+            return this.awaitQueryCompletion(job, newResponse);
         }
 
-        if (!job.location) {
-            throw new WarehouseQueryError(
-                'Missing BigQuery job location. Please contact support.',
-            );
-        }
-
-        return {
-            queryId: job.id,
-            queryMetadata: {
-                type: WarehouseTypes.BIGQUERY,
-                jobLocation: job.location,
-            },
-        };
+        return response;
     }
 
     async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
@@ -630,19 +667,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 queryId: job.id,
                 pageCount: Math.ceil(totalRows / queryArgs.pageSize),
                 totalRows,
-                status: WarehouseAsyncQueryStatus.COMPLETED,
             };
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
                 if (responseError) {
-                    return {
-                        status: WarehouseAsyncQueryStatus.ERROR,
-                        error: this.parseError(responseError, queryArgs.sql)
-                            .message,
-                        queryId: queryArgs.queryId,
-                    };
+                    throw this.parseError(responseError, queryArgs.sql);
                 }
             }
             throw e;

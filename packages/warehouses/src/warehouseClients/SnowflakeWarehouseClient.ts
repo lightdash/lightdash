@@ -8,7 +8,6 @@ import {
     MetricType,
     ParseError,
     SupportedDbtAdapter,
-    WarehouseAsyncQueryStatus,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -297,11 +296,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             tags,
         });
 
-        const { queryId } = await this.executeAsyncStatement(connection, sql, {
-            values,
-        });
+        const { queryId, durationMs, totalRows } =
+            await this.executeAsyncStatement(connection, sql, {
+                values,
+            });
 
-        return { queryId, queryMetadata: null };
+        return {
+            queryId,
+            queryMetadata: null,
+            totalRows,
+            durationMs,
+        };
     }
 
     async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
@@ -336,28 +341,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 rowFormatter,
             );
 
-            if (results.status === WarehouseAsyncQueryStatus.PENDING) {
-                return {
-                    queryId: queryArgs.queryId,
-                    status: results.status,
-                };
-            }
-
             return {
                 fields: results.fields,
                 rows: results.rows,
                 queryId: queryArgs.queryId,
                 pageCount: Math.ceil(results.numRows / queryArgs.pageSize),
                 totalRows: results.numRows,
-                status: results.status,
             };
         } catch (e) {
             const error = e as SnowflakeError;
-            return {
-                status: WarehouseAsyncQueryStatus.ERROR,
-                error: this.parseError(error, queryArgs.sql).message,
-                queryId: queryArgs.queryId,
-            };
+            throw this.parseError(error, queryArgs.sql);
         } finally {
             await new Promise((resolve, reject) => {
                 connection.destroy((err, conn) => {
@@ -377,9 +370,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values?: AnyType[];
         },
     ) {
-        return new Promise<{
+        const startTime = performance.now();
+        const { queryId, totalRows, durationMs } = await new Promise<{
             queryId: string;
-            sqlText: string;
+            totalRows: number;
+            durationMs: number;
         }>((resolve, reject) => {
             connection.execute({
                 sqlText: sql,
@@ -387,16 +382,41 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 asyncExec: true,
                 complete: (err, stmt) => {
                     if (err) {
-                        reject(err);
+                        reject(this.parseError(err, sql));
+                        return;
                     }
 
-                    resolve({
-                        queryId: stmt.getQueryId(),
-                        sqlText: stmt.getSqlText(),
-                    });
+                    // Calling `getNumRows` from current statement returns undefined
+                    void connection
+                        .getResultsFromQueryId({
+                            sqlText: '',
+                            queryId: stmt.getQueryId(),
+                            complete: (err2, stmt2) => {
+                                if (err2) {
+                                    reject(this.parseError(err2, sql));
+                                    return;
+                                }
+
+                                resolve({
+                                    queryId: stmt.getQueryId(),
+                                    totalRows: stmt2.getNumRows(),
+                                    durationMs: performance.now() - startTime,
+                                });
+                            },
+                        })
+                        .catch((err3) => {
+                            reject(this.parseError(err3, sql));
+                        });
                 },
             });
         });
+
+        return {
+            queryId,
+            queryMetadata: null,
+            totalRows,
+            durationMs,
+        };
     }
 
     private async getAsyncStatementResults<
@@ -407,27 +427,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         start: number,
         end: number,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<
-        | {
-              status: WarehouseAsyncQueryStatus.COMPLETED;
-              rows: TFormattedRow[];
-              fields: Record<string, { type: DimensionType }>;
-              numRows: number;
-          }
-        | {
-              status: WarehouseAsyncQueryStatus.PENDING;
-          }
-    > {
-        const queryStatus = (await connection.getQueryStatus(
-            queryId,
-        )) as QueryStatus; // ! Typed as string in the snowflake sdk
-
-        if (connection.isStillRunning(queryStatus)) {
-            return {
-                status: WarehouseAsyncQueryStatus.PENDING,
-            };
-        }
-
+    ): Promise<{
+        rows: TFormattedRow[];
+        fields: Record<string, { type: DimensionType }>;
+        numRows: number;
+    }> {
         const statement = await connection.getResultsFromQueryId({
             sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
             queryId,
@@ -461,7 +465,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             rows,
             fields: this.getFieldsFromStatement(statement),
             numRows: statement.getNumRows(),
-            status: WarehouseAsyncQueryStatus.COMPLETED,
         };
     }
 
