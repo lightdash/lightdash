@@ -11,6 +11,7 @@ import {
     UserAllowedOrganization,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { LightdashConfig } from '../config/parseConfig';
 import {
     DbOrganizationColorPalette,
     OrganizationColorPaletteTableName,
@@ -179,8 +180,11 @@ export const PRESET_COLOR_PALETTES = [
 export class OrganizationModel {
     private database: Knex;
 
-    constructor(database: Knex) {
+    private lightdashConfig: LightdashConfig | undefined;
+
+    constructor(database: Knex, lightdashConfig?: LightdashConfig) {
         this.database = database;
+        this.lightdashConfig = lightdashConfig;
     }
 
     static mapDBObjectToOrganization(
@@ -236,6 +240,32 @@ export class OrganizationModel {
                 colors: palette.colors,
             })),
         );
+
+        // If default color palette is configured, set it as the active palette
+        if (
+            this.lightdashConfig?.appearance?.defaultColorPalette &&
+            this.lightdashConfig.appearance.defaultColorPalette.length > 0
+        ) {
+            const defaultPaletteName =
+                this.lightdashConfig.appearance.defaultColorPaletteName ||
+                'Default (Custom)';
+
+            const defaultPalette = await this.createColorPalette(
+                org.organization_uuid,
+                {
+                    name: defaultPaletteName,
+                    colors: this.lightdashConfig.appearance.defaultColorPalette,
+                },
+            );
+
+            // Set it as the active palette
+            if (defaultPalette) {
+                await this.setActiveColorPalette(
+                    org.organization_uuid,
+                    defaultPalette.colorPaletteUuid,
+                );
+            }
+        }
 
         return OrganizationModel.mapDBObjectToOrganization(org);
     }

@@ -1,3 +1,10 @@
+# [0.1538.0](https://github.com/lightdash/lightdash/compare/0.1537.4...0.1538.0) (2025-03-13)
+
+
+### Features
+
+* allow default color palette on org creation ([#14045](https://github.com/lightdash/lightdash/issues/14045)) ([0c0a501](https://github.com/lightdash/lightdash/commit/0c0a50179e98483d2406f7c04ba13d03f586c36e))
+
 ## [0.1537.4](https://github.com/lightdash/lightdash/compare/0.1537.3...0.1537.4) (2025-03-13)
 
 

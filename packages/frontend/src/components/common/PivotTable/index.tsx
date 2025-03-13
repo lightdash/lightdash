@@ -6,6 +6,7 @@ import {
     getItemId,
     isDimension,
     isField,
+    isHexCodeColor,
     isNumericItem,
     isSummable,
     type ConditionalFormattingConfig,
@@ -38,7 +39,7 @@ import {
     formatCellContent,
     getFormattedValueCell,
 } from '../../../hooks/useColumns';
-import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
+import { getColorFromRange } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
