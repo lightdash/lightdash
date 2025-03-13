@@ -261,6 +261,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/catalogMetricsTree';
 export * from './utils/charts';
+export * from './utils/colors';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
