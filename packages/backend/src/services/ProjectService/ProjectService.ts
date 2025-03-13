@@ -4537,16 +4537,24 @@ export class ProjectService extends BaseService {
         if (!tableName) {
             throw new ParameterError('Table name is required');
         }
-        const warehouseCatalog = await warehouseClient.getFields(
-            tableName,
-            schemaName,
-            database,
-            queryTags,
-        );
 
-        await sshTunnel.disconnect();
+        try {
+            const warehouseCatalog = await warehouseClient.getFields(
+                tableName,
+                schemaName,
+                database,
+                queryTags,
+            );
 
-        return warehouseCatalog[database][schemaName][tableName];
+            await sshTunnel.disconnect();
+
+            return warehouseCatalog[database][schemaName][tableName];
+        } catch (error) {
+            this.logger.error('Error fetching warehouse fields', { error });
+            throw new NotFoundError(
+                `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+            );
+        }
     }
 
     async getTablesConfiguration(
