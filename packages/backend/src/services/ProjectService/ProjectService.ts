@@ -1892,9 +1892,9 @@ export class ProjectService extends BaseService {
 
         /**
          * Update the query history with non null values
-         * defaultPageSize is null when user never fetched the results
-         * warehouseExecutionTimeMs is null when warehouse doesn't support async queries
-         * totalRowCount is null when warehouse doesn't support async queries
+         * defaultPageSize is null when user never fetched the results - we don't send pagination params to the query execution endpoint
+         * warehouseExecutionTimeMs is null when warehouse doesn't support async queries - query is only executed when user fetches results
+         * totalRowCount is null when warehouse doesn't support async queries - query is only executed when user fetches results
          */
         if (
             queryHistory.defaultPageSize === null ||
