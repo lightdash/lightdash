@@ -1,3 +1,10 @@
+## [0.1537.3](https://github.com/lightdash/lightdash/compare/0.1537.2...0.1537.3) (2025-03-13)
+
+
+### Bug Fixes
+
+* add fetch depth 0 to checkout action ([#14059](https://github.com/lightdash/lightdash/issues/14059)) ([ae4175a](https://github.com/lightdash/lightdash/commit/ae4175a92c8f738cdd47e9e8a8a274b8783eee2b))
+
 ## [0.1537.2](https://github.com/lightdash/lightdash/compare/0.1537.1...0.1537.2) (2025-03-13)
 
 
