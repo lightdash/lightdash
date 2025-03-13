@@ -466,3 +466,14 @@ export class S3Error extends LightdashError {
         });
     }
 }
+
+export class ScheduledTaskTimeoutError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'ScheduledTaskTimeoutError',
+            statusCode: 500,
+            data: {},
+        });
+    }
+}
