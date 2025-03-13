@@ -1,5 +1,7 @@
 import {
+    cleanColorArray,
     getErrorMessage,
+    getInvalidHexColors,
     isLightdashMode,
     isOrganizationMemberRole,
     LightdashMode,
@@ -8,10 +10,6 @@ import {
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
-import {
-    cleanColorArray,
-    getInvalidHexColors,
-} from '@lightdash/common/src/utils/colors';
 import { type ClientAuthMethod } from 'openid-client';
 import { VERSION } from '../version';
 
