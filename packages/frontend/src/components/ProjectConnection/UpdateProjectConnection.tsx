@@ -25,8 +25,14 @@ export const UpdateProjectConnection: FC<{
     const ability = useAbilityContext();
     const { data } = useProject(projectUuid);
     const onError = useOnProjectError();
-    const updateMutation = useUpdateMutation(projectUuid);
-    const { isLoading: isSaving, mutateAsync, isIdle } = updateMutation;
+    const {
+        isLoading: isSaving,
+        mutateAsync,
+        isIdle,
+        isSuccess,
+        isError,
+        error,
+    } = useUpdateMutation(projectUuid);
 
     const isDisabled =
         isSaving ||
@@ -117,7 +123,14 @@ export const UpdateProjectConnection: FC<{
                 />
             </ProjectFormProvider>
 
-            {!isIdle && <ProjectStatusCallout mutation={updateMutation} />}
+            {!isIdle && (
+                <ProjectStatusCallout
+                    isSuccess={isSuccess}
+                    isError={isError}
+                    isLoading={isSaving}
+                    error={error}
+                />
+            )}
 
             <Card
                 component={Flex}
