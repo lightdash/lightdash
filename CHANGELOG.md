@@ -1,3 +1,10 @@
+## [0.1537.1](https://github.com/lightdash/lightdash/compare/0.1537.0...0.1537.1) (2025-03-13)
+
+
+### Bug Fixes
+
+* filters on dashboards as code ([#14000](https://github.com/lightdash/lightdash/issues/14000)) ([2bf3682](https://github.com/lightdash/lightdash/commit/2bf36824f558eb5ac7d2e5e8295a3bfaa94681ac))
+
 # [0.1537.0](https://github.com/lightdash/lightdash/compare/0.1536.0...0.1537.0) (2025-03-13)
 
 
