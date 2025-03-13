@@ -1,9 +1,13 @@
 import { subject } from '@casl/ability';
-import { DbtProjectType, ProjectType } from '@lightdash/common';
+import {
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
+    ProjectType,
+    type CreateWarehouseCredentials,
+} from '@lightdash/common';
 import { Alert, Anchor, Button, Card, Flex } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { useForm } from 'react-hook-form';
 
 import { useProject, useUpdateMutation } from '../../hooks/useProject';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
@@ -11,6 +15,7 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { FormProvider, useForm } from './formContext';
 import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
@@ -44,28 +49,20 @@ export const UpdateProjectConnection: FC<{
             }),
         );
 
-    const methods = useForm<ProjectConnectionForm>({
-        shouldUnregister: true,
-        defaultValues: {
-            name: data?.name,
-            dbt: data?.dbtConnection,
-            warehouse: {
-                ...data?.warehouseConnection,
-            },
-            dbtVersion: data?.dbtVersion,
-        },
-    });
-    const { reset } = methods;
+    const form = useForm({ name: 'updateProject' });
+
     useEffect(() => {
         if (data) {
-            reset({
+            form.setInitialValues({
                 name: data.name,
                 dbt: data.dbtConnection,
-                warehouse: data.warehouseConnection,
-                dbtVersion: data.dbtVersion,
+                warehouse:
+                    data.warehouseConnection as CreateWarehouseCredentials,
+                dbtVersion: data.dbtVersion ?? DefaultSupportedDbtVersion,
             });
         }
-    }, [reset, data]);
+    }, [data, form]);
+
     const { track } = useTracking();
 
     const onSubmit = async ({
@@ -73,7 +70,14 @@ export const UpdateProjectConnection: FC<{
         dbt: dbtConnection,
         warehouse: warehouseConnection,
         dbtVersion,
-    }: Required<ProjectConnectionForm>) => {
+    }: ProjectConnectionForm) => {
+        return console.log('onSubmit', {
+            name,
+            dbtConnection,
+            warehouseConnection,
+            dbtVersion,
+        });
+
         if (user.data) {
             track({
                 name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
@@ -81,7 +85,7 @@ export const UpdateProjectConnection: FC<{
             await mutateAsync({
                 name,
                 dbtConnection,
-                warehouseConnection,
+                warehouseConnection: warehouseConnection!,
                 dbtVersion,
             });
         }
@@ -108,47 +112,50 @@ export const UpdateProjectConnection: FC<{
     }
 
     return (
-        <FormContainer
-            name="update_project"
-            methods={methods}
-            onSubmit={onSubmit}
-            onError={onError}
-        >
-            <ProjectFormProvider savedProject={data}>
-                <ProjectForm
-                    showGeneralSettings
-                    isProjectUpdate
-                    disabled={isDisabled}
-                    defaultType={health.data?.defaultProject?.type}
-                />
-            </ProjectFormProvider>
+        <FormProvider form={form}>
+            <FormContainer>
+                <form onSubmit={form.onSubmit(onSubmit)}>
+                    <ProjectFormProvider savedProject={data}>
+                        <ProjectForm
+                            showGeneralSettings
+                            isProjectUpdate
+                            disabled={isDisabled}
+                            defaultType={health.data?.defaultProject?.type}
+                        />
+                    </ProjectFormProvider>
 
-            {!isIdle && (
-                <ProjectStatusCallout
-                    isSuccess={isSuccess}
-                    isError={isError}
-                    isLoading={isSaving}
-                    error={error}
-                />
-            )}
+                    {!isIdle && (
+                        <ProjectStatusCallout
+                            isSuccess={isSuccess}
+                            isError={isError}
+                            isLoading={isSaving}
+                            error={error}
+                        />
+                    )}
 
-            <Card
-                component={Flex}
-                justify="flex-end"
-                pos="sticky"
-                withBorder
-                shadow="sm"
-                sx={(theme) => ({
-                    zIndex: 1,
-                    bottom: `-${theme.spacing.xl}`,
-                })}
-            >
-                <Button type="submit" loading={isSaving} disabled={isDisabled}>
-                    {data?.dbtConnection?.type === DbtProjectType.NONE
-                        ? 'Save and test'
-                        : 'Test & deploy project'}
-                </Button>
-            </Card>
-        </FormContainer>
+                    <Card
+                        component={Flex}
+                        justify="flex-end"
+                        pos="sticky"
+                        withBorder
+                        shadow="sm"
+                        sx={(theme) => ({
+                            zIndex: 1,
+                            bottom: `-${theme.spacing.xl}`,
+                        })}
+                    >
+                        <Button
+                            type="submit"
+                            loading={isSaving}
+                            disabled={isDisabled}
+                        >
+                            {data?.dbtConnection?.type === DbtProjectType.NONE
+                                ? 'Save and test'
+                                : 'Test & deploy project'}
+                        </Button>
+                    </Card>
+                </form>
+            </FormContainer>
+        </FormProvider>
     );
 };
