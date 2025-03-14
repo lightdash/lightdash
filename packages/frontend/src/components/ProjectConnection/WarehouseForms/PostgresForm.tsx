@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { type FC } from 'react';
+import React, { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
@@ -23,6 +23,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import CertificateFileInput from './Inputs/CertificateFileInput';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { PostgresDefaultValues } from './defaults';
 import { useCreateSshKeyPair } from './sshHooks';
 
 export const PostgresSchemaInput: FC<{
@@ -83,7 +84,6 @@ const PostgresForm: FC<{
         FeatureFlags.PassthroughLogin,
     );
 
-    console.log(form.values.warehouse);
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -143,13 +143,15 @@ const PostgresForm: FC<{
                                 )}
                                 label="Require users to provide their own credentials"
                                 disabled={disabled}
-                                defaultChecked={false}
+                                defaultChecked={
+                                    PostgresDefaultValues.requireUserCredentials
+                                }
                             />
                         )}
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
-                            defaultValue={5432}
+                            defaultValue={PostgresDefaultValues.port}
                             label="Port"
                             description="This is the port where the database is running."
                             required
@@ -159,7 +161,7 @@ const PostgresForm: FC<{
                         <NumberInput
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
-                            defaultValue={0}
+                            defaultValue={PostgresDefaultValues.keepalivesIdle}
                             label="Keep alive idle (seconds)"
                             description={
                                 <p>
@@ -205,7 +207,7 @@ const PostgresForm: FC<{
                         <Select
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
-                            defaultValue="prefer"
+                            defaultValue={PostgresDefaultValues.sslmode}
                             label="SSL mode"
                             description={
                                 <p>
@@ -301,7 +303,7 @@ const PostgresForm: FC<{
 
                         <NumberInput
                             name="warehouse.timeoutSeconds"
-                            defaultValue={300}
+                            defaultValue={PostgresDefaultValues.timeoutSeconds}
                             {...form.getInputProps('warehouse.timeoutSeconds')}
                             label="Timeout in seconds"
                             description={
@@ -342,7 +344,9 @@ const PostgresForm: FC<{
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelPort',
                                     )}
-                                    defaultValue={22}
+                                    defaultValue={
+                                        PostgresDefaultValues.sshTunnelPort
+                                    }
                                     label="SSH Remote Port"
                                     disabled={disabled}
                                 />

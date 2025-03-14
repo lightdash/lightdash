@@ -25,8 +25,8 @@ const CertificateFileInput: FC<
 > = ({ name, fileNameProperty, label, disabled, description, accept }) => {
     const form = useFormContext();
 
-    const fileNamefield = form.getInputProps(name);
-    const fileField = form.getInputProps(fileNameProperty);
+    const fileNamefield = form.getInputProps(fileNameProperty);
+    const fileField = form.getInputProps(name);
 
     const fileNamePlaceholder = fileField.value;
 
@@ -50,12 +50,13 @@ const CertificateFileInput: FC<
                         const fileReader = new FileReader();
                         fileReader.onload = function (event) {
                             const contents = event.target?.result;
+                            console.log('contents', contents);
                             if (typeof contents === 'string') {
                                 setTemporaryFile(file);
-                                fileField.onChange(contents);
+                                form.setFieldValue(name, contents);
                                 form.setFieldValue(fileNameProperty, file.name);
                             } else {
-                                fileNamefield.onChange(null);
+                                form.setFieldValue(name, null);
                                 form.setFieldValue(fileNameProperty, undefined);
                             }
                         };
@@ -70,8 +71,8 @@ const CertificateFileInput: FC<
                             variant="transparent"
                             onClick={() => {
                                 setTemporaryFile(null);
-                                fileNamefield.onChange(null);
-                                form.setFieldValue(fileNameProperty, undefined);
+                                form.setFieldValue(name, null);
+                                form.setFieldValue(fileNameProperty, '');
                             }}
                         />
                     )
