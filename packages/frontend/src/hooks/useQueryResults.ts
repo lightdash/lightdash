@@ -4,6 +4,7 @@ import {
     type ApiGetAsyncQueryResults,
     type ApiQueryResults,
     assertUnreachable,
+    type DashboardFilters,
     type DateGranularity,
     type ExecuteAsyncQueryRequestParams,
     FeatureFlags,
@@ -135,7 +136,12 @@ const getChartVersionResults = async (
 export const getQueryPaginatedResults = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
-): Promise<ApiQueryResults & { queryUuid: string }> => {
+): Promise<
+    ApiQueryResults & {
+        queryUuid: string;
+        appliedDashboardFilters: DashboardFilters | null;
+    }
+> => {
     const firstPage = await lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
@@ -218,6 +224,7 @@ export const getQueryPaginatedResults = async (
         },
         rows: allRows,
         fields: currentPage.fields,
+        appliedDashboardFilters: firstPage.appliedDashboardFilters,
     };
 };
 
