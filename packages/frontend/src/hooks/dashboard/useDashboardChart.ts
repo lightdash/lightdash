@@ -137,7 +137,8 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
             return {
                 chart,
                 explore,
-                appliedDashboardFilters: results.appliedDashboardFilters,
+                appliedDashboardFilters:
+                    results.appliedDashboardFilters ?? undefined,
                 metricQuery: results.metricQuery,
                 cacheMetadata: results.cacheMetadata,
                 rows: results.rows,
