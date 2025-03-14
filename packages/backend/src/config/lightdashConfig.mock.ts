@@ -186,4 +186,5 @@ export const lightdashConfigMock: LightdashConfig = {
     contentAsCode: {
         maxDownloads: 100,
     },
+    appearance: {},
 };

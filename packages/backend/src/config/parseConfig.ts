@@ -1,5 +1,7 @@
 import {
+    cleanColorArray,
     getErrorMessage,
+    getInvalidHexColors,
     isLightdashMode,
     isOrganizationMemberRole,
     LightdashMode,
@@ -89,6 +91,36 @@ const getArrayFromCommaSeparatedList = (envVar: string) => {
         .split(',')
         .map((domain) => domain.trim())
         .filter((domain) => domain.length > 0);
+};
+
+export const getHexColorsFromEnvironmentVariable = (
+    colorPalette: string | undefined,
+): string[] | undefined => {
+    if (!colorPalette) {
+        return undefined;
+    }
+
+    const hexColors = cleanColorArray(colorPalette.split(','));
+
+    // Validate that all colors are valid hex codes
+    const invalidColors = getInvalidHexColors(hexColors);
+
+    if (invalidColors.length > 0) {
+        throw new ParseError(
+            `Cannot parse environment variable "DEFAULT_COLOR_PALETTE_COLORS". All values must be valid hex colors (e.g. #FF0000) but found invalid colors: ${invalidColors.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    // Validate that there are exactly 20 colors
+    if (hexColors.length !== 20) {
+        throw new ParseError(
+            `Cannot parse environment variable "DEFAULT_COLOR_PALETTE_COLORS". Must contain exactly 20 colors, but found ${hexColors.length} colors.`,
+        );
+    }
+
+    return hexColors;
 };
 
 /**
@@ -288,6 +320,11 @@ export type LightdashConfig = {
     };
     customVisualizations: {
         enabled: boolean;
+    };
+    // This is the default color palette for the organization
+    appearance: {
+        defaultColorPalette?: string[];
+        defaultColorPaletteName?: string;
     };
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
@@ -928,6 +965,13 @@ export const parseConfig = (): LightdashConfig => {
             maxDownloads:
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
                 100,
+        },
+        appearance: {
+            defaultColorPalette: getHexColorsFromEnvironmentVariable(
+                process.env.DEFAULT_COLOR_PALETTE_COLORS || undefined,
+            ),
+            // not required if defaultColorPalette is set
+            defaultColorPaletteName: process.env.DEFAULT_COLOR_PALETTE_NAME,
         },
     };
 };

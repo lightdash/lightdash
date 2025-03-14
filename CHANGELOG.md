@@ -1,3 +1,45 @@
+# [0.1541.0](https://github.com/lightdash/lightdash/compare/0.1540.0...0.1541.0) (2025-03-14)
+
+
+### Features
+
+* improve on-hover of metric detail  ([#14073](https://github.com/lightdash/lightdash/issues/14073)) ([e9972e9](https://github.com/lightdash/lightdash/commit/e9972e997c9fa43bebdce4a8b00e53e94374d979))
+
+# [0.1540.0](https://github.com/lightdash/lightdash/compare/0.1539.1...0.1540.0) (2025-03-14)
+
+
+### Features
+
+* add applied dashboard filters to response ([#14078](https://github.com/lightdash/lightdash/issues/14078)) ([768e200](https://github.com/lightdash/lightdash/commit/768e2002fe15ee11ac48ae6d4e2f138a25c75904))
+
+## [0.1539.1](https://github.com/lightdash/lightdash/compare/0.1539.0...0.1539.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* run postbuild after be sourcemaps build ([#14076](https://github.com/lightdash/lightdash/issues/14076)) ([56d84a4](https://github.com/lightdash/lightdash/commit/56d84a45eda9a8fdb8d09e23f3878c1d4a1c54e8))
+
+# [0.1539.0](https://github.com/lightdash/lightdash/compare/0.1538.1...0.1539.0) (2025-03-14)
+
+
+### Features
+
+* split query endpoint ([#14050](https://github.com/lightdash/lightdash/issues/14050)) ([6246022](https://github.com/lightdash/lightdash/commit/624602245e1850f312f57502a8781bffdc62e843))
+
+## [0.1538.1](https://github.com/lightdash/lightdash/compare/0.1538.0...0.1538.1) (2025-03-13)
+
+
+### Bug Fixes
+
+* common imports from src ([#14068](https://github.com/lightdash/lightdash/issues/14068)) ([dc0595a](https://github.com/lightdash/lightdash/commit/dc0595a7c23e9e18fd028753788742634dbda9d6))
+
+# [0.1538.0](https://github.com/lightdash/lightdash/compare/0.1537.4...0.1538.0) (2025-03-13)
+
+
+### Features
+
+* allow default color palette on org creation ([#14045](https://github.com/lightdash/lightdash/issues/14045)) ([0c0a501](https://github.com/lightdash/lightdash/commit/0c0a50179e98483d2406f7c04ba13d03f586c36e))
+
 ## [0.1537.4](https://github.com/lightdash/lightdash/compare/0.1537.3...0.1537.4) (2025-03-13)
 
 

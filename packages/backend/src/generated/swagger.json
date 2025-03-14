@@ -10809,7 +10809,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Dashboard.name-or-description-or-updatedAt-or-filters-or-tabs-or-slug_": {
+            "Pick_Dashboard.name-or-description-or-updatedAt-or-tabs-or-slug_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -10824,9 +10824,6 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -10834,7 +10831,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["name", "slug", "updatedAt", "filters", "tabs"],
+                "required": ["name", "slug", "updatedAt", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -10927,6 +10924,9 @@
                                     }
                                 ]
                             },
+                            "tileSlug": {
+                                "type": "string"
+                            },
                             "uuid": {
                                 "type": "string"
                             }
@@ -10936,13 +10936,134 @@
                     }
                 ]
             },
-            "DashboardAsCode": {
+            "FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-updatedAt-or-filters-or-tabs-or-slug_"
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
                     },
                     {
                         "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_DashboardFilters.Exclude_keyofDashboardFilters.dimensions__": {
+                "properties": {
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                        },
+                        "type": "array"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["metrics", "tableCalculations"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DashboardFilters.dimensions_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilters.Exclude_keyofDashboardFilters.dimensions__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "tileTargets": {
+                        "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                    }
+                },
+                "required": ["target", "operator"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DashboardFilterRule.id_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Dashboard.name-or-description-or-updatedAt-or-tabs-or-slug_"
+                    },
+                    {
+                        "properties": {
+                            "filters": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Omit_DashboardFilters.dimensions_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "dimensions": {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": ["dimensions"],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
                             "downloadedAt": {
                                 "type": "string",
                                 "format": "date-time"
@@ -10961,7 +11082,12 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["spaceSlug", "version", "tiles"],
+                        "required": [
+                            "filters",
+                            "spaceSlug",
+                            "version",
+                            "tiles"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -14166,20 +14292,20 @@
                         },
                         "type": "array"
                     },
-                    "timeDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
-                        },
-                        "type": "array"
-                    },
                     "metrics": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
                         "type": "array"
+                    },
+                    "timeDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
+                        },
+                        "type": "array"
                     }
                 },
-                "required": ["dimensions", "timeDimensions", "metrics"],
+                "required": ["dimensions", "metrics", "timeDimensions"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -14795,53 +14921,166 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue__"
             },
-            "ApiPaginatedQueryResults": {
-                "allOf": [
+            "QueryHistoryStatus.READY": {
+                "enum": ["ready"],
+                "type": "string"
+            },
+            "QueryHistoryStatus.PENDING": {
+                "enum": ["pending"],
+                "type": "string"
+            },
+            "QueryHistoryStatus.CANCELLED": {
+                "enum": ["cancelled"],
+                "type": "string"
+            },
+            "QueryHistoryStatus.ERROR": {
+                "enum": ["error"],
+                "type": "string"
+            },
+            "ApiGetAsyncQueryResults": {
+                "anyOf": [
                     {
-                        "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
+                            },
+                            {
+                                "properties": {
+                                    "status": {
+                                        "$ref": "#/components/schemas/QueryHistoryStatus.READY"
+                                    },
+                                    "metricQuery": {
+                                        "$ref": "#/components/schemas/MetricQuery"
+                                    },
+                                    "resultsPageExecutionMs": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "initialQueryExecutionMs": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "fields": {
+                                        "$ref": "#/components/schemas/ItemsMap"
+                                    },
+                                    "rows": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ResultRow"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "queryUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "status",
+                                    "metricQuery",
+                                    "resultsPageExecutionMs",
+                                    "initialQueryExecutionMs",
+                                    "fields",
+                                    "rows",
+                                    "queryUuid"
+                                ],
+                                "type": "object"
+                            }
+                        ]
                     },
                     {
                         "properties": {
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            },
-                            "resultsPageExecutionMs": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "initialQueryExecutionMs": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "fields": {
                                 "$ref": "#/components/schemas/ItemsMap"
                             },
-                            "rows": {
-                                "items": {
-                                    "$ref": "#/components/schemas/ResultRow"
-                                },
-                                "type": "array"
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
                             },
                             "queryUuid": {
                                 "type": "string"
+                            },
+                            "status": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/QueryHistoryStatus.PENDING"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/QueryHistoryStatus.CANCELLED"
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "metricQuery",
-                            "resultsPageExecutionMs",
-                            "initialQueryExecutionMs",
                             "fields",
-                            "rows",
-                            "queryUuid"
+                            "metricQuery",
+                            "queryUuid",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
+                            "error": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "queryUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
+                            }
+                        },
+                        "required": [
+                            "fields",
+                            "metricQuery",
+                            "error",
+                            "queryUuid",
+                            "status"
                         ],
                         "type": "object"
                     }
                 ]
             },
-            "ApiRunPaginatedQueryResponse": {
+            "ApiGetAsyncQueryResultsResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiPaginatedQueryResults"
+                        "$ref": "#/components/schemas/ApiGetAsyncQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncQueryResults": {
+                "properties": {
+                    "appliedDashboardFilters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["appliedDashboardFilters", "queryUuid"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResults"
                     },
                     "status": {
                         "type": "string",
@@ -14940,6 +15179,12 @@
                         },
                         "type": "array"
                     },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
                     "granularity": {
                         "$ref": "#/components/schemas/DateGranularity"
                     },
@@ -14955,12 +15200,6 @@
                     "limit": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
                     },
                     "additionalMetrics": {
                         "items": {
@@ -14994,10 +15233,10 @@
                     "filters",
                     "dimensions",
                     "metrics",
+                    "tableCalculations",
                     "exploreName",
                     "sorts",
-                    "limit",
-                    "tableCalculations"
+                    "limit"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -15006,7 +15245,7 @@
                 "$ref": "#/components/schemas/Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "PaginatedMetricQueryRequestParams": {
+            "ExecuteAsyncMetricQueryRequestParams": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
@@ -15022,23 +15261,7 @@
                     }
                 ]
             },
-            "PaginatedQueryUuidRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "queryUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["queryUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "PaginatedSavedChartRequestParams": {
+            "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
@@ -15057,7 +15280,7 @@
                     }
                 ]
             },
-            "PaginatedDashboardChartRequestParams": {
+            "ExecuteAsyncDashboardChartRequestParams": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
@@ -15093,19 +15316,16 @@
                     }
                 ]
             },
-            "PaginatedQueryRequestParams": {
+            "ExecuteAsyncQueryRequestParams": {
                 "anyOf": [
                     {
-                        "$ref": "#/components/schemas/PaginatedMetricQueryRequestParams"
+                        "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
                     },
                     {
-                        "$ref": "#/components/schemas/PaginatedQueryUuidRequestParams"
+                        "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
                     },
                     {
-                        "$ref": "#/components/schemas/PaginatedSavedChartRequestParams"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PaginatedDashboardChartRequestParams"
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
                     }
                 ]
             },
@@ -15503,7 +15723,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1535.0",
+        "version": "0.1538.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

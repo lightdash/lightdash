@@ -1,12 +1,12 @@
 import {
     formatItemValue,
+    getSubtotalKey,
     isCustomDimension,
     isField,
     type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { getSubtotalKey } from '@lightdash/common/src/utils/subtotals';
 import { Text } from '@mantine/core';
 import type { CellContext } from '@tanstack/react-table';
 import {

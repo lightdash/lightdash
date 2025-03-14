@@ -3,6 +3,7 @@ import {
     PieChartLegendPositionDefault,
     formatItemValue,
     isField,
+    isHexCodeColor,
     isMetric,
     isTableCalculation,
     type ApiQueryResults,
@@ -26,7 +27,6 @@ import omitBy from 'lodash/omitBy';
 import pick from 'lodash/pick';
 import pickBy from 'lodash/pickBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { isHexCodeColor } from '../utils/colorUtils';
 
 type PieChartConfig = {
     validConfig: PieChart;
