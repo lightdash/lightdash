@@ -8,31 +8,27 @@ import {
     TextInput,
 } from '@mantine/core';
 import React, { type FC } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
+import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
+import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const { register } = useFormContext();
+    const form = useFormContext();
 
     return (
         <TextInput
+            name="warehouse.schema"
             label="Schema"
             description="This is the schema name."
             required
-            {...register('warehouse.schema', {
-                validate: {
-                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                },
-            })}
+            {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
         />
     );
@@ -45,7 +41,7 @@ const TrinoForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.TRINO;
-    const { register } = useFormContext();
+    const form = useFormContext();
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
     );
@@ -53,26 +49,20 @@ const TrinoForm: FC<{
         <>
             <Stack style={{ marginTop: '8px' }}>
                 <TextInput
+                    name="warehouse.host"
                     label="Host"
                     description="This is the host where the database is running."
                     required
-                    {...register('warehouse.host', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
                     labelProps={{ style: { marginTop: '8px' } }}
                 />
                 <TextInput
+                    name="warehouse.user"
                     label="User"
                     description="This is the database user name."
                     required={requireSecrets}
-                    {...register('warehouse.user', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.user')}
                     placeholder={
                         disabled || !requireSecrets
                             ? '**************'
@@ -81,6 +71,7 @@ const TrinoForm: FC<{
                     disabled={disabled}
                 />
                 <PasswordInput
+                    name="warehouse.password"
                     label="Password"
                     description="This is the database user password."
                     required={requireSecrets}
@@ -89,18 +80,15 @@ const TrinoForm: FC<{
                             ? '**************'
                             : undefined
                     }
-                    {...register('warehouse.password')}
+                    {...form.getInputProps('warehouse.password')}
                     disabled={disabled}
                 />
                 <TextInput
+                    name="warehouse.dbname"
                     label="DB name"
                     description="This is the database name."
                     required
-                    {...register('warehouse.dbname', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
                 />
 
@@ -110,53 +98,50 @@ const TrinoForm: FC<{
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 label="Require users to provide their own credentials"
-                                defaultValue={false}
+                                {...form.getInputProps(
+                                    'warehouse.requireUserCredentials',
+                                    { type: 'checkbox' },
+                                )}
+                                defaultChecked={false}
                                 disabled={disabled}
                             />
                         )}
-                        <Controller
+
+                        <NumberInput
                             name="warehouse.port"
+                            {...form.getInputProps('warehouse.port')}
                             defaultValue={443}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Port"
-                                    description="This is the database name."
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            label="Port"
+                            description="This is the database name."
+                            required
+                            disabled={disabled}
                         />
-                        <Controller
+
+                        <Select
                             name="warehouse.http_scheme"
+                            {...form.getInputProps('warehouse.http_scheme')}
                             defaultValue="https"
-                            render={({ field }) => (
-                                <Select
-                                    label="SSL mode"
-                                    description={
-                                        <p>
-                                            This controls how dbt connects to
-                                            Trino database using SSL. You can
-                                            see more details in
-                                            <Anchor
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
-                                        </p>
-                                    }
-                                    data={['http', 'https'].map((x) => ({
-                                        value: x,
-                                        label: x,
-                                    }))}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    disabled={disabled}
-                                />
-                            )}
+                            label="SSL mode"
+                            description={
+                                <p>
+                                    This controls how dbt connects to Trino
+                                    database using SSL. You can see more details
+                                    in
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            data={['http', 'https'].map((x) => ({
+                                value: x,
+                                label: x,
+                            }))}
+                            disabled={disabled}
                         />
 
                         <StartOfWeekSelect disabled={disabled} />
