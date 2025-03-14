@@ -35,7 +35,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -411,19 +410,14 @@ export class CoderService extends BaseService {
             // User is an admin, return all content
             return content;
         }
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            spaceUuids: spaces.map((s) => s.uuid),
+        });
 
         return content.filter((c) => {
-            const space = spaces.find((s) => s.uuid === c.spaceUuid);
-            if (!space) return false;
-            return hasViewAccessToSpace(
-                user,
-                space,
-                spacesAccess[space.uuid] ?? [],
-            );
+            const spaceAccess = spaces.find((s) => s.uuid === c.spaceUuid);
+            if (!spaceAccess) return false;
+            return user.ability.can('view', subject('Space', spaceAccess));
         });
     }
 
@@ -838,17 +832,10 @@ export class CoderService extends BaseService {
         });
 
         if (space !== undefined) {
-            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-                user.userUuid,
-                [space.uuid],
+            const spacesAccess = await this.spaceModel.getSpaceAccess(
+                space.uuid,
             );
-            if (
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                )
-            ) {
+            if (user.ability.can('view', subject('Space', spacesAccess))) {
                 return { space, created: false };
             }
             throw new ForbiddenError(

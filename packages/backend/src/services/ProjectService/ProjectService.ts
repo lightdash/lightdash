@@ -192,10 +192,7 @@ import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
-import {
-    hasDirectAccessToSpace,
-    hasViewAccessToSpace,
-} from '../SpaceService/SpaceService';
+import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
@@ -4822,40 +4819,29 @@ export class ProjectService extends BaseService {
                     return [];
                 }
 
-                const [spaceAccessMap, exploresMap, userSpacesAccess] =
-                    await Promise.all([
-                        this.spaceModel.getSpacesForAccessCheck(
-                            uniqueSpaceUuids,
+                const [exploresMap, spacesAccess] = await Promise.all([
+                    this.findExplores({
+                        user,
+                        projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                        exploreNames: savedCharts.map(
+                            (chart) => chart.tableName,
                         ),
-                        this.findExplores({
-                            user,
-                            projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
-                            exploreNames: savedCharts.map(
-                                (chart) => chart.tableName,
-                            ),
-                            organizationUuid: user.organizationUuid,
-                        }),
-                        this.spaceModel.getUserSpacesAccess(
-                            user.userUuid,
-                            uniqueSpaceUuids,
-                        ),
-                    ]);
+                        organizationUuid: user.organizationUuid,
+                    }),
+                    this.spaceModel.findSpaceAccess({
+                        spaceUuids: uniqueSpaceUuids,
+                    }),
+                ]);
 
                 return savedCharts.map((savedChart) => {
-                    const spaceAccess = spaceAccessMap.get(
-                        savedChart.spaceUuid,
+                    const spaceAccess = spacesAccess.find(
+                        (sa) => sa.spaceUuid === savedChart.spaceUuid,
                     );
-
                     if (
+                        !spaceAccess ||
                         user.ability.cannot(
                             'view',
-                            subject('SavedChart', {
-                                ...savedChart,
-                                isPrivate: spaceAccess?.isPrivate,
-                                access:
-                                    userSpacesAccess[savedChart.spaceUuid] ??
-                                    [],
-                            }),
+                            subject('SavedChart', spaceAccess),
                         )
                     ) {
                         return { uuid: savedChart.uuid, filters: [] };
@@ -5155,23 +5141,17 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            projectUuid,
+        });
 
-        const allowedSpaceUuids = spaces
+        const allowedSpaceUuids = spacesAccess
             .filter(
-                (space) =>
-                    space.projectUuid === projectUuid &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
+                (spaceAccess) =>
+                    spaceAccess.projectUuid === projectUuid &&
+                    user.ability.can('view', subject('Space', spaceAccess)),
             )
-            .map(({ uuid }) => uuid);
+            .map(({ spaceUuid }) => spaceUuid);
 
         const savedQueries = await this.spaceModel.getSpaceQueries(
             allowedSpaceUuids,
@@ -5208,23 +5188,17 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            projectUuid,
+        });
 
-        const allowedSpaceUuids = spaces
+        const allowedSpaceUuids = spacesAccess
             .filter(
-                (space) =>
-                    space.projectUuid === projectUuid &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
+                (spaceAccess) =>
+                    spaceAccess.projectUuid === projectUuid &&
+                    user.ability.can('view', subject('Space', spaceAccess)),
             )
-            .map((space) => space.uuid);
+            .map(({ spaceUuid }) => spaceUuid);
 
         return this.savedChartModel.find({
             projectUuid,
@@ -5367,15 +5341,18 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
-
-        const spacesWithUserAccess = spaces
-            .filter((space) =>
-                hasViewAccessToSpace(user, space, spacesAccess[space.uuid]),
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            projectUuid,
+        });
+        const spaceUuidsWithUserAccess = spacesAccess
+            .filter((spaceAccess) =>
+                user.ability.can('view', subject('Space', spaceAccess)),
             )
+            .map(({ spaceUuid }) => spaceUuid);
+
+        // TODO MISSING ACCESS ARRAY FOR FRONTEND
+        const spacesWithUserAccess = spaces
+            .filter((space) => spaceUuidsWithUserAccess.includes(space.uuid))
             .map((spaceSummary) => ({
                 ...spaceSummary,
                 userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? [],

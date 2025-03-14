@@ -19,7 +19,6 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -94,15 +93,10 @@ export class SearchService extends BaseService {
                 ...results.spaces.map((space) => space.uuid),
             ]),
         ];
-        const spaces = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getSpaceSummary(spaceUuid),
-            ),
-        );
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            projectUuid,
+            spaceUuids,
+        });
 
         const filterItem = async (
             item:
@@ -113,14 +107,12 @@ export class SearchService extends BaseService {
         ) => {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
-            const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
+            const spaceAccess = spacesAccess.find(
+                (s) => s.spaceUuid === spaceUuid,
+            );
             return (
-                itemSpace &&
-                hasViewAccessToSpace(
-                    user,
-                    itemSpace,
-                    spacesAccess[spaceUuid] ?? [],
-                )
+                spaceAccess &&
+                user.ability.can('view', subject('Space', spaceAccess))
             );
         };
 

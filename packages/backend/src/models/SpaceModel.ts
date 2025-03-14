@@ -604,6 +604,107 @@ export class SpaceModel {
         );
     }
 
+    async findSpaceAccess({
+        spaceUuid,
+        projectUuid,
+        spaceUuids,
+        projectUuids,
+    }: {
+        spaceUuid?: string;
+        projectUuid?: string;
+        spaceUuids?: string[];
+        projectUuids?: string[];
+    }): Promise<
+        {
+            spaceUuid: string;
+            isPrivate: boolean;
+            userSpaceAccess: { userUuid: string; role: SpaceMemberRole }[];
+            groupSpaceAccess: { groupUuid: string; role: SpaceMemberRole }[];
+            projectUuid: string;
+            organizationUuid: string;
+        }[]
+    > {
+        const query = this.database
+            .table('spaces')
+            .leftJoin('projects', 'projects.project_id', 'spaces.project_id')
+            .leftJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .select<
+                {
+                    space_uuid: string;
+                    project_uuid: string;
+                    organization_uuid: string;
+                    is_private: boolean;
+                    user_access: {
+                        userUuid: string;
+                        role: SpaceMemberRole;
+                    }[];
+                    group_access: {
+                        groupUuid: string;
+                        role: SpaceMemberRole;
+                    }[];
+                }[]
+            >([
+                'spaces.space_uuid',
+                'is_private',
+                'projects.project_uuid',
+                'organizations.organization_uuid',
+                this.database.raw(
+                    `
+                    SELECT jsonb_agg(jsonb_build_object('groupUuid', group_uuid, 'role', space_role))
+                    FROM ${SpaceGroupAccessTableName}
+                    WHERE ${SpaceGroupAccessTableName}.space_uuid = ${SpaceTableName}.space_uuid
+                    AS group_access
+                    `,
+                ),
+                this.database.raw(
+                    `
+                    SELECT jsonb_agg(jsonb_build_object('userUuid', user_uuid, 'role', space_role))
+                    FROM ${SpaceUserAccessTableName}
+                    WHERE ${SpaceUserAccessTableName}.space_uuid = ${SpaceTableName}.space_uuid
+                    AS user_access
+                    `,
+                ),
+            ]);
+        if (spaceUuid) {
+            void query.where('space_uuid', spaceUuid);
+        }
+        if (projectUuid) {
+            void query.where('project_uuid', projectUuid);
+        }
+        if (spaceUuids) {
+            void query.whereIn('space_uuid', spaceUuids);
+        }
+        if (projectUuids) {
+            void query.whereIn('project_uuid', projectUuids);
+        }
+        const rows = await query;
+        return rows.map((row) => ({
+            spaceUuid: row.space_uuid,
+            isPrivate: row.is_private,
+            userSpaceAccess: row.user_access,
+            groupSpaceAccess: row.group_access,
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+        }));
+    }
+
+    async getSpaceAccess(spaceUuid: string) {
+        const [row] = await this.findSpaceAccess({ spaceUuid });
+        if (!row) {
+            throw new NotFoundError(
+                `Space with spaceUuid ${spaceUuid} does not exist`,
+            );
+        }
+        return row;
+    }
+
+    /**
+     * @deprecated - use getSpaceAccess instead
+     */
     private async _getSpaceAccess(
         spaceUuids: string[],
         filters?: { userUuid?: string },
@@ -897,6 +998,9 @@ export class SpaceModel {
         return access;
     }
 
+    /**
+     * @deprecated - use getSpaceAccess instead
+     */
     async getUserSpaceAccess(
         userUuid: string,
         spaceUuid: string,
@@ -908,15 +1012,6 @@ export class SpaceModel {
                 })
             )[spaceUuid] ?? []
         );
-    }
-
-    async getUserSpacesAccess(
-        userUuid: string,
-        spaceUuids: string[],
-    ): Promise<Record<string, SpaceShare[]>> {
-        return this._getSpaceAccess(spaceUuids, {
-            userUuid,
-        });
     }
 
     private async getSpaceCharts(
@@ -1293,6 +1388,9 @@ export class SpaceModel {
         );
     }
 
+    /**
+     * @deprecated - use getSpaceAccess instead
+     */
     async getSpacesForAccessCheck(
         spaceUuids: string[],
     ): Promise<

@@ -36,7 +36,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -727,40 +726,29 @@ export class ValidationService extends BaseService {
     ): Promise<ValidationResponse[]> {
         if (user.role === OrganizationMemberRole.ADMIN) return validations;
 
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            projectUuid,
+        });
 
-        const allowedSpaceUuids = spaces
-            .filter((space, index) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
+        const allowedSpaceUuids = spacesAccess
+            .filter((spaceAccess) =>
+                user.ability.can('view', subject('Space', spaceAccess)),
             )
-            .map((s) => s.uuid);
+            .map((s) => s.spaceUuid);
 
         // Filter private content to developers
-        return Promise.all(
-            validations.map(async (validation) => {
-                const space = spaces.find(
-                    (s) => s.uuid === validation.spaceUuid,
-                );
-                const hasAccess =
-                    space && allowedSpaceUuids.includes(space.uuid);
-                if (hasAccess) return validation;
+        return validations.map((validation) => {
+            if (allowedSpaceUuids.includes(validation.spaceUuid ?? '')) {
+                return validation;
+            }
 
-                return {
-                    ...validation,
-                    chartUuid: undefined,
-                    dashboardUuid: undefined,
-                    name: 'Private content',
-                };
-            }),
-        );
+            return {
+                ...validation,
+                chartUuid: undefined,
+                dashboardUuid: undefined,
+                name: 'Private content',
+            };
+        });
     }
 
     async get(
