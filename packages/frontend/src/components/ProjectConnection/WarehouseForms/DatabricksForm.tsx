@@ -13,6 +13,7 @@ import {
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
+import { v4 as uuidv4 } from 'uuid';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
@@ -68,6 +69,7 @@ const DatabricksForm: FC<{
     const computes = form.values.warehouse?.compute ?? [];
     const addCompute = () => {
         form.insertListItem('warehouse.compute', {
+            key: uuidv4(),
             name: '',
             httpPath: '',
         });
@@ -170,7 +172,8 @@ const DatabricksForm: FC<{
                                 <Stack>
                                     {computes.map((field, index) => (
                                         <Group
-                                            key={field.httpPath}
+                                            // @ts-expect-error
+                                            key={field.key}
                                             noWrap
                                             spacing="xs"
                                         >
