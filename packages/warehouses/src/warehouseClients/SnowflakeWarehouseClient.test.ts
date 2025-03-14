@@ -182,9 +182,13 @@ describe('SnowflakeWarehouseClient', () => {
 
             // Ensure that in this case we don't execute any query, we just fetch results
             expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText:
+                sqlText: [
+                    "ALTER SESSION SET QUERY_TAG = '{}';",
+                    "ALTER SESSION SET TIMEZONE = 'UTC';",
                     'ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;',
+                ].join('\n'),
                 complete: expect.any(Function),
+                parameters: { MULTI_STATEMENT_COUNT: 3 },
             });
 
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
