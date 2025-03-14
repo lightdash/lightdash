@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 import { DashboardList } from './DashboardList';
+import { formatViewCount } from '../ResourceView/resourceUtils';
 
 type Props = {
     resourceUuid: string;
@@ -24,9 +25,9 @@ export const ResourceInfoPopup: FC<Props> = ({
 }) => {
     const label =
         firstViewedAt && viewStats
-            ? `${viewStats} views since ${dayjs(firstViewedAt).format(
-                  'MMM D, YYYY h:mm A',
-              )}`
+            ? `${formatViewCount(viewStats)} views since ${dayjs(
+                  firstViewedAt,
+              ).format('MMM D, YYYY h:mm A')}`
             : undefined;
 
     if (!viewStats && !description && !withChartData) return null;

@@ -3,6 +3,7 @@ import { IconEye } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { InfoContainer } from '.';
+import { formatViewCount } from '../ResourceView/resourceUtils';
 
 interface ViewInfoProps {
     views?: number;
@@ -10,8 +11,8 @@ interface ViewInfoProps {
 }
 
 const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {
-    const label = firstViewedAt
-        ? `${views} views since ${dayjs(firstViewedAt).format(
+    const label = firstViewedAt && views
+        ? `${formatViewCount(views)} views since ${dayjs(firstViewedAt).format(
               'MMM D, YYYY h:mm A',
           )}`
         : undefined;
@@ -24,7 +25,7 @@ const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {
         >
             <InfoContainer>
                 <IconEye size={16} />
-                <span>{views || '0'} views</span>
+                <span>{views ? formatViewCount(views) : '0'} views</span>
             </InfoContainer>
         </Tooltip>
     );
