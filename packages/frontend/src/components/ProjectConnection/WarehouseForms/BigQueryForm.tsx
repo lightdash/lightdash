@@ -7,7 +7,7 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
-import { useState, type ChangeEvent, type FC } from 'react';
+import { useEffect, useState, type ChangeEvent, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move
@@ -16,7 +16,7 @@ import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
-
+import { BigQueryDefaultValues } from './defaults';
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -52,20 +52,18 @@ export const BigQuerySchemaInput: FC<{
         />
     );
 };
+
 const BigQueryForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const form = useFormContext();
-    const [temporaryFile, setTemporaryFile] = useState<File>();
+    const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
 
     const locationField = form.getInputProps('warehouse.location');
-    const keyFileContentsField = form.getInputProps(
-        'warehouse.keyfileContents',
-    );
     const executionProjectField = form.getInputProps(
         'warehouse.executionProject',
     );
@@ -75,6 +73,13 @@ const BigQueryForm: FC<{
             onChange(e.target.value === '' ? undefined : e.target.value);
         };
 
+    console.log(
+        'err',
+        form.errors,
+        form.getInputProps('warehouse.keyfileContents', { withError: true })
+            .error,
+    );
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -83,11 +88,7 @@ const BigQueryForm: FC<{
                     label="Project"
                     description="This is the GCP project ID."
                     required
-                    {...form.getInputProps('warehouse.project', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Project'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.project')}
                     disabled={disabled}
                     labelProps={{ style: { marginTop: '8px' } }}
                 />
@@ -116,7 +117,9 @@ const BigQueryForm: FC<{
 
                 <FileInput
                     name="warehouse.keyfileContents"
-                    {...keyFileContentsField}
+                    {...form.getInputProps('warehouse.keyfileContents', {
+                        withError: true,
+                    })}
                     label="Key File"
                     // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                     // @ts-ignore
@@ -140,22 +143,48 @@ const BigQueryForm: FC<{
                     accept="application/json"
                     value={temporaryFile}
                     onChange={(file) => {
-                        if (file) {
-                            const fileReader = new FileReader();
-                            fileReader.onload = function (event) {
-                                const contents = event.target?.result;
-                                if (typeof contents === 'string') {
+                        if (!file) {
+                            form.setFieldValue(
+                                'warehouse.keyfileContents',
+                                null,
+                            );
+                            return;
+                        }
+
+                        const fileReader = new FileReader();
+                        fileReader.onload = function (event) {
+                            const contents = event.target?.result;
+                            console.log('contents', contents);
+                            if (typeof contents === 'string') {
+                                try {
                                     setTemporaryFile(file);
-                                    keyFileContentsField.onChange(
+                                    form.setFieldValue(
+                                        'warehouse.keyfileContents',
                                         JSON.parse(contents),
                                     );
-                                } else {
-                                    keyFileContentsField.onChange(null);
+                                } catch (error) {
+                                    // 🤷‍♂️
+                                    setTimeout(() => {
+                                        form.setFieldError(
+                                            'warehouse.keyfileContents',
+                                            'Invalid JSON file',
+                                        );
+                                    });
+
+                                    form.setFieldValue(
+                                        'warehouse.keyfileContents',
+                                        null,
+                                    );
                                 }
-                            };
-                            fileReader.readAsText(file);
-                        }
-                        keyFileContentsField.onChange(null);
+                            } else {
+                                form.setFieldValue(
+                                    'warehouse.keyfileContents',
+                                    null,
+                                );
+                                setTemporaryFile(null);
+                            }
+                        };
+                        fileReader.readAsText(file);
                     }}
                     disabled={disabled}
                 />
@@ -192,7 +221,7 @@ const BigQueryForm: FC<{
                             name="warehouse.timeoutSeconds"
                             {...form.getInputProps('warehouse.timeoutSeconds')}
                             label="Timeout in seconds"
-                            defaultValue={300}
+                            defaultValue={BigQueryDefaultValues.timeoutSeconds}
                             description={
                                 <p>
                                     If a dbt model takes longer than this
@@ -216,7 +245,7 @@ const BigQueryForm: FC<{
                         <Select
                             name="warehouse.priority"
                             {...form.getInputProps('warehouse.priority')}
-                            defaultValue="interactive"
+                            defaultValue={BigQueryDefaultValues.priority}
                             label="Priority"
                             description={
                                 <p>
@@ -249,7 +278,7 @@ const BigQueryForm: FC<{
                         <NumberInput
                             name="warehouse.retries"
                             {...form.getInputProps('warehouse.retries')}
-                            defaultValue={3}
+                            defaultValue={BigQueryDefaultValues.retries}
                             label="Retries"
                             description={
                                 <p>
@@ -274,7 +303,9 @@ const BigQueryForm: FC<{
                             {...form.getInputProps(
                                 'warehouse.maximumBytesBilled',
                             )}
-                            defaultValue={1000000000}
+                            defaultValue={
+                                BigQueryDefaultValues.maximumBytesBilled
+                            }
                             label="Maximum bytes billed"
                             description={
                                 <p>
