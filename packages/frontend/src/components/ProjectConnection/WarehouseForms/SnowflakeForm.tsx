@@ -1,15 +1,17 @@
 import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
+    FileInput,
     Group,
     PasswordInput,
+    Select,
     Stack,
     Switch,
     TextInput,
 } from '@mantine/core';
 
-import React, { type FC } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import React, { useState, type FC } from 'react';
+import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import {
@@ -54,6 +56,14 @@ const SnowflakeForm: FC<{
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
     );
+    const authenticationType: string = useWatch({
+        name: 'warehouse.authentication_type',
+        defaultValue:
+            savedProject?.warehouseConnection?.authenticationType ||
+            'private_key',
+    });
+    const [temporaryFile, setTemporaryFile] = useState<File>();
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -85,18 +95,117 @@ const SnowflakeForm: FC<{
                     }
                     disabled={disabled}
                 />
-                <PasswordInput
-                    label="Password"
-                    description="This is the database user password."
-                    required={requireSecrets}
-                    placeholder={
-                        disabled || !requireSecrets
-                            ? '**************'
-                            : undefined
-                    }
-                    {...register('warehouse.password')}
-                    disabled={disabled}
+                <Controller
+                    name="warehouse.authenticationType"
+                    defaultValue="private_key"
+                    render={({ field }) => (
+                        <Select
+                            label="Authentication Type"
+                            description="Choose between password or key pair authentication"
+                            data={[
+                                {
+                                    value: 'private_key',
+                                    label: 'Private Key (recommended)',
+                                },
+                                {
+                                    value: 'password',
+                                    label: 'Password',
+                                },
+                            ]}
+                            required
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={disabled}
+                        />
+                    )}
                 />
+
+                {authenticationType === 'private_key' ? (
+                    <>
+                        <Controller
+                            name="warehouse.privateKey"
+                            render={({ field }) => (
+                                <FileInput
+                                    {...field}
+                                    label="Private Key File"
+                                    // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                                    // @ts-ignore
+                                    placeholder={
+                                        !requireSecrets
+                                            ? '**************'
+                                            : 'Choose file...'
+                                    }
+                                    description={
+                                        <p>
+                                            This is the .p8 private key file.
+                                            You can see{' '}
+                                            <Anchor
+                                                target="_blank"
+                                                href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
+                                                rel="noreferrer"
+                                            >
+                                                how to create a key here
+                                            </Anchor>
+                                            .
+                                        </p>
+                                    }
+                                    {...register('warehouse.privateKey')}
+                                    required={requireSecrets}
+                                    accept=".p8"
+                                    value={temporaryFile}
+                                    onChange={(file) => {
+                                        if (file) {
+                                            const fileReader = new FileReader();
+                                            fileReader.onload = function (
+                                                event,
+                                            ) {
+                                                const contents =
+                                                    event.target?.result;
+                                                setTemporaryFile(file);
+
+                                                if (
+                                                    typeof contents === 'string'
+                                                ) {
+                                                    field.onChange(contents);
+                                                } else {
+                                                    field.onChange(null);
+                                                }
+                                            };
+                                            fileReader.readAsText(file);
+                                        }
+                                        field.onChange(null);
+                                    }}
+                                    disabled={disabled}
+                                />
+                            )}
+                        />
+
+                        <PasswordInput
+                            label="Private Key Passphrase"
+                            description="Optional passphrase for encrypted private keys"
+                            {...register('warehouse.privateKeyPass')}
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            disabled={disabled}
+                        />
+                    </>
+                ) : (
+                    <PasswordInput
+                        label="Password"
+                        description="This is the database user password."
+                        required={requireSecrets}
+                        placeholder={
+                            disabled || !requireSecrets
+                                ? '**************'
+                                : undefined
+                        }
+                        {...register('warehouse.password')}
+                        disabled={disabled}
+                    />
+                )}
                 <TextInput
                     label="Role"
                     description="This is the role to assume when running queries as the specified user."
