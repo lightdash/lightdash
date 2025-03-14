@@ -14,13 +14,18 @@ import {
     useColorPalettes,
     useSetActiveColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
+import useHealth from '../../../hooks/health/useHealth';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { PaletteItem } from './PaletteItem';
 
 const AppearanceColorSettings: FC = () => {
-    const { data: palettes = [], isLoading } = useColorPalettes();
+    const { data: organization } = useOrganization();
+    const { data: health, isLoading: isHealthLoading } = useHealth();
+    const { data: palettes = [], isLoading: isPalettesLoading } =
+        useColorPalettes();
 
     const setActivePalette = useSetActiveColorPalette();
 
@@ -33,6 +38,10 @@ const AppearanceColorSettings: FC = () => {
         },
         [setActivePalette],
     );
+
+    const hasDefaultColorPaletteOverride =
+        health?.appearance.defaultColorPalette &&
+        health.appearance.defaultColorPalette.length > 0;
 
     return (
         <Stack spacing="md">
@@ -54,21 +63,51 @@ const AppearanceColorSettings: FC = () => {
             </Group>
 
             <Stack spacing="xs">
-                {isLoading ? (
+                {isPalettesLoading || isHealthLoading ? (
                     <>
                         <Skeleton height={30} />
                         <Skeleton height={30} />
                         <Skeleton height={30} />
                     </>
                 ) : (
-                    palettes.map((palette) => (
-                        <PaletteItem
-                            key={palette.colorPaletteUuid}
-                            palette={palette}
-                            isActive={palette.isActive}
-                            onSetActive={handleSetActive}
-                        />
-                    ))
+                    <>
+                        {hasDefaultColorPaletteOverride &&
+                            health?.appearance.defaultColorPalette &&
+                            organization?.organizationUuid && (
+                                <PaletteItem
+                                    palette={{
+                                        colorPaletteUuid: 'custom',
+                                        createdAt: new Date(),
+                                        name:
+                                            health.appearance
+                                                .defaultColorPaletteName ??
+                                            'Custom default',
+                                        colors: health.appearance
+                                            .defaultColorPalette,
+                                        organizationUuid:
+                                            organization?.organizationUuid,
+                                    }}
+                                    isActive={true}
+                                    readOnly
+                                    onSetActive={handleSetActive}
+                                />
+                            )}
+                        {palettes.map((palette) => (
+                            <PaletteItem
+                                key={palette.colorPaletteUuid}
+                                palette={palette}
+                                isActive={
+                                    palette.isActive &&
+                                    !hasDefaultColorPaletteOverride
+                                }
+                                onSetActive={
+                                    hasDefaultColorPaletteOverride
+                                        ? undefined
+                                        : handleSetActive
+                                }
+                            />
+                        ))}
+                    </>
                 )}
             </Stack>
 
