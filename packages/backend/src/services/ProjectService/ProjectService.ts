@@ -2275,7 +2275,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('SavedChart', {
-                    savedChartOrganizationUuid,
+                    organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
                     isPrivate: space.isPrivate,
                     access,
@@ -2284,7 +2284,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('Project', {
-                    savedChartOrganizationUuid,
+                    organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
                 }),
             )
