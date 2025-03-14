@@ -473,6 +473,7 @@ export type ApiQueryResults = {
 
 export type ApiExecuteAsyncQueryResults = {
     queryUuid: string;
+    appliedDashboardFilters: DashboardFilters | null;
 };
 
 export type ApiGetAsyncQueryResults =

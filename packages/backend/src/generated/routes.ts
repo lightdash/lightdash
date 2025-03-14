@@ -14248,6 +14248,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                appliedDashboardFilters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DashboardFilters' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 queryUuid: { dataType: 'string', required: true },
             },
             validators: {},

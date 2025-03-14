@@ -2217,7 +2217,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.executeAsyncQuery(
+        const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -2229,6 +2229,11 @@ export class ProjectService extends BaseService {
             },
             requestParameters,
         );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters: null,
+        };
     }
 
     async executeAsyncSavedChartQuery({
@@ -2307,7 +2312,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.executeAsyncQuery(
+        const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2319,6 +2324,11 @@ export class ProjectService extends BaseService {
             },
             requestParameters,
         );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters: null,
+        };
     }
 
     async executeAsyncDashboardChartQuery({
@@ -2385,7 +2395,7 @@ export class ProjectService extends BaseService {
         );
 
         const tables = Object.keys(explore.tables);
-        const appliedDashboardFilters = {
+        const appliedDashboardFilters: DashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
                 tables,
                 dashboardFilters.dimensions,
@@ -2451,7 +2461,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.executeAsyncQuery(
+        const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2464,6 +2474,11 @@ export class ProjectService extends BaseService {
             },
             requestParameters,
         );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters,
+        };
     }
 
     private async runQueryAndFormatRows({
