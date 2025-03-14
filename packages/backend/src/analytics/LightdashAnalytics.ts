@@ -228,6 +228,7 @@ type MetricQueryExecutionProperties = {
     timezone?: string;
     virtualViewId?: string;
     metricOverridesCount: number;
+    limit: number;
 };
 
 type SqlExecutionProperties = {
