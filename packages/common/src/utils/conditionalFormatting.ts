@@ -1,9 +1,9 @@
 import { findLast } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import {
-    type ConditionalFormattingRowFields,
-    type ConditionalFormattingWithCompareTarget,
-    type ItemsMap,
+import type {
+    ConditionalFormattingRowFields,
+    ConditionalFormattingWithCompareTarget,
+    ItemsMap,
 } from '..';
 import {
     isConditionalFormattingConfigWithColorRange,
