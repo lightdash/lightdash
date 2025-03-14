@@ -67,10 +67,6 @@ import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import MantineIcon from '../../common/MantineIcon';
 import PageHeader from '../../common/Page/PageHeader';
-import {
-    PageActionsContainer,
-    PageTitleAndDetailsContainer,
-} from '../../common/PageHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
@@ -357,7 +353,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     py: 'xs',
                 }}
             >
-                <PageTitleAndDetailsContainer>
+                <div style={{ flex: 1 }}>
                     {savedChart && projectUuid && (
                         <>
                             <Group spacing={4}>
@@ -409,7 +405,8 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             </Group>
                         </>
                     )}
-                </PageTitleAndDetailsContainer>
+                </div>
+
                 {userTimeZonesEnabled &&
                     savedChart?.metricQuery.timezone &&
                     !isEditMode && (
@@ -417,10 +414,11 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             {savedChart?.metricQuery.timezone}
                         </Text>
                     )}
+
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
-                    <PageActionsContainer>
+                    <Group spacing="xs">
                         {userCanManageExplore && !isEditMode && (
                             <ExploreFromHereButton />
                         )}
@@ -834,7 +832,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                 </ActionIcon>
                             </Menu.Target>
                         </Menu>
-                    </PageActionsContainer>
+                    </Group>
                 )}
             </PageHeader>
 
