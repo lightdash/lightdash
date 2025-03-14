@@ -138,6 +138,7 @@ const RedshiftForm: FC<{
                                 disabled={disabled}
                                 {...form.getInputProps(
                                     'warehouse.requireUserCredentials',
+                                    { type: 'checkbox' },
                                 )}
                             />
                         )}

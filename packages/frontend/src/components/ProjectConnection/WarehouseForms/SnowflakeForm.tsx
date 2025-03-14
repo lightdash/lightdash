@@ -113,7 +113,9 @@ const SnowflakeForm: FC<{
                 />
                 <BooleanSwitch
                     name="warehouse.override"
-                    {...form.getInputProps('warehouse.override')}
+                    {...form.getInputProps('warehouse.override', {
+                        type: 'checkbox',
+                    })}
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
                     label="Always use this warehouse"
                     disabled={disabled}
@@ -128,6 +130,7 @@ const SnowflakeForm: FC<{
                                 disabled={disabled}
                                 {...form.getInputProps(
                                     'warehouse.requireUserCredentials',
+                                    { type: 'checkbox' },
                                 )}
                             />
                         )}
