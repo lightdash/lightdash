@@ -3,9 +3,7 @@ import {
     ActionIcon,
     Anchor,
     Button,
-    CloseButton,
     CopyButton,
-    FileInput,
     NumberInput,
     PasswordInput,
     Select,
@@ -14,104 +12,32 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { type FC, useState } from 'react';
-import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
-import FormSection from '../../ReactHookForm/FormSection';
+import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
+import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
+import BooleanSwitch from './Inputs/BooleanSwitch';
+import CertificateFileInput from './Inputs/CertificateFileInput';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { useCreateSshKeyPair } from './sshHooks';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const { register } = useFormContext();
+    const form = useFormContext();
 
     return (
         <TextInput
             label="Schema"
             description="This is the schema name."
             required
-            {...register('warehouse.schema', {
-                validate: {
-                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                },
-            })}
+            {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
         />
-    );
-};
-
-const CertificateFileInput: FC<{
-    name: string;
-    fileNameProperty: string;
-    label: string;
-    disabled: boolean;
-    description: React.ReactNode;
-    accept: string;
-}> = ({ name, fileNameProperty, label, disabled, description, accept }) => {
-    const { register, setValue } = useFormContext();
-    const fileNamePlaceholder = useWatch({
-        name: fileNameProperty,
-    });
-    const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
-    return (
-        <>
-            {/* Registering a hidden field for file name */}
-            <input type="hidden" {...register(fileNameProperty)} />
-            <Controller
-                name={name}
-                render={({ field }) => (
-                    <FileInput
-                        {...field}
-                        label={label}
-                        // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                        // @ts-ignore
-                        placeholder={fileNamePlaceholder || 'Choose file...'}
-                        description={description}
-                        {...register(name)}
-                        accept={accept}
-                        value={temporaryFile}
-                        onChange={(file) => {
-                            if (file) {
-                                const fileReader = new FileReader();
-                                fileReader.onload = function (event) {
-                                    const contents = event.target?.result;
-                                    if (typeof contents === 'string') {
-                                        setTemporaryFile(file);
-                                        field.onChange(contents);
-                                        setValue(fileNameProperty, file.name);
-                                    } else {
-                                        field.onChange(null);
-                                        setValue(fileNameProperty, undefined);
-                                    }
-                                };
-                                fileReader.readAsText(file);
-                            }
-                            field.onChange(null);
-                        }}
-                        disabled={disabled}
-                        rightSection={
-                            (temporaryFile || fileNamePlaceholder) && (
-                                <CloseButton
-                                    variant="transparent"
-                                    onClick={() => {
-                                        setTemporaryFile(null);
-                                        field.onChange(null);
-                                        setValue(fileNameProperty, undefined);
-                                    }}
-                                />
-                            )
-                        }
-                    />
-                )}
-            />
-        </>
     );
 };
 
@@ -122,37 +48,42 @@ const PostgresForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
-    const { setValue, register } = useFormContext();
-    const showSshTunnelConfiguration: boolean = useWatch({
-        name: 'warehouse.useSshTunnel',
-        defaultValue:
-            (savedProject?.warehouseConnection?.type ===
-                WarehouseTypes.POSTGRES &&
-                savedProject?.warehouseConnection?.useSshTunnel) ||
-            false,
-    });
-    const sshTunnelPublicKey: string = useWatch({
-        name: 'warehouse.sshTunnelPublicKey',
-        defaultValue:
-            savedProject?.warehouseConnection?.type ===
-                WarehouseTypes.POSTGRES &&
-            savedProject?.warehouseConnection?.sshTunnelPublicKey,
-    });
-    const sslMode: string = useWatch({
-        name: 'warehouse.sslmode',
-        defaultValue:
-            savedProject?.warehouseConnection?.type ===
-                WarehouseTypes.POSTGRES &&
-            savedProject?.warehouseConnection?.sslmode,
-    });
+    const form = useFormContext();
+
+    if (form.values.warehouse?.type !== WarehouseTypes.POSTGRES) {
+        throw new Error('This form is only available for Postgres');
+    }
+
+    const defaultSshTunnelConfiguration: boolean =
+        (savedProject?.warehouseConnection?.type === WarehouseTypes.POSTGRES &&
+            savedProject?.warehouseConnection?.useSshTunnel) ||
+        false;
+    const showSshTunnelConfiguration: boolean =
+        form.values.warehouse.useSshTunnel ?? defaultSshTunnelConfiguration;
+
+    const sshTunnelPublicKey: string | undefined =
+        form.values.warehouse.sshTunnelPublicKey ??
+        (savedProject?.warehouseConnection?.type === WarehouseTypes.POSTGRES
+            ? savedProject?.warehouseConnection?.sshTunnelPublicKey
+            : undefined);
+
+    const sslMode: string | undefined =
+        form.values.warehouse.sslmode ??
+        (savedProject?.warehouseConnection?.type === WarehouseTypes.POSTGRES
+            ? savedProject?.warehouseConnection?.sslmode
+            : undefined);
+
     const { mutate, isLoading } = useCreateSshKeyPair({
         onSuccess: (data) => {
-            setValue('warehouse.sshTunnelPublicKey', data.publicKey);
+            form.setFieldValue('warehouse.sshTunnelPublicKey', data.publicKey);
         },
     });
+
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
     );
+
+    console.log(form.values.warehouse);
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -160,11 +91,8 @@ const PostgresForm: FC<{
                     label="Host"
                     description="This is the host where the database is running."
                     required
-                    {...register('warehouse.host', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
-                        },
-                    })}
+                    name="warehouse.host"
+                    {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
                     labelProps={{ style: { marginTop: '8px' } }}
                 />
@@ -172,11 +100,8 @@ const PostgresForm: FC<{
                     label="User"
                     description="This is the database user name."
                     required={requireSecrets}
-                    {...register('warehouse.user', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
-                        },
-                    })}
+                    name="warehouse.user"
+                    {...form.getInputProps('warehouse.user')}
                     placeholder={
                         disabled || !requireSecrets
                             ? '**************'
@@ -188,23 +113,21 @@ const PostgresForm: FC<{
                     label="Password"
                     description="This is the database user password."
                     required={requireSecrets}
+                    name="warehouse.password"
                     placeholder={
                         disabled || !requireSecrets
                             ? '**************'
                             : undefined
                     }
-                    {...register('warehouse.password')}
+                    {...form.getInputProps('warehouse.password')}
                     disabled={disabled}
                 />
                 <TextInput
                     label="DB name"
                     description="This is the database name."
                     required
-                    {...register('warehouse.dbname', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
-                        },
-                    })}
+                    name="warehouse.dbname"
+                    {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
@@ -212,54 +135,55 @@ const PostgresForm: FC<{
                         {isPassthroughLoginFeatureEnabled && (
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
+                                {...form.getInputProps(
+                                    'warehouse.requireUserCredentials',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
                                 label="Require users to provide their own credentials"
-                                defaultValue={false}
                                 disabled={disabled}
+                                defaultChecked={false}
                             />
                         )}
-                        <Controller
+                        <NumberInput
                             name="warehouse.port"
+                            {...form.getInputProps('warehouse.port')}
                             defaultValue={5432}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Port"
-                                    description="This is the port where the database is running."
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            label="Port"
+                            description="This is the port where the database is running."
+                            required
+                            disabled={disabled}
                         />
-                        <Controller
+
+                        <NumberInput
                             name="warehouse.keepalivesIdle"
+                            {...form.getInputProps('warehouse.keepalivesIdle')}
                             defaultValue={0}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Keep alive idle (seconds)"
-                                    description={
-                                        <p>
-                                            This specifies the amount of seconds
-                                            with no network activity after which
-                                            the operating system should send a
-                                            TCP keepalive message to the client.
-                                            You can see more details in{' '}
-                                            <Anchor
-                                                target="_blank"
-                                                href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
-                                                rel="noreferrer"
-                                            >
-                                                postgresqlco documentation
-                                            </Anchor>
-                                            .
-                                        </p>
-                                    }
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            label="Keep alive idle (seconds)"
+                            description={
+                                <p>
+                                    This specifies the amount of seconds with no
+                                    network activity after which the operating
+                                    system should send a TCP keepalive message
+                                    to the client. You can see more details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
+                                        rel="noreferrer"
+                                    >
+                                        postgresqlco documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            required
+                            disabled={disabled}
                         />
+
                         <TextInput
+                            name="warehouse.searchPath"
+                            {...form.getInputProps('warehouse.searchPath')}
                             label="Search path"
                             description={
                                 <p>
@@ -276,45 +200,40 @@ const PostgresForm: FC<{
                                 </p>
                             }
                             disabled={disabled}
-                            {...register('warehouse.searchPath')}
                         />
-                        <Controller
+
+                        <Select
                             name="warehouse.sslmode"
+                            {...form.getInputProps('warehouse.sslmode')}
                             defaultValue="prefer"
-                            render={({ field }) => (
-                                <Select
-                                    name={field.name}
-                                    label="SSL mode"
-                                    description={
-                                        <p>
-                                            This controls how dbt connects to
-                                            Postgres databases using SSL. You
-                                            can see more details in{' '}
-                                            <Anchor
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
-                                        </p>
-                                    }
-                                    data={[
-                                        'disable',
-                                        'no-verify',
-                                        'allow',
-                                        'prefer',
-                                        'require',
-                                        'verify-ca',
-                                        'verify-full',
-                                    ].map((x) => ({ value: x, label: x }))}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    disabled={disabled}
-                                />
-                            )}
+                            label="SSL mode"
+                            description={
+                                <p>
+                                    This controls how dbt connects to Postgres
+                                    databases using SSL. You can see more
+                                    details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            data={[
+                                'disable',
+                                'no-verify',
+                                'allow',
+                                'prefer',
+                                'require',
+                                'verify-ca',
+                                'verify-full',
+                            ].map((x) => ({ value: x, label: x }))}
+                            disabled={disabled}
                         />
+
                         {sslMode === 'verify-full' ? (
                             <>
                                 <CertificateFileInput
@@ -372,38 +291,38 @@ const PostgresForm: FC<{
                         ) : null}
 
                         <TextInput
+                            name="warehouse.role"
                             label="Role"
                             disabled={disabled}
-                            {...register('warehouse.role')}
+                            {...form.getInputProps('warehouse.role')}
                         />
 
                         <StartOfWeekSelect disabled={disabled} />
 
-                        <Controller
+                        <NumberInput
                             name="warehouse.timeoutSeconds"
                             defaultValue={300}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Timeout in seconds"
-                                    description={
-                                        <p>
-                                            If a query takes longer than this
-                                            timeout to complete, then the query
-                                            will be cancelled.
-                                        </p>
-                                    }
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            {...form.getInputProps('warehouse.timeoutSeconds')}
+                            label="Timeout in seconds"
+                            description={
+                                <p>
+                                    If a query takes longer than this timeout to
+                                    complete, then the query will be cancelled.
+                                </p>
+                            }
+                            required
+                            disabled={disabled}
                         />
 
                         <BooleanSwitch
                             name="warehouse.useSshTunnel"
+                            {...form.getInputProps('warehouse.useSshTunnel', {
+                                type: 'checkbox',
+                            })}
                             label="Use SSH tunnel"
                             disabled={disabled}
                         />
+
                         <FormSection
                             isOpen={showSshTunnelConfiguration}
                             name="ssh-config"
@@ -412,28 +331,35 @@ const PostgresForm: FC<{
                                 <TextInput
                                     label="SSH Remote Host"
                                     disabled={disabled}
-                                    {...register('warehouse.sshTunnelHost')}
-                                />
-                                <Controller
-                                    name="warehouse.sshTunnelPort"
-                                    defaultValue={22}
-                                    render={({ field }) => (
-                                        <NumberInput
-                                            {...field}
-                                            label="SSH Remote Port"
-                                            disabled={disabled}
-                                        />
+                                    name="warehouse.sshTunnelHost"
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelHost',
                                     )}
                                 />
+
+                                <NumberInput
+                                    name="warehouse.sshTunnelPort"
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelPort',
+                                    )}
+                                    defaultValue={22}
+                                    label="SSH Remote Port"
+                                    disabled={disabled}
+                                />
+
                                 <TextInput
+                                    name="warehouse.sshTunnelUser"
                                     label="SSH Username"
                                     disabled={disabled}
-                                    {...register('warehouse.sshTunnelUser')}
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelUser',
+                                    )}
                                 />
 
                                 {sshTunnelPublicKey && (
                                     <TextInput
-                                        {...register(
+                                        name="warehouse.sshTunnelPublicKey"
+                                        {...form.getInputProps(
                                             'warehouse.sshTunnelPublicKey',
                                         )}
                                         label="Generated SSH Public Key"

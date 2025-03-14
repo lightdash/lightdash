@@ -49,16 +49,16 @@ export const UpdateProjectConnection: FC<{
             }),
         );
 
-    const form = useForm({ name: 'updateProject' });
+    const form = useForm();
 
     useEffect(() => {
         if (data) {
-            form.setInitialValues({
+            form.initialize({
                 name: data.name,
                 dbt: data.dbtConnection,
                 warehouse:
                     data.warehouseConnection as CreateWarehouseCredentials,
-                dbtVersion: data.dbtVersion ?? DefaultSupportedDbtVersion,
+                dbtVersion: data.dbtVersion,
             });
         }
     }, [data, form]);
