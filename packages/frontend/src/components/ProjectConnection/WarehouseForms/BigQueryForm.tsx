@@ -74,10 +74,12 @@ const BigQueryForm: FC<{
         (e: ChangeEvent<HTMLInputElement>) => {
             onChange(e.target.value === '' ? undefined : e.target.value);
         };
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
                 <TextInput
+                    name="warehouse.project"
                     label="Project"
                     description="This is the GCP project ID."
                     required
@@ -91,6 +93,7 @@ const BigQueryForm: FC<{
                 />
 
                 <TextInput
+                    name="warehouse.location"
                     label="Location"
                     description={
                         <p>
@@ -112,6 +115,7 @@ const BigQueryForm: FC<{
                 />
 
                 <FileInput
+                    name="warehouse.keyfileContents"
                     {...keyFileContentsField}
                     label="Key File"
                     // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
@@ -159,6 +163,7 @@ const BigQueryForm: FC<{
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
                         <TextInput
+                            name="warehouse.executionProject"
                             label="Execution project"
                             description={
                                 <p>
@@ -184,6 +189,7 @@ const BigQueryForm: FC<{
                         />
 
                         <NumberInput
+                            name="warehouse.timeoutSeconds"
                             {...form.getInputProps('warehouse.timeoutSeconds')}
                             label="Timeout in seconds"
                             defaultValue={300}
@@ -208,6 +214,7 @@ const BigQueryForm: FC<{
                         />
 
                         <Select
+                            name="warehouse.priority"
                             {...form.getInputProps('warehouse.priority')}
                             defaultValue="interactive"
                             label="Priority"
@@ -240,6 +247,7 @@ const BigQueryForm: FC<{
                         />
 
                         <NumberInput
+                            name="warehouse.retries"
                             {...form.getInputProps('warehouse.retries')}
                             defaultValue={3}
                             label="Retries"
@@ -262,6 +270,7 @@ const BigQueryForm: FC<{
                         />
 
                         <NumberInput
+                            name="warehouse.maximumBytesBilled"
                             {...form.getInputProps(
                                 'warehouse.maximumBytesBilled',
                             )}

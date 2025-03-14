@@ -23,6 +23,7 @@ const StartOfWeekSelect: FC<{
     return (
         <>
             <Select
+                name="warehouse.startOfWeek"
                 clearable
                 placeholder="Auto"
                 label="Start of week"
