@@ -80,6 +80,10 @@ export default function mockHealthResponse(
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
         hasCacheAutocompleResults: false,
+        appearance: {
+            defaultColorPalette: undefined,
+            defaultColorPaletteName: undefined,
+        },
         ...overrides,
     };
 }
