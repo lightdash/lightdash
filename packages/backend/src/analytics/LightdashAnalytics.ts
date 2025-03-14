@@ -270,6 +270,7 @@ type QueryReadyEvent = BaseTrack & {
         warehouseType: WarehouseTypes;
         warehouseExecutionTimeMs: number | null;
         totalRowCount: number | null;
+        columnsCount: number | null;
     };
 };
 
@@ -289,6 +290,9 @@ type QueryPageEvent = BaseTrack & {
         projectId: string;
         warehouseType: WarehouseTypes;
         page: number;
+        columnsCount: number;
+        totalRowCount: number;
+        totalPageCount: number;
         resultsPageSize: number;
         resultsPageExecutionMs: number;
     };

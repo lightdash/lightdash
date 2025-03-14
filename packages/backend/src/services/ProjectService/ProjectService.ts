@@ -2080,6 +2080,9 @@ export class ProjectService extends BaseService {
                 projectId: projectUuid,
                 warehouseType: warehouseClient.credentials.type,
                 page,
+                columnsCount: Object.keys(result.fields).length,
+                totalRowCount: result.totalRows,
+                totalPageCount: result.pageCount,
                 resultsPageSize: result.rows.length,
                 resultsPageExecutionMs: roundedDurationMs,
             },
@@ -2297,6 +2300,8 @@ export class ProjectService extends BaseService {
                                         warehouseType:
                                             warehouseClient.credentials.type,
                                         warehouseExecutionTimeMs: durationMs,
+                                        columnsCount:
+                                            Object.keys(fieldsMap).length,
                                         totalRowCount: totalRows,
                                     },
                                 });
