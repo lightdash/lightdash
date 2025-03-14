@@ -159,7 +159,7 @@ export const getQueryPaginatedResults = async (
                 : 1;
 
         currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${page}`,
+            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${page}&pageSize=${data.pageSize}`,
             version: 'v2',
             method: 'GET',
             body: undefined,

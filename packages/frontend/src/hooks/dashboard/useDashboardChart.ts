@@ -127,7 +127,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 dashboardFilters: timezoneFixFilters,
                 dashboardSorts,
                 granularity,
-                // invalidateCache, // todo: update API to accept this
+                // invalidateCache, // todo: enable once API supports caching
             });
 
             const [explore, results] = await Promise.all([

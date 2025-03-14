@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    ApiPaginatedQueryResults,
+    ApiGetAsyncQueryResults,
     assertUnreachable,
     AuthorizationError,
     ChartType,
@@ -11,6 +11,7 @@ import {
     isDashboardSqlChartTile,
     LightdashPage,
     LightdashRequestMethodHeader,
+    QueryHistoryStatus,
     RequestMethod,
     ScreenshotError,
     SessionUser,
@@ -39,7 +40,7 @@ const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const legacyMetricQueryEndpointRegex = /\/runQuery/;
 const createQueryEndpointRegex = /\/query/;
-const paginatedQueryEndpointRegex = /\/query/; // TODO: once new endpoint is done. new RegExp(`/query/${uuid}`);
+const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
 const legacyChartAndResultsEndpointRegex =
     /\/saved\/[a-f0-9-]+\/chart-and-results/;
 const legacyChartResultsEndpointRegex = /\/saved\/[a-f0-9-]+\/results/;
@@ -148,10 +149,13 @@ export class UnfurlService extends BaseService {
                     const body = await response.body();
                     const json = JSON.parse(body.toString()) as {
                         status: 'ok';
-                        results: ApiPaginatedQueryResults;
+                        results: ApiGetAsyncQueryResults;
                     };
                     // Check if is last page (aka has no next page)
-                    if (!json.results.nextPage) {
+                    if (
+                        json.results.status === QueryHistoryStatus.READY &&
+                        !json.results.nextPage
+                    ) {
                         responseCount += 1;
                         if (responseCount === expectedResponses) {
                             page.off('response', responseHandler); // Clean up the listener
