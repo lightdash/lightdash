@@ -1,3 +1,10 @@
+# [0.1539.0](https://github.com/lightdash/lightdash/compare/0.1538.1...0.1539.0) (2025-03-14)
+
+
+### Features
+
+* split query endpoint ([#14050](https://github.com/lightdash/lightdash/issues/14050)) ([6246022](https://github.com/lightdash/lightdash/commit/624602245e1850f312f57502a8781bffdc62e843))
+
 ## [0.1538.1](https://github.com/lightdash/lightdash/compare/0.1538.0...0.1538.1) (2025-03-13)
 
 
