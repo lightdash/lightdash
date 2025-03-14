@@ -7,36 +7,27 @@ import {
     Switch,
     TextInput,
 } from '@mantine/core';
-
-import React, { type FC } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import {
-    hasNoWhiteSpaces,
-    isUppercase,
-    startWithHTTPSProtocol,
-} from '../../../utils/fieldValidators';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
+import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
+import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const { register } = useFormContext();
+    const form = useFormContext();
     return (
         <TextInput
+            name="warehouse.schema"
             label="Schema"
             description="This is the schema name."
             required
-            {...register('warehouse.schema', {
-                validate: {
-                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                },
-            })}
+            {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
         />
     );
@@ -47,37 +38,36 @@ const SnowflakeForm: FC<{
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
-    const { register } = useFormContext();
+    const form = useFormContext();
 
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
     );
+
+    const clientSessionKeepAliveField = form.getInputProps(
+        'warehouse.clientSessionKeepAlive',
+    );
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
                 <TextInput
+                    name="warehouse.account"
                     label="Account"
                     description="This is the account to connect to."
                     required
-                    {...register('warehouse.account', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Account'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.account')}
                     disabled={disabled}
                     labelProps={{ style: { marginTop: '8px' } }}
                 />
                 <TextInput
+                    name="warehouse.user"
                     label="User"
                     description="This is the database user name."
                     required={requireSecrets}
-                    {...register('warehouse.user', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.user')}
                     placeholder={
                         disabled || !requireSecrets
                             ? '**************'
@@ -86,6 +76,7 @@ const SnowflakeForm: FC<{
                     disabled={disabled}
                 />
                 <PasswordInput
+                    name="warehouse.password"
                     label="Password"
                     description="This is the database user password."
                     required={requireSecrets}
@@ -94,45 +85,35 @@ const SnowflakeForm: FC<{
                             ? '**************'
                             : undefined
                     }
-                    {...register('warehouse.password')}
+                    {...form.getInputProps('warehouse.password')}
                     disabled={disabled}
                 />
                 <TextInput
+                    name="warehouse.role"
                     label="Role"
                     description="This is the role to assume when running queries as the specified user."
-                    {...register('warehouse.role', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Role'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.role')}
                     disabled={disabled}
                 />
                 <TextInput
+                    name="warehouse.database"
                     label="Database"
                     description="This is the database name."
                     required
-                    {...register('warehouse.database', {
-                        validate: {
-                            isUppercase: isUppercase('Database'),
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.database')}
                     disabled={disabled}
                 />
                 <TextInput
+                    name="warehouse.warehouse"
                     label="Warehouse"
                     description="This is the warehouse name."
                     required
-                    {...register('warehouse.warehouse', {
-                        validate: {
-                            isUppercase: isUppercase('Warehouse'),
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Warehouse'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.warehouse')}
                     disabled={disabled}
                 />
                 <BooleanSwitch
                     name="warehouse.override"
+                    {...form.getInputProps('warehouse.override')}
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
                     label="Always use this warehouse"
                     disabled={disabled}
@@ -143,51 +124,57 @@ const SnowflakeForm: FC<{
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 label="Require users to provide their own credentials"
-                                defaultValue={false}
+                                defaultChecked={false}
                                 disabled={disabled}
+                                {...form.getInputProps(
+                                    'warehouse.requireUserCredentials',
+                                )}
                             />
                         )}
-                        <Controller
-                            name="warehouse.clientSessionKeepAlive"
-                            render={({ field }) => (
-                                <Switch.Group
-                                    label="Keep client session alive"
-                                    description={
-                                        <p>
-                                            This is intended to keep Snowflake
-                                            sessions alive beyond the typical 4
-                                            hour timeout limit You can see more
-                                            details in{' '}
-                                            <Anchor
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
-                                        </p>
-                                    }
-                                    value={field.value ? ['true'] : []}
-                                    onChange={(values) =>
-                                        field.onChange(values.length > 0)
-                                    }
-                                    size="md"
-                                >
-                                    <Group mt="xs">
-                                        <Switch
-                                            onLabel="Yes"
-                                            offLabel="No"
-                                            value="true"
-                                            disabled={disabled}
-                                        />
-                                    </Group>
-                                </Switch.Group>
-                            )}
-                        />
+
+                        <Switch.Group
+                            label="Keep client session alive"
+                            description={
+                                <p>
+                                    This is intended to keep Snowflake sessions
+                                    alive beyond the typical 4 hour timeout
+                                    limit You can see more details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            value={
+                                clientSessionKeepAliveField.value
+                                    ? ['true']
+                                    : []
+                            }
+                            onChange={(values) =>
+                                clientSessionKeepAliveField.onChange(
+                                    values.length > 0,
+                                )
+                            }
+                            size="md"
+                        >
+                            <Group mt="xs">
+                                <Switch
+                                    name="warehouse.clientSessionKeepAlive"
+                                    onLabel="Yes"
+                                    offLabel="No"
+                                    value="true"
+                                    disabled={disabled}
+                                />
+                            </Group>
+                        </Switch.Group>
 
                         <TextInput
-                            {...register('warehouse.queryTag')}
+                            name="warehouse.queryTag"
+                            {...form.getInputProps('warehouse.queryTag')}
                             label="Query tag"
                             description={
                                 <p>
@@ -205,7 +192,9 @@ const SnowflakeForm: FC<{
                             }
                             disabled={disabled}
                         />
+
                         <TextInput
+                            name="warehouse.accessUrl"
                             label="Snowflake URL override"
                             description={
                                 <p>
@@ -217,17 +206,7 @@ const SnowflakeForm: FC<{
                                 </p>
                             }
                             disabled={disabled}
-                            {...register('warehouse.accessUrl', {
-                                validate: {
-                                    startWithHTTPSProtocol:
-                                        startWithHTTPSProtocol(
-                                            'Snowflake URL override',
-                                        ),
-                                    hasNoWhiteSpaces: hasNoWhiteSpaces(
-                                        'Snowflake URL override',
-                                    ),
-                                },
-                            })}
+                            {...form.getInputProps('warehouse.accessUrl')}
                         />
                         <StartOfWeekSelect
                             disabled={disabled}
