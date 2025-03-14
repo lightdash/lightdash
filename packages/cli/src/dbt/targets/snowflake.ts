@@ -16,6 +16,7 @@ type SnowflakeTarget = {
     user: string;
     password?: string;
     private_key_path?: string;
+    private_key?: string;
     private_key_passphrase?: string;
     role?: string;
     database: string;
@@ -48,6 +49,10 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
             nullable: true,
         },
         private_key_path: {
+            type: 'string',
+            nullable: true,
+        },
+        private_key: {
             type: 'string',
             nullable: true,
         },
@@ -116,6 +121,9 @@ export const convertSnowflakeSchema = async (
                     `Cannot read keyfile for snowflake target at: ${keyfilePath}:\n  ${msg}`,
                 );
             }
+        }
+        if (target.private_key) {
+            privateKey = target.private_key;
         }
 
         return {
