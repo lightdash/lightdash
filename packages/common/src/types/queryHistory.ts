@@ -1,5 +1,5 @@
 import type { QueryExecutionContext } from './analytics';
-import type { PaginatedQueryRequestParams } from './api/paginatedQuery';
+import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import { WarehouseTypes } from './projects';
@@ -22,6 +22,13 @@ export function isBigQueryWarehouseQueryMetadata(
     return !!metadata && metadata.type === WarehouseTypes.BIGQUERY;
 }
 
+export enum QueryHistoryStatus {
+    PENDING = 'pending',
+    READY = 'ready',
+    ERROR = 'error',
+    CANCELLED = 'cancelled',
+}
+
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
@@ -31,11 +38,13 @@ export type QueryHistory = {
     warehouseQueryId: string | null;
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
     context: QueryExecutionContext;
-    defaultPageSize: number;
+    defaultPageSize: number | null;
     compiledSql: string;
-    warehouseExecutionTimeMs: number;
-    totalRowCount: number;
     metricQuery: MetricQuery;
     fields: ItemsMap;
-    requestParameters: PaginatedQueryRequestParams;
+    requestParameters: ExecuteAsyncQueryRequestParams;
+    status: QueryHistoryStatus;
+    totalRowCount: number | null;
+    warehouseExecutionTimeMs: number | null;
+    error: string | null;
 };

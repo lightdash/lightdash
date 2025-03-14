@@ -9,49 +9,35 @@ import {
     type SortField,
 } from '@lightdash/common';
 
-export type CommonPaginateArgs = ResultsPaginationArgs & {
+export type CommonAsyncQueryArgs = {
     user: SessionUser;
     projectUuid: string;
     invalidateCache?: boolean;
     context: QueryExecutionContext;
 };
 
-export type PaginateMetricQueryArgs = CommonPaginateArgs & {
-    metricQuery: MetricQuery;
-    dateZoomGranularity?: DateGranularity;
-};
-
-export type PaginateQueryUuidArgs = Omit<
-    CommonPaginateArgs,
+export type GetAsyncQueryResultsArgs = Omit<
+    CommonAsyncQueryArgs,
     'context' | 'invalidateCache'
-> & {
-    queryUuid: string;
+> &
+    ResultsPaginationArgs & {
+        queryUuid: string;
+    };
+
+export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
+    metricQuery: MetricQuery;
+    granularity?: DateGranularity;
 };
 
-export type PaginateSavedChartArgs = CommonPaginateArgs & {
+export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     versionUuid?: string;
 };
 
-export type PaginateDashboardChartArgs = CommonPaginateArgs & {
+export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
     granularity?: DateGranularity;
 };
-
-// TODO: Not including PaginateSavedChartArgs since it is the same as PaginateMetricQueryArgs after we get the chart from the db, in the future, this function will only take PaginateMetricQueryArgs, first we need queryId metadata
-export type PaginateQueryArgs = PaginateMetricQueryArgs | PaginateQueryUuidArgs;
-
-export function isPaginateQueryUuidArgs(
-    args: PaginateQueryArgs,
-): args is PaginateQueryUuidArgs {
-    return 'queryUuid' in args;
-}
-
-export function isPaginateMetricQueryArgs(
-    args: PaginateQueryArgs,
-): args is PaginateMetricQueryArgs {
-    return 'metricQuery' in args;
-}

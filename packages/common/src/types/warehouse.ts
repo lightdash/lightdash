@@ -53,24 +53,37 @@ export type WarehousePaginationArgs = {
     pageSize: number;
 };
 
-export type WarehousePaginateQueryArgs = WarehousePaginationArgs & {
+export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
     timezone?: string;
     values?: AnyType[];
-} & (
-        | { sql: string }
-        | { queryId: string; queryMetadata: WarehouseQueryMetadata | null }
-    );
+    sql: string;
+};
 
-export type WarehousePaginatedResults<
-    TFormattedRow extends Record<string, unknown>,
-> = {
-    fields: Record<string, { type: DimensionType }>;
+export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
+    queryMetadata: WarehouseQueryMetadata | null;
+    totalRows: number | null;
+    durationMs: number | null;
+};
+
+export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
+    WarehouseExecuteAsyncQueryArgs & {
+        queryId: string | null;
+        queryMetadata: WarehouseQueryMetadata | null;
+    };
+
+type WarehouseAsyncQueryCommonResults = {
+    queryId: string | null;
+};
+
+export type WarehouseGetAsyncQueryResults<
+    TFormattedRow extends Record<string, unknown>,
+> = WarehouseAsyncQueryCommonResults & {
+    fields: Record<string, { type: DimensionType }>;
     pageCount: number;
     totalRows: number;
     rows: TFormattedRow[];
-    warehouseQueryMetadata: WarehouseQueryMetadata | null;
 };
 
 export interface WarehouseClient {
@@ -93,10 +106,14 @@ export interface WarehouseClient {
         },
     ): Promise<void>;
 
-    getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
-        args: WarehousePaginateQueryArgs,
+    executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery>;
+
+    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        args: WarehouseGetAsyncQueryResultsArgs,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehousePaginatedResults<TFormattedRow>>;
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results

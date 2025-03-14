@@ -1,15 +1,21 @@
 import {
     type ApiChartAndResults,
     type ApiError,
-    type ApiPaginatedQueryResults,
+    type ApiExecuteAsyncQueryResults,
+    type ApiGetAsyncQueryResults,
     type ApiQueryResults,
+    assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncQueryRequestParams,
     FeatureFlags,
     type MetricQuery,
-    type PaginatedMetricQueryRequestParams,
     ParameterError,
     QueryExecutionContext,
+    QueryHistoryStatus,
+    type ResultRow,
+    sleep,
     type SortField,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -263,9 +269,9 @@ const getChartVersionResults = async (
  */
 const getQueryPaginatedResults = async (
     projectUuid: string,
-    data: PaginatedMetricQueryRequestParams,
+    data: ExecuteAsyncQueryRequestParams,
 ): Promise<ApiQueryResults & { queryUuid: string }> => {
-    const firstPage = await lightdashApi<ApiPaginatedQueryResults>({
+    const firstPage = await lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
         method: 'POST',
@@ -273,29 +279,70 @@ const getQueryPaginatedResults = async (
     });
 
     // Get all page rows in sequence
-    let allRows: ApiPaginatedQueryResults['rows'] = firstPage.rows;
-    let currentPage = firstPage;
-    while (currentPage.nextPage) {
-        currentPage = await lightdashApi<ApiPaginatedQueryResults>({
-            url: `/projects/${projectUuid}/query`,
+    let allRows: ResultRow[] = [];
+    let currentPage: ApiGetAsyncQueryResults | undefined;
+
+    while (
+        !currentPage ||
+        currentPage.status === QueryHistoryStatus.PENDING ||
+        (currentPage.status === QueryHistoryStatus.READY &&
+            currentPage.nextPage)
+    ) {
+        const page =
+            currentPage?.status === QueryHistoryStatus.READY
+                ? currentPage?.nextPage
+                : 1;
+
+        currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
+            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${page}`,
             version: 'v2',
-            method: 'POST',
-            body: JSON.stringify({
-                queryUuid: firstPage.queryUuid,
-                page: currentPage.nextPage,
-            }),
+            method: 'GET',
+            body: undefined,
         });
-        allRows = allRows.concat(currentPage.rows);
+
+        const { status } = currentPage;
+
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+                throw <ApiError>{
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: 'Query cancelled',
+                        data: {},
+                    },
+                };
+            case QueryHistoryStatus.ERROR:
+                throw <ApiError>{
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: currentPage.error ?? 'Query failed',
+                        data: {},
+                    },
+                };
+            case QueryHistoryStatus.READY:
+                allRows = allRows.concat(currentPage.rows);
+                break;
+            case QueryHistoryStatus.PENDING:
+                await sleep(200);
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
     }
+
     return {
-        queryUuid: firstPage.queryUuid,
-        metricQuery: firstPage.metricQuery,
+        queryUuid: currentPage.queryUuid,
+        metricQuery: currentPage.metricQuery,
         cacheMetadata: {
             // todo: to be replaced once we have save query metadata in the DB
             cacheHit: false,
         },
         rows: allRows,
-        fields: firstPage.fields,
+        fields: currentPage.fields,
     };
 };
 
@@ -320,7 +367,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                 return getChartResults(data);
             } else if (data?.query) {
                 if (queryPaginationEnabled) {
-                    const queryWithOverrides: PaginatedMetricQueryRequestParams =
+                    const queryWithOverrides: ExecuteAsyncMetricQueryRequestParams =
                         {
                             context: QueryExecutionContext.EXPLORE,
                             query: {
