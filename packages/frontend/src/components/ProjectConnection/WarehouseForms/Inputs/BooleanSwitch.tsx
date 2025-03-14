@@ -1,4 +1,11 @@
-import { Group, Stack, Switch, Text, type SwitchProps } from '@mantine/core';
+import {
+    Group,
+    Input,
+    Stack,
+    Switch,
+    Text,
+    type SwitchProps,
+} from '@mantine/core';
 import { type FC } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { type FormInputProps } from '../../formContext';
@@ -12,6 +19,7 @@ const BooleanSwitch: FC<BooleanSwitchProps> = ({
     label,
     className,
     required,
+    description,
     ...rest
 }) => {
     const requiredLabel = required ? '*' : '';
@@ -27,7 +35,9 @@ const BooleanSwitch: FC<BooleanSwitchProps> = ({
                     <DocumentationHelpButton href={documentationUrl} />
                 )}
             </Group>
-
+            {description && (
+                <Input.Description mb="10px">{description}</Input.Description>
+            )}
             <Switch {...rest} required={required} />
         </Stack>
     );
