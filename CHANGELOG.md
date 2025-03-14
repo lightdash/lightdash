@@ -1,3 +1,10 @@
+# [0.1541.0](https://github.com/lightdash/lightdash/compare/0.1540.0...0.1541.0) (2025-03-14)
+
+
+### Features
+
+* improve on-hover of metric detail  ([#14073](https://github.com/lightdash/lightdash/issues/14073)) ([e9972e9](https://github.com/lightdash/lightdash/commit/e9972e997c9fa43bebdce4a8b00e53e94374d979))
+
 # [0.1540.0](https://github.com/lightdash/lightdash/compare/0.1539.1...0.1540.0) (2025-03-14)
 
 
