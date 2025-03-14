@@ -940,6 +940,10 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
+    appearance: {
+        defaultColorPalette: string[] | undefined;
+        defaultColorPaletteName: string | undefined;
+    };
 };
 
 export enum DBFieldTypes {
