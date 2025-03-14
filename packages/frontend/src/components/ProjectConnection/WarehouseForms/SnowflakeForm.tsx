@@ -59,7 +59,9 @@ const SnowflakeForm: FC<{
     const authenticationType: string = useWatch({
         name: 'warehouse.authentication_type',
         defaultValue:
-            savedProject?.warehouseConnection?.authenticationType ||
+            (savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.SNOWFLAKE &&
+                savedProject?.warehouseConnection?.authenticationType) ||
             'private_key',
     });
     const [temporaryFile, setTemporaryFile] = useState<File>();
