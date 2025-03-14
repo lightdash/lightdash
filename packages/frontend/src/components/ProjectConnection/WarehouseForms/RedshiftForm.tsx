@@ -24,6 +24,7 @@ import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { RedshiftDefaultValues } from './defaults';
 import { useCreateSshKeyPair } from './sshHooks';
 
 export const RedshiftSchemaInput: FC<{
@@ -79,9 +80,6 @@ const RedshiftForm: FC<{
         FeatureFlags.PassthroughLogin,
     );
 
-    const ra3NodeField = form.getInputProps('warehouse.ra3Node');
-    const useSshTunnelField = form.getInputProps('warehouse.useSshTunnel');
-
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -134,18 +132,20 @@ const RedshiftForm: FC<{
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 label="Require users to provide their own credentials"
-                                defaultChecked={false}
-                                disabled={disabled}
                                 {...form.getInputProps(
                                     'warehouse.requireUserCredentials',
                                     { type: 'checkbox' },
                                 )}
+                                defaultChecked={
+                                    RedshiftDefaultValues.requireUserCredentials
+                                }
+                                disabled={disabled}
                             />
                         )}
 
                         <NumberInput
                             name="warehouse.port"
-                            defaultValue={5439}
+                            defaultValue={RedshiftDefaultValues.port}
                             {...form.getInputProps('warehouse.port')}
                             label="Port"
                             description="This is the port where the database is running."
@@ -156,7 +156,7 @@ const RedshiftForm: FC<{
                         <NumberInput
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
-                            defaultValue={0}
+                            defaultValue={RedshiftDefaultValues.keepalivesIdle}
                             label="Keep alive idle (seconds)"
                             description={
                                 <p>
@@ -181,7 +181,7 @@ const RedshiftForm: FC<{
                         <Select
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
-                            defaultValue="prefer"
+                            defaultValue={RedshiftDefaultValues.sslmode}
                             label="SSL mode"
                             description={
                                 <p>
@@ -210,32 +210,23 @@ const RedshiftForm: FC<{
                             disabled={disabled}
                         />
 
-                        <Switch.Group
+                        <BooleanSwitch
+                            name="warehouse.ra3Node"
                             label="Use RA3 node"
                             description="Allow dbt to use cross-database-resources."
-                            value={ra3NodeField.value ? ['true'] : []}
-                            onChange={(values) =>
-                                ra3NodeField.onChange(values.length > 0)
-                            }
-                            size="md"
-                        >
-                            <Group mt="xs">
-                                <Switch
-                                    name="warehouse.ra3Node"
-                                    onLabel="Yes"
-                                    offLabel="No"
-                                    value="true"
-                                    disabled={disabled}
-                                />
-                            </Group>
-                        </Switch.Group>
+                            {...form.getInputProps('warehouse.ra3Node', {
+                                type: 'checkbox',
+                            })}
+                            onLabel="Yes"
+                            offLabel="No"
+                        />
 
                         <StartOfWeekSelect disabled={disabled} />
 
                         <NumberInput
                             name="warehouse.timeoutSeconds"
                             {...form.getInputProps('warehouse.timeoutSeconds')}
-                            defaultValue={300}
+                            defaultValue={RedshiftDefaultValues.timeoutSeconds}
                             label="Timeout in seconds"
                             description={
                                 <p>
@@ -247,24 +238,17 @@ const RedshiftForm: FC<{
                             disabled={disabled}
                         />
 
-                        <Switch.Group
+                        <BooleanSwitch
+                            name="warehouse.useSshTunnel"
                             label="Use SSH tunnel"
-                            value={useSshTunnelField.value ? ['true'] : []}
-                            onChange={(values) =>
-                                useSshTunnelField.onChange(values.length > 0)
-                            }
-                            size="md"
-                        >
-                            <Group mt="xs">
-                                <Switch
-                                    name="warehouse.useSshTunnel"
-                                    onLabel="Yes"
-                                    offLabel="No"
-                                    value="true"
-                                    disabled={disabled}
-                                />
-                            </Group>
-                        </Switch.Group>
+                            description="Use SSH tunnel to connect to the database."
+                            {...form.getInputProps('warehouse.useSshTunnel', {
+                                type: 'checkbox',
+                            })}
+                            onLabel="Yes"
+                            offLabel="No"
+                            defaultChecked={RedshiftDefaultValues.useSshTunnel}
+                        />
 
                         <FormSection
                             isOpen={showSshTunnelConfiguration}

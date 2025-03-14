@@ -4,6 +4,7 @@ import type {
     CreateBigqueryCredentials,
     CreateDatabricksCredentials,
     CreatePostgresCredentials,
+    CreateRedshiftCredentials,
 } from '@lightdash/common';
 
 export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
@@ -58,10 +59,30 @@ export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
     sshTunnelPublicKey: '',
 } as const;
 
+export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
+    type: WarehouseTypes.REDSHIFT,
+    schema: '',
+    host: '',
+    user: '',
+    password: '',
+    dbname: '',
+    requireUserCredentials: false,
+    port: 5439,
+    keepalivesIdle: 0,
+    sslmode: 'prefer',
+    ra3Node: true, // confirm
+    timeoutSeconds: 300,
+    useSshTunnel: false, // confirm
+    sshTunnelHost: '',
+    sshTunnelPort: 22,
+    sshTunnelUser: '',
+    sshTunnelPublicKey: '',
+} as const;
+
 export const WarehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
-    // [WarehouseTypes.REDSHIFT]: RedshiftDefaultValues,
+    [WarehouseTypes.REDSHIFT]: RedshiftDefaultValues,
     // [WarehouseTypes.SNOWFLAKE]: SnowflakeDefaultValues,
     [WarehouseTypes.DATABRICKS]: DatabricksDefaultValues,
     // [WarehouseTypes.TRINO]: TrinoDefaultValues,
