@@ -414,6 +414,16 @@ export class NotImplementedError extends LightdashError {
         });
     }
 }
+export class NotSupportedError extends LightdashError {
+    constructor(message = 'Not supported') {
+        super({
+            message,
+            name: 'NotSupportedError',
+            statusCode: 501,
+            data: {},
+        });
+    }
+}
 export const getErrorMessage = (e: unknown) =>
     e instanceof Error ? e.message : `Unknown ${typeof e} error`;
 
