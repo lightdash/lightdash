@@ -15062,11 +15062,19 @@
             },
             "ApiExecuteAsyncQueryResults": {
                 "properties": {
+                    "appliedDashboardFilters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "queryUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["queryUuid"],
+                "required": ["appliedDashboardFilters", "queryUuid"],
                 "type": "object"
             },
             "ApiExecuteAsyncQueryResponse": {
@@ -15715,7 +15723,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1537.3",
+        "version": "0.1538.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
