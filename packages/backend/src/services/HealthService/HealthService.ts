@@ -144,6 +144,14 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
                 this.lightdashConfig.resultsCache.autocompleteEnabled || false,
+            appearance: {
+                defaultColorPalette:
+                    this.lightdashConfig.appearance.defaultColorPalette,
+                defaultColorPaletteName: this.lightdashConfig.appearance
+                    .defaultColorPaletteName
+                    ? this.lightdashConfig.appearance.defaultColorPaletteName
+                    : undefined,
+            },
         };
     }
 
