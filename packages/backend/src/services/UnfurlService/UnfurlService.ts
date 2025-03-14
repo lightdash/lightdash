@@ -610,7 +610,20 @@ export class UnfurlService extends BaseService {
                                             responseUrl,
                                         )
                                     ) {
-                                        // todo: for paginated results check status error
+                                        const json = JSON.parse(
+                                            buffer.toString(),
+                                        ) as {
+                                            status: 'ok';
+                                            results: ApiGetAsyncQueryResults;
+                                        };
+                                        if (
+                                            json.results.status ===
+                                            QueryHistoryStatus.ERROR
+                                        ) {
+                                            this.logger.error(
+                                                `Headless browser response error while fetching paginated results - url: ${responseUrl}, text: ${json.results.error}`,
+                                            );
+                                        }
                                     }
                                 },
                                 (error) => {
