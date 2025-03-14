@@ -304,9 +304,25 @@ const getQueryPaginatedResults = async (
 
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
-                throw new Error('Query cancelled');
+                throw <ApiError>{
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: 'Query cancelled',
+                        data: {},
+                    },
+                };
             case QueryHistoryStatus.ERROR:
-                throw new Error(currentPage.error || 'Query failed');
+                throw <ApiError>{
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: currentPage.error ?? 'Query failed',
+                        data: {},
+                    },
+                };
             case QueryHistoryStatus.READY:
                 allRows = allRows.concat(currentPage.rows);
                 break;
