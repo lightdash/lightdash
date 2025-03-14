@@ -1,9 +1,9 @@
 import {
     friendlyName,
     isDateFilterRule,
+    isWithValueFilter,
     type CompiledMetric,
 } from '@lightdash/common';
-import { isWithValueFilter } from '@lightdash/common/src';
 import {
     Anchor,
     Badge,

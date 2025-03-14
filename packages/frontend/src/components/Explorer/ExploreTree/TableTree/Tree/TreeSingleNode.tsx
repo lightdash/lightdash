@@ -1,6 +1,7 @@
 import {
     getItemId,
     isAdditionalMetric,
+    isCompiledMetric,
     isCustomDimension,
     isDimension,
     isField,
@@ -12,7 +13,6 @@ import {
     type AdditionalMetric,
     type Item,
 } from '@lightdash/common';
-import { isCompiledMetric } from '@lightdash/common/src';
 import {
     ActionIcon,
     Group,
