@@ -157,9 +157,19 @@ export const getQueryPaginatedResults = async (
             currentPage?.status === QueryHistoryStatus.READY
                 ? currentPage?.nextPage
                 : 1;
+        const searchParams = new URLSearchParams();
+        if (page) {
+            searchParams.set('page', page.toString());
+        }
+        if (data.pageSize) {
+            searchParams.set('pageSize', data.pageSize.toString());
+        }
 
+        const urlQueryParams = searchParams.toString();
         currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}?page=${page}&pageSize=${data.pageSize}`,
+            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}${
+                urlQueryParams ? `?${urlQueryParams}` : ''
+            }`,
             version: 'v2',
             method: 'GET',
             body: undefined,
