@@ -166,9 +166,12 @@ export const ItemDetailPreview: FC<{
                                     compact
                                     variant="subtle"
                                     color="gray"
-                                    onClick={() =>
-                                        setShowCompiled(!showCompiled)
-                                    }
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.stopPropagation();
+                                        setShowCompiled(!showCompiled);
+                                    }}
                                     size="xs"
                                     leftIcon={<MantineIcon icon={IconCode} />}
                                 >
@@ -178,7 +181,7 @@ export const ItemDetailPreview: FC<{
                                 </Button>
                             </Tooltip>
                         </Group>
-                        <Code style={{ flex: 1 }}>
+                        <Code maw={400}>
                             {showCompiled
                                 ? metricInfo.compiledSql
                                 : metricInfo.sql}
