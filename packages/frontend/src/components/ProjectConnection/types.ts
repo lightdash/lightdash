@@ -12,13 +12,18 @@ export type ProjectConnectionForm = {
 };
 
 /**
- * BigQueryForm 'warehouse.project' hasNoWhiteSpaces('Project')
- * 'warehouse.location', {
-        validate: {
-            hasNoWhiteSpaces: hasNoWhiteSpaces('Location'),
-        },
-        setValueAs: (value) =>
-            value === '' ? undefined : value,
-    }
-        
+ * BigQueryForm
+ * 'warehouse.project' hasNoWhiteSpaces
+ * 'warehouse.location' hasNoWhiteSpaces
+
+ * PG
+ *  'warehouse.schema' hasNoWhiteSpaces
+ *  'warehouse.host' hasNoWhiteSpaces
+ *  'warehouse.user' hasNoWhiteSpaces
+ * 
+ * Databricks
+ *  'warehouse.database' hasNoWhiteSpaces
+ *  'warehouse.serverHostName' hasNoWhiteSpaces
+ *  'warehouse.httpPath' hasNoWhiteSpaces
+ *  'warehouse.catalog' hasNoWhiteSpaces
  */
