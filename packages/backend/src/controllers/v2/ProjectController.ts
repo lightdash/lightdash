@@ -119,7 +119,7 @@ export class V2ProjectController extends BaseController {
                 .executeAsyncMetricQuery({
                     ...commonArgs,
                     metricQuery,
-                    context: context ?? QueryExecutionContext.EXPLORE,
+                    context: context ?? QueryExecutionContext.API,
                     granularity: body.query.granularity,
                 });
 
@@ -136,7 +136,7 @@ export class V2ProjectController extends BaseController {
                     ...commonArgs,
                     chartUuid: body.chartUuid,
                     versionUuid: body.versionUuid,
-                    context: context ?? QueryExecutionContext.CHART,
+                    context: context ?? QueryExecutionContext.API,
                 });
 
             return {
@@ -155,7 +155,7 @@ export class V2ProjectController extends BaseController {
                     dashboardFilters: body.dashboardFilters,
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
-                    context: context ?? QueryExecutionContext.DASHBOARD,
+                    context: context ?? QueryExecutionContext.API,
                 });
 
             return {

@@ -45,6 +45,7 @@ export enum QueryExecutionContext {
     EXPLORE = 'exploreView',
     FILTER_AUTOCOMPLETE = 'filterAutocomplete',
     CHART = 'chartView',
+    CHART_HISTORY = 'chartHistory',
     SQL_CHART = 'sqlChartView',
     SQL_RUNNER = 'sqlRunner',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',

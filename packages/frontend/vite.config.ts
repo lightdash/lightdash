@@ -140,6 +140,9 @@ export default defineConfig({
         hmr: {
             overlay: true,
         },
+        allowedHosts: [
+            'lightdash-dev', // for local development with docker
+        ],
         proxy: {
             '/api': {
                 target: 'http://localhost:8080',
