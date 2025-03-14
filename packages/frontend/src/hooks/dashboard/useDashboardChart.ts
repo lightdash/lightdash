@@ -58,7 +58,6 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
     const queryPaginationEnabled = useFeatureFlagEnabled(
         FeatureFlags.QueryPagination,
     );
-    console.log('queryPaginationEnabled 1', queryPaginationEnabled);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
