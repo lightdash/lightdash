@@ -76,7 +76,11 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
         if (isCompiledMetric(item)) {
             return {
                 type: item.type,
-                sql: item.compiledSql,
+                sql: item.sql,
+                compiledSql: item.compiledSql,
+                filters: item.filters,
+                table: item.table,
+                name: item.name,
             };
         }
         return undefined;
@@ -202,7 +206,7 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
                         position="right"
                         radius="md"
                         /** Ensures the hover card does not overlap with the right-hand menu. */
-                        offset={80}
+                        offset={70}
                     >
                         <HoverCard.Target>
                             <Highlight
@@ -217,6 +221,11 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
                         <HoverCard.Dropdown
                             hidden={!isHover}
                             p="xs"
+                            miw={400}
+                            mah={500}
+                            sx={{
+                                overflow: 'auto',
+                            }}
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
                              * of readability.
