@@ -39,6 +39,7 @@ const useDashboardStorage = () => {
         return {
             name: sessionStorage.getItem('fromDashboard'),
             dashboardUuid: sessionStorage.getItem('dashboardUuid'),
+            activeTabUuid: sessionStorage.getItem('activeTabUuid'),
         };
     }, []);
 
