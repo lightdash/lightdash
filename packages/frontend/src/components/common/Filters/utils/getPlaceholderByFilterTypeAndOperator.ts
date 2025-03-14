@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     FilterOperator,
     FilterType,
+    NotImplementedError,
 } from '@lightdash/common';
 
 export const getPlaceholderByFilterTypeAndOperator = ({
@@ -75,7 +76,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                 case FilterOperator.NOT_IN_BETWEEN:
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError(
+                        `Filter type ${type} with operator ${operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }
@@ -106,7 +109,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.NOT_IN_BETWEEN:
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError(
+                        `Filter type ${type} with operator ${operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }
@@ -133,7 +138,9 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                 case FilterOperator.NOT_IN_BETWEEN:
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError(
+                        `Filter type ${type} with operator ${operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }
