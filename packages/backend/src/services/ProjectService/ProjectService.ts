@@ -3941,6 +3941,9 @@ export class ProjectService extends BaseService {
         const { organizationUuid, type } = await this.projectModel.getSummary(
             projectUuid,
         );
+
+        const project = await this.projectModel.get(projectUuid);
+
         if (
             !skipPermissionCheck &&
             (user.ability.cannot(
@@ -3954,7 +3957,9 @@ export class ProjectService extends BaseService {
                         projectUuid,
                         type,
                     }),
-                ))
+                ) ||
+                // match the settings used to display the Refresh button on the FE
+                project.dbtConnection.hideRefreshButton)
         ) {
             throw new ForbiddenError();
         }

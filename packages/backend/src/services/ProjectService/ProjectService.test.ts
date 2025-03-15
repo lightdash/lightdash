@@ -1,5 +1,8 @@
+import { Ability } from '@casl/ability';
 import {
     ConditionalOperator,
+    DbtCloudIDEProjectConfig,
+    DbtProjectType,
     DEFAULT_RESULTS_PAGE_SIZE,
     defineUserAbility,
     FieldType,
@@ -7,7 +10,9 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    PossibleAbilities,
     QueryExecutionContext,
+    RequestMethod,
     SessionUser,
     type ItemsMap,
 } from '@lightdash/common';
@@ -26,6 +31,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { projectMock } from '../../models/ProjectModel/ProjectModel.mock';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -547,6 +553,41 @@ describe('ProjectService', () => {
                     pageSize: DEFAULT_RESULTS_PAGE_SIZE,
                 }),
                 expect.any(Function),
+            );
+        });
+    });
+    describe('scheduleCompileProject', () => {
+        test('should forbid if dbtConnection.hideRefreshButton is true', async () => {
+            // Given
+            const adminUser: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Job', action: ['create'] },
+                    { subject: 'CompileProject', action: ['manage'] },
+                ]),
+            };
+
+            (projectModel.get as jest.Mock).mockImplementationOnce(
+                async () => ({
+                    ...projectMock,
+                    dbtConnection: {
+                        type: DbtProjectType.DBT_CLOUD_IDE,
+                        api_key: 'my api key',
+                        environment_id: 'environment_id',
+                        hideRefreshButton: true,
+                    } satisfies DbtCloudIDEProjectConfig,
+                }),
+            );
+
+            // When+Then
+            await expect(
+                service.scheduleCompileProject(
+                    adminUser,
+                    projectUuid,
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrowError(
+                "You don't have access to this resource or action",
             );
         });
     });

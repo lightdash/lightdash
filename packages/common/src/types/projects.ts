@@ -204,6 +204,7 @@ export type CreatePostgresLikeCredentials =
 
 export interface DbtProjectConfigBase {
     type: DbtProjectType;
+    hideRefreshButton?: boolean;
 }
 
 export type DbtProjectEnvironmentVariable = {
