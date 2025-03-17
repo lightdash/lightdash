@@ -629,7 +629,7 @@ describe('Create projects', () => {
         });
     });
 
-    it.only('Should create a Snowflake project', () => {
+    it('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
 
         cy.get('[role="button"').contains('Snowflake').click();
