@@ -14282,6 +14282,7 @@ const models: TsoaRoute.Models = {
             'exploreView',
             'filterAutocomplete',
             'chartView',
+            'chartHistory',
             'sqlChartView',
             'sqlRunner',
             'viewUnderlyingData',
