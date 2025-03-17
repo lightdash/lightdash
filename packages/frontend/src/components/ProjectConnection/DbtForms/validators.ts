@@ -71,6 +71,15 @@ export const dbtFormValidators = {
     },
     [DbtProjectType.AZURE_DEVOPS]: {
         selector: selectorValidator,
+        organization: hasNoWhiteSpaces('Organization'),
+        project: hasNoWhiteSpaces('Project'),
+        repository: hasNoWhiteSpaces('Repository'),
+        branch: hasNoWhiteSpaces('Branch'),
+        project_sub_path: everyValidator(
+            'Project directory path',
+            hasNoWhiteSpaces,
+            startWithSlash,
+        ),
     },
     [DbtProjectType.NONE]: {},
 } as const;

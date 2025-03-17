@@ -44,6 +44,12 @@ export const azureDevopsDefaultValues = {
     target: '',
     environment: [],
     selector: '',
+    personal_access_token: '',
+    organization: '',
+    project: '',
+    repository: '',
+    branch: 'main',
+    project_sub_path: '/',
 } as const;
 
 export const dbtCloudIdeDefaultValues = {
