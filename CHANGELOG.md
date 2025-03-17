@@ -1,3 +1,10 @@
+# [0.1542.0](https://github.com/lightdash/lightdash/compare/0.1541.0...0.1542.0) (2025-03-17)
+
+
+### Features
+
+* load paginated results for charts and dashboards ([#14079](https://github.com/lightdash/lightdash/issues/14079)) ([fd85348](https://github.com/lightdash/lightdash/commit/fd85348eb05bae64018dbb9dd2d106216c6d28ed))
+
 # [0.1541.0](https://github.com/lightdash/lightdash/compare/0.1540.0...0.1541.0) (2025-03-14)
 
 
