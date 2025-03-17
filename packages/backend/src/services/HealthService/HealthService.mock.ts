@@ -82,6 +82,10 @@ export const BaseResponse: HealthState = {
         profilesSampleRate: 0,
     },
     hasCacheAutocompleResults: false,
+    appearance: {
+        overrideColorPalette: undefined,
+        overrideColorPaletteName: undefined,
+    },
 };
 
 export const userMock = {
