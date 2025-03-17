@@ -29,7 +29,7 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
-        "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='(.*/__mocks__/.*|src/sdk/*)'",
+        "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='(.*/__mocks__/.*|src/sdk/*|src/stories/.*)'",
         "storybook": "storybook dev -p 6006",
         "build-storybook": "storybook build"
     },
