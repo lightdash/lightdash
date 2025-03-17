@@ -16,7 +16,7 @@ import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
-import { TrinoDefaultValues } from './defaults';
+import { TrinoDefaultValues } from './defaultValues';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
@@ -103,7 +103,9 @@ const TrinoForm: FC<{
                                     'warehouse.requireUserCredentials',
                                     { type: 'checkbox' },
                                 )}
-                                defaultChecked={false}
+                                defaultChecked={
+                                    TrinoDefaultValues.requireUserCredentials
+                                }
                                 disabled={disabled}
                             />
                         )}

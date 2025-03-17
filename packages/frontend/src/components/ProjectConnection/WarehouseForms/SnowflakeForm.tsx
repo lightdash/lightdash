@@ -9,7 +9,7 @@ import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
-import { SnowflakeDefaultValues } from './defaults';
+import { SnowflakeDefaultValues } from './defaultValues';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;

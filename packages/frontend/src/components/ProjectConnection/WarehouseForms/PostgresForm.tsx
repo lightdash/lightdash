@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { useEffect, type FC } from 'react';
+import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
@@ -23,7 +23,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import CertificateFileInput from './Inputs/CertificateFileInput';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
-import { PostgresDefaultValues } from './defaults';
+import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 
 export const PostgresSchemaInput: FC<{

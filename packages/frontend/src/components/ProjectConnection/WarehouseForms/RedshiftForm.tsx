@@ -4,12 +4,10 @@ import {
     Anchor,
     Button,
     CopyButton,
-    Group,
     NumberInput,
     PasswordInput,
     Select,
     Stack,
-    Switch,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -24,7 +22,7 @@ import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
-import { RedshiftDefaultValues } from './defaults';
+import { RedshiftDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 
 export const RedshiftSchemaInput: FC<{

@@ -21,7 +21,7 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import { type ProjectConnectionForm } from './types';
-import { WarehouseDefaultValues } from './WarehouseForms/defaults';
+import { WarehouseDefaultValues } from './WarehouseForms/defaultValues';
 
 const UpdateProjectConnection: FC<{
     projectUuid: string;

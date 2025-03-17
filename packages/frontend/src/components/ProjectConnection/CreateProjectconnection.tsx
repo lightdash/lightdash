@@ -19,7 +19,7 @@ import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
-import { WarehouseDefaultValues } from './WarehouseForms/defaults';
+import { WarehouseDefaultValues } from './WarehouseForms/defaultValues';
 
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
