@@ -26,7 +26,7 @@ import { EditPaletteModal } from './EditPaletteModal';
 type PaletteItemProps = {
     palette: Omit<OrganizationColorPalette, 'name'> & { name: string };
     isActive: boolean;
-    onSetActive: ((uuid: string) => void) | undefined;
+    onSetActive?: ((uuid: string) => void) | undefined;
     readOnly?: boolean;
 };
 

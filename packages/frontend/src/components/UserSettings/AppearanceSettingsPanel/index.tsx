@@ -90,7 +90,7 @@ const AppearanceColorSettings: FC = () => {
                                     }}
                                     isActive={true}
                                     readOnly
-                                    onSetActive={handleSetActive}
+                                    onSetActive={undefined}
                                 />
                             )}
                         {palettes.map((palette) => (
