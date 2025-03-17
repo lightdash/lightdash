@@ -68,12 +68,7 @@ const UpdateProjectConnection: FC<{
         warehouse: warehouseConnection,
         dbtVersion,
     }: ProjectConnectionForm) => {
-        console.log('onSubmit', {
-            name,
-            dbtConnection,
-            warehouseConnection,
-            dbtVersion,
-        });
+        console.log('onSubmit', warehouseConnection);
 
         if (user.data) {
             track({

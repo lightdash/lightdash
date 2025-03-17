@@ -7,11 +7,10 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
-import { useEffect, useState, type ChangeEvent, type FC } from 'react';
+import { useState, type ChangeEvent, type FC } from 'react';
 import { useToggle } from 'react-use';
-import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move
-import Input from '../../ReactHookForm/Input'; // TODO :: move
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
@@ -20,11 +19,14 @@ import { BigQueryDefaultValues } from './defaults';
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const form = useFormContext();
+
     return (
-        <Input
+        <TextInput
             name="warehouse.dataset"
+            {...form.getInputProps('warehouse.dataset')}
             label="Data set"
-            labelHelp={
+            description={
                 <p>
                     This is the name of your dbt dataset: the dataset in your
                     warehouse where the output of your dbt models is written to.
@@ -39,15 +41,10 @@ export const BigQuerySchemaInput: FC<{
                         you've set in your dbt <b>profiles.yml</b> file
                     </Anchor>
                     .
+                    <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set" />
                 </p>
             }
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
-            rules={{
-                required: 'Required field',
-                validate: {
-                    hasNoWhiteSpaces: hasNoWhiteSpaces('Data set'),
-                },
-            }}
+            required
             disabled={disabled}
         />
     );
@@ -72,13 +69,6 @@ const BigQueryForm: FC<{
         (e: ChangeEvent<HTMLInputElement>) => {
             onChange(e.target.value === '' ? undefined : e.target.value);
         };
-
-    console.log(
-        'err',
-        form.errors,
-        form.getInputProps('warehouse.keyfileContents', { withError: true })
-            .error,
-    );
 
     return (
         <>
@@ -154,7 +144,7 @@ const BigQueryForm: FC<{
                         const fileReader = new FileReader();
                         fileReader.onload = function (event) {
                             const contents = event.target?.result;
-                            console.log('contents', contents);
+
                             if (typeof contents === 'string') {
                                 try {
                                     setTemporaryFile(file);

@@ -50,7 +50,6 @@ const CertificateFileInput: FC<
                         const fileReader = new FileReader();
                         fileReader.onload = function (event) {
                             const contents = event.target?.result;
-                            console.log('contents', contents);
                             if (typeof contents === 'string') {
                                 setTemporaryFile(file);
                                 form.setFieldValue(name, contents);
