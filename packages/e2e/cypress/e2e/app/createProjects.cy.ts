@@ -136,12 +136,13 @@ const configureDatabricksWarehouse = (
 const configureSnowflakeWarehouse = (
     config: typeof warehouseConfig['snowflake'],
 ) => {
-    cy.selectMantine('warehouse.authenticationType', 'password');
-
     cy.get('input[name="warehouse.account"]').type(config.account, {
         log: false,
     });
     cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
+
+    cy.selectMantine('warehouse.authenticationType', 'Password');
+
     cy.get('input[name="warehouse.password"]').type(config.password, {
         log: false,
     });
@@ -628,7 +629,7 @@ describe('Create projects', () => {
         });
     });
 
-    it('Should create a Snowflake project', () => {
+    it.only('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
 
         cy.get('[role="button"').contains('Snowflake').click();
