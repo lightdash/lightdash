@@ -225,14 +225,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     );
                                     if (tab) {
                                         setActiveTab(tab);
-                                    }
-                                    if (!isEditMode) {
                                         const newParams = new URLSearchParams(
                                             search,
                                         );
                                         void navigate(
                                             {
-                                                pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                                                pathname: isEditMode
+                                                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                                                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
                                                 search: newParams.toString(),
                                             },
                                             { replace: true },
