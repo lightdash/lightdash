@@ -5,6 +5,7 @@ import type {
     CreateDatabricksCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
+    CreateSnowflakeCredentials,
 } from '@lightdash/common';
 
 export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
@@ -30,6 +31,7 @@ export const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
     personalAccessToken: '',
     catalog: '',
     compute: [],
+    startOfWeek: null,
 } as const;
 
 export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
@@ -57,6 +59,7 @@ export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
     sshTunnelPort: 22,
     sshTunnelUser: '',
     sshTunnelPublicKey: '',
+    startOfWeek: null,
 } as const;
 
 export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
@@ -77,13 +80,31 @@ export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
     sshTunnelPort: 22,
     sshTunnelUser: '',
     sshTunnelPublicKey: '',
+    startOfWeek: null,
+} as const;
+
+export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
+    type: WarehouseTypes.SNOWFLAKE,
+    schema: '',
+    account: '',
+    user: '',
+    password: '',
+    role: '',
+    database: '',
+    warehouse: '',
+    override: false,
+    requireUserCredentials: false,
+    clientSessionKeepAlive: false, // confirm
+    queryTag: '',
+    accessUrl: '',
+    startOfWeek: null,
 } as const;
 
 export const WarehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
     [WarehouseTypes.REDSHIFT]: RedshiftDefaultValues,
-    // [WarehouseTypes.SNOWFLAKE]: SnowflakeDefaultValues,
+    [WarehouseTypes.SNOWFLAKE]: SnowflakeDefaultValues,
     [WarehouseTypes.DATABRICKS]: DatabricksDefaultValues,
     // [WarehouseTypes.TRINO]: TrinoDefaultValues,
 } as const;

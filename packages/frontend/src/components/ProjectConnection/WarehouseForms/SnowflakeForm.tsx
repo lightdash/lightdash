@@ -1,12 +1,5 @@
 import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
-import {
-    Anchor,
-    Group,
-    PasswordInput,
-    Stack,
-    Switch,
-    TextInput,
-} from '@mantine/core';
+import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
@@ -16,6 +9,7 @@ import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { SnowflakeDefaultValues } from './defaults';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
@@ -44,10 +38,6 @@ const SnowflakeForm: FC<{
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
-    );
-
-    const clientSessionKeepAliveField = form.getInputProps(
-        'warehouse.clientSessionKeepAlive',
     );
 
     return (
@@ -118,6 +108,8 @@ const SnowflakeForm: FC<{
                     })}
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
                     label="Always use this warehouse"
+                    onLabel="Yes"
+                    offLabel="No"
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
@@ -126,7 +118,9 @@ const SnowflakeForm: FC<{
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 label="Require users to provide their own credentials"
-                                defaultChecked={false}
+                                defaultChecked={
+                                    SnowflakeDefaultValues.requireUserCredentials
+                                }
                                 disabled={disabled}
                                 {...form.getInputProps(
                                     'warehouse.requireUserCredentials',
@@ -135,7 +129,8 @@ const SnowflakeForm: FC<{
                             />
                         )}
 
-                        <Switch.Group
+                        <BooleanSwitch
+                            name="warehouse.clientSessionKeepAlive"
                             label="Keep client session alive"
                             description={
                                 <p>
@@ -152,28 +147,14 @@ const SnowflakeForm: FC<{
                                     .
                                 </p>
                             }
-                            value={
-                                clientSessionKeepAliveField.value
-                                    ? ['true']
-                                    : []
-                            }
-                            onChange={(values) =>
-                                clientSessionKeepAliveField.onChange(
-                                    values.length > 0,
-                                )
-                            }
-                            size="md"
-                        >
-                            <Group mt="xs">
-                                <Switch
-                                    name="warehouse.clientSessionKeepAlive"
-                                    onLabel="Yes"
-                                    offLabel="No"
-                                    value="true"
-                                    disabled={disabled}
-                                />
-                            </Group>
-                        </Switch.Group>
+                            onLabel="Yes"
+                            offLabel="No"
+                            disabled={disabled}
+                            {...form.getInputProps(
+                                'warehouse.clientSessionKeepAlive',
+                                { type: 'checkbox' },
+                            )}
+                        />
 
                         <TextInput
                             name="warehouse.queryTag"
