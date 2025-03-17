@@ -165,7 +165,7 @@ COPY packages/backend/src/ ./packages/backend/src
 # Conditionally build backend with sourcemaps if Sentry environment variables are set
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     echo "Building backend with sourcemaps for Sentry"; \
-    pnpm -F backend build-sourcemaps; \
+    pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
     else \
     echo "Building backend without sourcemaps"; \
     pnpm -F backend build; \

@@ -1,3 +1,59 @@
+## [0.1543.1](https://github.com/lightdash/lightdash/compare/0.1543.0...0.1543.1) (2025-03-17)
+
+
+### Bug Fixes
+
+* wait for pagination feature flag before running query ([#14104](https://github.com/lightdash/lightdash/issues/14104)) ([9dac82d](https://github.com/lightdash/lightdash/commit/9dac82d425b134bdf570dcc5264be87aed11e37f))
+
+# [0.1543.0](https://github.com/lightdash/lightdash/compare/0.1542.1...0.1543.0) (2025-03-17)
+
+
+### Features
+
+* add private_key to snowflake ([#14081](https://github.com/lightdash/lightdash/issues/14081)) ([58c8791](https://github.com/lightdash/lightdash/commit/58c879131995f3216d20909c3776ecacf8150494))
+
+## [0.1542.1](https://github.com/lightdash/lightdash/compare/0.1542.0...0.1542.1) (2025-03-17)
+
+
+### Bug Fixes
+
+* warehouse wait for query completion ([#14087](https://github.com/lightdash/lightdash/issues/14087)) ([3064acb](https://github.com/lightdash/lightdash/commit/3064acb7726f4bf81b127f022ced1270dbb712b8))
+
+# [0.1542.0](https://github.com/lightdash/lightdash/compare/0.1541.0...0.1542.0) (2025-03-17)
+
+
+### Features
+
+* load paginated results for charts and dashboards ([#14079](https://github.com/lightdash/lightdash/issues/14079)) ([fd85348](https://github.com/lightdash/lightdash/commit/fd85348eb05bae64018dbb9dd2d106216c6d28ed))
+
+# [0.1541.0](https://github.com/lightdash/lightdash/compare/0.1540.0...0.1541.0) (2025-03-14)
+
+
+### Features
+
+* improve on-hover of metric detail  ([#14073](https://github.com/lightdash/lightdash/issues/14073)) ([e9972e9](https://github.com/lightdash/lightdash/commit/e9972e997c9fa43bebdce4a8b00e53e94374d979))
+
+# [0.1540.0](https://github.com/lightdash/lightdash/compare/0.1539.1...0.1540.0) (2025-03-14)
+
+
+### Features
+
+* add applied dashboard filters to response ([#14078](https://github.com/lightdash/lightdash/issues/14078)) ([768e200](https://github.com/lightdash/lightdash/commit/768e2002fe15ee11ac48ae6d4e2f138a25c75904))
+
+## [0.1539.1](https://github.com/lightdash/lightdash/compare/0.1539.0...0.1539.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* run postbuild after be sourcemaps build ([#14076](https://github.com/lightdash/lightdash/issues/14076)) ([56d84a4](https://github.com/lightdash/lightdash/commit/56d84a45eda9a8fdb8d09e23f3878c1d4a1c54e8))
+
+# [0.1539.0](https://github.com/lightdash/lightdash/compare/0.1538.1...0.1539.0) (2025-03-14)
+
+
+### Features
+
+* split query endpoint ([#14050](https://github.com/lightdash/lightdash/issues/14050)) ([6246022](https://github.com/lightdash/lightdash/commit/624602245e1850f312f57502a8781bffdc62e843))
+
 ## [0.1538.1](https://github.com/lightdash/lightdash/compare/0.1538.0...0.1538.1) (2025-03-13)
 
 

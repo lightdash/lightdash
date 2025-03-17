@@ -1,8 +1,14 @@
-import { friendlyName } from '@lightdash/common';
+import {
+    friendlyName,
+    isDateFilterRule,
+    isWithValueFilter,
+    type CompiledMetric,
+} from '@lightdash/common';
 import {
     Anchor,
     Badge,
     Box,
+    Button,
     Code,
     Divider,
     Group,
@@ -10,13 +16,15 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
+import { IconCode, IconTable } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
-import { type FC, type PropsWithChildren } from 'react';
+import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
+import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import MantineIcon from '../../../common/MantineIcon';
 import { useItemDetail } from './useItemDetails';
 
@@ -57,6 +65,9 @@ export const ItemDetailPreview: FC<{
     metricInfo?: {
         type: string;
         sql: string;
+        compiledSql: string;
+        name: string;
+        filters?: CompiledMetric['filters'];
     };
 }> = ({ description, onViewDescription, metricInfo }) => {
     /**
@@ -71,17 +82,20 @@ export const ItemDetailPreview: FC<{
         (description && description.length > 180) ||
         (description && description.split('\n').length > 2);
 
+    const [showCompiled, setShowCompiled] = useState(false);
+
     return (
         <Stack spacing="xs">
             {metricInfo && (
                 <>
-                    <Group spacing="xs">
-                        <Text fz="xs" fw={500} c="dark.7">
-                            Type:
+                    <Group spacing="xs" position="apart">
+                        <Text fz="sm" fw={500} c="dark.7">
+                            {metricInfo.name}
                         </Text>
                         <Badge
                             radius="sm"
                             color="indigo"
+                            p={2}
                             sx={(theme) => ({
                                 boxShadow: theme.shadows.subtle,
                                 border: `1px solid ${theme.colors.indigo[1]}`,
@@ -90,13 +104,6 @@ export const ItemDetailPreview: FC<{
                             {friendlyName(metricInfo.type)}
                         </Badge>
                     </Group>
-                    <Divider color="gray.2" />
-                    <Stack spacing="xs">
-                        <Text fz="xs" fw={500} c="dark.7">
-                            SQL
-                        </Text>
-                        <Code>{metricInfo.sql}</Code>
-                    </Stack>
                 </>
             )}
             {description && (
@@ -112,7 +119,14 @@ export const ItemDetailPreview: FC<{
                     }}
                 >
                     <Stack spacing="xs">
-                        {metricInfo && <Divider color="gray.2" />}
+                        {metricInfo && (
+                            <>
+                                <Divider color="gray.2" />
+                                <Text fz="xs" fw={500} c="dark.7">
+                                    Description
+                                </Text>
+                            </>
+                        )}
 
                         <ItemDetailMarkdown source={description} />
                     </Stack>
@@ -130,6 +144,104 @@ export const ItemDetailPreview: FC<{
                         Read full description
                     </Anchor>
                 </Box>
+            )}
+            {metricInfo && (
+                <>
+                    <Divider color="gray.2" />
+                    <Stack spacing="xs">
+                        <Group spacing="xs" align="center" position="apart">
+                            <Text fz="xs" fw={500} c="dark.7">
+                                SQL
+                            </Text>
+                            <Tooltip
+                                variant="xs"
+                                position="right"
+                                label={
+                                    showCompiled
+                                        ? 'Show original SQL'
+                                        : 'Show compiled SQL'
+                                }
+                            >
+                                <Button
+                                    compact
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.stopPropagation();
+                                        setShowCompiled(!showCompiled);
+                                    }}
+                                    size="xs"
+                                    leftIcon={<MantineIcon icon={IconCode} />}
+                                >
+                                    {showCompiled
+                                        ? 'Original SQL'
+                                        : 'Compiled SQL'}
+                                </Button>
+                            </Tooltip>
+                        </Group>
+                        <Code maw={400}>
+                            {showCompiled
+                                ? metricInfo.compiledSql
+                                : metricInfo.sql}
+                        </Code>
+                        {metricInfo.filters &&
+                            metricInfo.filters.length > 0 && (
+                                <>
+                                    <Divider color="gray.2" />
+                                    <Text fz="xs" fw={500} c="dark.7">
+                                        Filters
+                                    </Text>
+                                    {metricInfo.filters.map((filter) => {
+                                        const operationLabel =
+                                            filterOperatorLabel[
+                                                filter.operator
+                                            ];
+
+                                        return (
+                                            <Group key={filter.id} spacing={4}>
+                                                <Code fz="xs" fw={500}>
+                                                    {filter.target.fieldRef}
+                                                </Code>
+                                                <Text fz="xs" fw={500}>
+                                                    {operationLabel}
+                                                </Text>
+                                                {}
+                                                <Code fz="xs">
+                                                    {isWithValueFilter(
+                                                        filter.operator,
+                                                    )
+                                                        ? filter.values
+                                                              ?.map(
+                                                                  (value) =>
+                                                                      value,
+                                                              )
+                                                              .join(', ')
+                                                        : ''}
+                                                    {isDateFilterRule(
+                                                        filter,
+                                                    ) && (
+                                                        <Fragment>
+                                                            {' '}
+                                                            {filter.settings
+                                                                ?.completed
+                                                                ? 'completed'
+                                                                : ''}
+                                                            {
+                                                                filter.settings
+                                                                    ?.unitOfTime
+                                                            }
+                                                        </Fragment>
+                                                    )}
+                                                </Code>
+                                            </Group>
+                                        );
+                                    })}
+                                </>
+                            )}
+                    </Stack>
+                </>
             )}
         </Stack>
     );

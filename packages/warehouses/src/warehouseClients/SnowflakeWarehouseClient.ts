@@ -11,6 +11,9 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    type WarehouseExecuteAsyncQuery,
+    type WarehouseExecuteAsyncQueryArgs,
+    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
@@ -20,15 +23,12 @@ import {
     createConnection,
     SnowflakeError,
     type FileAndStageBindStatement,
+    type QueryStatus,
     type RowStatement,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
-import {
-    WarehouseCatalog,
-    type WarehousePaginatedResults,
-    type WarehousePaginateQueryArgs,
-} from '../types';
+import { WarehouseCatalog, type WarehouseGetAsyncQueryResults } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 const assertIsSnowflakeLoggingLevel = (
@@ -222,37 +222,36 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             tags?: Record<string, string>;
         },
     ) {
+        const sqlStatements: string[] = [];
+
         if (this.connectionOptions.warehouse) {
             // eslint-disable-next-line no-console
             console.debug(
                 `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
             );
-            await this.executeStatement(
-                connection,
+            sqlStatements.push(
                 `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
             );
         }
+
         if (isWeekDay(this.startOfWeek)) {
             const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
-            await this.executeStatement(
-                connection,
+            sqlStatements.push(
                 `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
             );
         }
+
         if (options?.tags) {
-            await this.executeStatement(
-                connection,
+            sqlStatements.push(
                 `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(
                     options?.tags,
                 )}';`,
             );
         }
+
         const timezoneQuery = options?.timezone || 'UTC';
         console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
-        await this.executeStatement(
-            connection,
-            `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
-        );
+        sqlStatements.push(`ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`);
 
         /**
          * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
@@ -261,9 +260,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         console.debug(
             'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
         );
-        await this.executeStatement(
-            connection,
+        sqlStatements.push(
             `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
+        );
+
+        await this.executeStatements(
+            connection,
+            sqlStatements.join('\n'),
+            sqlStatements.length,
         );
     }
 
@@ -284,58 +288,68 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : {};
     }
 
-    async getPaginatedResults<TFormattedRow extends Record<string, unknown>>(
-        { timezone, tags, ...queryArgs }: WarehousePaginateQueryArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehousePaginatedResults<TFormattedRow>> {
+    async executeAsyncQuery({
+        sql,
+        values,
+        tags,
+        timezone,
+    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
-        let sql: string = '';
+        await this.prepareWarehouse(connection, {
+            timezone,
+            tags,
+        });
 
-        try {
-            await this.prepareWarehouse(connection, {
-                timezone,
-                tags,
+        const { queryId, durationMs, totalRows } =
+            await this.executeAsyncStatement(connection, sql, {
+                values,
             });
 
+        return {
+            queryId,
+            queryMetadata: null,
+            totalRows,
+            durationMs,
+        };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        {
+            timezone,
+            tags,
+            values,
+            ...queryArgs
+        }: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        if (queryArgs.queryId === null) {
+            throw new WarehouseQueryError('Query ID is required');
+        }
+
+        const connection = await this.getConnection();
+
+        try {
             const start = (queryArgs.page - 1) * queryArgs.pageSize;
             const end = start + queryArgs.pageSize - 1;
 
-            let currentQueryId: string;
-
-            if ('sql' in queryArgs) {
-                const { queryId, sqlText } = await this.executeAsyncStatement(
-                    connection,
-                    queryArgs.sql,
-                );
-
-                sql = sqlText;
-                currentQueryId = queryId;
-            } else if ('queryId' in queryArgs) {
-                currentQueryId = queryArgs.queryId;
-            } else {
-                throw new WarehouseQueryError('Invalid query');
-            }
-
-            const { rows, fields, numRows } =
-                await this.getAsyncStatementResults(
-                    connection,
-                    currentQueryId,
-                    start,
-                    end,
-                    rowFormatter,
-                );
+            const results = await this.getAsyncStatementResults(
+                connection,
+                queryArgs.queryId,
+                start,
+                end,
+                rowFormatter,
+            );
 
             return {
-                fields,
-                rows,
-                queryId: currentQueryId,
-                pageCount: Math.ceil(numRows / queryArgs.pageSize),
-                totalRows: numRows,
-                warehouseQueryMetadata: null,
+                fields: results.fields,
+                rows: results.rows,
+                queryId: queryArgs.queryId,
+                pageCount: Math.ceil(results.numRows / queryArgs.pageSize),
+                totalRows: results.numRows,
             };
         } catch (e) {
             const error = e as SnowflakeError;
-            throw this.parseError(error, sql);
+            throw this.parseError(error, queryArgs.sql);
         } finally {
             await new Promise((resolve, reject) => {
                 connection.destroy((err, conn) => {
@@ -355,9 +369,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values?: AnyType[];
         },
     ) {
-        return new Promise<{
+        const startTime = performance.now();
+        const { queryId, totalRows, durationMs } = await new Promise<{
             queryId: string;
-            sqlText: string;
+            totalRows: number;
+            durationMs: number;
         }>((resolve, reject) => {
             connection.execute({
                 sqlText: sql,
@@ -365,16 +381,41 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 asyncExec: true,
                 complete: (err, stmt) => {
                     if (err) {
-                        reject(err);
+                        reject(this.parseError(err, sql));
+                        return;
                     }
 
-                    resolve({
-                        queryId: stmt.getQueryId(),
-                        sqlText: stmt.getSqlText(),
-                    });
+                    // Calling `getNumRows` from current statement returns undefined
+                    void connection
+                        .getResultsFromQueryId({
+                            sqlText: '',
+                            queryId: stmt.getQueryId(),
+                            complete: (err2, stmt2) => {
+                                if (err2) {
+                                    reject(this.parseError(err2, sql));
+                                    return;
+                                }
+
+                                resolve({
+                                    queryId: stmt.getQueryId(),
+                                    totalRows: stmt2.getNumRows(),
+                                    durationMs: performance.now() - startTime,
+                                });
+                            },
+                        })
+                        .catch((err3) => {
+                            reject(this.parseError(err3, sql));
+                        });
                 },
             });
         });
+
+        return {
+            queryId,
+            queryMetadata: null,
+            totalRows,
+            durationMs,
+        };
     }
 
     private async getAsyncStatementResults<
@@ -386,8 +427,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         end: number,
         rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
     ): Promise<{
-        fields: Record<string, { type: DimensionType }>;
         rows: TFormattedRow[];
+        fields: Record<string, { type: DimensionType }>;
         numRows: number;
     }> {
         const statement = await connection.getResultsFromQueryId({
@@ -509,13 +550,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private async executeStatement(connection: Connection, sqlText: string) {
+    private async executeStatements(
+        connection: Connection,
+        sqlText: string,
+        statementsCount: number = 1,
+    ) {
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;
             rows: AnyType[];
         }>((resolve, reject) => {
             connection.execute({
                 sqlText,
+                ...(statementsCount > 1
+                    ? { parameters: { MULTI_STATEMENT_COUNT: statementsCount } }
+                    : {}),
                 complete: (err, stmt, data) => {
                     if (err) {
                         reject(err);
@@ -557,7 +605,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         try {
-            return await this.executeStatement(connection, sqlText);
+            return await this.executeStatements(connection, sqlText);
         } catch (e) {
             console.error(
                 `\nError running catalog query for table ${database}.${schema}.${table}:`,

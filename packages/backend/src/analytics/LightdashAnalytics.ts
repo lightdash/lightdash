@@ -202,7 +202,7 @@ export const getContextFromQueryOrHeader = (
     return getContextFromHeader(req);
 };
 
-type MetricQueryExecutionProperties = {
+export type MetricQueryExecutionProperties = {
     chartId?: string;
     metricsCount: number;
     dimensionsCount: number;
@@ -228,7 +228,14 @@ type MetricQueryExecutionProperties = {
     timezone?: string;
     virtualViewId?: string;
     metricOverridesCount: number;
+    limit: number;
 };
+
+type PaginatedMetricQueryExecutionProperties =
+    MetricQueryExecutionProperties & {
+        queryId: string;
+        warehouseType: WarehouseTypes;
+    };
 
 type SqlExecutionProperties = {
     sqlChartId?: string;
@@ -248,10 +255,47 @@ type QueryExecutionEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
     } & (
+        | PaginatedMetricQueryExecutionProperties
         | MetricQueryExecutionProperties
         | SqlExecutionProperties
         | SemanticViewerExecutionProperties
     );
+};
+
+type QueryReadyEvent = BaseTrack & {
+    event: 'query.ready';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+        warehouseExecutionTimeMs: number | null;
+        totalRowCount: number | null;
+        columnsCount: number | null;
+    };
+};
+
+type QueryErrorEvent = BaseTrack & {
+    event: 'query.error';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+type QueryPageEvent = BaseTrack & {
+    event: 'query_page.fetched';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+        page: number;
+        columnsCount: number;
+        totalRowCount: number;
+        totalPageCount: number;
+        resultsPageSize: number;
+        resultsPageExecutionMs: number;
+    };
 };
 
 type SubtotalQueryEvent = BaseTrack & {
@@ -1188,6 +1232,9 @@ type TypedEvent =
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
+    | QueryReadyEvent
+    | QueryErrorEvent
+    | QueryPageEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent

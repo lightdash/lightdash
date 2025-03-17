@@ -457,6 +457,10 @@ export const isMetric = (
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
 
+export const isCompiledMetric = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is CompiledMetric => isMetric(field) && 'compiledSql' in field;
+
 export interface Metric extends Field {
     fieldType: FieldType.METRIC;
     type: MetricType;

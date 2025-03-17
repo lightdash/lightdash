@@ -174,6 +174,10 @@ export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
     }
 };
 
+export const isWithValueFilter = (filterOperator: FilterOperator) =>
+    filterOperator !== FilterOperator.NULL &&
+    filterOperator !== FilterOperator.NOT_NULL;
+
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,

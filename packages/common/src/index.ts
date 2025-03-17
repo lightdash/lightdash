@@ -142,6 +142,7 @@ import type {
 } from './types/metricsExplorer';
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import type { QueryHistoryStatus } from './types/queryHistory';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
@@ -283,6 +284,7 @@ export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/semanticLayer';
+export * from './utils/sleep';
 export * from './utils/slugs';
 export * from './utils/subtotals';
 export * from './utils/time';
@@ -469,14 +471,34 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
-export type ApiPaginatedQueryResults = ResultsPaginationMetadata<ResultRow> & {
+export type ApiExecuteAsyncQueryResults = {
     queryUuid: string;
-    rows: ResultRow[];
-    fields: ItemsMap;
-    initialQueryExecutionMs: number;
-    resultsPageExecutionMs: number;
-    metricQuery: MetricQuery;
+    appliedDashboardFilters: DashboardFilters | null;
 };
+
+export type ApiGetAsyncQueryResults =
+    | (ResultsPaginationMetadata<ResultRow> & {
+          queryUuid: string;
+          rows: ResultRow[];
+          fields: ItemsMap;
+          initialQueryExecutionMs: number;
+          resultsPageExecutionMs: number;
+          metricQuery: MetricQuery;
+          status: QueryHistoryStatus.READY;
+      })
+    | {
+          status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
+          queryUuid: string;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
+      }
+    | {
+          status: QueryHistoryStatus.ERROR;
+          queryUuid: string;
+          error: string | null;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
+      };
 
 export type ApiChartAndResults = {
     chart: SavedChart;
@@ -770,7 +792,8 @@ type ApiResults =
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
-    | ApiPaginatedQueryResults;
+    | ApiExecuteAsyncQueryResults
+    | ApiGetAsyncQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

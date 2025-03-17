@@ -62,3 +62,7 @@ export type FeatureFlag = {
     id: string;
     enabled: boolean;
 };
+
+export function isFeatureFlags(value: string): value is FeatureFlags {
+    return Object.values(FeatureFlags).includes(value as FeatureFlags);
+}
