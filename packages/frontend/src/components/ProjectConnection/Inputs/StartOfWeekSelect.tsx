@@ -1,8 +1,8 @@
 import { Alert, Select } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
-import MantineIcon from '../../../common/MantineIcon';
-import { useFormContext } from '../../formContext';
+import MantineIcon from '../../common/MantineIcon';
+import { useFormContext } from '../formContext';
 
 const daysOfWeekOptions = [
     'Monday',

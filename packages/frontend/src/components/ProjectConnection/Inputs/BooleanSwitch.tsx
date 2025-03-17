@@ -7,8 +7,8 @@ import {
     type SwitchProps,
 } from '@mantine/core';
 import { type FC } from 'react';
-import DocumentationHelpButton from '../../../DocumentationHelpButton';
-import { type FormInputProps } from '../../formContext';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
+import { type FormInputProps } from '../formContext';
 
 type BooleanSwitchProps = SwitchProps & {
     documentationUrl?: string;

@@ -6,8 +6,8 @@ import {
     hasNoWhiteSpaces,
     startWithSlash,
 } from '../../../utils/fieldValidators';
+import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
-import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
 
 const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();

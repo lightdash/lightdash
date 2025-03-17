@@ -30,8 +30,8 @@ import {
     useGitHubRepositories,
 } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
+import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
-import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
 
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 

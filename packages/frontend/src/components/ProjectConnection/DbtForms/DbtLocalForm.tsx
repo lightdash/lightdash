@@ -2,7 +2,7 @@ import { Alert, Stack, Text } from '@mantine/core';
 import { IconExclamationCircle, IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
+import DbtVersionSelect from '../Inputs/DbtVersion';
 
 const DbtLocalForm: FC = () => (
     <Stack>

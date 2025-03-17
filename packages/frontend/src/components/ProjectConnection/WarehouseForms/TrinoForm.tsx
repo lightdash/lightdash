@@ -13,9 +13,9 @@ import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
+import BooleanSwitch from '../Inputs/BooleanSwitch';
+import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
-import BooleanSwitch from './Inputs/BooleanSwitch';
-import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { TrinoDefaultValues } from './defaultValues';
 
 export const TrinoSchemaInput: FC<{

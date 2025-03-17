@@ -17,9 +17,9 @@ import { v4 as uuidv4 } from 'uuid';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
+import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
-import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;

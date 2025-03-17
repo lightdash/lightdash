@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
-import { useFormContext } from '../../formContext';
+import { useFormContext } from '../formContext';
 
 const DbtVersionSelect: FC<{
     disabled: boolean;

@@ -1,6 +1,6 @@
 import { CloseButton, FileInput } from '@mantine/core';
 import React, { type FC, useState } from 'react';
-import { useFormContext } from '../../formContext';
+import { useFormContext } from '../formContext';
 
 const CertificateFileInput: FC<
     {

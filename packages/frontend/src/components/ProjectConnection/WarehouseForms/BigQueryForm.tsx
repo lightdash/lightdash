@@ -13,8 +13,8 @@ import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
+import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
-import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { BigQueryDefaultValues } from './defaultValues';
 
 export const BigQuerySchemaInput: FC<{

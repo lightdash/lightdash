@@ -18,11 +18,11 @@ import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
+import BooleanSwitch from '../Inputs/BooleanSwitch';
+import CertificateFileInput from '../Inputs/CertificateFileInput';
+import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
-import BooleanSwitch from './Inputs/BooleanSwitch';
-import CertificateFileInput from './Inputs/CertificateFileInput';
-import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 
