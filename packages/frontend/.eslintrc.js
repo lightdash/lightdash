@@ -25,6 +25,7 @@ module.exports = {
         'prettier',
         'plugin:jest-dom/recommended',
         'plugin:testing-library/react',
+        'plugin:storybook/recommended',
     ],
     plugins: [
         'css-modules',
