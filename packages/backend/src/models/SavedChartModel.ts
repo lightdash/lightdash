@@ -975,12 +975,12 @@ export class SavedChartModel {
 
                 const getColorPalette = () => {
                     if (
-                        this.lightdashConfig.appearance.defaultColorPalette &&
-                        this.lightdashConfig.appearance.defaultColorPalette
+                        this.lightdashConfig.appearance.overrideColorPalette &&
+                        this.lightdashConfig.appearance.overrideColorPalette
                             .length > 0
                     ) {
                         return this.lightdashConfig.appearance
-                            .defaultColorPalette;
+                            .overrideColorPalette;
                     }
                     if (savedQuery.color_palette) {
                         return savedQuery.color_palette;

@@ -217,14 +217,14 @@ export class OrganizationModel {
             throw new NotFoundError(`No organization found`);
         }
 
-        // If default color palette is configured, always override the active palette
+        // If override color palette is configured, always override the active palette
         if (
-            this.lightdashConfig?.appearance?.defaultColorPalette &&
-            this.lightdashConfig.appearance.defaultColorPalette.length > 0
+            this.lightdashConfig?.appearance?.overrideColorPalette &&
+            this.lightdashConfig.appearance.overrideColorPalette.length > 0
         ) {
             return OrganizationModel.mapDBObjectToOrganization(
                 org,
-                this.lightdashConfig.appearance.defaultColorPalette,
+                this.lightdashConfig.appearance.overrideColorPalette,
             );
         }
 

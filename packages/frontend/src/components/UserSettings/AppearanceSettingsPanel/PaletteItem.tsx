@@ -74,7 +74,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                         <Text fw={500}>{palette.name}</Text>
                         {readOnly && (
                             <Tooltip
-                                label="This palette is read only. It has been configured as the default color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
+                                label="This palette is read only. It has been configured as the override color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
                                 position="bottom-end"
                                 multiline
                                 maw={200}
@@ -82,7 +82,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             >
                                 <Badge color="gray" variant="light">
                                     <Group spacing={2}>
-                                        Default
+                                        Override
                                         <MantineIcon
                                             size="sm"
                                             icon={IconInfoCircle}

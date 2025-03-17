@@ -941,8 +941,8 @@ export type HealthState = {
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {
-        defaultColorPalette: string[] | undefined;
-        defaultColorPaletteName: string | undefined;
+        overrideColorPalette: string[] | undefined;
+        overrideColorPaletteName: string | undefined;
     };
 };
 

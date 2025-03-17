@@ -39,9 +39,9 @@ const AppearanceColorSettings: FC = () => {
         [setActivePalette],
     );
 
-    const hasDefaultColorPaletteOverride =
-        health?.appearance.defaultColorPalette &&
-        health.appearance.defaultColorPalette.length > 0;
+    const hasColorPaletteOverride =
+        health?.appearance.overrideColorPalette &&
+        health.appearance.overrideColorPalette.length > 0;
 
     return (
         <Stack spacing="md">
@@ -57,6 +57,7 @@ const AppearanceColorSettings: FC = () => {
                     variant="default"
                     size="xs"
                     sx={{ alignSelf: 'flex-end' }}
+                    disabled={hasColorPaletteOverride}
                 >
                     Add new palette
                 </Button>
@@ -71,8 +72,8 @@ const AppearanceColorSettings: FC = () => {
                     </>
                 ) : (
                     <>
-                        {hasDefaultColorPaletteOverride &&
-                            health?.appearance.defaultColorPalette &&
+                        {hasColorPaletteOverride &&
+                            health?.appearance.overrideColorPalette &&
                             organization?.organizationUuid && (
                                 <PaletteItem
                                     palette={{
@@ -80,10 +81,10 @@ const AppearanceColorSettings: FC = () => {
                                         createdAt: new Date(),
                                         name:
                                             health.appearance
-                                                .defaultColorPaletteName ??
-                                            'Custom default',
+                                                .overrideColorPaletteName ??
+                                            'Custom override',
                                         colors: health.appearance
-                                            .defaultColorPalette,
+                                            .overrideColorPalette,
                                         organizationUuid:
                                             organization?.organizationUuid,
                                     }}
@@ -97,11 +98,10 @@ const AppearanceColorSettings: FC = () => {
                                 key={palette.colorPaletteUuid}
                                 palette={palette}
                                 isActive={
-                                    palette.isActive &&
-                                    !hasDefaultColorPaletteOverride
+                                    palette.isActive && !hasColorPaletteOverride
                                 }
                                 onSetActive={
-                                    hasDefaultColorPaletteOverride
+                                    hasColorPaletteOverride
                                         ? undefined
                                         : handleSetActive
                                 }

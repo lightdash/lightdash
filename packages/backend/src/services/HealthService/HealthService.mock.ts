@@ -83,8 +83,8 @@ export const BaseResponse: HealthState = {
     },
     hasCacheAutocompleResults: false,
     appearance: {
-        defaultColorPalette: undefined,
-        defaultColorPaletteName: undefined,
+        overrideColorPalette: undefined,
+        overrideColorPaletteName: undefined,
     },
 };
 

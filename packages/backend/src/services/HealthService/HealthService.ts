@@ -145,11 +145,11 @@ export class HealthService extends BaseService {
             hasCacheAutocompleResults:
                 this.lightdashConfig.resultsCache.autocompleteEnabled || false,
             appearance: {
-                defaultColorPalette:
-                    this.lightdashConfig.appearance.defaultColorPalette,
-                defaultColorPaletteName: this.lightdashConfig.appearance
-                    .defaultColorPaletteName
-                    ? this.lightdashConfig.appearance.defaultColorPaletteName
+                overrideColorPalette:
+                    this.lightdashConfig.appearance.overrideColorPalette,
+                overrideColorPaletteName: this.lightdashConfig.appearance
+                    .overrideColorPaletteName
+                    ? this.lightdashConfig.appearance.overrideColorPaletteName
                     : undefined,
             },
         };
