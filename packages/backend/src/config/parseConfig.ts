@@ -321,10 +321,10 @@ export type LightdashConfig = {
     customVisualizations: {
         enabled: boolean;
     };
-    // This is the default color palette for the organization
+    // This is the override color palette for the organization
     appearance: {
-        defaultColorPalette?: string[];
-        defaultColorPaletteName?: string;
+        overrideColorPalette?: string[];
+        overrideColorPaletteName?: string;
     };
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
@@ -967,11 +967,11 @@ export const parseConfig = (): LightdashConfig => {
                 100,
         },
         appearance: {
-            defaultColorPalette: getHexColorsFromEnvironmentVariable(
-                process.env.DEFAULT_COLOR_PALETTE_COLORS || undefined,
+            overrideColorPalette: getHexColorsFromEnvironmentVariable(
+                process.env.OVERRIDE_COLOR_PALETTE_COLORS || undefined,
             ),
-            // not required if defaultColorPalette is set
-            defaultColorPaletteName: process.env.DEFAULT_COLOR_PALETTE_NAME,
+            // not required if overrideColorPalette is set
+            overrideColorPaletteName: process.env.OVERRIDE_COLOR_PALETTE_NAME,
         },
     };
 };
