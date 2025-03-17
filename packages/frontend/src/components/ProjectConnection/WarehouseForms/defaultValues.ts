@@ -117,7 +117,7 @@ export const TrinoDefaultValues: Partial<CreateTrinoCredentials> = {
     http_scheme: 'https',
 };
 
-export const WarehouseDefaultValues = {
+export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
     [WarehouseTypes.REDSHIFT]: RedshiftDefaultValues,
