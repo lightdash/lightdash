@@ -57,7 +57,7 @@ const SnowflakeForm: FC<{
         FeatureFlags.PassthroughLogin,
     );
     const authenticationType: string = useWatch({
-        name: 'warehouse.authentication_type',
+        name: 'warehouse.authenticationType',
         defaultValue:
             (savedProject?.warehouseConnection?.type ===
                 WarehouseTypes.SNOWFLAKE &&
@@ -102,6 +102,7 @@ const SnowflakeForm: FC<{
                     defaultValue="private_key"
                     render={({ field }) => (
                         <Select
+                            name={field.name}
                             label="Authentication Type"
                             description="Choose between password or key pair authentication"
                             data={[

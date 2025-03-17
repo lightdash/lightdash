@@ -136,6 +136,8 @@ const configureDatabricksWarehouse = (
 const configureSnowflakeWarehouse = (
     config: typeof warehouseConfig['snowflake'],
 ) => {
+    cy.selectMantine('warehouse.authenticationType', 'password');
+
     cy.get('input[name="warehouse.account"]').type(config.account, {
         log: false,
     });
