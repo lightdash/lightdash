@@ -32,9 +32,26 @@ export const dbtFormValidators = {
             isGitRepository,
         ),
         branch: hasNoWhiteSpaces('Branch'),
+        project_sub_path: everyValidator(
+            'Project directory path',
+            hasNoWhiteSpaces,
+            startWithSlash,
+        ),
     },
     [DbtProjectType.GITLAB]: {
         selector: selectorValidator,
+        repository: everyValidator(
+            'Repository',
+            hasNoWhiteSpaces,
+            isGitRepository,
+        ),
+        branch: hasNoWhiteSpaces('Branch'),
+        project_sub_path: everyValidator(
+            'Project directory path',
+            hasNoWhiteSpaces,
+            startWithSlash,
+        ),
+        host_domain: hasNoWhiteSpaces('Host domain'),
     },
     [DbtProjectType.BITBUCKET]: {
         selector: selectorValidator,

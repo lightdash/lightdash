@@ -15,30 +15,40 @@ export const githubDefaultValues = {
 
 export const gitlabDefaultValues = {
     type: DbtProjectType.GITLAB,
+    target: '',
     environment: [],
     selector: '',
+    personal_access_token: '',
+    repository: '',
+    branch: 'main',
+    project_sub_path: '/',
+    host_domain: 'gitlab.com',
 } as const;
 
 export const bitbucketDefaultValues = {
     type: DbtProjectType.BITBUCKET,
+    target: '',
     environment: [],
     selector: '',
 } as const;
 
 export const azureDevopsDefaultValues = {
     type: DbtProjectType.AZURE_DEVOPS,
+    target: '',
     environment: [],
     selector: '',
 } as const;
 
 export const dbtCloudIdeDefaultValues = {
     type: DbtProjectType.DBT_CLOUD_IDE,
+    target: '',
     environment: [],
 } as const;
 
 // Local
 export const dbtDefaultValues = {
     type: DbtProjectType.DBT,
+    target: '',
     environment: [],
     selector: '',
 } as const;
