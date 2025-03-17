@@ -1,13 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    DefaultSupportedDbtVersion,
     ProjectType,
     type CreateWarehouseCredentials,
+    type Project,
 } from '@lightdash/common';
 import { Alert, Anchor, Button, Card, Flex } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { type FC } from 'react';
 
 import { useProject, useUpdateMutation } from '../../hooks/useProject';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
@@ -21,15 +21,14 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import { type ProjectConnectionForm } from './types';
-import { useOnProjectError } from './useOnProjectError';
+import { WarehouseDefaultValues } from './WarehouseForms/defaults';
 
-export const UpdateProjectConnection: FC<{
+const UpdateProjectConnection: FC<{
     projectUuid: string;
-}> = ({ projectUuid }) => {
+    project: Project;
+}> = ({ projectUuid, project }) => {
     const { user, health } = useApp();
     const ability = useAbilityContext();
-    const { data } = useProject(projectUuid);
-    const onError = useOnProjectError();
     const {
         isLoading: isSaving,
         mutateAsync,
@@ -49,19 +48,17 @@ export const UpdateProjectConnection: FC<{
             }),
         );
 
-    const form = useForm();
-
-    useEffect(() => {
-        if (data) {
-            form.initialize({
-                name: data.name,
-                dbt: data.dbtConnection,
-                warehouse:
-                    data.warehouseConnection as CreateWarehouseCredentials,
-                dbtVersion: data.dbtVersion,
-            });
-        }
-    }, [data, form]);
+    const form = useForm({
+        initialValues: {
+            name: project.name,
+            dbt: project.dbtConnection,
+            warehouse: {
+                ...WarehouseDefaultValues[project.warehouseConnection!.type],
+                ...project.warehouseConnection,
+            } as CreateWarehouseCredentials,
+            dbtVersion: project.dbtVersion,
+        },
+    });
 
     const { track } = useTracking();
 
@@ -71,7 +68,7 @@ export const UpdateProjectConnection: FC<{
         warehouse: warehouseConnection,
         dbtVersion,
     }: ProjectConnectionForm) => {
-        return console.log('onSubmit', {
+        console.log('onSubmit', {
             name,
             dbtConnection,
             warehouseConnection,
@@ -91,7 +88,7 @@ export const UpdateProjectConnection: FC<{
         }
     };
 
-    if (data?.type === ProjectType.PREVIEW) {
+    if (project.type === ProjectType.PREVIEW) {
         return (
             <Alert
                 color="orange"
@@ -115,7 +112,7 @@ export const UpdateProjectConnection: FC<{
         <FormProvider form={form}>
             <FormContainer>
                 <form onSubmit={form.onSubmit(onSubmit)}>
-                    <ProjectFormProvider savedProject={data}>
+                    <ProjectFormProvider savedProject={project}>
                         <ProjectForm
                             showGeneralSettings
                             isProjectUpdate
@@ -149,7 +146,7 @@ export const UpdateProjectConnection: FC<{
                             loading={isSaving}
                             disabled={isDisabled}
                         >
-                            {data?.dbtConnection?.type === DbtProjectType.NONE
+                            {project.dbtConnection?.type === DbtProjectType.NONE
                                 ? 'Save and test'
                                 : 'Test & deploy project'}
                         </Button>
@@ -159,3 +156,17 @@ export const UpdateProjectConnection: FC<{
         </FormProvider>
     );
 };
+
+const UpdateProjectConnectionWrapper: FC<{
+    projectUuid: string;
+}> = ({ projectUuid }) => {
+    const { data } = useProject(projectUuid);
+
+    if (!data) {
+        return null;
+    }
+
+    return <UpdateProjectConnection projectUuid={projectUuid} project={data} />;
+};
+
+export default UpdateProjectConnectionWrapper;

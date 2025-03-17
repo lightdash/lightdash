@@ -1,7 +1,8 @@
 import {
     ProjectType,
+    WarehouseTypes,
     isCreateProjectJob,
-    type WarehouseTypes,
+    type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -18,7 +19,6 @@ import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
-import { useOnProjectError } from './useOnProjectError';
 import { WarehouseDefaultValues } from './WarehouseForms/defaults';
 
 interface CreateProjectConnectionProps {
@@ -26,7 +26,7 @@ interface CreateProjectConnectionProps {
     selectedWarehouse?: WarehouseTypes | undefined;
 }
 
-export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
+const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
     selectedWarehouse,
 }) => {
@@ -34,8 +34,9 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
-    const onError = useOnProjectError();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation();
+
+    selectedWarehouse = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
 
     const form = useForm({
         initialValues: {
@@ -43,9 +44,8 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             // @ts-expect-error
             dbt: health.data?.defaultProject || {},
             warehouse: {
-                // @ts-expect-error todo: fix this
-                ...WarehouseDefaultValues[selectedWarehouse!],
-            },
+                ...WarehouseDefaultValues[selectedWarehouse],
+            } as CreateWarehouseCredentials,
         },
     });
 
@@ -123,3 +123,5 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         </FormProvider>
     );
 };
+
+export default CreateProjectConnection;
