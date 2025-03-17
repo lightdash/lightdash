@@ -1,4 +1,6 @@
 import {
+    DbtProjectConfig,
+    DbtProjectType,
     ProjectType,
     WarehouseTypes,
     isCreateProjectJob,
@@ -14,14 +16,16 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { dbtDefaults } from './DbtForms/defaultValues';
+import { dbtFormValidators } from './DbtForms/validators';
 import { FormProvider, useForm } from './formContext';
 import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
 import { useOnProjectError } from './useOnProjectError';
-import { WarehouseDefaultValues } from './WarehouseForms/defaultValues';
-import { WarehouseValueValidators } from './WarehouseForms/validators';
+import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import { warehouseValueValidators } from './WarehouseForms/validators';
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
     selectedWarehouse?: WarehouseTypes | undefined;
@@ -39,18 +43,22 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const onProjectError = useOnProjectError();
 
     selectedWarehouse = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
-
+    const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
     const form = useForm({
         initialValues: {
             name: user.data?.organizationName || '',
-            // @ts-expect-error
-            dbt: health.data?.defaultProject || {},
+            dbt: {
+                ...dbtDefaults.formValues[dbtType],
+                ...health.data?.defaultProject,
+            } as DbtProjectConfig,
             warehouse: {
-                ...WarehouseDefaultValues[selectedWarehouse],
+                ...warehouseDefaultValues[selectedWarehouse],
             } as CreateWarehouseCredentials,
+            dbtVersion: dbtDefaults.dbtVersion,
         },
         validate: {
-            warehouse: WarehouseValueValidators[selectedWarehouse],
+            warehouse: warehouseValueValidators[selectedWarehouse],
+            dbt: dbtFormValidators[dbtType],
         },
         validateInputOnBlur: true,
     });

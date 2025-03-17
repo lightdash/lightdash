@@ -4,9 +4,9 @@ import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import DbtVersionSelect from '../Inputs/DbtVersion';
 
-const DbtLocalForm: FC = () => (
+const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <Stack>
-        <DbtVersionSelect disabled={false} />
+        <DbtVersionSelect disabled={disabled} />
 
         <Alert
             color="orange"

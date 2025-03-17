@@ -8,7 +8,7 @@ import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
-import { useForm, useFormContext } from './formContext';
+import { useFormContext } from './formContext';
 
 interface Props {
     showGeneralSettings: boolean;
@@ -78,7 +78,7 @@ export const ProjectForm: FC<Props> = ({
                 </div>
             </SettingsGridCard>
 
-            {/* <SettingsGridCard>
+            <SettingsGridCard>
                 <div>
                     <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
@@ -99,7 +99,7 @@ export const ProjectForm: FC<Props> = ({
                         selectedWarehouse={warehouse}
                     />
                 </div>
-            </SettingsGridCard> */}
+            </SettingsGridCard>
         </Stack>
     );
 };

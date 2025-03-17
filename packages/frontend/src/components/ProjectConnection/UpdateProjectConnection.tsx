@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DbtProjectConfig,
     DbtProjectType,
     ProjectType,
     type CreateWarehouseCredentials,
@@ -15,6 +16,8 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { dbtDefaults } from './DbtForms/defaultValues';
+import { dbtFormValidators } from './DbtForms/validators';
 import { FormProvider, useForm } from './formContext';
 import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
@@ -22,8 +25,8 @@ import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import { type ProjectConnectionForm } from './types';
 import { useOnProjectError } from './useOnProjectError';
-import { WarehouseDefaultValues } from './WarehouseForms/defaultValues';
-import { WarehouseValueValidators } from './WarehouseForms/validators';
+import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import { warehouseValueValidators } from './WarehouseForms/validators';
 
 const UpdateProjectConnection: FC<{
     projectUuid: string;
@@ -54,16 +57,20 @@ const UpdateProjectConnection: FC<{
     const form = useForm({
         initialValues: {
             name: project.name,
-            dbt: project.dbtConnection,
+            dbt: {
+                ...dbtDefaults.formValues[project.dbtConnection!.type],
+                ...project.dbtConnection,
+            } as DbtProjectConfig,
             warehouse: {
-                ...WarehouseDefaultValues[project.warehouseConnection!.type],
+                ...warehouseDefaultValues[project.warehouseConnection!.type],
                 ...project.warehouseConnection,
             } as CreateWarehouseCredentials,
             dbtVersion: project.dbtVersion,
         },
         validate: {
             warehouse:
-                WarehouseValueValidators[project.warehouseConnection!.type],
+                warehouseValueValidators[project.warehouseConnection!.type],
+            dbt: dbtFormValidators[project.dbtConnection!.type],
         },
         validateInputOnBlur: true,
     });
