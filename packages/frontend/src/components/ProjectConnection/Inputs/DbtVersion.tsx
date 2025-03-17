@@ -17,6 +17,7 @@ const DbtVersionSelect: FC<{
     return (
         <Select
             label="dbt version"
+            name="dbtVersion"
             defaultValue={DefaultSupportedDbtVersion}
             data={[
                 {

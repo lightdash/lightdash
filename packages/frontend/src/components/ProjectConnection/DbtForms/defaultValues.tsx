@@ -1,43 +1,50 @@
 import { DbtProjectType, DefaultSupportedDbtVersion } from '@lightdash/common';
 
-const githubDefaultValues = {
+export const githubDefaultValues = {
     type: DbtProjectType.GITHUB,
     environment: [],
     selector: '',
+    repository: '',
+    personal_access_token: '',
+    installation_id: '',
+    authorization_method: 'installation_id', // confirm
+    branch: 'main',
+    project_sub_path: '/',
+    host_domain: 'github.com',
 } as const;
 
-const gitlabDefaultValues = {
+export const gitlabDefaultValues = {
     type: DbtProjectType.GITLAB,
     environment: [],
     selector: '',
 } as const;
 
-const bitbucketDefaultValues = {
+export const bitbucketDefaultValues = {
     type: DbtProjectType.BITBUCKET,
     environment: [],
     selector: '',
 } as const;
 
-const azureDevopsDefaultValues = {
+export const azureDevopsDefaultValues = {
     type: DbtProjectType.AZURE_DEVOPS,
     environment: [],
     selector: '',
 } as const;
 
-const dbtCloudIdeDefaultValues = {
+export const dbtCloudIdeDefaultValues = {
     type: DbtProjectType.DBT_CLOUD_IDE,
     environment: [],
 } as const;
 
 // Local
-const dbtDefaultValues = {
+export const dbtDefaultValues = {
     type: DbtProjectType.DBT,
     environment: [],
     selector: '',
 } as const;
 
 // CLI
-const noneDefaultValues = {
+export const noneDefaultValues = {
     type: DbtProjectType.NONE,
 } as const;
 

@@ -1,4 +1,11 @@
 import { DbtProjectType, validateDbtSelector } from '@lightdash/common';
+import {
+    everyValidator,
+    hasNoWhiteSpaces,
+    isGitRepository,
+    isValidGithubToken,
+    startWithSlash,
+} from '../../../utils/fieldValidators';
 
 const selectorValidator = (value?: string) => {
     if (!value) return;
@@ -14,6 +21,17 @@ export const dbtFormValidators = {
     },
     [DbtProjectType.GITHUB]: {
         selector: selectorValidator,
+        personal_access_token: everyValidator(
+            'Personal access token',
+            hasNoWhiteSpaces,
+            isValidGithubToken,
+        ),
+        repository: everyValidator(
+            'Repository',
+            hasNoWhiteSpaces,
+            isGitRepository,
+        ),
+        branch: hasNoWhiteSpaces('Branch'),
     },
     [DbtProjectType.GITLAB]: {
         selector: selectorValidator,
