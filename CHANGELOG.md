@@ -1,3 +1,10 @@
+# [0.1544.0](https://github.com/lightdash/lightdash/compare/0.1543.1...0.1544.0) (2025-03-17)
+
+
+### Features
+
+* allow color palette override ([#14086](https://github.com/lightdash/lightdash/issues/14086)) ([78d0d14](https://github.com/lightdash/lightdash/commit/78d0d14df1f0835294b85dda7080f53fc702e2ab))
+
 ## [0.1543.1](https://github.com/lightdash/lightdash/compare/0.1543.0...0.1543.1) (2025-03-17)
 
 
