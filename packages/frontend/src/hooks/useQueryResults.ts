@@ -20,7 +20,7 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useFeatureFlagEnabled } from './useFeatureFlagEnabled';
+import { useFeatureFlag } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -233,15 +233,15 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
-    const queryPaginationEnabled = useFeatureFlagEnabled(
+    const { data: queryPaginationEnabled } = useFeatureFlag(
         FeatureFlags.QueryPagination,
     );
     const result = useQuery<ApiQueryResults, ApiError>({
-        enabled: !!data,
+        enabled: !!data && !!queryPaginationEnabled,
         queryKey: ['query-all-results', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                if (queryPaginationEnabled) {
+                if (queryPaginationEnabled?.enabled) {
                     return getQueryPaginatedResults(data.projectUuid, {
                         context: QueryExecutionContext.CHART_HISTORY,
                         chartUuid: data.chartUuid,
@@ -253,7 +253,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                     data.chartVersionUuid,
                 );
             } else if (data?.chartUuid) {
-                if (queryPaginationEnabled) {
+                if (queryPaginationEnabled?.enabled) {
                     return getQueryPaginatedResults(data.projectUuid, {
                         context: QueryExecutionContext.CHART,
                         chartUuid: data.chartUuid,
@@ -261,7 +261,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                 }
                 return getChartResults(data);
             } else if (data?.query) {
-                if (queryPaginationEnabled) {
+                if (queryPaginationEnabled?.enabled) {
                     return getQueryPaginatedResults(data.projectUuid, {
                         context: QueryExecutionContext.EXPLORE,
                         query: {
