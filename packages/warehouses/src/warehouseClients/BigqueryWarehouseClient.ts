@@ -554,14 +554,12 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 );
             }
 
+            await this.awaitJobCompletion(job);
+
+            const resultsMetadata = await this.getJobResultsMetadata(job);
             const startTime = job.metadata?.statistics?.startTime;
             const endTime = job.metadata?.statistics?.endTime;
-            const initialMetadata = await this.getJobResultsMetadata(job);
-            const resultsMetadata = await this.awaitQueryCompletion(
-                job,
-                initialMetadata,
-            );
-            const totalRows: number = resultsMetadata.totalRows
+            const totalRows: number = resultsMetadata?.totalRows
                 ? parseInt(resultsMetadata.totalRows, 10)
                 : 1;
 
@@ -586,17 +584,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    private async awaitQueryCompletion(
-        job: Job,
-        response?: QueryRowsResponse[2],
-    ): Promise<NonNullable<QueryRowsResponse[2]>> {
-        if (!response || !response.jobComplete) {
-            await sleep(200);
-            const newResponse = await this.getJobResultsMetadata(job);
-            return this.awaitQueryCompletion(job, newResponse);
-        }
-
-        return response;
+    private async awaitJobCompletion(job: Job): Promise<void> {
+        return new Promise((resolve, reject) => {
+            job.on('complete', () => {
+                resolve();
+            });
+            job.on('error', (error) => {
+                reject(error);
+            });
+        });
     }
 
     async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
