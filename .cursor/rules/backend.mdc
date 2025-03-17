@@ -43,7 +43,8 @@ controllers -> services -> models -> database
 
 ## Development Guidelines
 
-When building a new endpoint, ensure that you make changes to the controller, service, model, but also update types in packages/common.
+When building a new endpoint see [routes.ts](mdc:packages/backend/src/generated/routes.ts) and [swagger.json](mdc:packages/backend/src/generated/swagger.json), ensure that you make changes to the controller, service, model, but also update types in packages/common. 
+Remind user to call `pnpm generate-api` to rebuild tsoa. 
 
 ### Controllers
 - Keep controllers thin - delegate business logic to services
@@ -67,7 +68,7 @@ When building a new endpoint, ensure that you make changes to the controller, se
 - Implement proper rollback strategies
 - Use appropriate database constraints
 - Implement proper indexing strategy
-- Add types for the database in entities
+- Add types for the database in entitie 
 
 ## Performance Monitoring
 
