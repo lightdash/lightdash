@@ -13,7 +13,7 @@ import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { getExplore } from '../useExplore';
-import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import { getQueryPaginatedResults } from '../useQueryResults';
 import { getSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
@@ -55,7 +55,7 @@ const getChartAndResults = async ({
 };
 
 const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
-    const queryPaginationEnabled = useFeatureFlagEnabled(
+    const { data: queryPaginationEnabled } = useFeatureFlag(
         FeatureFlags.QueryPagination,
     );
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
@@ -111,7 +111,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
     const fetchChartAndResults = useCallback<
         () => Promise<ApiChartAndResults>
     >(async () => {
-        if (queryPaginationEnabled) {
+        if (queryPaginationEnabled?.enabled) {
             const chart = await getSavedQuery(chartUuid!);
             const explorePromise = getExplore(
                 chart.projectUuid,
@@ -184,7 +184,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 ? queryKey.concat([granularity])
                 : queryKey,
         queryFn: fetchChartAndResults,
-        enabled: !!chartUuid && !!dashboardUuid,
+        enabled: !!chartUuid && !!dashboardUuid && !!queryPaginationEnabled,
         retry: false,
         refetchOnMount: false,
     });
