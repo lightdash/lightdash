@@ -4,21 +4,25 @@ import useToaster from '../../hooks/toaster/useToaster';
 
 export const useOnProjectError = () => {
     const { showToastError } = useToaster();
-    return async (errors: FormErrors) => {
+    return (errors: FormErrors) => {
         if (!errors) {
             showToastError({
                 title: 'Form error',
                 subtitle: 'Unexpected error, please contact support',
             });
         } else {
-            const errorMessages: string[] = Object.values(errors).reduce<
-                string[]
-            >((acc, section) => {
-                const sectionErrors = Object.entries(section || {}).map(
-                    ([key, { message }]) => `${friendlyName(key)}: ${message}`,
-                );
-                return [...acc, ...sectionErrors];
-            }, []);
+            const errorMessages: string[] = Object.entries(errors).reduce<any>(
+                (acc, [field, message]) => {
+                    const parts = field.split('.');
+                    if (parts.length === 1) {
+                        return [...acc, message?.toString()];
+                    }
+                    const [section, _key] = parts;
+
+                    return [...acc, `${friendlyName(section)}: ${message}`];
+                },
+                [],
+            );
             showToastError({
                 title: 'Form errors',
                 subtitle: errorMessages.join('\n\n'),

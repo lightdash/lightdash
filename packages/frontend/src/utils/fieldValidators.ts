@@ -4,6 +4,20 @@ type FieldValidator<T> = (
     fieldName: string,
 ) => (value: T | undefined) => string | undefined;
 
+export const everyValidator = (
+    field: string,
+    ...validators: FieldValidator<string>[]
+) => {
+    return (input: string) => {
+        for (const validator of validators) {
+            const error = validator(field)(input);
+            if (error) {
+                return error;
+            }
+        }
+    };
+};
+
 export const isUppercase: FieldValidator<string> = (fieldName) => (value) =>
     !value || value === value.toUpperCase()
         ? undefined

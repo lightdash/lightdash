@@ -19,8 +19,9 @@ import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
+import { useOnProjectError } from './useOnProjectError';
 import { WarehouseDefaultValues } from './WarehouseForms/defaultValues';
-
+import { WarehouseValueValidators } from './WarehouseForms/validators';
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
     selectedWarehouse?: WarehouseTypes | undefined;
@@ -35,6 +36,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation();
+    const onProjectError = useOnProjectError();
 
     selectedWarehouse = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
 
@@ -47,11 +49,15 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 ...WarehouseDefaultValues[selectedWarehouse],
             } as CreateWarehouseCredentials,
         },
+        validate: {
+            warehouse: WarehouseValueValidators[selectedWarehouse],
+        },
+        validateInputOnBlur: true,
     });
 
     const { track } = useTracking();
 
-    const onSubmit = async (formValues: ProjectConnectionForm) => {
+    const handleSubmit = async (formValues: ProjectConnectionForm) => {
         const {
             name,
             dbt: dbtConnection,
@@ -78,6 +84,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         }
     };
 
+    const handleError = (errors: typeof form.errors) => {
+        onProjectError(errors);
+    };
+
     useEffect(() => {
         if (
             createProjectJobId &&
@@ -101,7 +111,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     return (
         <FormProvider form={form}>
             <FormContainer>
-                <form onSubmit={form.onSubmit(onSubmit)}>
+                <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
                     <ProjectFormProvider>
                         <ProjectForm
                             showGeneralSettings={!isCreatingFirstProject}

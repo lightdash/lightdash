@@ -21,7 +21,9 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import { type ProjectConnectionForm } from './types';
+import { useOnProjectError } from './useOnProjectError';
 import { WarehouseDefaultValues } from './WarehouseForms/defaultValues';
+import { WarehouseValueValidators } from './WarehouseForms/validators';
 
 const UpdateProjectConnection: FC<{
     projectUuid: string;
@@ -37,6 +39,7 @@ const UpdateProjectConnection: FC<{
         isError,
         error,
     } = useUpdateMutation(projectUuid);
+    const onProjectError = useOnProjectError();
 
     const isDisabled =
         isSaving ||
@@ -58,11 +61,16 @@ const UpdateProjectConnection: FC<{
             } as CreateWarehouseCredentials,
             dbtVersion: project.dbtVersion,
         },
+        validate: {
+            warehouse:
+                WarehouseValueValidators[project.warehouseConnection!.type],
+        },
+        validateInputOnBlur: true,
     });
 
     const { track } = useTracking();
 
-    const onSubmit = async ({
+    const handleSubmit = async ({
         name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
@@ -81,6 +89,10 @@ const UpdateProjectConnection: FC<{
                 dbtVersion,
             });
         }
+    };
+
+    const handleError = (errors: typeof form.errors) => {
+        onProjectError(errors);
     };
 
     if (project.type === ProjectType.PREVIEW) {
@@ -106,7 +118,7 @@ const UpdateProjectConnection: FC<{
     return (
         <FormProvider form={form}>
             <FormContainer>
-                <form onSubmit={form.onSubmit(onSubmit)}>
+                <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
                     <ProjectFormProvider savedProject={project}>
                         <ProjectForm
                             showGeneralSettings

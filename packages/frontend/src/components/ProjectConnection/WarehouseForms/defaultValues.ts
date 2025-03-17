@@ -19,7 +19,7 @@ export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
     location: '',
     // @ts-expect-error we need to set it as empty string to avoid overwritting saved value
     keyfileContents: '',
-    executionProject: undefined,
+    executionProject: '',
     timeoutSeconds: 300,
     priority: 'interactive',
     retries: 3,
