@@ -1,3 +1,10 @@
+# [0.1543.0](https://github.com/lightdash/lightdash/compare/0.1542.1...0.1543.0) (2025-03-17)
+
+
+### Features
+
+* add private_key to snowflake ([#14081](https://github.com/lightdash/lightdash/issues/14081)) ([58c8791](https://github.com/lightdash/lightdash/commit/58c879131995f3216d20909c3776ecacf8150494))
+
 ## [0.1542.1](https://github.com/lightdash/lightdash/compare/0.1542.0...0.1542.1) (2025-03-17)
 
 
