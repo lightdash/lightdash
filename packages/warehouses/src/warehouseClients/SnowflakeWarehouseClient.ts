@@ -329,11 +329,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const connection = await this.getConnection();
 
         try {
-            await this.prepareWarehouse(connection, {
-                timezone,
-                tags,
-            });
-
             const start = (queryArgs.page - 1) * queryArgs.pageSize;
             const end = start + queryArgs.pageSize - 1;
 
