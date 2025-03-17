@@ -228,12 +228,16 @@ export class OrganizationModel {
             );
         }
 
-        const [palette] = await this.database(OrganizationColorPaletteTableName)
+        const palette = await this.database(OrganizationColorPaletteTableName)
             .where('color_palette_uuid', org.color_palette_uuid)
             .andWhere('organization_uuid', organizationUuid)
-            .select('*');
+            .select('*')
+            .first();
 
-        return OrganizationModel.mapDBObjectToOrganization(org, palette.colors);
+        return OrganizationModel.mapDBObjectToOrganization(
+            org,
+            palette?.colors,
+        );
     }
 
     async create(data: CreateOrganization): Promise<Organization> {
