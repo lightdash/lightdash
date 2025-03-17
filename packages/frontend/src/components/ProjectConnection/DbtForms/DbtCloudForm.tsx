@@ -1,12 +1,19 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Alert, Anchor, MultiSelect, Stack } from '@mantine/core';
+import {
+    Alert,
+    Anchor,
+    MultiSelect,
+    PasswordInput,
+    Stack,
+    TextInput,
+} from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
-import { Controller } from 'react-hook-form';
+
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
-import Input from '../../ReactHookForm/Input';
-import PasswordInput from '../../ReactHookForm/PasswordInput';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
+import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 
@@ -19,6 +26,10 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const handleResetSearch = useCallback(() => {
         setTimeout(() => setSearch(() => ''), 0);
     }, [setSearch]);
+
+    const form = useFormContext();
+
+    const dbtTagsField = form.getInputProps('dbt.tags');
 
     return (
         <Stack>
@@ -40,46 +51,45 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             </Alert>
             <PasswordInput
                 name="dbt.api_key"
+                {...form.getInputProps('dbt.api_key')}
                 label="Service token"
                 description={
-                    <p>
-                        The service token must have the "Metadata Only"
-                        permission.
-                    </p>
+                    <>
+                        <p>
+                            The service token must have the "Metadata Only"
+                            permission.
+                        </p>
+                        {/* // TODO check this */}
+                        <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens" />
+                    </>
                 }
-                documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens"
-                rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('API key'),
-                    },
-                }}
+                required={requireSecrets}
                 placeholder={
                     disabled || !requireSecrets ? '**************' : undefined
                 }
                 disabled={disabled}
             />
-            <Input
+            <TextInput
                 name="dbt.environment_id"
+                {...form.getInputProps('dbt.environment_id')}
                 label="Environment ID"
                 description={
-                    <p>
-                        The unique identifier for the dbt production
-                        environment, you can retrieve this from the dbt Cloud
-                        URL when you navigate to Environments under Deploy.
-                    </p>
+                    <>
+                        <p>
+                            The unique identifier for the dbt production
+                            environment, you can retrieve this from the dbt
+                            Cloud URL when you navigate to Environments under
+                            Deploy.
+                        </p>
+                        <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/sl-jdbc#connection-parameters" />
+                    </>
                 }
-                documentationUrl="https://docs.getdbt.com/docs/dbt-cloud-apis/sl-jdbc#connection-parameters"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Environment ID'),
-                    },
-                }}
+                required
                 disabled={disabled}
             />
-            <Input
+            <TextInput
                 name="dbt.discovery_api_endpoint"
+                {...form.getInputProps('dbt.discovery_api_endpoint')}
                 label="Discovery API endpoint"
                 description={
                     <p>
@@ -94,68 +104,50 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         .
                     </p>
                 }
-                rules={{
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces(
-                            'Discovery API endpoint',
-                        ),
-                    },
-                }}
-                placeholder={'https://metadata.cloud.getdbt.com/graphql'}
+                placeholder="https://metadata.cloud.getdbt.com/graphql"
                 disabled={disabled}
             />
-            <Controller
+            <MultiSelect
                 name="dbt.tags"
-                render={({ field }) => (
-                    <MultiSelect
-                        {...field}
-                        label="Tags"
-                        disabled={disabled}
-                        description={
-                            <p>
-                                Only models with <b>all</b> these tags will be
-                                synced.
-                            </p>
-                        }
-                        placeholder="e.g lightdash, prod"
-                        searchable
-                        searchValue={search}
-                        onSearchChange={setSearch}
-                        clearable
-                        creatable
-                        clearSearchOnChange
-                        data={field.value || []}
-                        getCreateLabel={(query) => `+ Add ${query}`}
-                        onCreate={(query) => {
-                            const newValue = [...(field.value || []), query];
-                            field.onChange(newValue);
-                            return query;
-                        }}
-                        onChange={field.onChange}
-                        onKeyDown={(
-                            event: React.KeyboardEvent<HTMLInputElement>,
-                        ) => {
-                            if (
-                                event.key === 'Enter' &&
-                                event.currentTarget.value.trim()
-                            ) {
-                                event.preventDefault(); // Prevent form submission
-                                const newValue =
-                                    event.currentTarget.value.trim();
-                                if (!field.value?.includes(newValue)) {
-                                    field.onChange([
-                                        ...(field.value || []),
-                                        newValue,
-                                    ]);
-                                    handleResetSearch();
-                                }
-                            }
-                        }}
-                        onDropdownClose={() => {
-                            handleResetSearch();
-                        }}
-                    />
-                )}
+                {...form.getInputProps('dbt.tags')}
+                {...dbtTagsField}
+                label="Tags"
+                disabled={disabled}
+                description={
+                    <p>
+                        Only models with <b>all</b> these tags will be synced.
+                    </p>
+                }
+                placeholder="e.g lightdash, prod"
+                searchable
+                searchValue={search}
+                onSearchChange={setSearch}
+                clearable
+                creatable
+                clearSearchOnChange
+                data={dbtTagsField.value || []}
+                getCreateLabel={(query) => `+ Add ${query}`}
+                onCreate={(query) => {
+                    form.insertListItem('dbt.tags', query);
+                    return query;
+                }}
+                onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (
+                        event.key === 'Enter' &&
+                        event.currentTarget.value.trim()
+                    ) {
+                        event.preventDefault(); // Prevent form submission
+                        // TODO
+                        // const newValue = event.currentTarget.value.trim();
+                        // if (!field.value?.includes(newValue)) {
+                        //     field.onChange([...(field.value || []), newValue]);
+                        //     handleResetSearch();
+                        // }
+                    }
+                }}
+                onDropdownClose={() => {
+                    handleResetSearch();
+                }}
             />
         </Stack>
     );
