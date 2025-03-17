@@ -9,19 +9,23 @@ import type {
     CreateTrinoCredentials,
 } from '@lightdash/common';
 
+// https://github.com/lightdash/lightdash/blob/427088ec09485f334f463b6026025d4287ad302b/packages/backend/src/models/ProjectModel/ProjectModel.ts#L156
+// only undefined and empty string are considered empty values
+
 export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
     type: WarehouseTypes.BIGQUERY,
     dataset: '',
     project: '',
     location: '',
-    // @ts-expect-error
-    keyfileContents: null,
+    // @ts-expect-error we need to set it as empty string to avoid overwritting saved value
+    keyfileContents: '',
     executionProject: undefined,
     timeoutSeconds: 300,
     priority: 'interactive',
     retries: 3,
     maximumBytesBilled: 1000000000,
-    startOfWeek: null,
+    // we need to set it as undefined to avoid overwritting saved value
+    startOfWeek: undefined,
 } as const;
 
 export const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
@@ -32,7 +36,7 @@ export const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
     personalAccessToken: '',
     catalog: '',
     compute: [],
-    startOfWeek: null,
+    startOfWeek: undefined,
 } as const;
 
 export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
@@ -47,9 +51,9 @@ export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
     keepalivesIdle: 0,
     searchPath: '',
     sslmode: 'prefer',
-    sslcert: null,
-    sslkey: null,
-    sslrootcert: null,
+    sslcert: '',
+    sslkey: '',
+    sslrootcert: '',
     sslcertFileName: '',
     sslkeyFileName: '',
     sslrootcertFileName: '',
@@ -60,7 +64,7 @@ export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
     sshTunnelPort: 22,
     sshTunnelUser: '',
     sshTunnelPublicKey: '',
-    startOfWeek: null,
+    startOfWeek: undefined,
 } as const;
 
 export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
@@ -81,7 +85,7 @@ export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
     sshTunnelPort: 22,
     sshTunnelUser: '',
     sshTunnelPublicKey: '',
-    startOfWeek: null,
+    startOfWeek: undefined,
 } as const;
 
 export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
@@ -98,7 +102,7 @@ export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
     clientSessionKeepAlive: false, // confirm
     queryTag: '',
     accessUrl: '',
-    startOfWeek: null,
+    startOfWeek: undefined,
 } as const;
 
 export const TrinoDefaultValues: Partial<CreateTrinoCredentials> = {
