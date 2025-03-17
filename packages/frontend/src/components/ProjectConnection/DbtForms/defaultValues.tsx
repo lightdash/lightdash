@@ -3,6 +3,7 @@ import { DbtProjectType, DefaultSupportedDbtVersion } from '@lightdash/common';
 export const githubDefaultValues = {
     type: DbtProjectType.GITHUB,
     environment: [],
+    target: '',
     selector: '',
     repository: '',
     personal_access_token: '',
@@ -30,6 +31,12 @@ export const bitbucketDefaultValues = {
     target: '',
     environment: [],
     selector: '',
+    username: '',
+    personal_access_token: '',
+    repository: '',
+    branch: 'main',
+    project_sub_path: '/',
+    host_domain: 'bitbucket.org',
 } as const;
 
 export const azureDevopsDefaultValues = {
