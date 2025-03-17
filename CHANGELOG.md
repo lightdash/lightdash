@@ -1,3 +1,10 @@
+## [0.1543.1](https://github.com/lightdash/lightdash/compare/0.1543.0...0.1543.1) (2025-03-17)
+
+
+### Bug Fixes
+
+* wait for pagination feature flag before running query ([#14104](https://github.com/lightdash/lightdash/issues/14104)) ([9dac82d](https://github.com/lightdash/lightdash/commit/9dac82d425b134bdf570dcc5264be87aed11e37f))
+
 # [0.1543.0](https://github.com/lightdash/lightdash/compare/0.1542.1...0.1543.0) (2025-03-17)
 
 
