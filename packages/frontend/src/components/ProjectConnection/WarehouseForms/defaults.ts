@@ -6,6 +6,7 @@ import type {
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
+    CreateTrinoCredentials,
 } from '@lightdash/common';
 
 export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
@@ -100,11 +101,23 @@ export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
     startOfWeek: null,
 } as const;
 
+export const TrinoDefaultValues: Partial<CreateTrinoCredentials> = {
+    type: WarehouseTypes.TRINO,
+    schema: '',
+    host: '',
+    user: '',
+    password: '',
+    requireUserCredentials: false,
+    port: 443,
+    dbname: '',
+    http_scheme: 'https',
+};
+
 export const WarehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
     [WarehouseTypes.REDSHIFT]: RedshiftDefaultValues,
     [WarehouseTypes.SNOWFLAKE]: SnowflakeDefaultValues,
     [WarehouseTypes.DATABRICKS]: DatabricksDefaultValues,
-    // [WarehouseTypes.TRINO]: TrinoDefaultValues,
+    [WarehouseTypes.TRINO]: TrinoDefaultValues,
 } as const;

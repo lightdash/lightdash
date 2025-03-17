@@ -16,6 +16,7 @@ import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 import BooleanSwitch from './Inputs/BooleanSwitch';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { TrinoDefaultValues } from './defaults';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
@@ -110,7 +111,7 @@ const TrinoForm: FC<{
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
-                            defaultValue={443}
+                            defaultValue={TrinoDefaultValues.port}
                             label="Port"
                             description="This is the database name."
                             required
@@ -120,7 +121,7 @@ const TrinoForm: FC<{
                         <Select
                             name="warehouse.http_scheme"
                             {...form.getInputProps('warehouse.http_scheme')}
-                            defaultValue="https"
+                            defaultValue={TrinoDefaultValues.http_scheme}
                             label="SSL mode"
                             description={
                                 <p>
