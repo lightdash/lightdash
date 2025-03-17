@@ -56,6 +56,10 @@ export const dbtCloudIdeDefaultValues = {
     type: DbtProjectType.DBT_CLOUD_IDE,
     target: '',
     environment: [],
+    api_key: '',
+    environment_id: '',
+    discovery_api_endpoint: '',
+    tags: [],
 } as const;
 
 // Local
@@ -69,6 +73,7 @@ export const dbtDefaultValues = {
 // CLI
 export const noneDefaultValues = {
     type: DbtProjectType.NONE,
+    hideRefreshButton: false, // confirm
 } as const;
 
 export const dbtDefaults = {

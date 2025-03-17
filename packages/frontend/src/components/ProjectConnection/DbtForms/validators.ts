@@ -15,7 +15,10 @@ const selectorValidator = (value?: string) => {
 };
 
 export const dbtFormValidators = {
-    [DbtProjectType.DBT_CLOUD_IDE]: {},
+    [DbtProjectType.DBT_CLOUD_IDE]: {
+        api_key: hasNoWhiteSpaces('API Key'),
+        environment_id: hasNoWhiteSpaces('Environment ID'),
+    },
     [DbtProjectType.DBT]: {
         selector: selectorValidator,
     },
