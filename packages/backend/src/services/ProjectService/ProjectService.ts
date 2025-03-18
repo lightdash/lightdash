@@ -2785,15 +2785,22 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
+        const underlyingDataMetricQuery: MetricQuery = {
+            exploreName,
+            dimensions: availableDimensions.map(getItemId),
+            filters,
+            metrics: [],
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+
         const { queryUuid: underlyingDataQueryUuid } =
             await this.executeAsyncQuery(
                 {
                     user,
-                    metricQuery: {
-                        ...metricQuery,
-                        dimensions: availableDimensions.map(getItemId),
-                        filters,
-                    },
+                    metricQuery: underlyingDataMetricQuery,
                     projectUuid,
                     exploreName,
                     context,
