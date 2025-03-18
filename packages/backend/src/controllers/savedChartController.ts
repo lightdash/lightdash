@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -31,6 +32,7 @@ import {
 } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
+    deprecatedResultsRoute,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -49,7 +51,12 @@ export class SavedChartController extends BaseController {
      * @param body.invalidateCache invalidate cache
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedResultsRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/results')
     @OperationId('PostChartResults')
@@ -74,6 +81,7 @@ export class SavedChartController extends BaseController {
         };
     }
 
+    @Deprecated()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
@@ -162,7 +170,12 @@ export class SavedChartController extends BaseController {
      * @param versionUuid versionUuid for the chart version
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedResultsRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('version/{versionUuid}/results')
     @OperationId('getChartVersionResults')

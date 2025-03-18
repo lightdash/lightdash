@@ -17972,6 +17972,7 @@
                 },
                 "description": "Run a query for underlying data results",
                 "tags": ["Exploring"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18034,6 +18035,7 @@
                 },
                 "description": "Run a query for explore",
                 "tags": ["Exploring"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18096,6 +18098,7 @@
                 },
                 "description": "Run a query for a chart",
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18151,6 +18154,7 @@
                     }
                 },
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18320,6 +18324,7 @@
                 },
                 "description": "Run a query for a chart version",
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {

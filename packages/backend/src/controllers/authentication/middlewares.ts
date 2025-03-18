@@ -136,3 +136,26 @@ export const inviteLinkErrorHandler: ErrorRequestHandler = (
 
     return next(err);
 };
+
+/**
+ * This middleware is used to handle deprecated API routes.
+ * It sets a warning header and returns a 299 status code.
+ * @param date - The date when the deprecated route will be removed
+ * @param suffixMessage - An optional suffix message to add to the warning header
+ * @returns
+ */
+export const getDeprecatedRouteMiddleware =
+    (date: Date, suffixMessage?: string): RequestHandler =>
+    (_req, res, next) => {
+        const newRouteMessage = suffixMessage ? ` ${suffixMessage}` : '';
+        res.setHeader(
+            'Warning',
+            `299 - "This API endpoint is deprecated and will be removed after ${date}.${newRouteMessage}"`,
+        );
+        next();
+    };
+
+export const deprecatedResultsRoute = getDeprecatedRouteMiddleware(
+    new Date('2025-04-30'),
+    `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
+);

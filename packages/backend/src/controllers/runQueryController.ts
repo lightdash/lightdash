@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Middlewares,
     OperationId,
     Path,
@@ -23,7 +24,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    deprecatedResultsRoute,
+    isAuthenticated,
+} from './authentication';
 import { BaseController } from './baseController';
 
 export type ApiRunQueryResponse = {
@@ -47,7 +52,12 @@ export class RunViewChartQueryController extends BaseController {
      * @param exploreId table name
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedResultsRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/explores/{exploreId}/runUnderlyingDataQuery')
     @OperationId('postRunUnderlyingDataQuery')
@@ -93,7 +103,12 @@ export class RunViewChartQueryController extends BaseController {
      * @param exploreId table name
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedResultsRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/explores/{exploreId}/runQuery')
     @OperationId('RunMetricQuery')
