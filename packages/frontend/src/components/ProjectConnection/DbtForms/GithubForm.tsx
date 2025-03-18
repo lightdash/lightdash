@@ -84,10 +84,25 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         config?.installationId !== undefined && !isError;
 
     useEffect(() => {
-        if (config?.installationId) {
-            form.setFieldValue('dbt.installation_id', config?.installationId);
+        if (
+            config?.installationId &&
+            form.values.dbt.type === DbtProjectType.GITHUB &&
+            form.values.dbt.installation_id != config.installationId
+        ) {
+            form.setFieldValue('dbt.installation_id', config.installationId);
         }
     }, [config?.installationId, form]);
+
+    useEffect(() => {
+        if (
+            repos &&
+            repos.length > 0 &&
+            form.values.dbt.type === DbtProjectType.GITHUB &&
+            form.values.dbt.repository === ''
+        ) {
+            form.setFieldValue('dbt.repository', repos[0].fullName);
+        }
+    }, [repos, form]);
 
     const { showToastSuccess } = useToaster();
 
@@ -100,7 +115,6 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Group spacing="xs">
                         <Select
                             name="dbt.repository"
-                            defaultValue={repos[0].fullName}
                             searchable
                             required
                             w="90%"

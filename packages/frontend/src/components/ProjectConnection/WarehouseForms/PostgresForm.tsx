@@ -33,6 +33,7 @@ export const PostgresSchemaInput: FC<{
 
     return (
         <TextInput
+            name="warehouse.schema"
             label="Schema"
             description="This is the schema name."
             required

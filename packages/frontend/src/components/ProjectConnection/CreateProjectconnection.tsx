@@ -58,7 +58,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         },
         validate: {
             warehouse: warehouseValueValidators[selectedWarehouse],
-            dbt: dbtFormValidators[dbtType],
+            dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
     });
@@ -82,11 +82,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 type: ProjectType.DEFAULT,
                 dbtConnection,
                 dbtVersion,
-                //@ts-ignore
                 warehouseConnection: {
-                    ...warehouseConnection,
+                    ...warehouseConnection!,
                     type: selectedWarehouse,
-                },
+                } as CreateWarehouseCredentials,
             });
             setCreateProjectJobId(data.jobUuid);
         }

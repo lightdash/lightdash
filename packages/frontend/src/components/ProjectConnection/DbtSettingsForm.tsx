@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    DbtProjectConfig,
     DbtProjectType,
     DbtProjectTypeLabels,
     FeatureFlags,
@@ -163,13 +164,12 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                     onChange={(value) => {
                         form.getInputProps('dbt.type').onChange(value);
                         if (value) {
+                            const nextValues = dbtDefaults.formValues[
+                                value as DbtProjectType
+                            ] as DbtProjectConfig;
+
                             form.setValues({
-                                // @ts-expect-error
-                                dbt: {
-                                    ...dbtDefaults.formValues[
-                                        value as DbtProjectType
-                                    ],
-                                },
+                                dbt: nextValues,
                             });
                         }
                     }}

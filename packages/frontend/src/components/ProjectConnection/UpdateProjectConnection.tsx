@@ -70,7 +70,7 @@ const UpdateProjectConnection: FC<{
         validate: {
             warehouse:
                 warehouseValueValidators[project.warehouseConnection!.type],
-            dbt: dbtFormValidators[project.dbtConnection!.type],
+            dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
     });

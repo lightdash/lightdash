@@ -31,6 +31,7 @@ export const RedshiftSchemaInput: FC<{
     const form = useFormContext();
     return (
         <TextInput
+            name="warehouse.schema"
             label="Schema"
             description="This is the schema name."
             required

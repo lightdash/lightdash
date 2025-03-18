@@ -39,6 +39,7 @@ export const ProjectForm: FC<Props> = ({
 
                     <div>
                         <TextInput
+                            name="name"
                             label="Project name"
                             required
                             disabled={disabled}
