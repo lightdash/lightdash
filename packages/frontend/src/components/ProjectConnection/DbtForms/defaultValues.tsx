@@ -73,7 +73,7 @@ const dbtDefaultValues = {
 // CLI
 const noneDefaultValues = {
     type: DbtProjectType.NONE,
-    hideRefreshButton: false, // confirm
+    hideRefreshButton: false,
 } as const;
 
 export const dbtDefaults = {

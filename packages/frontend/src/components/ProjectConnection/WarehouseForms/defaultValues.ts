@@ -78,9 +78,9 @@ export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
     port: 5439,
     keepalivesIdle: 0,
     sslmode: 'prefer',
-    ra3Node: true, // confirm
+    ra3Node: false,
     timeoutSeconds: 300,
-    useSshTunnel: false, // confirm
+    useSshTunnel: false,
     sshTunnelHost: '',
     sshTunnelPort: 22,
     sshTunnelUser: '',
@@ -99,7 +99,7 @@ export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
     warehouse: '',
     override: false,
     requireUserCredentials: false,
-    clientSessionKeepAlive: false, // confirm
+    clientSessionKeepAlive: false,
     queryTag: '',
     accessUrl: '',
     startOfWeek: undefined,
