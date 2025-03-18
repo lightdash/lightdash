@@ -28,7 +28,7 @@ export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
     startOfWeek: undefined,
 } as const;
 
-export const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
+const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
     type: WarehouseTypes.DATABRICKS,
     database: '',
     serverHostName: '',

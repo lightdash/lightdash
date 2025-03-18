@@ -1,4 +1,4 @@
-import { isValidFrequency, validateGithubToken } from '@lightdash/common';
+import { isValidFrequency } from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -44,14 +44,6 @@ export const startWithHTTPSProtocol: FieldValidator<string> =
         !value || value.match(/^https:\/\/.*/)
             ? undefined
             : `${fieldName} should start with a "https://"`;
-
-export const isValidGithubToken: FieldValidator<string> =
-    (_fieldName) => (value) => {
-        if (value) {
-            const [_isValid, error] = validateGithubToken(value);
-            return error;
-        }
-    };
 
 // Supports values: "1" "1,2,3" "1-3" "*/5" "*"
 const cronValueRegex = new RegExp(
