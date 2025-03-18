@@ -1,10 +1,9 @@
+const path = require('path');
+
 module.exports = {
-    parserOptions: {
-        project: './tsconfig.json',
-        createDefaultProgram: true,
-    },
+    parserOptions: { tsconfigRootDir: __dirname, project: './tsconfig.json' },
     extends: [
-        './../../.eslintrc.js',
+        path.resolve(__dirname, './../../.eslintrc.js'),
         'eslint:recommended',
         'plugin:json/recommended',
         'airbnb-base',
@@ -21,17 +20,16 @@ module.exports = {
         'no-template-curly-in-string': 'off',
         'no-restricted-syntax': 'off',
         eqeqeq: 'error',
-        '@typescript-eslint/no-floating-promises': 'error'
+        '@typescript-eslint/no-floating-promises': 'error',
     },
     overrides: [
-        
         {
-            files: ['*.ts'], 
+            files: ['*.ts'],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "error",
-                "@typescript-eslint/no-unsafe-assignment": "error",
-                "@typescript-eslint/no-unsafe-call": "error"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'error',
+                '@typescript-eslint/no-unsafe-assignment': 'error',
+                '@typescript-eslint/no-unsafe-call': 'error',
+            },
         },
 
         {
@@ -51,27 +49,26 @@ module.exports = {
                 'src/scheduler/**/*.ts',
                 'src/config/**/*.ts',
                 'src/projectAdapters/**/*.ts',
-            ], 
+            ],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "off",
-                "@typescript-eslint/no-unsafe-assignment": "off",
-                "@typescript-eslint/no-unsafe-call": "off"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'off',
+                '@typescript-eslint/no-unsafe-assignment': 'off',
+                '@typescript-eslint/no-unsafe-call': 'off',
+            },
         },
         {
-            files: ['src/database/migrations/*.ts',
+            files: [
+                'src/database/migrations/*.ts',
                 'src/routers/*.ts',
                 '*.mock.ts',
                 '*.test.ts',
                 '*.spec.ts',
             ],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "off",
-                "@typescript-eslint/no-unsafe-assignment": "off",
-                "@typescript-eslint/no-unsafe-call": "off"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'off',
+                '@typescript-eslint/no-unsafe-assignment': 'off',
+                '@typescript-eslint/no-unsafe-call': 'off',
+            },
         },
-       
-    ]
-
+    ],
 };

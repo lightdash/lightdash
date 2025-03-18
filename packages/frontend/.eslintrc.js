@@ -1,3 +1,4 @@
+const path = require('path');
 const restrictedGlobals = require('confusing-browser-globals');
 
 const unusedVarExceptions = {
@@ -7,13 +8,10 @@ const unusedVarExceptions = {
 };
 
 module.exports = {
-    parserOptions: {
-        project: './tsconfig.json',
-        createDefaultProgram: true,
-    },
+    parserOptions: { tsconfigRootDir: __dirname, project: './tsconfig.json' },
     ignorePatterns: ['**/styles/*.css', '.eslintrc.js'],
     extends: [
-        './../../.eslintrc.js',
+        path.resolve(__dirname, './../../.eslintrc.js'),
         'plugin:@typescript-eslint/recommended',
         'plugin:css-modules/recommended',
         'plugin:import/recommended',
@@ -25,6 +23,7 @@ module.exports = {
         'prettier',
         'plugin:jest-dom/recommended',
         'plugin:testing-library/react',
+        'plugin:ssr-friendly/recommended',
     ],
     plugins: [
         'css-modules',
@@ -37,6 +36,7 @@ module.exports = {
         'jest-dom',
         'testing-library',
         'react-refresh',
+        'ssr-friendly',
     ],
 
     settings: {

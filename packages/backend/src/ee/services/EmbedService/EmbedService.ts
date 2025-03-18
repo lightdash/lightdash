@@ -439,15 +439,18 @@ export class EmbedService extends BaseService {
             ({ savedChartUuid }) => savedChartUuid,
         );
 
-        if (checkPermissions)
-            savedQueryUuids.map(async (chartUuid) =>
-                this._permissionsGetChartAndResults(
-                    projectUuid,
-                    chartUuid,
-                    dashboardUuids,
-                    dashboardUuid,
+        if (checkPermissions) {
+            await Promise.all(
+                savedQueryUuids.map((chartUuid) =>
+                    this._permissionsGetChartAndResults(
+                        projectUuid,
+                        chartUuid,
+                        dashboardUuids,
+                        dashboardUuid,
+                    ),
                 ),
             );
+        }
 
         const savedCharts =
             await this.savedChartModel.getInfoForAvailableFilters(

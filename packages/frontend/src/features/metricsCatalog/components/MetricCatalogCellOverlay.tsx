@@ -32,9 +32,13 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const overlayRef = useRef<HTMLDivElement>(null);
-    const pageRootRef = useRef<HTMLDivElement>(
-        document.getElementById('page-root') as HTMLDivElement,
-    );
+    const pageRootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        pageRootRef.current = document.getElementById(
+            'page-root',
+        ) as HTMLDivElement;
+    }, []);
 
     // Lock body and table container scroll when overlay is open
     useLockScroll(pageRootRef, isOpen);

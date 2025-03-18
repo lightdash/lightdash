@@ -1,10 +1,9 @@
+const path = require('path');
+
 module.exports = {
-    parserOptions: {
-        project: './tsconfig.json',
-        createDefaultProgram: true,
-    },
+    parserOptions: { tsconfigRootDir: __dirname, project: './tsconfig.json' },
     extends: [
-        './../../.eslintrc.js',
+        path.resolve(__dirname, './../../.eslintrc.js'),
         'eslint:recommended',
         'plugin:json/recommended',
         'airbnb-base',

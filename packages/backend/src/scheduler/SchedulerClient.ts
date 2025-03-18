@@ -495,16 +495,18 @@ export class SchedulerClient {
                     scheduler.schedulerUuid
                 }. Job IDs: ${jobs.map((j) => j.jobId)}`,
             );
-            jobs.map(async ({ jobId, date }) => {
-                await this.schedulerModel.logSchedulerJob({
-                    task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
-                    schedulerUuid: scheduler.schedulerUuid,
-                    jobGroup: jobId,
-                    jobId,
-                    scheduledTime: date,
-                    status: SchedulerJobStatus.SCHEDULED,
-                });
-            });
+            await Promise.all(
+                jobs.map(({ jobId, date }) =>
+                    this.schedulerModel.logSchedulerJob({
+                        task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                        schedulerUuid: scheduler.schedulerUuid,
+                        jobGroup: jobId,
+                        jobId,
+                        scheduledTime: date,
+                        status: SchedulerJobStatus.SCHEDULED,
+                    }),
+                ),
+            );
         } catch (err: AnyType) {
             Logger.error(
                 `Unable to schedule job for scheduler ${scheduler.schedulerUuid}`,
@@ -895,9 +897,9 @@ export class SchedulerClient {
     > {
         const graphileClient = await this.graphileUtils;
         const query = `
-            select 
-              last_error is not null as error, 
-              locked_by is not null as locked, 
+            select
+              last_error is not null as error,
+              locked_by is not null as locked,
               count(*) as count
             from graphile_worker.jobs
             group by 1, 2

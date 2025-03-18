@@ -4,7 +4,7 @@ import {
 } from '@lightdash/common';
 import { Button, Image, type ButtonProps } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 
@@ -33,13 +33,18 @@ const ThirdPartySignInButtonBase: FC<
     redirect,
     ...props
 }) => {
+    const [currentUrl, setCurrentUrl] = useState<string>();
+    useEffect(() => {
+        setCurrentUrl(window.location.href);
+    }, []);
+
     return (
         <Button
             variant="default"
             color="gray"
             component="a"
             href={`/api/v1${loginPath}?redirect=${encodeURIComponent(
-                redirect || window.location.href,
+                redirect || currentUrl || '',
             )}${
                 inviteCode
                     ? `&inviteCode=${encodeURIComponent(inviteCode)}`

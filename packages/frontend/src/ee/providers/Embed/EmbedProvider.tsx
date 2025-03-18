@@ -1,6 +1,6 @@
 import { type LanguageMap } from '@lightdash/common';
 import { get } from 'lodash';
-import { type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import EmbedProviderContext from './context';
 
@@ -13,12 +13,22 @@ type Props = {
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
-    embedToken = window.location.hash.replace('#', ''),
+    embedToken: embedTokenProp,
     filters,
     projectUuid,
     contentOverrides,
 }) => {
     const t = (input: string) => get(contentOverrides, input);
+
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [embedToken, setEmbedToken] = useState<string>();
+
+    useEffect(() => {
+        setEmbedToken(embedTokenProp ?? window.location.hash.replace('#', ''));
+        setIsInitialized(true);
+    }, [embedTokenProp]);
+
+    if (!isInitialized) return null;
 
     return (
         <EmbedProviderContext.Provider

@@ -20,7 +20,13 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
-import React, { useCallback, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useState,
+    type FC,
+    type PropsWithChildren,
+} from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { Config } from '../../common/Config';
@@ -61,9 +67,20 @@ type DraggablePortalHandlerProps = {
 };
 
 const DraggablePortalHandler: FC<
-    React.PropsWithChildren<DraggablePortalHandlerProps>
+    PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+        null,
+    );
+
+    useEffect(() => {
+        setPortalContainer(document.body);
+    }, []);
+
+    if (snapshot.isDragging && portalContainer) {
+        return createPortal(children, portalContainer);
+    }
+
     return <>{children}</>;
 };
 

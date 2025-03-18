@@ -214,6 +214,16 @@ const DashboardHeader = ({
         ],
     );
 
+    const [browserIsFullscreen, setBrowserIsFullscreen] = useState(false);
+    useEffect(() => {
+        setBrowserIsFullscreen(document.fullscreenEnabled);
+    }, []);
+
+    const [currentUrl, setCurrentUrl] = useState('');
+    useEffect(() => {
+        setCurrentUrl(window.location.href);
+    }, []);
+
     return (
         <PageHeader
             cardProps={{
@@ -369,7 +379,7 @@ const DashboardHeader = ({
                     )}
 
                     {!isEditMode &&
-                        document.fullscreenEnabled &&
+                        browserIsFullscreen &&
                         isFullScreenFeatureEnabled && (
                             <Tooltip
                                 label={
@@ -411,7 +421,7 @@ const DashboardHeader = ({
                     )}
 
                     {userCanExportData && !isFullscreen && (
-                        <ShareLinkButton url={`${window.location.href}`} />
+                        <ShareLinkButton url={currentUrl} />
                     )}
 
                     {!isFullscreen && (

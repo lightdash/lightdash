@@ -24,9 +24,21 @@ import Routes from './Routes';
 //         navigator.userAgent,
 //     ) || window.innerWidth < 768;
 
-const isMobile = window.innerWidth < 768;
+const isMobile = () => {
+    if (typeof window !== undefined) {
+        return window.innerWidth < 768;
+    } else {
+        return false;
+    }
+};
 
-const isMinimalPage = window.location.pathname.startsWith('/minimal');
+const isMinimalPage = () => {
+    if (typeof window !== undefined) {
+        return window.location.pathname.startsWith('/minimal');
+    } else {
+        return false;
+    }
+};
 
 // Sentry wrapper for createBrowserRouter
 const sentryCreateBrowserRouter =
@@ -37,12 +49,14 @@ const router = sentryCreateBrowserRouter([
         path: '/',
         element: (
             <AppProvider>
-                <FullscreenProvider enabled={isMobile || !isMinimalPage}>
+                <FullscreenProvider enabled={isMobile() || !isMinimalPage()}>
                     <VersionAutoUpdater />
-                    <ThirdPartyProvider enabled={isMobile || !isMinimalPage}>
+                    <ThirdPartyProvider
+                        enabled={isMobile() || !isMinimalPage()}
+                    >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             <TrackingProvider
-                                enabled={isMobile || !isMinimalPage}
+                                enabled={isMobile() || !isMinimalPage()}
                             >
                                 <AbilityProvider>
                                     <ActiveJobProvider>
@@ -57,11 +71,12 @@ const router = sentryCreateBrowserRouter([
                 </FullscreenProvider>
             </AppProvider>
         ),
-        children: isMobile
+        children: isMobile()
             ? [...MobileRoutes, ...CommercialMobileRoutes]
             : [...Routes, ...CommercialWebAppRoutes],
     },
 ]);
+
 const App = () => (
     <>
         <title>Lightdash</title>
