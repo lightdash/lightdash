@@ -182,6 +182,6 @@ export class V2ProjectController extends BaseController {
         }
 
         this.setStatus(400);
-        throw new ParameterError('Invalid query');
+        throw new ParameterError('Invalid async query execution request');
     }
 }
