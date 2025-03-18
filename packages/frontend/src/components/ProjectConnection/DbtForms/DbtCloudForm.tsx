@@ -130,12 +130,17 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         event.currentTarget.value.trim()
                     ) {
                         event.preventDefault(); // Prevent form submission
-                        // TODO
-                        // const newValue = event.currentTarget.value.trim();
-                        // if (!field.value?.includes(newValue)) {
-                        //     field.onChange([...(field.value || []), newValue]);
-                        //     handleResetSearch();
-                        // }
+                        if (
+                            !dbtTagsField.value.includes(
+                                event.currentTarget.value.trim(),
+                            )
+                        ) {
+                            form.insertListItem(
+                                'dbt.tags',
+                                event.currentTarget.value.trim(),
+                            );
+                            handleResetSearch();
+                        }
                     }
                 }}
                 onDropdownClose={() => {
