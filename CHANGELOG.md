@@ -1,3 +1,10 @@
+# [0.1546.0](https://github.com/lightdash/lightdash/compare/0.1545.0...0.1546.0) (2025-03-18)
+
+
+### Features
+
+* adjust helmet config for embed subroutes ([#14053](https://github.com/lightdash/lightdash/issues/14053)) ([a1ec5c1](https://github.com/lightdash/lightdash/commit/a1ec5c1f49cc2899fdcf3107c51ce214d0845e01))
+
 # [0.1545.0](https://github.com/lightdash/lightdash/compare/0.1544.2...0.1545.0) (2025-03-18)
 
 
