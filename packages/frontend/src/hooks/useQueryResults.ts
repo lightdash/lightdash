@@ -304,7 +304,7 @@ export const useUnderlyingDataResults = (
 
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
-        enabled: !!queryPaginationEnabled,
+        enabled: Boolean(projectUuid) && Boolean(queryPaginationEnabled),
         queryFn: () => {
             if (shouldUsePagination) {
                 return getQueryPaginatedResults(projectUuid!, {
