@@ -43,7 +43,7 @@ import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml
 export default class DbtSchemaEditor {
     private readonly doc: Document;
 
-    constructor(doc: string = '') {
+    constructor(doc: string = '', filename: string = '') {
         this.doc = parseDocument(doc);
         const ajvCompiler = new Ajv({ coerceTypes: true });
         const validate = ajvCompiler.compile<YamlSchema>(
@@ -57,7 +57,7 @@ export default class DbtSchemaEditor {
                 validate.errors || [],
                 { indent: 2 },
             );
-            throw new ParseError(`Invalid schema file: ${errors}`);
+            throw new ParseError(`Invalid schema file: ${filename}\n${errors}`);
         }
     }
 
