@@ -18,8 +18,10 @@ export function validatePagination({
     pageSize,
     page,
     queryMaxLimit,
+    totalResultsCount,
 }: Required<ResultsPaginationArgs> & {
     queryMaxLimit: number;
+    totalResultsCount: number | null;
 }) {
     if (page < 1) {
         throw new PaginationError('page should be greater than 0');
@@ -33,5 +35,15 @@ export function validatePagination({
         throw new PaginationError(
             `page size is too large, max is ${queryMaxLimit}`,
         );
+    }
+
+    if (totalResultsCount) {
+        const lastPage = Math.ceil(totalResultsCount / pageSize);
+
+        if (page > lastPage) {
+            throw new PaginationError(
+                `page does not exist, last page is ${lastPage}`,
+            );
+        }
     }
 }
