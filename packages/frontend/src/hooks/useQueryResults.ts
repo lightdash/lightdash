@@ -281,7 +281,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
 export const useUnderlyingDataResults = (
     tableId: string,
     query: MetricQuery,
-    queryUuid?: string,
+    underlyingDataSourceQueryUuid: string,
     underlyingDataItemId?: string,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -290,13 +290,13 @@ export const useUnderlyingDataResults = (
     );
 
     const shouldUsePagination =
-        queryUuid && underlyingDataItemId && queryPaginationEnabled?.enabled;
+        underlyingDataSourceQueryUuid && queryPaginationEnabled?.enabled;
 
     const queryKey = shouldUsePagination
         ? [
               'underlyingDataResults',
               projectUuid,
-              queryUuid,
+              underlyingDataSourceQueryUuid,
               underlyingDataItemId,
               query.filters,
           ]
@@ -306,10 +306,10 @@ export const useUnderlyingDataResults = (
         queryKey,
         enabled: !!queryPaginationEnabled,
         queryFn: () => {
-            if (queryPaginationEnabled && queryUuid) {
+            if (queryPaginationEnabled && underlyingDataSourceQueryUuid) {
                 return getQueryPaginatedResults(projectUuid!, {
                     context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                    underlyingDataSourceQueryUuid: queryUuid,
+                    underlyingDataSourceQueryUuid,
                     underlyingDataItemId,
                     filters: query.filters,
                 });
