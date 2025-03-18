@@ -122,8 +122,8 @@ const UpdateProjectConnection: FC<{
 
     return (
         <FormProvider form={form}>
-            <FormContainer>
-                <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
+            <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
+                <FormContainer>
                     <ProjectFormProvider savedProject={project}>
                         <ProjectForm
                             showGeneralSettings
@@ -163,8 +163,8 @@ const UpdateProjectConnection: FC<{
                                 : 'Test & deploy project'}
                         </Button>
                     </Card>
-                </form>
-            </FormContainer>
+                </FormContainer>
+            </form>
         </FormProvider>
     );
 };

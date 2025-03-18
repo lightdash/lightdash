@@ -115,8 +115,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     return (
         <FormProvider form={form}>
-            <FormContainer>
-                <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
+            <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
+                <FormContainer>
                     <ProjectFormProvider>
                         <ProjectForm
                             showGeneralSettings={!isCreatingFirstProject}
@@ -133,8 +133,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                             Test & deploy project
                         </Button>
                     </ProjectFormProvider>
-                </form>
-            </FormContainer>
+                </FormContainer>
+            </form>
         </FormProvider>
     );
 };
