@@ -43,7 +43,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
-    queryUuid: string;
+    underlyingDataSourceQueryUuid: string;
     filters: Filters;
-    underlyingDataItemId: string;
+    underlyingDataItemId?: string;
 };

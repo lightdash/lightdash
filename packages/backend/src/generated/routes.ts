@@ -8272,6 +8272,14 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['password'] },
+                            { dataType: 'enum', enums: ['private_key'] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     database: { dataType: 'string', required: true },
                     warehouse: { dataType: 'string', required: true },
                     schema: { dataType: 'string', required: true },
@@ -14510,11 +14518,11 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         filters: { ref: 'Filters', required: true },
-                        underlyingDataItemId: {
+                        underlyingDataItemId: { dataType: 'string' },
+                        underlyingDataSourceQueryUuid: {
                             dataType: 'string',
                             required: true,
                         },
-                        queryUuid: { dataType: 'string', required: true },
                     },
                 },
             ],

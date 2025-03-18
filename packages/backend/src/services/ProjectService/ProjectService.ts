@@ -2680,7 +2680,7 @@ export class ProjectService extends BaseService {
     async executeAsyncUnderlyingDataQuery({
         user,
         projectUuid,
-        queryUuid,
+        underlyingDataSourceQueryUuid,
         filters,
         underlyingDataItemId,
         context,
@@ -2701,7 +2701,7 @@ export class ProjectService extends BaseService {
         }
 
         const { metricQuery } = await this.queryHistoryModel.get(
-            queryUuid,
+            underlyingDataSourceQueryUuid,
             projectUuid,
             user.userUuid,
         );
@@ -2728,11 +2728,9 @@ export class ProjectService extends BaseService {
             exploreName,
         );
 
-        const underlyingDataItem = metricQueryFields[underlyingDataItemId];
-
-        if (!underlyingDataItem) {
-            throw new NotFoundError('Underlying data item not found in query');
-        }
+        const underlyingDataItem = underlyingDataItemId
+            ? metricQueryFields[underlyingDataItemId]
+            : undefined;
 
         const joinedTables = explore.joinedTables.map(
             (joinedTable) => joinedTable.table,
@@ -2772,7 +2770,7 @@ export class ProjectService extends BaseService {
 
         const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
             context,
-            queryUuid,
+            underlyingDataSourceQueryUuid,
             filters,
             underlyingDataItemId,
         };

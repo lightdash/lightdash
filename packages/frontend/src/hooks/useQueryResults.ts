@@ -97,28 +97,6 @@ const getUnderlyingDataResults = async ({
     });
 };
 
-export const useUnderlyingDataResults = (
-    tableId: string,
-    query: MetricQuery,
-) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const queryKey = [
-        'underlyingDataResults',
-        projectUuid,
-        JSON.stringify(query),
-    ];
-    return useQuery<ApiQueryResults, ApiError>({
-        queryKey,
-        queryFn: () =>
-            getUnderlyingDataResults({
-                projectUuid: projectUuid!,
-                tableId,
-                query,
-            }),
-        retry: false,
-    });
-};
-
 const getChartVersionResults = async (
     chartUuid: string,
     versionUuid: string,
@@ -238,7 +216,13 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
     const { data: queryPaginationEnabled } = useFeatureFlag(
         FeatureFlags.QueryPagination,
     );
-    const result = useQuery<ApiQueryResults, ApiError>({
+    const result = useQuery<
+        ApiQueryResults & {
+            queryUuid?: string;
+            appliedDashboardFilters?: DashboardFilters | null;
+        },
+        ApiError
+    >({
         enabled: !!data && !!queryPaginationEnabled,
         queryKey: ['query-all-results', data],
         queryFn: () => {
@@ -292,4 +276,51 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
     }, [result.error, setErrorResponse]);
 
     return result;
+};
+
+export const useUnderlyingDataResults = (
+    tableId: string,
+    query: MetricQuery,
+    queryUuid?: string,
+    underlyingDataItemId?: string,
+) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: queryPaginationEnabled } = useFeatureFlag(
+        FeatureFlags.QueryPagination,
+    );
+
+    const shouldUsePagination =
+        queryUuid && underlyingDataItemId && queryPaginationEnabled?.enabled;
+
+    const queryKey = shouldUsePagination
+        ? [
+              'underlyingDataResults',
+              projectUuid,
+              queryUuid,
+              underlyingDataItemId,
+              query.filters,
+          ]
+        : ['underlyingDataResults', projectUuid, JSON.stringify(query)];
+
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey,
+        enabled: !!queryPaginationEnabled,
+        queryFn: () => {
+            if (queryPaginationEnabled && queryUuid) {
+                return getQueryPaginatedResults(projectUuid!, {
+                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                    underlyingDataSourceQueryUuid: queryUuid,
+                    underlyingDataItemId,
+                    filters: query.filters,
+                });
+            }
+
+            return getUnderlyingDataResults({
+                projectUuid: projectUuid!,
+                tableId,
+                query,
+            });
+        },
+        retry: false,
+    });
 };

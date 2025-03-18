@@ -168,7 +168,8 @@ export class V2ProjectController extends BaseController {
                 .getProjectService()
                 .executeAsyncUnderlyingDataQuery({
                     ...commonArgs,
-                    queryUuid: body.queryUuid,
+                    underlyingDataSourceQueryUuid:
+                        body.underlyingDataSourceQueryUuid,
                     filters: body.filters,
                     underlyingDataItemId: body.underlyingDataItemId,
                     context: context ?? QueryExecutionContext.API,

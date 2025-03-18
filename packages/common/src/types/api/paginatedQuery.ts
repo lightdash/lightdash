@@ -29,8 +29,8 @@ export type ExecuteAsyncDashboardChartRequestParams =
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
     CommonPaginatedQueryRequestParams & {
-        queryUuid: string;
-        underlyingDataItemId: string;
+        underlyingDataSourceQueryUuid: string;
+        underlyingDataItemId?: string;
         filters: Filters;
     };
 
@@ -66,9 +66,5 @@ export function isExecuteAsyncSavedChartRequest(
 export function isExecuteAsyncUnderlyingDataRequest(
     query: ExecuteAsyncQueryRequestParams,
 ): query is ExecuteAsyncUnderlyingDataRequestParams {
-    return (
-        'queryUuid' in query &&
-        'filters' in query &&
-        'underlyingDataItemId' in query
-    );
+    return 'underlyingDataSourceQueryUuid' in query && 'filters' in query;
 }
