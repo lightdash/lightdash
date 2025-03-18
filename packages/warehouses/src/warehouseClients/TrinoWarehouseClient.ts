@@ -231,6 +231,23 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
             while (!queryResult.done) {
+                // Sometimes the query result state is 'FINISHED' but not done,
+                // and the number of rows is greater than 0,
+                // this is causing we are calling the streamCallback twice with the same rows
+                // duplicating the number of results
+                const numberRows = (queryResult.value.data ?? []).length;
+                if (
+                    queryResult.value.stats?.state === 'FINISHED' &&
+                    numberRows > 0
+                ) {
+                    console.warn(
+                        `Trino query result state was 'FINISHED' but not done, avoid duplicated ${numberRows} results`,
+                    );
+                    // eslint-disable-next-line no-await-in-loop
+                    queryResult = await query.next(); // Call .next() one more time to avoid warehouse timeouts
+                    break;
+                }
+
                 // eslint-disable-next-line no-await-in-loop
                 queryResult = await query.next();
                 // stream next chunk of data
