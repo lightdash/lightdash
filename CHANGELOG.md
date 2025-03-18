@@ -1,3 +1,31 @@
+## [0.1546.1](https://github.com/lightdash/lightdash/compare/0.1546.0...0.1546.1) (2025-03-18)
+
+
+### Bug Fixes
+
+* include schema file name in the error message when parsing ([#14116](https://github.com/lightdash/lightdash/issues/14116)) ([e458993](https://github.com/lightdash/lightdash/commit/e4589937ad040e08744400c42d59b0d13939d09e))
+
+# [0.1546.0](https://github.com/lightdash/lightdash/compare/0.1545.0...0.1546.0) (2025-03-18)
+
+
+### Features
+
+* adjust helmet config for embed subroutes ([#14053](https://github.com/lightdash/lightdash/issues/14053)) ([a1ec5c1](https://github.com/lightdash/lightdash/commit/a1ec5c1f49cc2899fdcf3107c51ce214d0845e01))
+
+# [0.1545.0](https://github.com/lightdash/lightdash/compare/0.1544.2...0.1545.0) (2025-03-18)
+
+
+### Features
+
+* Add private key snowflake UI ([#14084](https://github.com/lightdash/lightdash/issues/14084)) ([01af153](https://github.com/lightdash/lightdash/commit/01af1532a9f5b5041aa2aa252976138b2fb19d4f))
+
+## [0.1544.2](https://github.com/lightdash/lightdash/compare/0.1544.1...0.1544.2) (2025-03-18)
+
+
+### Bug Fixes
+
+* trino snowflake duplicated results ([#14098](https://github.com/lightdash/lightdash/issues/14098)) ([26a899c](https://github.com/lightdash/lightdash/commit/26a899c4f8fa4fc9dc449dfdbdfefadbdc5ccb5e))
+
 ## [0.1544.1](https://github.com/lightdash/lightdash/compare/0.1544.0...0.1544.1) (2025-03-17)
 
 

@@ -140,6 +140,9 @@ const configureSnowflakeWarehouse = (
         log: false,
     });
     cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
+
+    cy.selectMantine('warehouse.authenticationType', 'Password');
+
     cy.get('input[name="warehouse.password"]').type(config.password, {
         log: false,
     });
