@@ -127,20 +127,67 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
+/* 
+    Check if all schema columns exist in first row if there is data
+    If not, force lowercase for Trino column names 
+    When using trino and snowflake, some columns can be returned uppercase 
+    and we can't enforce "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;"
+    like we do in snowflake client
+    */
+export const forceLowercaseColumns = (
+    schema: { [key: string]: AnyType }[],
+    fields: Record<
+        string,
+        {
+            type: DimensionType;
+        }
+    >,
+) => {
+    const schemaNames: string[] = schema.map((e) => e.name);
+    const fieldNames = Object.keys(fields);
+    const missingColumns = fieldNames.filter(
+        (fieldName) => !schemaNames.includes(fieldName),
+    );
+    if (missingColumns.length > 0) {
+        const schemaNamesLowercase = new Set(
+            schemaNames.map((e) => e.toLowerCase()),
+        );
+        const missingColumnsLowercase = fieldNames.filter(
+            (fieldName) => !schemaNamesLowercase.has(fieldName.toLowerCase()),
+        );
+        if (missingColumnsLowercase.length < missingColumns.length) {
+            // Some or all columns were found by forcing lowercase
+            console.warn(`Forcing Trino column names to lowercase`);
+            return true;
+        }
+
+        console.warn(
+            `Could not match columns on Trino results, expected ${fieldNames.join(
+                ', ',
+            )} but found ${schemaNames.join(', ')}`,
+        );
+    }
+    return false;
+};
+
 const resultHandler = (
     schema: { [key: string]: AnyType }[],
     data: AnyType[][],
+    fields: Record<
+        string,
+        {
+            type: DimensionType;
+        }
+    >,
 ) => {
     const s: string[] = schema.map((e) => e.name);
+    const forceLowercase = forceLowercaseColumns(schema, fields);
     return data.map((i) => {
         const item: { [key: string]: AnyType } = {};
         i.map((column, index) => {
-            /* Force lowercase for Trino column names 
-            When using trino and snowflake, some columns can be returned uppercase 
-            and we can't enforce "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;"
-            like we do in snowflake client
-            */
-            const name: string = s[index].toLowerCase();
+            const name: string = forceLowercase
+                ? s[index].toLowerCase()
+                : s[index];
             item[name] = column;
             return null;
         });
@@ -231,7 +278,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             // stream initial data
             streamCallback({
                 fields,
-                rows: resultHandler(schema, queryResult.value.data ?? []),
+                rows: resultHandler(
+                    schema,
+                    queryResult.value.data ?? [],
+                    fields,
+                ),
             });
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
@@ -258,7 +309,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 // stream next chunk of data
                 streamCallback({
                     fields,
-                    rows: resultHandler(schema, queryResult.value.data ?? []),
+                    rows: resultHandler(
+                        schema,
+                        queryResult.value.data ?? [],
+                        fields,
+                    ),
                 });
             }
         } catch (e: AnyType) {
