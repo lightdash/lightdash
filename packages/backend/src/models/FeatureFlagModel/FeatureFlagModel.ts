@@ -1,4 +1,10 @@
-import { FeatureFlag, FeatureFlags, LightdashUser } from '@lightdash/common';
+import {
+    FeatureFlag,
+    FeatureFlags,
+    isFeatureFlags,
+    LightdashUser,
+    NotFoundError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import { isFeatureFlagEnabled } from '../../postHog';
@@ -30,13 +36,31 @@ export class FeatureFlagModel {
 
     public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
         const handler = this.featureFlagHandlers[args.featureFlagId];
-        if (!handler) {
-            throw new Error(
-                `No logic defined for feature flag ID: ${args.featureFlagId}`,
+        if (handler) {
+            return handler(args);
+        }
+        // Default to check Posthog feature flag
+        if (args.user && isFeatureFlags(args.featureFlagId)) {
+            return FeatureFlagModel.getPosthogFeatureFlag(
+                args.user,
+                args.featureFlagId,
             );
         }
+        throw new NotFoundError(`Feature flag ${args.featureFlagId} not found`);
+    }
 
-        return handler(args);
+    static async getPosthogFeatureFlag(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        featureFlagId: FeatureFlags,
+    ): Promise<FeatureFlag> {
+        const enabled = await isFeatureFlagEnabled(featureFlagId, {
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+        });
+        return {
+            id: featureFlagId,
+            enabled,
+        };
     }
 
     private async getUserGroupsEnabled({

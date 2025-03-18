@@ -1,3 +1,45 @@
+## [0.1544.1](https://github.com/lightdash/lightdash/compare/0.1544.0...0.1544.1) (2025-03-17)
+
+
+### Bug Fixes
+
+* saving new chart redirects to first tab ([#14067](https://github.com/lightdash/lightdash/issues/14067)) ([f53a02d](https://github.com/lightdash/lightdash/commit/f53a02d46afadd45fe8ff858bc79021f8ee2f797))
+
+# [0.1544.0](https://github.com/lightdash/lightdash/compare/0.1543.1...0.1544.0) (2025-03-17)
+
+
+### Features
+
+* allow color palette override ([#14086](https://github.com/lightdash/lightdash/issues/14086)) ([78d0d14](https://github.com/lightdash/lightdash/commit/78d0d14df1f0835294b85dda7080f53fc702e2ab))
+
+## [0.1543.1](https://github.com/lightdash/lightdash/compare/0.1543.0...0.1543.1) (2025-03-17)
+
+
+### Bug Fixes
+
+* wait for pagination feature flag before running query ([#14104](https://github.com/lightdash/lightdash/issues/14104)) ([9dac82d](https://github.com/lightdash/lightdash/commit/9dac82d425b134bdf570dcc5264be87aed11e37f))
+
+# [0.1543.0](https://github.com/lightdash/lightdash/compare/0.1542.1...0.1543.0) (2025-03-17)
+
+
+### Features
+
+* add private_key to snowflake ([#14081](https://github.com/lightdash/lightdash/issues/14081)) ([58c8791](https://github.com/lightdash/lightdash/commit/58c879131995f3216d20909c3776ecacf8150494))
+
+## [0.1542.1](https://github.com/lightdash/lightdash/compare/0.1542.0...0.1542.1) (2025-03-17)
+
+
+### Bug Fixes
+
+* warehouse wait for query completion ([#14087](https://github.com/lightdash/lightdash/issues/14087)) ([3064acb](https://github.com/lightdash/lightdash/commit/3064acb7726f4bf81b127f022ced1270dbb712b8))
+
+# [0.1542.0](https://github.com/lightdash/lightdash/compare/0.1541.0...0.1542.0) (2025-03-17)
+
+
+### Features
+
+* load paginated results for charts and dashboards ([#14079](https://github.com/lightdash/lightdash/issues/14079)) ([fd85348](https://github.com/lightdash/lightdash/commit/fd85348eb05bae64018dbb9dd2d106216c6d28ed))
+
 # [0.1541.0](https://github.com/lightdash/lightdash/compare/0.1540.0...0.1541.0) (2025-03-14)
 
 

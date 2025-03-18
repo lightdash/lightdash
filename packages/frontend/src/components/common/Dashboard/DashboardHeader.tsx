@@ -29,7 +29,6 @@ import {
     IconFolderPlus,
     IconFolders,
     IconInfoCircle,
-    IconKey,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -59,17 +58,12 @@ import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
-import {
-    InfoContainer,
-    PageActionsContainer,
-    PageTitleAndDetailsContainer,
-} from '../PageHeader';
+import SlugInfo from '../PageHeader/SlugInfo';
 import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
 import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
-import TextCopy from '../TextCopy';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import ShareLinkButton from './ShareLinkButton';
@@ -226,91 +220,81 @@ const DashboardHeader = ({
                 h: 'auto',
             }}
         >
-            <PageTitleAndDetailsContainer>
-                <Group spacing="xs">
-                    <Title order={4} fw={600}>
-                        {dashboard.name}
-                    </Title>
+            <Group spacing="xs" style={{ flex: 1 }}>
+                <Title order={4} fw={600}>
+                    {dashboard.name}
+                </Title>
 
-                    <Popover
-                        withinPortal
-                        withArrow
-                        offset={{
-                            mainAxis: -2,
-                            crossAxis: 6,
-                        }}
-                    >
-                        <Popover.Target>
-                            <ActionIcon color="dark">
-                                <MantineIcon icon={IconInfoCircle} />
-                            </ActionIcon>
-                        </Popover.Target>
-
-                        <Popover.Dropdown maw={500}>
-                            <Stack spacing="xs">
-                                {dashboard.description && (
-                                    <Text
-                                        fz="xs"
-                                        color="gray.7"
-                                        fw={500}
-                                        style={{ whiteSpace: 'pre-line' }}
-                                    >
-                                        {dashboard.description}
-                                    </Text>
-                                )}
-
-                                <UpdatedInfo
-                                    updatedAt={dashboard.updatedAt}
-                                    user={dashboard.updatedByUser}
-                                />
-
-                                <ViewInfo
-                                    views={dashboard.views}
-                                    firstViewedAt={dashboard.firstViewedAt}
-                                />
-
-                                <InfoContainer>
-                                    <MantineIcon icon={IconKey} />
-                                    Slug:
-                                    <TextCopy
-                                        variant="code"
-                                        text={dashboard.slug}
-                                        tooltipLabel="Copy slug"
-                                    />
-                                </InfoContainer>
-
-                                {dashboard.spaceName && (
-                                    <SpaceAndDashboardInfo
-                                        space={{
-                                            link: `/projects/${projectUuid}/spaces/${dashboard.spaceUuid}`,
-                                            name: dashboard.spaceName,
-                                        }}
-                                    />
-                                )}
-                            </Stack>
-                        </Popover.Dropdown>
-                    </Popover>
-
-                    {isEditMode && userCanManageDashboard && (
-                        <ActionIcon
-                            color="dark"
-                            disabled={isSaving}
-                            onClick={handleEditClick}
-                        >
-                            <MantineIcon icon={IconPencil} />
+                <Popover
+                    withinPortal
+                    withArrow
+                    offset={{
+                        mainAxis: -2,
+                        crossAxis: 6,
+                    }}
+                >
+                    <Popover.Target>
+                        <ActionIcon color="dark">
+                            <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
-                    )}
+                    </Popover.Target>
 
-                    {isUpdating && dashboardUuid && (
-                        <DashboardUpdateModal
-                            uuid={dashboardUuid}
-                            opened={isUpdating}
-                            onClose={() => setIsUpdating(false)}
-                            onConfirm={() => setIsUpdating(false)}
-                        />
-                    )}
-                </Group>
-            </PageTitleAndDetailsContainer>
+                    <Popover.Dropdown maw={500}>
+                        <Stack spacing="xs">
+                            {dashboard.description && (
+                                <Text
+                                    fz="xs"
+                                    color="gray.7"
+                                    fw={500}
+                                    style={{ whiteSpace: 'pre-line' }}
+                                >
+                                    {dashboard.description}
+                                </Text>
+                            )}
+
+                            <UpdatedInfo
+                                updatedAt={dashboard.updatedAt}
+                                user={dashboard.updatedByUser}
+                            />
+
+                            <ViewInfo
+                                views={dashboard.views}
+                                firstViewedAt={dashboard.firstViewedAt}
+                            />
+
+                            <SlugInfo slug={dashboard.slug} />
+
+                            {dashboard.spaceName && (
+                                <SpaceAndDashboardInfo
+                                    space={{
+                                        link: `/projects/${projectUuid}/spaces/${dashboard.spaceUuid}`,
+                                        name: dashboard.spaceName,
+                                    }}
+                                />
+                            )}
+                        </Stack>
+                    </Popover.Dropdown>
+                </Popover>
+
+                {isEditMode && userCanManageDashboard && (
+                    <ActionIcon
+                        color="dark"
+                        disabled={isSaving}
+                        onClick={handleEditClick}
+                    >
+                        <MantineIcon icon={IconPencil} />
+                    </ActionIcon>
+                )}
+
+                {isUpdating && dashboardUuid && (
+                    <DashboardUpdateModal
+                        uuid={dashboardUuid}
+                        opened={isUpdating}
+                        onClose={() => setIsUpdating(false)}
+                        onConfirm={() => setIsUpdating(false)}
+                    />
+                )}
+            </Group>
 
             {oldestCacheTime && (
                 <Text
@@ -326,7 +310,7 @@ const DashboardHeader = ({
             )}
 
             {userCanManageDashboard && isEditMode ? (
-                <PageActionsContainer>
+                <Group spacing="xs">
                     <AddTileButton
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
@@ -363,9 +347,9 @@ const DashboardHeader = ({
                     >
                         Cancel
                     </Button>
-                </PageActionsContainer>
+                </Group>
             ) : (
-                <PageActionsContainer>
+                <Group spacing="xs">
                     {isDashboardSummariesEnabled &&
                         projectUuid &&
                         dashboardUuid && (
@@ -737,7 +721,7 @@ const DashboardHeader = ({
                                 }}
                             ></PromotionConfirmDialog>
                         )}
-                </PageActionsContainer>
+                </Group>
             )}
         </PageHeader>
     );

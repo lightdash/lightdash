@@ -22,6 +22,7 @@ import {
     ConditionalOperator,
     type ConditionalRuleLabels,
 } from '../types/conditionalRule';
+import { LightdashError, NotImplementedError } from '../types/errors';
 import {
     CustomFormatType,
     Format,
@@ -111,6 +112,17 @@ export const getMinMaxFromMinMaxMap = (
     max: Math.max(...Object.values(minMaxMap).map((m) => m.max)),
 });
 
+export class ConditionalFormattingError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'ConditionalFormattingError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
 export const hasMatchingConditionalRules = (
     field: ItemsMap[string],
     value: unknown,
@@ -189,7 +201,7 @@ export const hasMatchingConditionalRules = (
                         );
                     }
 
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError();
                 case ConditionalOperator.NOT_EQUALS:
                     if (shouldCompareFieldToValue) {
                         return rule.values.some((v) => convertedValue !== v);
@@ -205,7 +217,7 @@ export const hasMatchingConditionalRules = (
                         );
                     }
 
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError();
                 case ConditionalOperator.LESS_THAN:
                     if (shouldCompareFieldToValue) {
                         return rule.values.some(
@@ -237,7 +249,7 @@ export const hasMatchingConditionalRules = (
                         );
                     }
 
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError();
                 case ConditionalOperator.GREATER_THAN:
                     if (shouldCompareFieldToValue) {
                         return rule.values.some(
@@ -269,7 +281,7 @@ export const hasMatchingConditionalRules = (
                         );
                     }
 
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError();
                 case ConditionalOperator.STARTS_WITH:
                 case ConditionalOperator.ENDS_WITH:
                 case ConditionalOperator.INCLUDE:
@@ -303,17 +315,17 @@ export const hasMatchingConditionalRules = (
                         );
                     }
 
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError();
                 case ConditionalOperator.IN_BETWEEN:
                     if (isStringDimension(field)) {
-                        throw new Error(
+                        throw new ConditionalFormattingError(
                             `String dimensions are not supported for conditional formatting with ${rule.operator}`,
                         );
                     }
 
                     if (shouldCompareFieldToValue) {
                         if (typeof convertedValue !== 'number') {
-                            throw new Error(
+                            throw new ConditionalFormattingError(
                                 `Conditional formatting with ${rule.operator} requires a numeric value`,
                             );
                         }
@@ -335,13 +347,13 @@ export const hasMatchingConditionalRules = (
                     }
 
                     if (shouldCompareFieldToTarget) {
-                        throw new Error(
+                        throw new ConditionalFormattingError(
                             `Conditional formatting with ${rule.operator} does not support compare targets`,
                         );
                     }
 
                     if (shouldCompareTargetToValue) {
-                        throw new Error(
+                        throw new ConditionalFormattingError(
                             `Conditional formatting with ${rule.operator} does not support target values`,
                         );
                     }
@@ -351,14 +363,14 @@ export const hasMatchingConditionalRules = (
 
                 case ConditionalOperator.NOT_IN_BETWEEN:
                     if (isStringDimension(field)) {
-                        throw new Error(
+                        throw new ConditionalFormattingError(
                             `String dimensions are not supported for conditional formatting with ${rule.operator}`,
                         );
                     }
 
                     if (shouldCompareFieldToValue) {
                         if (typeof convertedValue !== 'number') {
-                            throw new Error(
+                            throw new ConditionalFormattingError(
                                 `Conditional formatting with ${rule.operator} requires a numeric value`,
                             );
                         }
@@ -380,13 +392,13 @@ export const hasMatchingConditionalRules = (
                     }
 
                     if (shouldCompareTargetToValue) {
-                        throw new Error(
+                        throw new ConditionalFormattingError(
                             `Conditional formatting with ${rule.operator} does not support target values`,
                         );
                     }
 
                     if (shouldCompareFieldToTarget) {
-                        throw new Error(
+                        throw new ConditionalFormattingError(
                             `Conditional formatting with ${rule.operator} does not support compare targets`,
                         );
                     }
@@ -402,7 +414,9 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.IN_THE_NEXT:
                 case ConditionalOperator.IN_THE_CURRENT:
                 case ConditionalOperator.NOT_IN_THE_CURRENT:
-                    throw new Error('Not implemented');
+                    throw new NotImplementedError(
+                        `Conditional formatting with ${rule.operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(
                         rule.operator,

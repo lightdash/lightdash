@@ -86,6 +86,10 @@ describe('SnowflakeWarehouseClient', () => {
         );
     });
     describe('getAsyncQueryResults', () => {
+        beforeEach(() => {
+            executeMock.mockClear();
+        });
+
         it('should return raw results', async () => {
             const client = new SnowflakeWarehouseClient(credentials);
 
@@ -180,12 +184,8 @@ describe('SnowflakeWarehouseClient', () => {
 
             // Assertions
 
-            // Ensure that in this case we don't execute any query, we just fetch results
-            expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText:
-                    'ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;',
-                complete: expect.any(Function),
-            });
+            // Ensure that in this case we don't execute any statement, we just fetch results
+            expect(executeMock).not.toHaveBeenCalled();
 
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
                 sqlText: '',

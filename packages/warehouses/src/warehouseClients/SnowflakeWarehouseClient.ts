@@ -222,37 +222,36 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             tags?: Record<string, string>;
         },
     ) {
+        const sqlStatements: string[] = [];
+
         if (this.connectionOptions.warehouse) {
             // eslint-disable-next-line no-console
             console.debug(
                 `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
             );
-            await this.executeStatement(
-                connection,
+            sqlStatements.push(
                 `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
             );
         }
+
         if (isWeekDay(this.startOfWeek)) {
             const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
-            await this.executeStatement(
-                connection,
+            sqlStatements.push(
                 `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
             );
         }
+
         if (options?.tags) {
-            await this.executeStatement(
-                connection,
+            sqlStatements.push(
                 `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(
                     options?.tags,
                 )}';`,
             );
         }
+
         const timezoneQuery = options?.timezone || 'UTC';
         console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
-        await this.executeStatement(
-            connection,
-            `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
-        );
+        sqlStatements.push(`ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`);
 
         /**
          * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
@@ -261,9 +260,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         console.debug(
             'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
         );
-        await this.executeStatement(
-            connection,
+        sqlStatements.push(
             `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
+        );
+
+        await this.executeStatements(
+            connection,
+            sqlStatements.join('\n'),
+            sqlStatements.length,
         );
     }
 
@@ -325,11 +329,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const connection = await this.getConnection();
 
         try {
-            await this.prepareWarehouse(connection, {
-                timezone,
-                tags,
-            });
-
             const start = (queryArgs.page - 1) * queryArgs.pageSize;
             const end = start + queryArgs.pageSize - 1;
 
@@ -551,13 +550,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private async executeStatement(connection: Connection, sqlText: string) {
+    private async executeStatements(
+        connection: Connection,
+        sqlText: string,
+        statementsCount: number = 1,
+    ) {
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;
             rows: AnyType[];
         }>((resolve, reject) => {
             connection.execute({
                 sqlText,
+                ...(statementsCount > 1
+                    ? { parameters: { MULTI_STATEMENT_COUNT: statementsCount } }
+                    : {}),
                 complete: (err, stmt, data) => {
                     if (err) {
                         reject(err);
@@ -599,7 +605,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         try {
-            return await this.executeStatement(connection, sqlText);
+            return await this.executeStatements(connection, sqlText);
         } catch (e) {
             console.error(
                 `\nError running catalog query for table ${database}.${schema}.${table}:`,

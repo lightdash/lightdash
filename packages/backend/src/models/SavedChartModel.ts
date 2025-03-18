@@ -973,6 +973,21 @@ export class SavedChartModel {
                     config: savedQuery.chart_config,
                 } as ChartConfig;
 
+                const getColorPalette = () => {
+                    if (
+                        this.lightdashConfig.appearance.overrideColorPalette &&
+                        this.lightdashConfig.appearance.overrideColorPalette
+                            .length > 0
+                    ) {
+                        return this.lightdashConfig.appearance
+                            .overrideColorPalette;
+                    }
+                    if (savedQuery.color_palette) {
+                        return savedQuery.color_palette;
+                    }
+                    return ECHARTS_DEFAULT_COLORS;
+                };
+
                 return {
                     uuid: savedQuery.saved_query_uuid,
                     projectUuid: savedQuery.project_uuid,
@@ -1052,8 +1067,7 @@ export class SavedChartModel {
                     pinnedListOrder: null,
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
-                    colorPalette:
-                        savedQuery.color_palette ?? ECHARTS_DEFAULT_COLORS,
+                    colorPalette: getColorPalette(),
                     slug: savedQuery.slug,
                 };
             },

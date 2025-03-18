@@ -150,7 +150,10 @@ import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    MetricQueryExecutionProperties,
+} from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -344,6 +347,116 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.queryHistoryModel = queryHistoryModel;
         this.encryptionUtil = encryptionUtil;
+    }
+
+    static getMetricQueryExecutionProperties({
+        metricQuery,
+        hasExampleMetric,
+        granularity,
+        chartUuid,
+        queryTags,
+        explore,
+    }: {
+        metricQuery: MetricQuery;
+        hasExampleMetric: boolean;
+        granularity: DateGranularity | undefined;
+        chartUuid: string | undefined;
+        queryTags: Record<string, unknown>;
+        explore: Explore;
+    }): MetricQueryExecutionProperties {
+        return {
+            hasExampleMetric,
+            dimensionsCount: metricQuery.dimensions.length,
+            metricsCount: metricQuery.metrics.length,
+            filtersCount: countTotalFilterRules(metricQuery.filters),
+            sortsCount: metricQuery.sorts.length,
+            tableCalculationsCount: metricQuery.tableCalculations.length,
+            tableCalculationsPercentFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.PERCENT,
+                ).length,
+            tableCalculationsCurrencyFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.CURRENCY,
+                ).length,
+            tableCalculationsNumberFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.NUMBER,
+                ).length,
+            tableCalculationCustomFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.CUSTOM,
+                ).length,
+            additionalMetricsCount: (
+                metricQuery.additionalMetrics || []
+            ).filter((metric) =>
+                metricQuery.metrics.includes(getItemId(metric)),
+            ).length,
+            additionalMetricsFilterCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.filters &&
+                    metric.filters.length > 0,
+            ).length,
+            additionalMetricsPercentFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.PERCENT,
+            ).length,
+            additionalMetricsCurrencyFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.CURRENCY,
+            ).length,
+            additionalMetricsNumberFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.NUMBER,
+            ).length,
+            additionalMetricsCustomFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.CUSTOM,
+            ).length,
+            ...countCustomDimensionsInMetricQuery(metricQuery),
+            dateZoomGranularity: granularity || null,
+            timezone: metricQuery.timezone,
+            ...(queryTags?.dashboard_uuid
+                ? { dashboardId: queryTags.dashboard_uuid }
+                : {}),
+            chartId: chartUuid,
+            ...(explore.type === ExploreType.VIRTUAL
+                ? { virtualViewId: explore.name }
+                : {}),
+            metricOverridesCount: Object.keys(
+                metricQuery.metricOverrides || {},
+            ).filter((metricOverrideKey) =>
+                metricQuery.metrics.includes(metricOverrideKey),
+            ).length,
+            limit: metricQuery.limit,
+        };
     }
 
     private async validateProjectCreationPermissions(
@@ -1891,6 +2004,15 @@ export class ProjectService extends BaseService {
         );
 
         if ('errorMessage' in result) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query.error',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    warehouseType: warehouseClient.credentials.type,
+                },
+            });
             await this.queryHistoryModel.update(
                 queryHistory.queryUuid,
                 projectUuid,
@@ -1949,6 +2071,22 @@ export class ProjectService extends BaseService {
             page,
             result.pageCount,
         );
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'query_page.fetched',
+            properties: {
+                queryId: queryHistory.queryUuid,
+                projectId: projectUuid,
+                warehouseType: warehouseClient.credentials.type,
+                page,
+                columnsCount: Object.keys(result.fields).length,
+                totalRowCount: result.totalRows,
+                totalPageCount: result.pageCount,
+                resultsPageSize: result.rows.length,
+                resultsPageExecutionMs: roundedDurationMs,
+            },
+        });
 
         return {
             rows: result.rows,
@@ -2062,7 +2200,11 @@ export class ProjectService extends BaseService {
                         granularity,
                     );
 
-                    const { query, fields: fieldsFromQuery } = fullQuery;
+                    const {
+                        query,
+                        fields: fieldsFromQuery,
+                        hasExampleMetric,
+                    } = fullQuery;
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fieldsFromQuery).map(([key, value]) => {
@@ -2111,6 +2253,31 @@ export class ProjectService extends BaseService {
                             metricQuery,
                         });
 
+                    this.analytics.track({
+                        userId: user.userUuid,
+                        event: 'query.executed',
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            context,
+                            queryId: queryHistoryUuid,
+                            warehouseType: warehouseClient.credentials.type,
+                            ...ProjectService.getMetricQueryExecutionProperties(
+                                {
+                                    metricQuery,
+                                    hasExampleMetric,
+                                    queryTags,
+                                    granularity,
+                                    chartUuid:
+                                        'chartUuid' in requestParameters
+                                            ? requestParameters.chartUuid
+                                            : undefined,
+                                    explore,
+                                },
+                            ),
+                        },
+                    });
+
                     // Trigger query in the background, update query history when complete
                     warehouseClient
                         .executeAsyncQuery({
@@ -2123,8 +2290,22 @@ export class ProjectService extends BaseService {
                                 queryMetadata,
                                 totalRows,
                                 durationMs,
-                            }) =>
-                                this.queryHistoryModel.update(
+                            }) => {
+                                this.analytics.track({
+                                    userId: user.userUuid,
+                                    event: 'query.ready',
+                                    properties: {
+                                        queryId: queryHistoryUuid,
+                                        projectId: projectUuid,
+                                        warehouseType:
+                                            warehouseClient.credentials.type,
+                                        warehouseExecutionTimeMs: durationMs,
+                                        columnsCount:
+                                            Object.keys(fieldsMap).length,
+                                        totalRowCount: totalRows,
+                                    },
+                                });
+                                return this.queryHistoryModel.update(
                                     queryHistoryUuid,
                                     projectUuid,
                                     user.userUuid,
@@ -2139,10 +2320,21 @@ export class ProjectService extends BaseService {
                                                 : null,
                                         total_row_count: totalRows,
                                     },
-                                ),
+                                );
+                            },
                         )
-                        .catch((e) =>
-                            this.queryHistoryModel.update(
+                        .catch((e) => {
+                            this.analytics.track({
+                                userId: user.userUuid,
+                                event: 'query.error',
+                                properties: {
+                                    queryId: queryHistoryUuid,
+                                    projectId: projectUuid,
+                                    warehouseType:
+                                        warehouseClient.credentials.type,
+                                },
+                            });
+                            return this.queryHistoryModel.update(
                                 queryHistoryUuid,
                                 projectUuid,
                                 user.userUuid,
@@ -2150,8 +2342,8 @@ export class ProjectService extends BaseService {
                                     status: QueryHistoryStatus.ERROR,
                                     error: getErrorMessage(e),
                                 },
-                            ),
-                        )
+                            );
+                        })
                         .finally(() => sshTunnel.disconnect());
 
                     return {
@@ -2275,7 +2467,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('SavedChart', {
-                    savedChartOrganizationUuid,
+                    organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
                     isPrivate: space.isPrivate,
                     access,
@@ -2284,7 +2476,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('Project', {
-                    savedChartOrganizationUuid,
+                    organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
                 }),
             )
@@ -2955,115 +3147,17 @@ export class ProjectService extends BaseService {
                         properties: {
                             organizationId: organizationUuid,
                             projectId: projectUuid,
-                            hasExampleMetric,
-                            dimensionsCount: metricQuery.dimensions.length,
-                            metricsCount: metricQuery.metrics.length,
-                            filtersCount: countTotalFilterRules(
-                                metricQuery.filters,
-                            ),
-                            sortsCount: metricQuery.sorts.length,
-                            tableCalculationsCount:
-                                metricQuery.tableCalculations.length,
-                            tableCalculationsPercentFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.PERCENT,
-                                ).length,
-                            tableCalculationsCurrencyFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.CURRENCY,
-                                ).length,
-                            tableCalculationsNumberFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.NUMBER,
-                                ).length,
-                            tableCalculationCustomFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.CUSTOM,
-                                ).length,
-                            additionalMetricsCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter((metric) =>
-                                metricQuery.metrics.includes(getItemId(metric)),
-                            ).length,
-                            additionalMetricsFilterCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.filters &&
-                                    metric.filters.length > 0,
-                            ).length,
-                            additionalMetricsPercentFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.PERCENT,
-                            ).length,
-                            additionalMetricsCurrencyFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.CURRENCY,
-                            ).length,
-                            additionalMetricsNumberFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.NUMBER,
-                            ).length,
-                            additionalMetricsCustomFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.CUSTOM,
-                            ).length,
                             context,
-                            ...countCustomDimensionsInMetricQuery(metricQuery),
-                            dateZoomGranularity: granularity || null,
-                            timezone: metricQuery.timezone,
-                            ...(queryTags?.dashboard_uuid
-                                ? { dashboardId: queryTags.dashboard_uuid }
-                                : {}),
-                            chartId: chartUuid,
-                            ...(explore.type === ExploreType.VIRTUAL
-                                ? { virtualViewId: explore.name }
-                                : {}),
-                            metricOverridesCount: Object.keys(
-                                metricQuery.metricOverrides || {},
-                            ).filter((metricOverrideKey) =>
-                                metricQuery.metrics.includes(metricOverrideKey),
-                            ).length,
-                            limit: metricQueryWithLimit.limit,
+                            ...ProjectService.getMetricQueryExecutionProperties(
+                                {
+                                    metricQuery: metricQueryWithLimit,
+                                    hasExampleMetric,
+                                    queryTags,
+                                    chartUuid,
+                                    granularity,
+                                    explore,
+                                },
+                            ),
                         },
                     });
                     this.logger.debug(

@@ -189,12 +189,12 @@ export class OrganizationModel {
 
     static mapDBObjectToOrganization(
         data: DbOrganization,
-        palette?: DbOrganizationColorPalette,
+        palette?: DbOrganizationColorPalette['colors'],
     ): Organization {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
-            chartColors: palette?.colors ?? undefined,
+            chartColors: palette ?? undefined,
             defaultProjectUuid: data.default_project_uuid
                 ? data.default_project_uuid
                 : undefined,
@@ -217,12 +217,27 @@ export class OrganizationModel {
             throw new NotFoundError(`No organization found`);
         }
 
-        const [palette] = await this.database(OrganizationColorPaletteTableName)
+        // If override color palette is configured, always override the active palette
+        if (
+            this.lightdashConfig?.appearance?.overrideColorPalette &&
+            this.lightdashConfig.appearance.overrideColorPalette.length > 0
+        ) {
+            return OrganizationModel.mapDBObjectToOrganization(
+                org,
+                this.lightdashConfig.appearance.overrideColorPalette,
+            );
+        }
+
+        const palette = await this.database(OrganizationColorPaletteTableName)
             .where('color_palette_uuid', org.color_palette_uuid)
             .andWhere('organization_uuid', organizationUuid)
-            .select('*');
+            .select('*')
+            .first();
 
-        return OrganizationModel.mapDBObjectToOrganization(org, palette);
+        return OrganizationModel.mapDBObjectToOrganization(
+            org,
+            palette?.colors,
+        );
     }
 
     async create(data: CreateOrganization): Promise<Organization> {
@@ -240,32 +255,6 @@ export class OrganizationModel {
                 colors: palette.colors,
             })),
         );
-
-        // If default color palette is configured, set it as the active palette
-        if (
-            this.lightdashConfig?.appearance?.defaultColorPalette &&
-            this.lightdashConfig.appearance.defaultColorPalette.length > 0
-        ) {
-            const defaultPaletteName =
-                this.lightdashConfig.appearance.defaultColorPaletteName ||
-                'Default (Custom)';
-
-            const defaultPalette = await this.createColorPalette(
-                org.organization_uuid,
-                {
-                    name: defaultPaletteName,
-                    colors: this.lightdashConfig.appearance.defaultColorPalette,
-                },
-            );
-
-            // Set it as the active palette
-            if (defaultPalette) {
-                await this.setActiveColorPalette(
-                    org.organization_uuid,
-                    defaultPalette.colorPaletteUuid,
-                );
-            }
-        }
 
         return OrganizationModel.mapDBObjectToOrganization(org);
     }
@@ -298,7 +287,10 @@ export class OrganizationModel {
                 .andWhere('organization_uuid', organizationUuid)
                 .select('*');
 
-            return OrganizationModel.mapDBObjectToOrganization(org, palette);
+            return OrganizationModel.mapDBObjectToOrganization(
+                org,
+                palette.colors,
+            );
         }
 
         return OrganizationModel.mapDBObjectToOrganization(org);
