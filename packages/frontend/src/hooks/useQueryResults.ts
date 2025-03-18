@@ -136,6 +136,7 @@ const getChartVersionResults = async (
 export const getQueryPaginatedResults = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
+    pageSize?: number, // pageSize is used when getting the results but not when creating the query
 ): Promise<
     ApiQueryResults & {
         queryUuid: string;
@@ -163,12 +164,13 @@ export const getQueryPaginatedResults = async (
             currentPage?.status === QueryHistoryStatus.READY
                 ? currentPage?.nextPage
                 : 1;
+
         const searchParams = new URLSearchParams();
         if (page) {
             searchParams.set('page', page.toString());
         }
-        if (data.pageSize) {
-            searchParams.set('pageSize', data.pageSize.toString());
+        if (pageSize) {
+            searchParams.set('pageSize', pageSize.toString());
         }
 
         const urlQueryParams = searchParams.toString();
