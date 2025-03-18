@@ -257,7 +257,7 @@ const Settings: FC = () => {
             organization &&
             !organization.needsProject &&
             user?.ability.can(
-                'view',
+                'update',
                 subject('Project', {
                     organizationUuid: organization.organizationUuid,
                     projectUuid: project.projectUuid,
