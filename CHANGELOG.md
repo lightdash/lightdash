@@ -1,3 +1,10 @@
+## [0.1544.2](https://github.com/lightdash/lightdash/compare/0.1544.1...0.1544.2) (2025-03-18)
+
+
+### Bug Fixes
+
+* trino snowflake duplicated results ([#14098](https://github.com/lightdash/lightdash/issues/14098)) ([26a899c](https://github.com/lightdash/lightdash/commit/26a899c4f8fa4fc9dc449dfdbdfefadbdc5ccb5e))
+
 ## [0.1544.1](https://github.com/lightdash/lightdash/compare/0.1544.0...0.1544.1) (2025-03-17)
 
 
