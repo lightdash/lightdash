@@ -2,7 +2,7 @@ import {
     MetricQuery,
     type DashboardFilters,
     type DateGranularity,
-    type ItemsMap,
+    type Filters,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
     type SessionUser,
@@ -40,4 +40,10 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
     granularity?: DateGranularity;
+};
+
+export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
+    queryUuid: string;
+    filters: Filters;
+    underlyingDataItemId: string;
 };

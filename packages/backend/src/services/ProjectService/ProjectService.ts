@@ -47,6 +47,7 @@ import {
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    type ExecuteAsyncUnderlyingDataRequestParams,
     Explore,
     ExploreError,
     ExploreType,
@@ -77,8 +78,10 @@ import {
     isDateItem,
     isDimension,
     isExploreError,
+    isField,
     isFilterableDimension,
     isFilterRule,
+    isMetric,
     isNotNull,
     isUserWithOrg,
     ItemsMap,
@@ -209,6 +212,7 @@ import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncSavedChartQueryArgs,
+    type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
 } from './types';
 
@@ -2670,6 +2674,138 @@ export class ProjectService extends BaseService {
         return {
             queryUuid,
             appliedDashboardFilters,
+        };
+    }
+
+    async executeAsyncUnderlyingDataQuery({
+        user,
+        projectUuid,
+        queryUuid,
+        filters,
+        underlyingDataItemId,
+        context,
+    }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('UnderlyingData', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery } = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        const { exploreName } = metricQuery;
+
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const { fields: metricQueryFields } = await this.compileQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+        );
+
+        const underlyingDataItem = metricQueryFields[underlyingDataItemId];
+
+        if (!underlyingDataItem) {
+            throw new NotFoundError('Underlying data item not found in query');
+        }
+
+        const joinedTables = explore.joinedTables.map(
+            (joinedTable) => joinedTable.table,
+        );
+
+        const availableTables = new Set([
+            ...joinedTables,
+            ...Object.values(metricQueryFields)
+                .filter(isField)
+                .map((field) => field.table),
+        ]);
+
+        const itemShowUnderlyingValues =
+            isField(underlyingDataItem) && isMetric(underlyingDataItem)
+                ? underlyingDataItem.showUnderlyingValues
+                : undefined;
+
+        const itemShowUnderlyingTable = isField(underlyingDataItem)
+            ? underlyingDataItem.table
+            : undefined;
+
+        const allDimensions = getDimensions(explore);
+
+        const availableDimensions = allDimensions.filter(
+            (dimension) =>
+                availableTables.has(dimension.table) &&
+                !dimension.timeInterval &&
+                !dimension.hidden &&
+                (itemShowUnderlyingValues !== undefined
+                    ? (itemShowUnderlyingValues.includes(dimension.name) &&
+                          itemShowUnderlyingTable === dimension.table) ||
+                      itemShowUnderlyingValues.includes(
+                          `${dimension.table}.${dimension.name}`,
+                      )
+                    : true),
+        );
+
+        const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
+            context,
+            queryUuid,
+            filters,
+            underlyingDataItemId,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: context,
+        };
+
+        const { queryUuid: underlyingDataQueryUuid } =
+            await this.executeAsyncQuery(
+                {
+                    user,
+                    metricQuery: {
+                        ...metricQuery,
+                        dimensions: availableDimensions.map(getItemId),
+                        filters,
+                    },
+                    projectUuid,
+                    exploreName,
+                    context,
+                    queryTags,
+                    invalidateCache: false,
+                },
+                requestParameters,
+            );
+
+        return {
+            queryUuid: underlyingDataQueryUuid,
+            appliedDashboardFilters: null,
         };
     }
 

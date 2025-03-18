@@ -6,6 +6,7 @@ import {
     isExecuteAsyncDashboardChartRequest,
     isExecuteAsyncMetricQueryRequest,
     isExecuteAsyncSavedChartRequest,
+    isExecuteAsyncUnderlyingDataRequest,
     type ApiExecuteAsyncQueryResults,
     type ExecuteAsyncQueryRequestParams,
     type MetricQuery,
@@ -95,8 +96,6 @@ export class V2ProjectController extends BaseController {
         const commonArgs = {
             user: req.user!,
             projectUuid,
-            page: body.page,
-            pageSize: body.pageSize,
         };
 
         if (isExecuteAsyncMetricQueryRequest(body)) {
@@ -155,6 +154,23 @@ export class V2ProjectController extends BaseController {
                     dashboardFilters: body.dashboardFilters,
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
+                    context: context ?? QueryExecutionContext.API,
+                });
+
+            return {
+                status: 'ok',
+                results,
+            };
+        }
+
+        if (isExecuteAsyncUnderlyingDataRequest(body)) {
+            const results = await this.services
+                .getProjectService()
+                .executeAsyncUnderlyingDataQuery({
+                    ...commonArgs,
+                    queryUuid: body.queryUuid,
+                    filters: body.filters,
+                    underlyingDataItemId: body.underlyingDataItemId,
                     context: context ?? QueryExecutionContext.API,
                 });
 
