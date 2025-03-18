@@ -281,7 +281,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
 export const useUnderlyingDataResults = (
     tableId: string,
     query: MetricQuery,
-    underlyingDataSourceQueryUuid: string,
+    underlyingDataSourceQueryUuid?: string,
     underlyingDataItemId?: string,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
