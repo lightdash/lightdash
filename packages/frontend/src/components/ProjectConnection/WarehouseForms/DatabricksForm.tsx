@@ -14,9 +14,9 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
-import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move this
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
+import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';

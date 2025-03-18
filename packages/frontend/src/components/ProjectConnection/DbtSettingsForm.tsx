@@ -1,16 +1,15 @@
 import {
     assertUnreachable,
-    DbtProjectConfig,
     DbtProjectType,
     DbtProjectTypeLabels,
     FeatureFlags,
     WarehouseTypes,
+    type DbtProjectConfig,
 } from '@lightdash/common';
 import { Anchor, Select, Stack, TextInput } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
-import FormSection from '../ReactHookForm/FormSection';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
 import BitBucketForm from './DbtForms/BitBucketForm';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
@@ -20,6 +19,7 @@ import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import FormCollapseButton from './FormCollapseButton';
+import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
@@ -41,7 +41,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     selectedWarehouse,
 }) => {
     const form = useFormContext();
-    console.log(form.values.dbt);
+
     const type: DbtProjectType =
         form.values.dbt.type ?? (defaultType || DbtProjectType.GITHUB);
 

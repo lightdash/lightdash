@@ -1,4 +1,4 @@
-import { Alert, Anchor, Group, Stack, Switch, Text } from '@mantine/core';
+import { Alert, Anchor, Stack, Text } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

@@ -10,9 +10,9 @@ import {
 import { useState, type ChangeEvent, type FC } from 'react';
 import { useToggle } from 'react-use';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
-import FormSection from '../../ReactHookForm/FormSection'; // TODO :: move
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
+import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { BigQueryDefaultValues } from './defaultValues';

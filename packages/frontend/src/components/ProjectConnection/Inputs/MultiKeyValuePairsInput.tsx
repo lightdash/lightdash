@@ -34,7 +34,6 @@ export const MultiKeyValuePairsInput = ({
         get(form.values, name) ?? [];
 
     const addValue = () => {
-        console.log('addValue', name);
         form.insertListItem(name, {
             id: uuidv4(),
             key: '',

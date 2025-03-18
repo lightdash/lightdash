@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    DbtProjectConfig,
     DbtProjectType,
     ProjectType,
     type CreateWarehouseCredentials,
+    type DbtProjectConfig,
     type Project,
 } from '@lightdash/common';
 import { Alert, Anchor, Button, Card, Flex } from '@mantine/core';
@@ -83,8 +83,6 @@ const UpdateProjectConnection: FC<{
         warehouse: warehouseConnection,
         dbtVersion,
     }: ProjectConnectionForm) => {
-        console.log('onSubmit', warehouseConnection);
-
         if (user.data) {
             track({
                 name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,

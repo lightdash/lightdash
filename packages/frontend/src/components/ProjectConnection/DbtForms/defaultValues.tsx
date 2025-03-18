@@ -8,7 +8,7 @@ export const githubDefaultValues = {
     repository: '',
     personal_access_token: '',
     installation_id: '',
-    authorization_method: 'installation_id', // confirm
+    authorization_method: 'installation_id',
     branch: 'main',
     project_sub_path: '/',
     host_domain: 'github.com',
@@ -52,7 +52,7 @@ export const azureDevopsDefaultValues = {
     project_sub_path: '/',
 } as const;
 
-export const dbtCloudIdeDefaultValues = {
+const dbtCloudIdeDefaultValues = {
     type: DbtProjectType.DBT_CLOUD_IDE,
     target: '',
     environment: [],
@@ -63,7 +63,7 @@ export const dbtCloudIdeDefaultValues = {
 } as const;
 
 // Local
-export const dbtDefaultValues = {
+const dbtDefaultValues = {
     type: DbtProjectType.DBT,
     target: '',
     environment: [],
@@ -71,7 +71,7 @@ export const dbtDefaultValues = {
 } as const;
 
 // CLI
-export const noneDefaultValues = {
+const noneDefaultValues = {
     type: DbtProjectType.NONE,
     hideRefreshButton: false, // confirm
 } as const;

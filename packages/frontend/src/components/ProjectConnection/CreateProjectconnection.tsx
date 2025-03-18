@@ -1,10 +1,9 @@
 import {
-    DbtProjectConfig,
-    DbtProjectType,
     ProjectType,
     WarehouseTypes,
     isCreateProjectJob,
     type CreateWarehouseCredentials,
+    type DbtProjectConfig,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -72,7 +71,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             warehouse: warehouseConnection,
             dbtVersion,
         } = formValues;
-        console.log(formValues.warehouse);
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });

@@ -10,7 +10,6 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 
-import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useFormContext } from '../formContext';
@@ -54,14 +53,11 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 {...form.getInputProps('dbt.api_key')}
                 label="Service token"
                 description={
-                    <>
-                        <p>
-                            The service token must have the "Metadata Only"
-                            permission.
-                        </p>
-                        {/* // TODO check this */}
+                    <p>
+                        The service token must have the "Metadata Only"
+                        permission.
                         <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens" />
-                    </>
+                    </p>
                 }
                 required={requireSecrets}
                 placeholder={
@@ -74,15 +70,12 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 {...form.getInputProps('dbt.environment_id')}
                 label="Environment ID"
                 description={
-                    <>
-                        <p>
-                            The unique identifier for the dbt production
-                            environment, you can retrieve this from the dbt
-                            Cloud URL when you navigate to Environments under
-                            Deploy.
-                        </p>
+                    <p>
+                        The unique identifier for the dbt production
+                        environment, you can retrieve this from the dbt Cloud
+                        URL when you navigate to Environments under Deploy.
                         <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/sl-jdbc#connection-parameters" />
-                    </>
+                    </p>
                 }
                 required
                 disabled={disabled}
