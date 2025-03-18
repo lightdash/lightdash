@@ -141,30 +141,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
 
-        let privateKey: string | undefined;
-        if (credentials.privateKey) {
-            if (
-                typeof credentials.privateKeyPass === 'string' &&
-                credentials.privateKeyPass.length > 0
-            ) {
-                // Get the private key from the file as an object and
-                // extract the private key from the object as a PEM-encoded string.
-                privateKey = crypto
-                    .createPrivateKey({
-                        key: credentials.privateKey,
-                        format: 'pem',
-                        passphrase: credentials.privateKeyPass,
-                    })
-                    .export({
-                        format: 'pem',
-                        type: 'pkcs8',
-                    })
-                    .toString();
-            } else {
-                privateKey = credentials.privateKey;
-            }
-        }
-
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -176,9 +152,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 password: credentials.password,
                 authenticator: 'SNOWFLAKE',
             };
-        } else if (privateKey) {
+        } else if (credentials.privateKey) {
             authenticationOptions = {
-                privateKey,
+                privateKey: credentials.privateKey,
                 authenticator: 'SNOWFLAKE_JWT',
             };
         }

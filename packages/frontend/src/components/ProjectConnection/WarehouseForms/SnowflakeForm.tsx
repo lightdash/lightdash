@@ -1,6 +1,13 @@
 import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
-import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
-import { type FC } from 'react';
+import {
+    Anchor,
+    FileInput,
+    PasswordInput,
+    Select,
+    Stack,
+    TextInput,
+} from '@mantine/core';
+import { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import FormCollapseButton from '../FormCollapseButton';
@@ -40,6 +47,19 @@ const SnowflakeForm: FC<{
         FeatureFlags.PassthroughLogin,
     );
 
+    if (form.values.warehouse?.type !== WarehouseTypes.SNOWFLAKE) {
+        throw new Error('Snowflake form is not used for this warehouse type');
+    }
+
+    const authenticationType: string =
+        form.values.warehouse.authenticationType ??
+        ((savedProject?.warehouseConnection?.type ===
+            WarehouseTypes.SNOWFLAKE &&
+            savedProject?.warehouseConnection?.authenticationType) ||
+            'private_key');
+
+    const [temporaryFile, setTemporaryFile] = useState<File>();
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -65,19 +85,116 @@ const SnowflakeForm: FC<{
                     }
                     disabled={disabled}
                 />
-                <PasswordInput
-                    name="warehouse.password"
-                    label="Password"
-                    description="This is the database user password."
-                    required={requireSecrets}
-                    placeholder={
-                        disabled || !requireSecrets
-                            ? '**************'
-                            : undefined
-                    }
-                    {...form.getInputProps('warehouse.password')}
+
+                <Select
+                    name="warehouse.authenticationType"
+                    {...form.getInputProps('warehouse.authenticationType')}
+                    defaultValue="private_key"
+                    label="Authentication Type"
+                    description="Choose between password or key pair authentication"
+                    data={[
+                        {
+                            value: 'private_key',
+                            label: 'Private Key (recommended)',
+                        },
+                        {
+                            value: 'password',
+                            label: 'Password',
+                        },
+                    ]}
+                    required
                     disabled={disabled}
                 />
+
+                {authenticationType === 'private_key' ? (
+                    <>
+                        <FileInput
+                            name="warehouse.privateKey"
+                            {...form.getInputProps('warehouse.privateKey')}
+                            label="Private Key File"
+                            // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                            // @ts-ignore
+                            placeholder={
+                                !requireSecrets
+                                    ? '**************'
+                                    : 'Choose file...'
+                            }
+                            description={
+                                <p>
+                                    This is the .p8 private key file. You can
+                                    see{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
+                                        rel="noreferrer"
+                                    >
+                                        how to create a key here
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            required={requireSecrets}
+                            accept=".p8"
+                            value={temporaryFile}
+                            onChange={(file) => {
+                                if (!file) {
+                                    form.setFieldValue(
+                                        'warehouse.privateKey',
+                                        null,
+                                    );
+                                    return;
+                                }
+
+                                const fileReader = new FileReader();
+                                fileReader.onload = function (event) {
+                                    const contents = event.target?.result;
+                                    setTemporaryFile(file);
+
+                                    if (typeof contents === 'string') {
+                                        form.setFieldValue(
+                                            'warehouse.privateKey',
+                                            contents,
+                                        );
+                                    } else {
+                                        form.setFieldValue(
+                                            'warehouse.privateKey',
+                                            null,
+                                        );
+                                    }
+                                };
+                                fileReader.readAsText(file);
+                            }}
+                            disabled={disabled}
+                        />
+
+                        <PasswordInput
+                            name="warehouse.privateKeyPass"
+                            label="Private Key Passphrase"
+                            description="Optional passphrase for encrypted private keys"
+                            {...form.getInputProps('warehouse.privateKeyPass')}
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            disabled={disabled}
+                        />
+                    </>
+                ) : (
+                    <PasswordInput
+                        name="warehouse.password"
+                        label="Password"
+                        description="This is the database user password."
+                        required={requireSecrets}
+                        placeholder={
+                            disabled || !requireSecrets
+                                ? '**************'
+                                : undefined
+                        }
+                        {...form.getInputProps('warehouse.password')}
+                        disabled={disabled}
+                    />
+                )}
                 <TextInput
                     name="warehouse.role"
                     label="Role"

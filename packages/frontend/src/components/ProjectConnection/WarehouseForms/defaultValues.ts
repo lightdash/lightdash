@@ -103,6 +103,9 @@ export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
     queryTag: '',
     accessUrl: '',
     startOfWeek: undefined,
+    authenticationType: 'private_key',
+    privateKey: '',
+    privateKeyPass: '',
 } as const;
 
 export const TrinoDefaultValues: Partial<CreateTrinoCredentials> = {

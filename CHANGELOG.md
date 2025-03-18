@@ -1,3 +1,17 @@
+# [0.1545.0](https://github.com/lightdash/lightdash/compare/0.1544.2...0.1545.0) (2025-03-18)
+
+
+### Features
+
+* Add private key snowflake UI ([#14084](https://github.com/lightdash/lightdash/issues/14084)) ([01af153](https://github.com/lightdash/lightdash/commit/01af1532a9f5b5041aa2aa252976138b2fb19d4f))
+
+## [0.1544.2](https://github.com/lightdash/lightdash/compare/0.1544.1...0.1544.2) (2025-03-18)
+
+
+### Bug Fixes
+
+* trino snowflake duplicated results ([#14098](https://github.com/lightdash/lightdash/issues/14098)) ([26a899c](https://github.com/lightdash/lightdash/commit/26a899c4f8fa4fc9dc449dfdbdfefadbdc5ccb5e))
+
 ## [0.1544.1](https://github.com/lightdash/lightdash/compare/0.1544.0...0.1544.1) (2025-03-17)
 
 

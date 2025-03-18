@@ -167,6 +167,7 @@ export type CreateSnowflakeCredentials = {
     requireUserCredentials?: boolean;
     privateKey?: string;
     privateKeyPass?: string;
+    authenticationType?: 'password' | 'private_key';
     role?: string;
     database: string;
     warehouse: string;
