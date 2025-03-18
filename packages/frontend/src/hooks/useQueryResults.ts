@@ -306,7 +306,10 @@ export const useUnderlyingDataResults = (
         queryKey,
         enabled: !!queryPaginationEnabled,
         queryFn: () => {
-            if (queryPaginationEnabled && underlyingDataSourceQueryUuid) {
+            if (
+                queryPaginationEnabled?.enabled &&
+                underlyingDataSourceQueryUuid
+            ) {
                 return getQueryPaginatedResults(projectUuid!, {
                     context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
                     underlyingDataSourceQueryUuid,
