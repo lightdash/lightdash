@@ -34,6 +34,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 
+const RESPONSE_TIMEOUT_MS = 90000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
@@ -181,7 +182,11 @@ export class UnfurlService extends BaseService {
     }
 
     static async waitForPaginatedResultsResponse(page: playwright.Page) {
-        return UnfurlService.waitForAllPaginatedResultsResponse(page, 1, 60000);
+        return UnfurlService.waitForAllPaginatedResultsResponse(
+            page,
+            1,
+            RESPONSE_TIMEOUT_MS,
+        );
     }
 
     async getTitleAndDescription(parsedUrl: ParsedUrl): Promise<
@@ -657,7 +662,10 @@ export class UnfurlService extends BaseService {
 
                                             return page?.waitForResponse(
                                                 responsePattern,
-                                                { timeout: 60000 },
+                                                {
+                                                    timeout:
+                                                        RESPONSE_TIMEOUT_MS,
+                                                },
                                             ); // NOTE: No await here
                                         }
                                         return undefined;
@@ -668,7 +676,8 @@ export class UnfurlService extends BaseService {
                                     UnfurlService.waitForAllPaginatedResultsResponse(
                                         page,
                                         expectedPaginatedResponses,
-                                        expectedPaginatedResponses * 60000,
+                                        expectedPaginatedResponses *
+                                            RESPONSE_TIMEOUT_MS,
                                     ); // NOTE: No await here
 
                                 exploreChartResultsPromise = Promise.race([
@@ -709,7 +718,7 @@ export class UnfurlService extends BaseService {
                                         );
                                         return page?.waitForResponse(
                                             responsePattern,
-                                            { timeout: 60000 },
+                                            { timeout: RESPONSE_TIMEOUT_MS },
                                         );
                                     });
 
@@ -720,7 +729,10 @@ export class UnfurlService extends BaseService {
                                                 new RegExp(
                                                     `/sqlRunner/saved/${id}/results-job`,
                                                 ),
-                                                { timeout: 60000 },
+                                                {
+                                                    timeout:
+                                                        RESPONSE_TIMEOUT_MS,
+                                                },
                                             ), // NOTE: No await here
                                     );
 
@@ -728,14 +740,14 @@ export class UnfurlService extends BaseService {
                                 sqlResultsPromises = [
                                     page?.waitForResponse(
                                         /\/sqlRunner\/results/,
-                                        { timeout: 60000 },
+                                        { timeout: RESPONSE_TIMEOUT_MS },
                                     ), // NOTE: No await here
                                 ];
 
                                 sqlPivotPromises = [
                                     page?.waitForResponse(
                                         /\/sqlRunner\/runPivotQuery/,
-                                        { timeout: 60000 },
+                                        { timeout: RESPONSE_TIMEOUT_MS },
                                     ), // NOTE: No await here
                                 ];
                             }
@@ -756,7 +768,7 @@ export class UnfurlService extends BaseService {
                             const legacyQueryPromise = page?.waitForResponse(
                                 responsePattern,
                                 {
-                                    timeout: 60000,
+                                    timeout: RESPONSE_TIMEOUT_MS,
                                 },
                             ); // NOTE: No await here
                             const paginatedQueryPromise =
@@ -775,7 +787,7 @@ export class UnfurlService extends BaseService {
                             const legacyQueryPromise = page?.waitForResponse(
                                 legacyMetricQueryEndpointRegex,
                                 {
-                                    timeout: 60000,
+                                    timeout: RESPONSE_TIMEOUT_MS,
                                 },
                             ); // NOTE: No await here
                             const paginatedQueryPromise =
@@ -822,7 +834,7 @@ export class UnfurlService extends BaseService {
                             loadingChartOverlays.map((loadingChartOverlay) =>
                                 loadingChartOverlay.waitFor({
                                     state: 'hidden',
-                                    timeout: 60000,
+                                    timeout: RESPONSE_TIMEOUT_MS,
                                 }),
                             ),
                         );
@@ -837,7 +849,7 @@ export class UnfurlService extends BaseService {
                         loadingCharts.map((loadingChart) =>
                             loadingChart.waitFor({
                                 state: 'hidden',
-                                timeout: 60000,
+                                timeout: RESPONSE_TIMEOUT_MS,
                             }),
                         ),
                     );
