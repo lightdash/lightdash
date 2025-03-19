@@ -28,6 +28,7 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplor
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
+import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
@@ -60,6 +61,19 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     const { user } = useApp();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+
+    const queryUuid = useExplorerContext(
+        (context) => context.queryResults.data?.queryUuid,
+    );
+
+    const underlyingDataItemId = useMemo(
+        () =>
+            underlyingDataConfig?.item !== undefined &&
+            isField(underlyingDataConfig.item)
+                ? getItemId(underlyingDataConfig.item)
+                : undefined,
+        [underlyingDataConfig?.item],
+    );
 
     const allFields = useMemo(
         () => (explore ? getFields(explore) : []),
@@ -308,7 +322,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         error,
         data: resultsData,
         isInitialLoading,
-    } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
+    } = useUnderlyingDataResults(
+        tableName,
+        underlyingDataMetricQuery,
+        queryUuid,
+        underlyingDataItemId,
+    );
 
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
         if (projectUuid) {
