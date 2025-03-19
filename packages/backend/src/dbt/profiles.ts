@@ -140,7 +140,8 @@ const credentialsTarget = (
                 },
             };
             if (
-                credentials.authenticationType === 'password' &&
+                (!credentials.authenticationType ||
+                    credentials.authenticationType === 'password') &&
                 credentials.password
             ) {
                 result.target.password = envVarReference('password');

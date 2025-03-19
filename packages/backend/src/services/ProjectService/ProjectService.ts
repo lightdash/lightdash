@@ -1921,7 +1921,19 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, context, status } = queryHistory;
+        const { metricQuery, context, status, totalRowCount } = queryHistory;
+
+        const defaultedPageSize =
+            pageSize ??
+            queryHistory.defaultPageSize ??
+            DEFAULT_RESULTS_PAGE_SIZE;
+
+        validatePagination({
+            pageSize: defaultedPageSize,
+            page,
+            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            totalRowCount,
+        });
 
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
@@ -1971,17 +1983,6 @@ export class ProjectService extends BaseService {
             explore_name: metricQuery.exploreName,
             query_context: context,
         };
-
-        const defaultedPageSize =
-            pageSize ??
-            queryHistory.defaultPageSize ??
-            DEFAULT_RESULTS_PAGE_SIZE;
-
-        validatePagination({
-            pageSize: defaultedPageSize,
-            page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-        });
 
         const { result, durationMs } = await measureTime(
             () =>

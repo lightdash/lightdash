@@ -1,3 +1,36 @@
+## [0.1547.1](https://github.com/lightdash/lightdash/compare/0.1547.0...0.1547.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* validate page against total pages ([#14118](https://github.com/lightdash/lightdash/issues/14118)) ([a9a1edc](https://github.com/lightdash/lightdash/commit/a9a1edcb1545e8de0efa0fe53405a089db950e7d))
+
+# [0.1547.0](https://github.com/lightdash/lightdash/compare/0.1546.3...0.1547.0) (2025-03-19)
+
+
+### Bug Fixes
+
+* sql chart tile loading state ([#14115](https://github.com/lightdash/lightdash/issues/14115)) ([b48947e](https://github.com/lightdash/lightdash/commit/b48947e3d1fa08a202bf91c31a8e12da7192179f))
+
+
+### Features
+
+* indicate when there are no dashboards avialable for embedding ([#14126](https://github.com/lightdash/lightdash/issues/14126)) ([8d8878c](https://github.com/lightdash/lightdash/commit/8d8878ca2be2fca49d4c3a631874f4bfc74c6137))
+
+## [0.1546.3](https://github.com/lightdash/lightdash/compare/0.1546.2...0.1546.3) (2025-03-19)
+
+
+### Bug Fixes
+
+* clear session on invalidUser error + invite link ([#14112](https://github.com/lightdash/lightdash/issues/14112)) ([15a87bd](https://github.com/lightdash/lightdash/commit/15a87bd0aa721c2f28f0edf56126867fb0585405))
+
+## [0.1546.2](https://github.com/lightdash/lightdash/compare/0.1546.1...0.1546.2) (2025-03-19)
+
+
+### Bug Fixes
+
+* handle missing authentication type in snowflake credentials check ([#14130](https://github.com/lightdash/lightdash/issues/14130)) ([81b97a6](https://github.com/lightdash/lightdash/commit/81b97a60c13e9156ecac422acb90b4854bdd3ca4))
+
 ## [0.1546.1](https://github.com/lightdash/lightdash/compare/0.1546.0...0.1546.1) (2025-03-18)
 
 
