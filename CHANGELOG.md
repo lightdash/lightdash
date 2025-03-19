@@ -1,3 +1,10 @@
+## [0.1546.3](https://github.com/lightdash/lightdash/compare/0.1546.2...0.1546.3) (2025-03-19)
+
+
+### Bug Fixes
+
+* clear session on invalidUser error + invite link ([#14112](https://github.com/lightdash/lightdash/issues/14112)) ([15a87bd](https://github.com/lightdash/lightdash/commit/15a87bd0aa721c2f28f0edf56126867fb0585405))
+
 ## [0.1546.2](https://github.com/lightdash/lightdash/compare/0.1546.1...0.1546.2) (2025-03-19)
 
 
