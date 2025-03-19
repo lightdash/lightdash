@@ -1,3 +1,10 @@
+# [0.1548.0](https://github.com/lightdash/lightdash/compare/0.1547.1...0.1548.0) (2025-03-19)
+
+
+### Features
+
+* add paginated underlying data query ([#14114](https://github.com/lightdash/lightdash/issues/14114)) ([608bdf8](https://github.com/lightdash/lightdash/commit/608bdf887fedcc592f9f30ec892fe64c0a062065))
+
 ## [0.1547.1](https://github.com/lightdash/lightdash/compare/0.1547.0...0.1547.1) (2025-03-19)
 
 
