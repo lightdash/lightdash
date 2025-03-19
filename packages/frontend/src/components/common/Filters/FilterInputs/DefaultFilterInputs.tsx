@@ -15,6 +15,7 @@ import FilterMultiStringInput from './FilterMultiStringInput';
 import FilterNumberInput from './FilterNumberInput';
 import FilterNumberRangeInput from './FilterNumberRangeInput';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
+
 const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
@@ -28,12 +29,19 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         ? getField(rule)?.suggestions
         : undefined;
 
+    const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
+
+    // Check if the filter should only allow a single value
+    const disallowMultipleValues =
+        isFilterRule(rule) &&
+        'disallowMultipleValues' in rule &&
+        !!rule.disallowMultipleValues;
+
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
-        disabled: isFilterRule(rule)
-            ? rule.disabled && !rule.values
-            : undefined,
+        disabled: isFilterRuleDisabled,
+        disallowMultipleValues,
     });
 
     switch (rule.operator) {
@@ -76,6 +84,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
+                            disallowMultipleValues={disallowMultipleValues}
                             onChange={(values) =>
                                 onChange({
                                     ...rule,
@@ -86,6 +95,46 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     );
 
                 case FilterType.NUMBER:
+                    if (disallowMultipleValues) {
+                        if (rule.values?.length && rule.values.length > 1) {
+                            onChange({
+                                ...rule,
+                                values: [rule.values[0]],
+                            });
+                        }
+                        return (
+                            <FilterNumberInput
+                                disabled={disabled}
+                                autoFocus={true}
+                                placeholder={placeholder}
+                                value={rule.values?.[0]}
+                                onChange={(newValue) => {
+                                    onChange({
+                                        ...rule,
+                                        values:
+                                            newValue !== null ? [newValue] : [],
+                                    });
+                                }}
+                            />
+                        );
+                    } else {
+                        return (
+                            <TagInput
+                                w="100%"
+                                clearable
+                                autoFocus={true}
+                                size="xs"
+                                disabled={disabled}
+                                placeholder={placeholder}
+                                allowDuplicates={false}
+                                validationRegex={/^-?\d+(\.\d+)?$/}
+                                value={rule.values?.map(String)}
+                                onChange={(values) =>
+                                    onChange({ ...rule, values })
+                                }
+                            />
+                        );
+                    }
                 case FilterType.BOOLEAN:
                 case FilterType.DATE:
                     return (
@@ -97,11 +146,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             disabled={disabled}
                             placeholder={placeholder}
                             allowDuplicates={false}
-                            validationRegex={
-                                filterType === FilterType.NUMBER
-                                    ? /^-?\d+(\.\d+)?$/
-                                    : undefined
-                            }
                             value={rule.values?.map(String)}
                             onChange={(values) => onChange({ ...rule, values })}
                         />

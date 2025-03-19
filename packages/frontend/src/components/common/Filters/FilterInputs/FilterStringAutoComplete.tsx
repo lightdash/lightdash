@@ -9,6 +9,7 @@ import {
     Text,
     Tooltip,
     type MultiSelectProps,
+    type MultiSelectValueProps,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
@@ -36,6 +37,23 @@ type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     values: string[];
     suggestions: string[];
     onChange: (values: string[]) => void;
+    disallowMultipleValues?: boolean;
+};
+
+// Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
+const SingleValueComponent = ({
+    value,
+    label,
+    onRemove,
+    ...others
+}: MultiSelectValueProps & { value: string }) => {
+    return (
+        <div {...others}>
+            <Text size="xs" lineClamp={1}>
+                {label}
+            </Text>
+        </div>
+    );
 };
 
 const FilterStringAutoComplete: FC<Props> = ({
@@ -48,6 +66,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     placeholder,
     onDropdownOpen,
     onDropdownClose,
+    disallowMultipleValues,
     ...rest
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
@@ -103,25 +122,37 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const handleChange = useCallback(
         (updatedValues: string[]) => {
-            onChange(uniq(updatedValues));
+            if (disallowMultipleValues && updatedValues.length > 1) {
+                onChange([updatedValues[updatedValues.length - 1]]);
+            } else {
+                onChange(uniq(updatedValues));
+            }
         },
-        [onChange],
+        [onChange, disallowMultipleValues],
     );
 
     const handleAdd = useCallback(
         (newValue: string) => {
-            handleChange([...values, newValue]);
+            if (disallowMultipleValues) {
+                handleChange([newValue]);
+            } else {
+                handleChange([...values, newValue]);
+            }
             return newValue;
         },
-        [handleChange, values],
+        [handleChange, values, disallowMultipleValues],
     );
 
     const handleAddMultiple = useCallback(
         (newValues: string[]) => {
-            handleChange([...values, ...newValues]);
+            if (disallowMultipleValues && newValues.length > 0) {
+                handleChange([newValues[newValues.length - 1]]);
+            } else {
+                handleChange([...values, ...newValues]);
+            }
             return newValues;
         },
-        [handleChange, values],
+        [handleChange, values, disallowMultipleValues],
     );
 
     const handlePaste = useCallback(
@@ -144,6 +175,12 @@ const FilterStringAutoComplete: FC<Props> = ({
         },
         [handleAdd, handleResetSearch, search],
     );
+
+    useEffect(() => {
+        if (disallowMultipleValues && values.length > 1) {
+            handleChange([values[values.length - 1]]);
+        }
+    }, [values, disallowMultipleValues, handleChange]);
 
     const data = useMemo(() => {
         // Mantine does not show value tag if value is not found in data
@@ -248,6 +285,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                 }
                 disabled={disabled}
                 creatable
+                valueComponent={
+                    disallowMultipleValues ? SingleValueComponent : undefined
+                }
                 /**
                  * Opts out of Mantine's default condition and always allows adding, as long as not
                  * an empty query.
@@ -277,6 +317,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 }}
                 disableSelectedItemFiltering
                 searchable
+                clearable={disallowMultipleValues}
                 clearSearchOnChange
                 {...rest}
                 searchValue={search}

@@ -9,10 +9,12 @@ export const getPlaceholderByFilterTypeAndOperator = ({
     type,
     operator,
     disabled,
+    disallowMultipleValues,
 }: {
     type: FilterType;
     operator: FilterOperator;
     disabled?: boolean;
+    disallowMultipleValues?: boolean;
 }) => {
     if (disabled) return 'any value';
 
@@ -21,10 +23,12 @@ export const getPlaceholderByFilterTypeAndOperator = ({
             switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
-                    return 'Enter value(s)';
+                    return disallowMultipleValues
+                        ? 'Enter value'
+                        : 'Enter value(s)';
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
-                    return 'Enter value';
+                    return 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
@@ -59,9 +63,12 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     return 'Start typing to filter results';
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                    return 'Enter value(s)';
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
-                    return 'Enter value(s)';
+                    return disallowMultipleValues
+                        ? 'Enter value'
+                        : 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
