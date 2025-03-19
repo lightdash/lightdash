@@ -1,3 +1,4 @@
+import { type ApiQueryResults } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
@@ -22,7 +23,29 @@ const MinimalExplorer: FC = () => {
     const { health } = useApp();
 
     const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
+        (context): ApiQueryResults | undefined => {
+            if (context.query.data) {
+                // TODO: next PR should support pagination for table viz
+                // Forcing to fetch all rows for now
+                context.queryResults.fetchMoreRows(
+                    context.query.data?.totalResults,
+                );
+
+                if (
+                    context.queryResults.fetchedRows.length >=
+                    context.query.data?.totalResults
+                ) {
+                    return {
+                        metricQuery: context.query.data.metricQuery,
+                        cacheMetadata: {
+                            cacheHit: false,
+                        },
+                        rows: context.queryResults.fetchedRows,
+                        fields: context.query.data.fields,
+                    };
+                }
+            }
+        },
     );
 
     const savedChart = useExplorerContext(
@@ -30,7 +53,8 @@ const MinimalExplorer: FC = () => {
     );
 
     const isLoadingQueryResults = useExplorerContext(
-        (context) => context.queryResults.isFetching,
+        (context) =>
+            context.query.isFetching || context.queryResults.isFetchingRows,
     );
 
     if (!savedChart || health.isInitialLoading || !health.data) {

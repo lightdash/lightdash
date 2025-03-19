@@ -113,6 +113,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 className={className}
                 status="success"
                 data={rows}
+                totalRowsCount={rows.length || 0}
+                isFetchingNextPage={false}
+                fetchMoreRows={() => undefined}
                 columns={columns}
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}

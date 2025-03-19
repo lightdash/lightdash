@@ -1,7 +1,6 @@
 import {
     getCoreRowModel,
     getExpandedRowModel,
-    getPaginationRowModel,
     useReactTable,
     type ColumnOrderState,
     type GroupingState,
@@ -46,7 +45,14 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     children,
     ...rest
 }) => {
-    const { data, columns, columnOrder, pagination } = rest;
+    const {
+        data,
+        totalRowsCount,
+        columns,
+        columnOrder,
+        pagination,
+        fetchMoreRows,
+    } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
 
@@ -117,8 +123,32 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
             : [stickyRowColumn, ...stickyColumns, ...otherColumns];
     }, [hideRowNumbers, stickyColumns, otherColumns, stickyRowColumn]);
 
+    const [paginationState, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: DEFAULT_PAGE_SIZE,
+    });
+    useEffect(() => {
+        // Fetch rows for next pages
+        const pageThreshold = 2;
+        const { pageIndex, pageSize } = paginationState;
+        const currentPageRowCount = pageIndex * pageSize;
+        const nextPagesRowCount =
+            currentPageRowCount + pageSize * pageThreshold;
+        if (data.length < nextPagesRowCount) {
+            fetchMoreRows(Math.min(nextPagesRowCount, totalRowsCount));
+        }
+    }, [data.length, fetchMoreRows, paginationState, totalRowsCount]);
+
+    const pageRows = useMemo(() => {
+        // calculate page rows from data and pagination state
+        const { pageIndex, pageSize } = paginationState;
+        const start = pageIndex * pageSize;
+        const end = start + pageSize;
+        return data.slice(start, end);
+    }, [data, paginationState]);
+
     const table = useReactTable({
-        data,
+        data: pageRows,
         columns: visibleColumns,
         state: {
             grouping,
@@ -130,12 +160,16 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                     ...stickyColumns.map((c) => c.id || ''),
                 ],
             },
+            pagination: paginationState,
         },
         enablePinning: true,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualPagination: true,
+        rowCount: totalRowsCount,
+        pageCount: Math.ceil(totalRowsCount / paginationState.pageSize),
+        onPaginationChange: setPagination,
         onGroupingChange: setGrouping,
         groupedColumnMode: false,
         getExpandedRowModel: getExpandedRowModel(),

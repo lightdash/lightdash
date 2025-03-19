@@ -39,8 +39,14 @@ const PaginateControl: FC<PaginateControlProps> = ({
                 onPreviousPage={onPreviousPage}
             >
                 <Group spacing="xs" position="center">
-                    <Pagination.Previous icon={IconChevronLeft} />
-                    <Pagination.Next icon={IconChevronRight} />
+                    <Pagination.Previous
+                        icon={IconChevronLeft}
+                        disabled={!hasPreviousPage}
+                    />
+                    <Pagination.Next
+                        icon={IconChevronRight}
+                        disabled={!hasNextPage}
+                    />
                 </Group>
             </Pagination.Root>
         </Group>

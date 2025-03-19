@@ -65,6 +65,9 @@ const UnderlyingDataResultsTable: FC<{
                 <Table
                     status={'success'}
                     data={resultsData?.rows || []}
+                    totalRowsCount={resultsData?.rows.length || 0}
+                    isFetchingNextPage={false}
+                    fetchMoreRows={() => undefined}
                     columns={columns.sort(sortByUnderlyingValues)}
                     pagination={{
                         show: true,

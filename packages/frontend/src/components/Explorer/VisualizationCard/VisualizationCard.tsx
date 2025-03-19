@@ -1,11 +1,19 @@
 import {
+    type ApiQueryResults,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    type FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { downloadCsv } from '../../../api/csv';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
@@ -41,10 +49,34 @@ const VisualizationCard: FC<{
     );
 
     const isLoadingQueryResults = useExplorerContext(
-        (context) => context.queryResults.isFetching,
+        (context) =>
+            context.query.isFetching || context.queryResults.isFetchingRows,
+    );
+    const fetchAllRows = useExplorerContext(
+        (context) => () =>
+            context.query.data
+                ? context.queryResults.fetchMoreRows(
+                      context.query.data?.totalResults,
+                  )
+                : undefined,
     );
     const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
+        (context): ApiQueryResults | undefined => {
+            const loadedAllRows =
+                context.query.data &&
+                context.queryResults.fetchedRows.length >=
+                    context.query.data?.totalResults;
+            if (context.query.data && loadedAllRows) {
+                return {
+                    metricQuery: context.query.data.metricQuery,
+                    cacheMetadata: {
+                        cacheHit: false,
+                    },
+                    rows: context.queryResults.fetchedRows,
+                    fields: context.query.data.fields,
+                };
+            }
+        },
     );
     const setPivotFields = useExplorerContext(
         (context) => context.actions.setPivotFields,
@@ -75,6 +107,15 @@ const VisualizationCard: FC<{
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
     );
+
+    useEffect(() => {
+        if (isOpen) {
+            // TODO: next PR should support pagination for table viz
+            // Forcing to fetch all rows for now
+            fetchAllRows();
+        }
+    }, [fetchAllRows, isOpen]);
+
     const toggleSection = useCallback(
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
         [toggleExpandedSection],
