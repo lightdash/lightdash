@@ -22,7 +22,7 @@ import {
     IconDots,
     IconInfoCircle,
     IconPencil,
-    IconSend,
+    IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -132,7 +132,9 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                                     mutateSendNow(sync);
                                                 }}
                                             >
-                                                <MantineIcon icon={IconSend} />
+                                                <MantineIcon
+                                                    icon={IconRefresh}
+                                                />
                                             </ActionIcon>
                                         </Tooltip>
 
