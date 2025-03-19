@@ -25,6 +25,7 @@ const applyOrganizationMemberStaticAbilities: Record<
     (
         member: OrganizationMemberAbilitiesArgs['member'],
         builder: OrganizationMemberAbilitiesArgs['builder'],
+        groupMemberships?: { groupUuid: string }[],
     ) => void
 > = {
     member(member, { can }) {
@@ -38,28 +39,104 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
     },
-    viewer(member, { can }) {
+    viewer(member, { can }, groupMemberships = []) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
+
+        // Dashboards
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
         });
-        can('view', 'SavedChart', {
+
+        can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
+            userSpaceAccess: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
         });
+
+        can('view', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in:
+                            groupMemberships?.map((group) => group.groupUuid) ||
+                            [],
+                    },
+                },
+            },
+        });
+
+        // @deprecated - use userSpaceAccess and groupSpaceAccess instead
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+
+        // Charts
+        can('view', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
+
+        can('view', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            userSpaceAccess: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+
+        can('view', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in:
+                            groupMemberships?.map((group) => group.groupUuid) ||
+                            [],
+                    },
+                },
+            },
+        });
+
+        // @deprecated - use userSpaceAccess and groupSpaceAccess instead
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+
+        // Spaces
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
+
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+            userSpaceAccess: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in:
+                            groupMemberships?.map((group) => group.groupUuid) ||
+                            [],
+                    },
+                },
+            },
+        });
+
+        // @deprecated - use userSpaceAccess and groupSpaceAccess instead
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
@@ -70,6 +147,8 @@ const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+
+        // Other permissions
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
         });
@@ -92,8 +171,12 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
     },
-    interactive_viewer(member, { can }) {
-        applyOrganizationMemberStaticAbilities.viewer(member, { can });
+    interactive_viewer(member, { can }, groupMemberships = []) {
+        applyOrganizationMemberStaticAbilities.viewer(
+            member,
+            { can },
+            groupMemberships,
+        );
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
@@ -114,26 +197,38 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
+
+        // Dashboards
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
-            access: {
+            userSpaceAccess: {
                 $elemMatch: {
                     userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('manage', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
                 },
             },
         });
 
-        can('manage', 'SemanticViewer', {
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in:
+                            groupMemberships?.map((group) => group.groupUuid) ||
+                            [],
+                    },
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
+                },
+            },
+        });
+
+        // @deprecated - use userSpaceAccess and groupSpaceAccess instead
+        can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: {
@@ -151,6 +246,46 @@ const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+
+        // Charts
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            userSpaceAccess: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
+                },
+            },
+        });
+
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in:
+                            groupMemberships?.map((group) => group.groupUuid) ||
+                            [],
+                    },
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
+                },
+            },
+        });
+
+        // @deprecated - use userSpaceAccess and groupSpaceAccess instead
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
             access: {
@@ -161,6 +296,32 @@ const applyOrganizationMemberStaticAbilities: Record<
             },
         });
 
+        // Spaces
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            userSpaceAccess: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in:
+                            groupMemberships?.map((group) => group.groupUuid) ||
+                            [],
+                    },
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+
+        // @deprecated - use userSpaceAccess and groupSpaceAccess instead
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             access: {
@@ -171,10 +332,12 @@ const applyOrganizationMemberStaticAbilities: Record<
             },
         });
     },
-    editor(member, { can }) {
-        applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
-            can,
-        });
+    editor(member, { can }, groupMemberships = []) {
+        applyOrganizationMemberStaticAbilities.interactive_viewer(
+            member,
+            { can },
+            groupMemberships,
+        );
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
@@ -182,6 +345,14 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'Space', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        }).because('Organization editors can manage public dashboards');
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        }).because('Organization editors can manage public saved charts');
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
@@ -192,9 +363,6 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
-        can('manage', 'SemanticViewer', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'Tags', {
             organizationUuid: member.organizationUuid,
         });
@@ -202,8 +370,12 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
     },
-    developer(member, { can }) {
-        applyOrganizationMemberStaticAbilities.editor(member, { can });
+    developer(member, { can }, groupMemberships = []) {
+        applyOrganizationMemberStaticAbilities.editor(
+            member,
+            { can },
+            groupMemberships,
+        );
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });
@@ -215,24 +387,6 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('manage', 'Validation', {
             organizationUuid: member.organizationUuid,
-        });
-        can('promote', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('promote', 'Dashboard', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
         });
         can('manage', 'CompileProject', {
             organizationUuid: member.organizationUuid,
@@ -255,8 +409,12 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
     },
-    admin(member, { can }) {
-        applyOrganizationMemberStaticAbilities.developer(member, { can });
+    admin(member, { can }, groupMemberships = []) {
+        applyOrganizationMemberStaticAbilities.developer(
+            member,
+            { can },
+            groupMemberships,
+        );
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });
@@ -314,8 +472,15 @@ export default function applyOrganizationMemberAbilities({
     member,
     builder,
     permissionsConfig,
-}: OrganizationMemberAbilitiesArgs) {
-    applyOrganizationMemberStaticAbilities[role](member, builder);
+    groupMemberships = [],
+}: OrganizationMemberAbilitiesArgs & {
+    groupMemberships?: { groupUuid: string }[];
+}) {
+    applyOrganizationMemberStaticAbilities[role](
+        member,
+        builder,
+        groupMemberships,
+    );
     applyOrganizationMemberDynamicAbilities({
         role,
         member,

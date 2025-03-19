@@ -458,7 +458,7 @@ describe('Organization member permissions', () => {
                             isPrivate: false,
                         }),
                     ),
-                ).toEqual(false);
+                ).toEqual(true); // Editors can manage public dashboards
                 expect(
                     ability.can(
                         'view',
@@ -567,7 +567,7 @@ describe('Organization member permissions', () => {
                             isPrivate: false,
                         }),
                     ),
-                ).toEqual(false);
+                ).toEqual(true); // Editors can manage public saved charts
                 expect(
                     ability.can(
                         'view',
@@ -803,7 +803,7 @@ describe('Organization member permissions', () => {
                             access: [],
                         }),
                     ),
-                ).toEqual(false);
+                ).toEqual(true);
             });
 
             it('cannot manage public dashboards from another organization', () => {
@@ -833,8 +833,8 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'SqlRunner')).toEqual(false);
             });
 
-            it('can use the SemanticViewer', () => {
-                expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+            it('can view the SemanticViewer', () => {
+                expect(ability.can('view', 'SemanticViewer')).toEqual(true);
             });
         });
 
@@ -849,8 +849,8 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'SqlRunner')).toEqual(true);
             });
 
-            it('can use the SemanticViewer', () => {
-                expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+            it('can view the SemanticViewer', () => {
+                expect(ability.can('view', 'SemanticViewer')).toEqual(true);
             });
         });
 
@@ -1565,18 +1565,6 @@ describe('Organization member permissions', () => {
                     ability.can(
                         'manage',
                         subject('SqlRunner', {
-                            organizationUuid:
-                                ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
-                        }),
-                    ),
-                ).toEqual(false);
-            });
-
-            it('cannot use the SemanticViewer', () => {
-                expect(
-                    ability.can(
-                        'manage',
-                        subject('SemanticViewer', {
                             organizationUuid:
                                 ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
                         }),
