@@ -119,6 +119,23 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                         </Flex>
                                     </Stack>
                                     <Group mr="lg">
+                                        <Tooltip withinPortal label="Sync now">
+                                            <ActionIcon
+                                                color="gray.7"
+                                                p="xs"
+                                                size="lg"
+                                                disabled={isSendingNowLoading}
+                                                onClick={() => {
+                                                    track({
+                                                        name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                                    });
+                                                    mutateSendNow(sync);
+                                                }}
+                                            >
+                                                <MantineIcon icon={IconSend} />
+                                            </ActionIcon>
+                                        </Tooltip>
+
                                         <ToggleSyncEnabled scheduler={sync} />
                                     </Group>
                                 </Flex>
@@ -146,19 +163,6 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                     <Menu.Dropdown>
                                         <Menu.Item
                                             disabled={isSendingNowLoading}
-                                            icon={
-                                                <MantineIcon icon={IconSend} />
-                                            }
-                                            onClick={() => {
-                                                track({
-                                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
-                                                });
-                                                mutateSendNow(sync);
-                                            }}
-                                        >
-                                            Sync now
-                                        </Menu.Item>
-                                        <Menu.Item
                                             icon={
                                                 <MantineIcon
                                                     icon={IconPencil}
