@@ -257,6 +257,7 @@ export class ProjectModel {
                 'projects.project_type',
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
+                `projects.created_at`,
                 `${WarehouseCredentialTableName}.warehouse_type`,
                 `${WarehouseCredentialTableName}.encrypted_credentials`,
                 this.database.raw(
@@ -292,6 +293,7 @@ export class ProjectModel {
                 project_type,
                 created_by_user_uuid,
                 copied_from_project_uuid,
+                created_at,
                 warehouse_type,
                 encrypted_credentials,
             }) => {
@@ -304,6 +306,7 @@ export class ProjectModel {
                         projectUuid: project_uuid,
                         type: project_type,
                         createdByUserUuid: created_by_user_uuid,
+                        createdAt: created_at,
                         upstreamProjectUuid: copied_from_project_uuid,
                         warehouseType: warehouse_type as WarehouseTypes,
                         requireUserCredentials:

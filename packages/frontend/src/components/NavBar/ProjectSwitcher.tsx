@@ -5,8 +5,16 @@ import {
     type OrganizationProject,
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
-import { IconArrowRight, IconPlus } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    IconArrowDown,
+    IconArrowLeft,
+    IconArrowRight,
+    IconArrowUp,
+    IconArrowsSort,
+    IconPlus,
+} from '@tabler/icons-react';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -18,6 +26,25 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
+
+type SortOption = 'default' | 'alphabetical' | 'type' | 'date';
+type SortDirection = 'asc' | 'desc';
+
+type SortOptionConfig = {
+    id: SortOption;
+    title: string;
+    activeLabel: string;
+    defaultDirection: SortDirection;
+};
+
+type SortConfig = {
+    option: SortOption;
+    direction: SortDirection;
+};
+
+type DropdownView = 'projects' | 'sort';
+
+const LOCAL_STORAGE_KEY = 'project-switcher-sort-preference';
 
 const MENU_TEXT_PROPS = {
     c: 'gray.2',
@@ -116,6 +143,95 @@ const ProjectSwitcher = () => {
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
 
+    const [dropdownView, setDropdownView] = useState<DropdownView>('projects');
+
+    const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
+        const savedPreference = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedPreference) {
+            try {
+                return JSON.parse(savedPreference) as SortConfig;
+            } catch (e) {
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+            }
+        }
+        return {
+            option: 'default',
+            direction: 'desc',
+        };
+    });
+
+    const sortOptions: SortOptionConfig[] = [
+        {
+            id: 'alphabetical',
+            title: 'Alphabetically',
+            activeLabel: 'A-Z',
+            defaultDirection: 'asc', // A-Z by default
+        },
+        {
+            id: 'type',
+            title: 'By type',
+            activeLabel: 'Type',
+            defaultDirection: 'asc', // Non-preview first
+        },
+        {
+            id: 'date',
+            title: 'By creation date',
+            activeLabel: 'Date',
+            defaultDirection: 'desc', // Newest first
+        },
+    ];
+
+    useEffect(() => {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sortConfig));
+    }, [sortConfig]);
+
+    const handleSortOptionChange = (option: SortOption) => {
+        if (option === sortConfig.option) {
+            // Toggle direction if same option is selected
+            setSortConfig({
+                option,
+                direction: sortConfig.direction === 'asc' ? 'desc' : 'asc',
+            });
+        } else {
+            const defaultDirection =
+                option === 'default'
+                    ? 'desc'
+                    : sortOptions.find((opt) => opt.id === option)
+                          ?.defaultDirection || 'asc';
+
+            setSortConfig({
+                option,
+                direction: defaultDirection,
+            });
+        }
+
+        setDropdownView('projects');
+    };
+
+    const toggleSortDirection = () => {
+        setSortConfig({
+            ...sortConfig,
+            direction: sortConfig.direction === 'asc' ? 'desc' : 'asc',
+        });
+
+        dropdownView === 'sort' && setDropdownView('projects');
+    };
+
+    const toggleDropdownView = () => {
+        dropdownView === 'sort'
+            ? setDropdownView('projects')
+            : setDropdownView('sort');
+    };
+
+    const resetSort = () => {
+        setSortConfig({
+            option: 'default',
+            direction: 'desc',
+        });
+
+        setDropdownView('projects');
+    };
+
     const routeMatches =
         matchRoutes(
             activeProjectUuid
@@ -195,7 +311,8 @@ const ProjectSwitcher = () => {
 
     const inactiveProjects = useMemo(() => {
         if (!activeProjectUuid || !projects) return [];
-        return projects
+
+        const filteredProjects = projects
             .filter((p) => p.projectUuid !== activeProjectUuid)
             .filter((project) => {
                 switch (project.type) {
@@ -222,7 +339,56 @@ const ProjectSwitcher = () => {
                         );
                 }
             });
-    }, [activeProjectUuid, projects, orgRoleCanCreatePreviews, user.data]);
+
+        if (sortConfig.option === 'default') {
+            return filteredProjects;
+        }
+
+        return [...filteredProjects].sort((a, b) => {
+            if (sortConfig.option === 'alphabetical') {
+                // First sort by type (non-preview first)
+                if (a.type !== b.type) {
+                    return a.type === ProjectType.DEFAULT ? -1 : 1;
+                }
+                // Then sort alphabetically
+                const comparison = a.name.localeCompare(b.name);
+                return sortConfig.direction === 'asc'
+                    ? comparison
+                    : -comparison;
+            }
+
+            if (sortConfig.option === 'type') {
+                if (a.type !== b.type) {
+                    // Sort by type based on direction
+                    if (sortConfig.direction === 'asc') {
+                        // Non-preview first
+                        return a.type === ProjectType.DEFAULT ? -1 : 1;
+                    } else {
+                        // Preview first
+                        return a.type === ProjectType.PREVIEW ? -1 : 1;
+                    }
+                }
+                // If same type, sort by name
+                return a.name.localeCompare(b.name);
+            }
+
+            if (sortConfig.option === 'date') {
+                const dateA = new Date(a.createdAt).getTime();
+                const dateB = new Date(b.createdAt).getTime();
+                return sortConfig.direction === 'asc'
+                    ? dateA - dateB
+                    : dateB - dateA;
+            }
+
+            return 0;
+        });
+    }, [
+        activeProjectUuid,
+        projects,
+        orgRoleCanCreatePreviews,
+        user.data,
+        sortConfig,
+    ]);
 
     const userCanCreatePreview = useMemo(() => {
         if (isLoadingProjects || !projects || !user.data) return false;
@@ -242,6 +408,39 @@ const ProjectSwitcher = () => {
     }, [isLoadingProjects, projects, user.data]);
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
+
+    const getSortDisplay = () => {
+        if (sortConfig.option === 'default') {
+            return {
+                icon: (
+                    <MantineIcon
+                        icon={IconArrowsSort}
+                        size="md"
+                        color="gray.5"
+                    />
+                ),
+                label: null,
+            };
+        }
+
+        const selectedOption = sortOptions.find(
+            (opt) => opt.id === sortConfig.option,
+        );
+
+        return {
+            icon:
+                sortConfig.direction === 'desc' ? (
+                    <MantineIcon
+                        icon={IconArrowDown}
+                        size="md"
+                        color="blue.6"
+                    />
+                ) : (
+                    <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
+                ),
+            label: selectedOption?.activeLabel || '',
+        };
+    };
 
     if (
         isLoadingProjects ||
@@ -265,6 +464,10 @@ const ProjectSwitcher = () => {
                         maxHeight: 450,
                         overflow: 'auto',
                     },
+                }}
+                closeOnItemClick={dropdownView === 'projects'}
+                onClose={() => {
+                    setDropdownView('projects');
                 }}
             >
                 <Menu.Target>
@@ -297,44 +500,173 @@ const ProjectSwitcher = () => {
                             bg="gray.9"
                             sx={(theme) => ({
                                 boxShadow: `0 -4px ${theme.colors.gray[9]}`,
+                                zIndex: 10,
                             })}
                         >
-                            <Menu.Label py={0}>All Projects</Menu.Label>
+                            <Group
+                                position="apart"
+                                pr={dropdownView === 'projects' ? 'md' : 'xs'}
+                                py={4}
+                            >
+                                {dropdownView === 'projects' ? (
+                                    <>
+                                        <Group spacing={4}>
+                                            <Menu.Label py={0} m={0}>
+                                                All Projects
+                                            </Menu.Label>
+                                        </Group>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Group spacing={4}>
+                                            <Menu.Label py={0} m={0}>
+                                                Sort projects
+                                            </Menu.Label>
+                                        </Group>
+                                    </>
+                                )}
+
+                                <Group
+                                    spacing={4}
+                                    sx={{ cursor: 'pointer' }}
+                                    onClick={toggleDropdownView}
+                                >
+                                    {getSortDisplay().label && (
+                                        <Text {...MENU_TEXT_PROPS} c="blue.6">
+                                            {getSortDisplay().label}
+                                        </Text>
+                                    )}
+                                    <Button
+                                        variant="subtle"
+                                        p={0}
+                                        h="auto"
+                                        w="auto"
+                                        onClick={(
+                                            e: React.MouseEvent<HTMLButtonElement>,
+                                        ) => {
+                                            if (
+                                                sortConfig.option !== 'default'
+                                            ) {
+                                                toggleSortDirection();
+                                                e.stopPropagation();
+                                            } else {
+                                                setDropdownView('sort');
+                                            }
+                                        }}
+                                    >
+                                        {getSortDisplay().icon}
+                                    </Button>
+                                </Group>
+                            </Group>
                             <Menu.Divider />
                         </Box>
                     )}
 
-                    {inactiveProjects.map((item) => (
-                        <InactiveProjectItem
-                            key={item.projectUuid}
-                            item={item}
-                            handleProjectChange={handleProjectChange}
-                        />
-                    ))}
+                    {dropdownView === 'projects' ? (
+                        <>
+                            {inactiveProjects.map((item) => (
+                                <InactiveProjectItem
+                                    key={item.projectUuid}
+                                    item={item}
+                                    handleProjectChange={handleProjectChange}
+                                />
+                            ))}
 
-                    {userCanCreatePreview && (
+                            {userCanCreatePreview && (
+                                <Box
+                                    pos="sticky"
+                                    bottom={0}
+                                    bg="gray.9"
+                                    sx={(theme) => ({
+                                        boxShadow: `0 4px ${theme.colors.gray[9]}`,
+                                        zIndex: 10,
+                                    })}
+                                >
+                                    {inactiveProjects.length > 0 && (
+                                        <Menu.Divider />
+                                    )}
+
+                                    <Menu.Item
+                                        onClick={(
+                                            e: React.MouseEvent<HTMLButtonElement>,
+                                        ) => {
+                                            setIsCreatePreview(
+                                                !isCreatePreviewOpen,
+                                            );
+                                            e.stopPropagation();
+                                        }}
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconPlus}
+                                                size="md"
+                                            />
+                                        }
+                                    >
+                                        <Text {...MENU_TEXT_PROPS}>
+                                            Create Preview
+                                        </Text>
+                                    </Menu.Item>
+                                </Box>
+                            )}
+                        </>
+                    ) : (
                         <Box
-                            pos="sticky"
-                            bottom={0}
-                            bg="gray.9"
-                            sx={(theme) => ({
-                                // fixes scroll overlap
-                                boxShadow: `0 4px ${theme.colors.gray[9]}`,
-                            })}
+                            styles={{
+                                root: {
+                                    maxHeight: 300,
+                                    overflow: 'auto',
+                                },
+                            }}
                         >
-                            {inactiveProjects.length > 0 && <Menu.Divider />}
+                            {sortOptions.map((option) => (
+                                <Menu.Item
+                                    key={option.id}
+                                    onClick={() =>
+                                        handleSortOptionChange(option.id)
+                                    }
+                                >
+                                    <Group position="apart" spacing="xs" noWrap>
+                                        <Text
+                                            {...MENU_TEXT_PROPS}
+                                            c={
+                                                sortConfig.option === option.id
+                                                    ? 'blue.6'
+                                                    : 'gray.2'
+                                            }
+                                        >
+                                            {option.title}
+                                        </Text>
+                                    </Group>
+                                </Menu.Item>
+                            ))}
 
-                            <Menu.Item
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    setIsCreatePreview(!isCreatePreviewOpen);
-                                    e.stopPropagation();
-                                }}
-                                icon={<MantineIcon icon={IconPlus} size="md" />}
+                            <Box
+                                pos="sticky"
+                                bottom={0}
+                                bg="gray.9"
+                                sx={(theme) => ({
+                                    boxShadow: `0 4px ${theme.colors.gray[9]}`,
+                                    zIndex: 10,
+                                })}
                             >
-                                <Text {...MENU_TEXT_PROPS}>Create Preview</Text>
-                            </Menu.Item>
+                                <Menu.Divider />
+                                <Menu.Item
+                                    onClick={resetSort}
+                                    icon={
+                                        sortConfig.option === 'default' ? (
+                                            <MantineIcon
+                                                icon={IconArrowsSort}
+                                                size="md"
+                                                color="gray.5"
+                                            />
+                                        ) : null
+                                    }
+                                >
+                                    <Text {...MENU_TEXT_PROPS}>
+                                        Reset order
+                                    </Text>
+                                </Menu.Item>
+                            </Box>
                         </Box>
                     )}
                 </Menu.Dropdown>
