@@ -1,3 +1,15 @@
+# [0.1547.0](https://github.com/lightdash/lightdash/compare/0.1546.3...0.1547.0) (2025-03-19)
+
+
+### Bug Fixes
+
+* sql chart tile loading state ([#14115](https://github.com/lightdash/lightdash/issues/14115)) ([b48947e](https://github.com/lightdash/lightdash/commit/b48947e3d1fa08a202bf91c31a8e12da7192179f))
+
+
+### Features
+
+* indicate when there are no dashboards avialable for embedding ([#14126](https://github.com/lightdash/lightdash/issues/14126)) ([8d8878c](https://github.com/lightdash/lightdash/commit/8d8878ca2be2fca49d4c3a631874f4bfc74c6137))
+
 ## [0.1546.3](https://github.com/lightdash/lightdash/compare/0.1546.2...0.1546.3) (2025-03-19)
 
 
