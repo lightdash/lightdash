@@ -1921,7 +1921,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, context, status } = queryHistory;
+        const { metricQuery, context, status, totalRowCount } = queryHistory;
 
         const defaultedPageSize =
             pageSize ??
@@ -1932,7 +1932,7 @@ export class ProjectService extends BaseService {
             pageSize: defaultedPageSize,
             page,
             queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-            totalResultsCount: queryHistory.totalRowCount,
+            totalRowCount,
         });
 
         switch (status) {
