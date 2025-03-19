@@ -9,6 +9,7 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateGranularity,
+    QueryExecutionContext,
     SortField,
 } from '@lightdash/common';
 import {
@@ -68,6 +69,24 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        const context = getContextFromQueryOrHeader(req);
+
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: `/api/v1/saved/${chartUuid}/results`,
+                        context: context ?? QueryExecutionContext.CHART,
+                    },
+                },
+                {
+                    chartUuid,
+                },
+            );
+
         this.setStatus(200);
         return {
             status: 'ok',
@@ -76,7 +95,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
-                context: getContextFromQueryOrHeader(req),
+                context,
             }),
         };
     }
@@ -184,6 +203,23 @@ export class SavedChartController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        const context = getContextFromHeader(req);
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: `/api/v1/saved/${chartUuid}/version/${versionUuid}/results`,
+                        context: context ?? QueryExecutionContext.CHART,
+                    },
+                },
+                {
+                    chartUuid,
+                },
+            );
+
         this.setStatus(200);
 
         return {
@@ -192,7 +228,7 @@ export class SavedChartController extends BaseController {
                 user: req.user!,
                 chartUuid,
                 versionUuid,
-                context: getContextFromHeader(req),
+                context,
             }),
         };
     }

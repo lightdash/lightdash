@@ -18,6 +18,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -40,7 +41,6 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
-
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
  * this list (in alphabetical order, please!) to have typescript help ensure you've updated the
@@ -83,6 +83,7 @@ interface ServiceManifest {
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
     spotlightService: SpotlightService;
+    lightdashAnalyticsService: LightdashAnalyticsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -794,6 +795,18 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     spotlightTableConfigModel:
                         this.models.getSpotlightTableConfigModel(),
+                }),
+        );
+    }
+
+    public getLightdashAnalyticsService(): LightdashAnalyticsService {
+        return this.getService(
+            'lightdashAnalyticsService',
+            () =>
+                new LightdashAnalyticsService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
                 }),
         );
     }

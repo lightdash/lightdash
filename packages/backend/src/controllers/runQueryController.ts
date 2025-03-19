@@ -8,6 +8,7 @@ import {
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
+    QueryExecutionContext,
 } from '@lightdash/common';
 import {
     Body,
@@ -67,6 +68,25 @@ export class RunViewChartQueryController extends BaseController {
         @Path() exploreId: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        const context = getContextFromHeader(req);
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: `/api/v1/projects/${projectUuid}/explores/${exploreId}/runUnderlyingDataQuery`,
+                        context:
+                            context ??
+                            QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                    },
+                },
+                {
+                    projectUuid,
+                },
+            );
+
         const metricQuery: MetricQuery = {
             exploreName: body.exploreName,
             dimensions: body.dimensions,
@@ -87,7 +107,7 @@ export class RunViewChartQueryController extends BaseController {
                 projectUuid,
                 exploreId,
                 body.csvLimit,
-                getContextFromHeader(req),
+                context,
             );
         this.setStatus(200);
         return {
@@ -119,6 +139,23 @@ export class RunViewChartQueryController extends BaseController {
 
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        const context = getContextFromHeader(req);
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: `/api/v1/projects/${projectUuid}/explores/${exploreId}/runQuery`,
+                        context: context ?? QueryExecutionContext.EXPLORE,
+                    },
+                },
+                {
+                    projectUuid,
+                },
+            );
+
         const metricQuery: MetricQuery = {
             exploreName: body.exploreName,
             dimensions: body.dimensions,
@@ -141,7 +178,7 @@ export class RunViewChartQueryController extends BaseController {
                 exploreId,
                 body.csvLimit,
                 body.granularity,
-                getContextFromHeader(req),
+                context,
             );
         this.setStatus(200);
         return {
