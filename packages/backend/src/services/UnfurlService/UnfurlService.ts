@@ -888,6 +888,7 @@ export class UnfurlService extends BaseService {
                             .screenshot({
                                 path,
                                 animations: 'disabled',
+                                timeout: RESPONSE_TIMEOUT_MS,
                             });
 
                         return imageBuffer;
