@@ -76,10 +76,8 @@ export class RunViewChartQueryController extends BaseController {
                     event: 'deprecated_route.called',
                     userId: req.user!.userUuid,
                     properties: {
-                        route: `/api/v1/projects/${projectUuid}/explores/${exploreId}/runUnderlyingDataQuery`,
-                        context:
-                            context ??
-                            QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
                     },
                 },
                 {
@@ -147,8 +145,8 @@ export class RunViewChartQueryController extends BaseController {
                     event: 'deprecated_route.called',
                     userId: req.user!.userUuid,
                     properties: {
-                        route: `/api/v1/projects/${projectUuid}/explores/${exploreId}/runQuery`,
-                        context: context ?? QueryExecutionContext.EXPLORE,
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
                     },
                 },
                 {

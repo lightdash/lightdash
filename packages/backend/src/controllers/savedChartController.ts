@@ -78,8 +78,8 @@ export class SavedChartController extends BaseController {
                     event: 'deprecated_route.called',
                     userId: req.user!.userUuid,
                     properties: {
-                        route: `/api/v1/saved/${chartUuid}/results`,
-                        context: context ?? QueryExecutionContext.CHART,
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
                     },
                 },
                 {
@@ -211,8 +211,8 @@ export class SavedChartController extends BaseController {
                     event: 'deprecated_route.called',
                     userId: req.user!.userUuid,
                     properties: {
-                        route: `/api/v1/saved/${chartUuid}/version/${versionUuid}/results`,
-                        context: context ?? QueryExecutionContext.CHART,
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
                     },
                 },
                 {
