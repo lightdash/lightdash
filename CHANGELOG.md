@@ -1,3 +1,10 @@
+## [0.1547.1](https://github.com/lightdash/lightdash/compare/0.1547.0...0.1547.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* validate page against total pages ([#14118](https://github.com/lightdash/lightdash/issues/14118)) ([a9a1edc](https://github.com/lightdash/lightdash/commit/a9a1edcb1545e8de0efa0fe53405a089db950e7d))
+
 # [0.1547.0](https://github.com/lightdash/lightdash/compare/0.1546.3...0.1547.0) (2025-03-19)
 
 
