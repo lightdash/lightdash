@@ -78,7 +78,8 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
-    const { mutate: mutateSendNow } = useSendNowScheduler();
+    const { mutate: mutateSendNow, isLoading: isSendingNowLoading } =
+        useSendNowScheduler();
     const { track } = useTracking();
 
     if (!project) return null;
@@ -144,6 +145,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                                     <Menu.Dropdown>
                                         <Menu.Item
+                                            disabled={isSendingNowLoading}
                                             icon={
                                                 <MantineIcon icon={IconSend} />
                                             }
