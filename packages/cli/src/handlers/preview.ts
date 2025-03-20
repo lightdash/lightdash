@@ -144,9 +144,9 @@ export const previewHandler = async (
         );
     } else {
         console.error(
-            `\n${styles.success('✔')}   Copying charts and dashboards from ${
+            `\n${styles.success('✔')}   Copying charts and dashboards from "${
                 config.context?.projectName || 'source project'
-            }`,
+            }"`,
         );
     }
 
@@ -338,9 +338,9 @@ export const startPreviewHandler = async (
             );
         } else {
             console.error(
-                `\n${styles.success('✔')}   Copying charts and dashboards from ${
+                `\n${styles.success('✔')}   Copying charts and dashboards from "${
                     config.context?.projectName || 'source project'
-                }`,
+                }"`,
             );
         }
 
