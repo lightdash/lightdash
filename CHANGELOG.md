@@ -1,3 +1,10 @@
+## [0.1550.3](https://github.com/lightdash/lightdash/compare/0.1550.2...0.1550.3) (2025-03-20)
+
+
+### Bug Fixes
+
+* User completion modal blocking people from logging in ([#14150](https://github.com/lightdash/lightdash/issues/14150)) ([d21aaf9](https://github.com/lightdash/lightdash/commit/d21aaf957fabef0e0825e4d14667f7d989025e8d))
+
 ## [0.1550.2](https://github.com/lightdash/lightdash/compare/0.1550.1...0.1550.2) (2025-03-20)
 
 
