@@ -1227,6 +1227,9 @@
                     },
                     {
                         "properties": {
+                            "singleValue": {
+                                "type": "boolean"
+                            },
                             "label": {
                                 "type": "string"
                             },
@@ -10974,6 +10977,9 @@
                     },
                     {
                         "properties": {
+                            "singleValue": {
+                                "type": "boolean"
+                            },
                             "label": {
                                 "type": "string"
                             },
@@ -11032,6 +11038,9 @@
                     },
                     "tileTargets": {
                         "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                    },
+                    "singleValue": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["target", "operator"],
