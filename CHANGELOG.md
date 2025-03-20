@@ -1,3 +1,10 @@
+# [0.1551.0](https://github.com/lightdash/lightdash/compare/0.1550.3...0.1551.0) (2025-03-20)
+
+
+### Features
+
+* add single-select dashboard filters ([#14124](https://github.com/lightdash/lightdash/issues/14124)) ([8bdf93c](https://github.com/lightdash/lightdash/commit/8bdf93cccacae6d4b2ed7cbcb319651d88ff163a))
+
 ## [0.1550.3](https://github.com/lightdash/lightdash/compare/0.1550.2...0.1550.3) (2025-03-20)
 
 
