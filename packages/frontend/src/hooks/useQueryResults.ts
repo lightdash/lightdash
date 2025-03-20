@@ -408,7 +408,6 @@ export const useInfiniteQueryResults = (
     const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
         [],
     );
-    const [totalRows, setTotalRows] = useState<number | null>(null);
     const [fetchAll, setFetchAll] = useState(false);
     const [pageToFetch, setPageToFetch] = useState<number>(1);
 
@@ -467,7 +466,6 @@ export const useInfiniteQueryResults = (
     // On success
     useEffect(() => {
         if (nextPage.data) {
-            setTotalRows(nextPage.data.totalResults);
             setFetchedPages((prevState) => [...prevState, nextPage.data]);
         }
     }, [nextPage.data]);
@@ -475,7 +473,6 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         // Reset pagination state
         setFetchedPages([]);
-        setTotalRows(null);
         setPageToFetch(1);
     }, [projectUuid, queryUuid]);
 
@@ -488,7 +485,7 @@ export const useInfiniteQueryResults = (
 
     return {
         fetchedRows,
-        totalRows,
+        totalRows: nextPage.data?.totalResults,
         isFetchingRows,
         fetchMoreRows,
         fetchAllRows,
