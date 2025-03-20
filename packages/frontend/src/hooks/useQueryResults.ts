@@ -490,11 +490,8 @@ export const useInfiniteQueryResults = (
     }, []);
 
     const isFetchingRows = useMemo(() => {
-        return rowIndexToFetch
-            ? rowIndexToFetch > fetchedRows.length &&
-                  totalRows !== fetchedRows.length
-            : false;
-    }, [rowIndexToFetch, fetchedRows.length, totalRows]);
+        return !!projectUuid && !!queryUuid && !!nextPageToFetch;
+    }, [projectUuid, queryUuid, nextPageToFetch]);
 
     return {
         fetchedRows,
