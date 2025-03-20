@@ -53,12 +53,7 @@ const VisualizationCard: FC<{
             context.query.isFetching || context.queryResults.isFetchingRows,
     );
     const fetchAllRows = useExplorerContext(
-        (context) => () =>
-            context.query.data
-                ? context.queryResults.fetchMoreRows(
-                      context.query.data?.totalResults,
-                  )
-                : undefined,
+        (context) => context.queryResults.fetchAllRows,
     );
     const queryResults = useExplorerContext(
         (context): ApiQueryResults | undefined => {

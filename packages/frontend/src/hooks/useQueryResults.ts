@@ -493,10 +493,15 @@ export const useInfiniteQueryResults = (
         return !!projectUuid && !!queryUuid && !!nextPageToFetch;
     }, [projectUuid, queryUuid, nextPageToFetch]);
 
+    const fetchAllRows = useCallback(() => {
+        setRowIndexToFetch(totalRows);
+    }, [totalRows]);
+
     return {
         fetchedRows,
         totalRows,
         isFetchingRows,
         fetchMoreRows,
+        fetchAllRows,
     };
 };

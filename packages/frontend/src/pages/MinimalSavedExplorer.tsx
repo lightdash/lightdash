@@ -27,9 +27,7 @@ const MinimalExplorer: FC = () => {
             if (context.query.data) {
                 // TODO: next PR should support pagination for table viz
                 // Forcing to fetch all rows for now
-                context.queryResults.fetchMoreRows(
-                    context.query.data?.totalResults,
-                );
+                context.queryResults.fetchAllRows();
 
                 if (
                     context.queryResults.fetchedRows.length >=
