@@ -135,7 +135,12 @@ const resultHandler = (
     return data.map((i) => {
         const item: { [key: string]: AnyType } = {};
         i.map((column, index) => {
-            const name: string = s[index];
+            /* Force lowercase for Trino column names 
+            When using trino and snowflake, some columns can be returned uppercase 
+            and we can't enforce "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;"
+            like we do in snowflake client
+            */
+            const name: string = s[index].toLowerCase();
             item[name] = column;
             return null;
         });
