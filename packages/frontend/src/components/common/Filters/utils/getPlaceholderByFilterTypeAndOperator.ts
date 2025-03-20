@@ -9,12 +9,12 @@ export const getPlaceholderByFilterTypeAndOperator = ({
     type,
     operator,
     disabled,
-    disallowMultipleValues,
+    singleValue,
 }: {
     type: FilterType;
     operator: FilterOperator;
     disabled?: boolean;
-    disallowMultipleValues?: boolean;
+    singleValue?: boolean;
 }) => {
     if (disabled) return 'any value';
 
@@ -23,9 +23,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
             switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
-                    return disallowMultipleValues
-                        ? 'Enter value'
-                        : 'Enter value(s)';
+                    return singleValue ? 'Enter value' : 'Enter value(s)';
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
                     return 'Enter value(s)';
@@ -66,9 +64,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     return 'Enter value(s)';
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
-                    return disallowMultipleValues
-                        ? 'Enter value'
-                        : 'Enter value(s)';
+                    return singleValue ? 'Enter value' : 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';

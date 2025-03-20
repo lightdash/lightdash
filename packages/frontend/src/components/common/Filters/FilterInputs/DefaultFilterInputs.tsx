@@ -32,16 +32,14 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     const isFilterRuleDisabled = isFilterRule(rule) && rule.disabled;
 
     // Check if the filter should only allow a single value
-    const disallowMultipleValues =
-        isFilterRule(rule) &&
-        'disallowMultipleValues' in rule &&
-        !!rule.disallowMultipleValues;
+    const isSingleValue =
+        isFilterRule(rule) && 'singleValue' in rule && !!rule.singleValue;
 
     const placeholder = getPlaceholderByFilterTypeAndOperator({
         type: filterType,
         operator: rule.operator,
         disabled: isFilterRuleDisabled,
-        disallowMultipleValues,
+        singleValue: isSingleValue,
     });
 
     switch (rule.operator) {
@@ -84,7 +82,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
-                            disallowMultipleValues={disallowMultipleValues}
+                            singleValue={isSingleValue}
                             onChange={(values) =>
                                 onChange({
                                     ...rule,
@@ -95,7 +93,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     );
 
                 case FilterType.NUMBER:
-                    if (disallowMultipleValues) {
+                    if (isSingleValue) {
                         if (rule.values?.length && rule.values.length > 1) {
                             onChange({
                                 ...rule,

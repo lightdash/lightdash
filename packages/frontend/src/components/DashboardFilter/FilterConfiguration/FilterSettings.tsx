@@ -3,7 +3,7 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
-    supportsDisallowMultipleValues,
+    supportsSingleValue,
     type DashboardFilterRule,
     type FilterRule,
     type FilterableDimension,
@@ -136,10 +136,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         },
                     }}
                     rightSection={
-                        supportsDisallowMultipleValues(
-                            filterType,
-                            filterRule.operator,
-                        ) &&
+                        supportsSingleValue(filterType, filterRule.operator) &&
                         isEditMode && (
                             <Button
                                 compact
@@ -149,7 +146,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     <Tooltip
                                         variant="xs"
                                         label={
-                                            filterRule.disallowMultipleValues
+                                            filterRule.singleValue
                                                 ? 'Prevent selection of multiple values'
                                                 : 'Allow selection of multiple values'
                                         }
@@ -163,12 +160,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 onClick={() => {
                                     onChangeFilterRule({
                                         ...filterRule,
-                                        disallowMultipleValues:
-                                            !filterRule.disallowMultipleValues,
+                                        singleValue: !filterRule.singleValue,
                                     });
                                 }}
                             >
-                                {filterRule.disallowMultipleValues
+                                {filterRule.singleValue
                                     ? 'Single value'
                                     : 'Multiple values'}
                             </Button>

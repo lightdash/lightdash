@@ -37,7 +37,7 @@ type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     values: string[];
     suggestions: string[];
     onChange: (values: string[]) => void;
-    disallowMultipleValues?: boolean;
+    singleValue?: boolean;
 };
 
 // Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
@@ -66,7 +66,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     placeholder,
     onDropdownOpen,
     onDropdownClose,
-    disallowMultipleValues,
+    singleValue,
     ...rest
 }) => {
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
@@ -122,37 +122,37 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const handleChange = useCallback(
         (updatedValues: string[]) => {
-            if (disallowMultipleValues && updatedValues.length > 1) {
+            if (singleValue && updatedValues.length > 1) {
                 onChange([updatedValues[updatedValues.length - 1]]);
             } else {
                 onChange(uniq(updatedValues));
             }
         },
-        [onChange, disallowMultipleValues],
+        [onChange, singleValue],
     );
 
     const handleAdd = useCallback(
         (newValue: string) => {
-            if (disallowMultipleValues) {
+            if (singleValue) {
                 handleChange([newValue]);
             } else {
                 handleChange([...values, newValue]);
             }
             return newValue;
         },
-        [handleChange, values, disallowMultipleValues],
+        [handleChange, values, singleValue],
     );
 
     const handleAddMultiple = useCallback(
         (newValues: string[]) => {
-            if (disallowMultipleValues && newValues.length > 0) {
+            if (singleValue && newValues.length > 0) {
                 handleChange([newValues[newValues.length - 1]]);
             } else {
                 handleChange([...values, ...newValues]);
             }
             return newValues;
         },
-        [handleChange, values, disallowMultipleValues],
+        [handleChange, values, singleValue],
     );
 
     const handlePaste = useCallback(
@@ -177,10 +177,10 @@ const FilterStringAutoComplete: FC<Props> = ({
     );
 
     useEffect(() => {
-        if (disallowMultipleValues && values.length > 1) {
+        if (singleValue && values.length > 1) {
             handleChange([values[values.length - 1]]);
         }
-    }, [values, disallowMultipleValues, handleChange]);
+    }, [values, singleValue, handleChange]);
 
     const data = useMemo(() => {
         // Mantine does not show value tag if value is not found in data
@@ -285,9 +285,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 }
                 disabled={disabled}
                 creatable
-                valueComponent={
-                    disallowMultipleValues ? SingleValueComponent : undefined
-                }
+                valueComponent={singleValue ? SingleValueComponent : undefined}
                 /**
                  * Opts out of Mantine's default condition and always allows adding, as long as not
                  * an empty query.
@@ -317,7 +315,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 }}
                 disableSelectedItemFiltering
                 searchable
-                clearable={disallowMultipleValues}
+                clearable={singleValue}
                 clearSearchOnChange
                 {...rest}
                 searchValue={search}

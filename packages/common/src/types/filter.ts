@@ -90,7 +90,7 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
-    disallowMultipleValues?: boolean;
+    singleValue?: boolean;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {

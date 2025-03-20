@@ -174,7 +174,7 @@ export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
     }
 };
 
-export const supportsDisallowMultipleValues = (
+export const supportsSingleValue = (
     filterType: FilterType,
     filterOperator: FilterOperator,
 ) =>
