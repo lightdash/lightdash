@@ -36,10 +36,10 @@ export type QueryResultsProps = {
 };
 
 const getUnderlyingDataResults = async ({
-                                            projectUuid,
-                                            tableId,
-                                            query,
-                                        }: {
+    projectUuid,
+    tableId,
+    query,
+}: {
     projectUuid: string;
     tableId: string;
     query: MetricQuery;
@@ -301,12 +301,12 @@ export const useUnderlyingDataResults = (
 
     const queryKey = shouldUsePagination
         ? [
-            'underlyingDataResults',
-            projectUuid,
-            underlyingDataSourceQueryUuid,
-            underlyingDataItemId,
-            query.filters,
-        ]
+              'underlyingDataResults',
+              projectUuid,
+              underlyingDataSourceQueryUuid,
+              underlyingDataItemId,
+              query.filters,
+          ]
         : ['underlyingDataResults', projectUuid, JSON.stringify(query)];
 
     return useQuery<ApiQueryResults, ApiError>({
@@ -330,7 +330,7 @@ export const useUnderlyingDataResults = (
         },
         retry: false,
     });
-}
+};
 /**
  * Get single results page
  */
@@ -492,7 +492,7 @@ export const useInfiniteQueryResults = (
     const isFetchingRows = useMemo(() => {
         return rowIndexToFetch
             ? rowIndexToFetch > fetchedRows.length &&
-            totalRows !== fetchedRows.length
+                  totalRows !== fetchedRows.length
             : false;
     }, [rowIndexToFetch, fetchedRows.length, totalRows]);
 
