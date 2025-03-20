@@ -401,11 +401,27 @@ export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
 ) => {
+    const setErrorResponse = useQueryError({
+        forceToastOnForbidden: true,
+        forbiddenToastTitle: 'Error running query',
+    });
     const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
         [],
     );
     const [totalRows, setTotalRows] = useState<number | null>(null);
-    const [rowIndexToFetch, setRowIndexToFetch] = useState<number | null>(null);
+    const [fetchAll, setFetchAll] = useState(false);
+    const [pageToFetch, setPageToFetch] = useState<number>(1);
+
+    const fetchMoreRows = useCallback(() => {
+        const nextPageToFetch = fetchedPages[fetchedPages.length - 1]?.nextPage;
+        if (nextPageToFetch) {
+            setPageToFetch(nextPageToFetch);
+        }
+    }, [fetchedPages]);
+
+    const fetchAllRows = useCallback(() => {
+        setFetchAll(true);
+    }, []);
 
     // Aggregate rows from all fetched pages
     const fetchedRows = useMemo(() => {
@@ -416,51 +432,25 @@ export const useInfiniteQueryResults = (
         return rows;
     }, [fetchedPages]);
 
-    // Find what page to fetch next based on what was fetched already and the row index we want to fetch
-    const nextPageToFetch = useMemo(() => {
-        if (rowIndexToFetch === null) {
-            return null;
-        }
-        const fetchedPagesCount = fetchedPages.length;
-        // get first page
-        if (fetchedPagesCount === 0 || totalRows === null) {
-            return 1;
-        }
-        const fetchedRowsCount = fetchedRows.length;
-        const hasFetchedEnoughRowsForNow = fetchedRowsCount >= rowIndexToFetch;
-        const isFetchComplete = fetchedRowsCount >= totalRows;
-        if (hasFetchedEnoughRowsForNow || isFetchComplete) {
-            return null;
-        }
-        // fetch next page
-        return fetchedPagesCount + 1;
-    }, [rowIndexToFetch, fetchedRows.length, fetchedPages.length, totalRows]);
+    const isFetchingRows = useMemo(() => {
+        const isFetchingPage = pageToFetch > fetchedPages.length;
+        return !!projectUuid && !!queryUuid && isFetchingPage;
+    }, [fetchedPages, pageToFetch, projectUuid, queryUuid]);
 
-    useEffect(() => {
-        // Reset pagination state
-        setFetchedPages([]);
-        setTotalRows(null);
-        setRowIndexToFetch(DEFAULT_PAGE_SIZE); // prefetch first page
-    }, [projectUuid, queryUuid]);
-
-    const setErrorResponse = useQueryError({
-        forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
-    });
     const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
-        enabled: !!projectUuid && !!queryUuid && !!nextPageToFetch,
+        enabled: !!projectUuid && !!queryUuid,
         queryKey: [
             'query-page',
             projectUuid,
             queryUuid,
-            nextPageToFetch,
+            pageToFetch,
             DEFAULT_PAGE_SIZE,
         ],
         queryFn: () => {
             return getResultsPage(
                 projectUuid!,
                 queryUuid!,
-                nextPageToFetch!,
+                pageToFetch!,
                 DEFAULT_PAGE_SIZE,
             );
         },
@@ -482,20 +472,19 @@ export const useInfiniteQueryResults = (
         }
     }, [nextPage.data]);
 
-    const fetchMoreRows = useCallback((rowIndex: number) => {
-        // Update row to fetch if higher than the current value
-        setRowIndexToFetch((prevState) =>
-            prevState ? Math.max(prevState, rowIndex) : rowIndex,
-        );
-    }, []);
+    useEffect(() => {
+        // Reset pagination state
+        setFetchedPages([]);
+        setTotalRows(null);
+        setPageToFetch(1);
+    }, [projectUuid, queryUuid]);
 
-    const isFetchingRows = useMemo(() => {
-        return !!projectUuid && !!queryUuid && !!nextPageToFetch;
-    }, [projectUuid, queryUuid, nextPageToFetch]);
-
-    const fetchAllRows = useCallback(() => {
-        setRowIndexToFetch(totalRows);
-    }, [totalRows]);
+    useEffect(() => {
+        if (fetchAll) {
+            // keep fetching the next page
+            fetchMoreRows();
+        }
+    }, [fetchAll, fetchMoreRows]);
 
     return {
         fetchedRows,

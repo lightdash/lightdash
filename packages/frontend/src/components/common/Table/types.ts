@@ -54,7 +54,7 @@ export type ProviderProps = {
     data: ResultRow[];
     totalRowsCount: number;
     isFetchingRows: boolean;
-    fetchMoreRows: (lastRowToFetch: number) => void;
+    fetchMoreRows: () => void;
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<React.PropsWithChildren<HeaderProps>>;
     cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;

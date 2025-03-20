@@ -135,9 +135,9 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         const nextPagesRowCount =
             currentPageRowCount + pageSize * pageThreshold;
         if (data.length < nextPagesRowCount) {
-            fetchMoreRows(Math.min(nextPagesRowCount, totalRowsCount));
+            fetchMoreRows();
         }
-    }, [data.length, fetchMoreRows, paginationState, totalRowsCount]);
+    }, [data.length, fetchMoreRows, paginationState]);
 
     const pageRows = useMemo(() => {
         // calculate page rows from data and pagination state
