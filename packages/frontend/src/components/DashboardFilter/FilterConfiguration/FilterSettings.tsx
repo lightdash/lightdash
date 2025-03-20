@@ -3,6 +3,7 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
+    supportsDisallowMultipleValues,
     type DashboardFilterRule,
     type FilterRule,
     type FilterableDimension,
@@ -53,21 +54,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         () => getFilterOperatorOptions(filterType),
         [filterType],
     );
-
-    // Add a check for operators that can support single value selection
-    const supportsDisallowMultipleValues = useMemo(() => {
-        return (
-            [FilterType.STRING, FilterType.NUMBER].includes(filterType) &&
-            [
-                FilterOperator.EQUALS,
-                FilterOperator.NOT_EQUALS,
-                FilterOperator.STARTS_WITH,
-                FilterOperator.ENDS_WITH,
-                FilterOperator.INCLUDE,
-                FilterOperator.NOT_INCLUDE,
-            ].includes(filterRule.operator)
-        );
-    }, [filterType, filterRule.operator]);
 
     // Set default label when using revert (undo) button
     useEffect(() => {
@@ -150,7 +136,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         },
                     }}
                     rightSection={
-                        supportsDisallowMultipleValues &&
+                        supportsDisallowMultipleValues(
+                            filterType,
+                            filterRule.operator,
+                        ) &&
                         isEditMode && (
                             <Button
                                 compact
