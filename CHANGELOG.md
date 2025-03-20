@@ -1,3 +1,10 @@
+## [0.1550.1](https://github.com/lightdash/lightdash/compare/0.1550.0...0.1550.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* block access to settings routes hidden because of permissions ([#14125](https://github.com/lightdash/lightdash/issues/14125)) ([e96dc39](https://github.com/lightdash/lightdash/commit/e96dc39a0289683fa071130d964960806e030156))
+
 # [0.1550.0](https://github.com/lightdash/lightdash/compare/0.1549.0...0.1550.0) (2025-03-20)
 
 
