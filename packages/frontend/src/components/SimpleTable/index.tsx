@@ -114,7 +114,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 status="success"
                 data={rows}
                 totalRowsCount={rows.length || 0}
-                isFetchingNextPage={false}
+                isFetchingRows={false}
                 fetchMoreRows={() => undefined}
                 columns={columns}
                 columnOrder={columnOrder}
