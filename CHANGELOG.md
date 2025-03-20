@@ -1,3 +1,10 @@
+## [0.1550.2](https://github.com/lightdash/lightdash/compare/0.1550.1...0.1550.2) (2025-03-20)
+
+
+### Bug Fixes
+
+* dashboard chart underlying data queryUuid ([#14147](https://github.com/lightdash/lightdash/issues/14147)) ([0d9a6c2](https://github.com/lightdash/lightdash/commit/0d9a6c27e0adeba8bdd71b4ce611f581a1dfb975))
+
 ## [0.1550.1](https://github.com/lightdash/lightdash/compare/0.1550.0...0.1550.1) (2025-03-20)
 
 
