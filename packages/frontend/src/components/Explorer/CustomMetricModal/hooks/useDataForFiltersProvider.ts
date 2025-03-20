@@ -12,8 +12,8 @@ export const useDataForFiltersProvider = () => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
+    const fetchedRows = useExplorerContext(
+        (context) => context.queryResults.fetchedRows,
     );
 
     const { data: exploreData } = useExplore(tableName);
@@ -35,7 +35,7 @@ export const useDataForFiltersProvider = () => {
 
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData,
-        queryResults,
+        rows: fetchedRows,
         customDimensions,
         additionalMetrics,
         tableCalculations,
