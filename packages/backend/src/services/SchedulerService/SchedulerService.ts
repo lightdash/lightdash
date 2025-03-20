@@ -467,6 +467,8 @@ export class SchedulerService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('JobStatus', {
+                    organizationUuid: job.details?.organizationUuid,
+                    projectUuid: job.details?.projectUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
                 }),
             )

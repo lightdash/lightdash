@@ -391,7 +391,17 @@ describe('Project member permissions', () => {
                         ),
                     ).toEqual(true);
                 });
-
+                it('can view job status from another user', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: 'another-admin-user-4567',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
                 it('can view job status from the project', () => {
                     expect(
                         ability.can(
@@ -408,6 +418,18 @@ describe('Project member permissions', () => {
                         ability.can(
                             'view',
                             subject('JobStatus', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view job status with undefined details', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid: undefined,
+                                organizationUuid: undefined,
+                            }),
                         ),
                     ).toEqual(false);
                 });
@@ -865,13 +887,23 @@ describe('Project member permissions', () => {
                     ).toEqual(true);
                 });
 
+                it('can view job status from another user', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: 'admin-user-uuid-4567',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
                 it('can view job status from the project', () => {
                     expect(
                         ability.can(
                             'view',
                             subject('JobStatus', {
                                 projectUuid,
-                                createdByUserUuid: undefined,
                             }),
                         ),
                     ).toEqual(true);
