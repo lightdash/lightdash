@@ -7,12 +7,14 @@ type Props = {
     tableName: string;
     explore: Explore | undefined;
     metricQuery: MetricQuery | undefined;
+    queryUuid?: string;
 };
 
 const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
     tableName,
     explore,
     metricQuery,
+    queryUuid,
     children,
 }) => {
     const [underlyingDataConfig, setUnderlyingDataConfig] =
@@ -59,6 +61,7 @@ const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
                 openDrillDownModal,
                 closeDrillDownModal,
                 explore,
+                queryUuid,
             }}
         >
             {children}
