@@ -411,7 +411,9 @@ export class SchedulerService extends BaseService {
         if (
             user.ability.cannot(
                 'view',
-                subject('CsvJobResult', {
+                subject('JobStatus', {
+                    projectUuid: job.details?.projectUuid,
+                    organizationUuid: job.details?.organizationUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
                 }),
             )
@@ -457,10 +459,20 @@ export class SchedulerService extends BaseService {
     }
 
     async getJobStatus(
+        user: SessionUser,
         jobId: string,
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
         const job = await this.schedulerModel.getJobStatus(jobId);
-
+        if (
+            user.ability.cannot(
+                'view',
+                subject('JobStatus', {
+                    createdByUserUuid: job.details?.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return { status: job.status, details: job.details };
     }
 
