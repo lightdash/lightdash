@@ -142,6 +142,12 @@ export const previewHandler = async (
                 `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
             ),
         );
+    } else {
+        console.error(
+            `\n${styles.success('✔')}   Copying charts and dashboards from "${
+                config.context?.projectName || 'source project'
+            }"`,
+        );
     }
 
     try {
@@ -329,6 +335,14 @@ export const startPreviewHandler = async (
                 styles.warning(
                     `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
                 ),
+            );
+        } else {
+            console.error(
+                `\n${styles.success(
+                    '✔',
+                )}   Copying charts and dashboards from "${
+                    config.context?.projectName || 'source project'
+                }"`,
             );
         }
 
