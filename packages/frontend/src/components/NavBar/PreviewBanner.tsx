@@ -1,6 +1,6 @@
-import { Box,Center,Group,Text } from '@mantine/core';
-import { IconAlertTriangle,IconTool } from '@tabler/icons-react';
-import { useEffect,useState } from 'react';
+import { Box, Center, Group, Text } from '@mantine/core';
+import { IconAlertTriangle, IconTool } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 
@@ -33,7 +33,7 @@ export const PreviewBanner = () => {
     }, []);
 
     /*
-    An attention-grabbing slide animation for the banner every 30 seconds.
+    An attention-grabbing slide animation for the banner every 60 seconds (or every minute).
     It briefly slides the banner out to the left, resets its position off-screen to the right,
     and then slides it back in after a small delay to catch the user's attention.
     */
@@ -48,7 +48,7 @@ export const PreviewBanner = () => {
                     setPosition(0);
                 }, 50);
             }, 1500);
-        }, 30000);
+        }, 60000);
 
         return () => clearInterval(attentionInterval);
     }, []);
