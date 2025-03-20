@@ -17,6 +17,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
     type ReactNode,
@@ -69,6 +70,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     singleValue,
     ...rest
 }) => {
+    const multiSelectRef = useRef<HTMLInputElement>(null);
     const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
@@ -126,6 +128,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onChange([updatedValues[updatedValues.length - 1]]);
             } else {
                 onChange(uniq(updatedValues));
+            }
+            if (singleValue) {
+                multiSelectRef.current?.blur();
             }
         },
         [onChange, singleValue],
@@ -278,6 +283,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             }}
         >
             <MultiSelect
+                ref={multiSelectRef}
                 size="xs"
                 w="100%"
                 placeholder={
