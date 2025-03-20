@@ -9,10 +9,12 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateGranularity,
+    QueryExecutionContext,
     SortField,
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -31,6 +33,7 @@ import {
 } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
+    deprecatedResultsRoute,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -49,7 +52,12 @@ export class SavedChartController extends BaseController {
      * @param body.invalidateCache invalidate cache
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedResultsRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/results')
     @OperationId('PostChartResults')
@@ -61,6 +69,24 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        const context = getContextFromQueryOrHeader(req);
+
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
+                    },
+                },
+                {
+                    chartUuid,
+                },
+            );
+
         this.setStatus(200);
         return {
             status: 'ok',
@@ -69,11 +95,12 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
-                context: getContextFromQueryOrHeader(req),
+                context,
             }),
         };
     }
 
+    @Deprecated()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
@@ -162,7 +189,12 @@ export class SavedChartController extends BaseController {
      * @param versionUuid versionUuid for the chart version
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedResultsRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('version/{versionUuid}/results')
     @OperationId('getChartVersionResults')
@@ -171,6 +203,23 @@ export class SavedChartController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        const context = getContextFromHeader(req);
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
+                    },
+                },
+                {
+                    chartUuid,
+                },
+            );
+
         this.setStatus(200);
 
         return {
@@ -179,7 +228,7 @@ export class SavedChartController extends BaseController {
                 user: req.user!,
                 chartUuid,
                 versionUuid,
-                context: getContextFromHeader(req),
+                context,
             }),
         };
     }

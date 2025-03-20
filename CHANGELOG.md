@@ -1,3 +1,52 @@
+# [0.1551.0](https://github.com/lightdash/lightdash/compare/0.1550.3...0.1551.0) (2025-03-20)
+
+
+### Features
+
+* add single-select dashboard filters ([#14124](https://github.com/lightdash/lightdash/issues/14124)) ([8bdf93c](https://github.com/lightdash/lightdash/commit/8bdf93cccacae6d4b2ed7cbcb319651d88ff163a))
+
+## [0.1550.3](https://github.com/lightdash/lightdash/compare/0.1550.2...0.1550.3) (2025-03-20)
+
+
+### Bug Fixes
+
+* User completion modal blocking people from logging in ([#14150](https://github.com/lightdash/lightdash/issues/14150)) ([d21aaf9](https://github.com/lightdash/lightdash/commit/d21aaf957fabef0e0825e4d14667f7d989025e8d))
+
+## [0.1550.2](https://github.com/lightdash/lightdash/compare/0.1550.1...0.1550.2) (2025-03-20)
+
+
+### Bug Fixes
+
+* dashboard chart underlying data queryUuid ([#14147](https://github.com/lightdash/lightdash/issues/14147)) ([0d9a6c2](https://github.com/lightdash/lightdash/commit/0d9a6c27e0adeba8bdd71b4ce611f581a1dfb975))
+
+## [0.1550.1](https://github.com/lightdash/lightdash/compare/0.1550.0...0.1550.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* block access to settings routes hidden because of permissions ([#14125](https://github.com/lightdash/lightdash/issues/14125)) ([e96dc39](https://github.com/lightdash/lightdash/commit/e96dc39a0289683fa071130d964960806e030156))
+
+# [0.1550.0](https://github.com/lightdash/lightdash/compare/0.1549.0...0.1550.0) (2025-03-20)
+
+
+### Features
+
+* Sync Now button for Google Sheet Sync ([#14133](https://github.com/lightdash/lightdash/issues/14133)) ([87f8a64](https://github.com/lightdash/lightdash/commit/87f8a64993cb56ded5750e10d7407de7874e8b23))
+
+# [0.1549.0](https://github.com/lightdash/lightdash/compare/0.1548.1...0.1549.0) (2025-03-20)
+
+
+### Features
+
+* **preview:** display parent project name in output when creating a preview project ([#14144](https://github.com/lightdash/lightdash/issues/14144)) ([d7d1c2a](https://github.com/lightdash/lightdash/commit/d7d1c2af3c1a6121d003935a15fb035eff62485e))
+
+## [0.1548.1](https://github.com/lightdash/lightdash/compare/0.1548.0...0.1548.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* uppercase column trino ([#14111](https://github.com/lightdash/lightdash/issues/14111)) ([89fe715](https://github.com/lightdash/lightdash/commit/89fe715b9e6307c1584e36a3c4da38497b6847eb))
+
 # [0.1548.0](https://github.com/lightdash/lightdash/compare/0.1547.1...0.1548.0) (2025-03-19)
 
 

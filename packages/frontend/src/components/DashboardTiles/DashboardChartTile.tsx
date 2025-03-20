@@ -1212,7 +1212,7 @@ type DashboardChartTileProps = Omit<
 export const GenericDashboardChartTile: FC<
     DashboardChartTileProps & {
         isLoading: boolean;
-        data: ApiChartAndResults | undefined;
+        data: (ApiChartAndResults & { queryUuid?: string }) | undefined;
         error: ApiError | null;
     }
 > = ({
@@ -1294,6 +1294,7 @@ export const GenericDashboardChartTile: FC<
             metricQuery={data?.metricQuery}
             tableName={data?.chart.tableName || ''}
             explore={data?.explore}
+            queryUuid={data?.queryUuid}
         >
             {minimal ? (
                 <DashboardChartTileMinimal

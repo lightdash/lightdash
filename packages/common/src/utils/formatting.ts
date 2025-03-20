@@ -401,6 +401,7 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         // format number
         return formatWithExpression(expression, Number(sanitizedValue));
     } catch (e) {
+        // eslint-disable-next-line no-console
         console.error('Error formatting value with expression', e);
         return `${value}`;
     }
