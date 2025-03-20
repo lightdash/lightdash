@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1545.0",
+    "version": "0.1550.2",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -144,8 +144,9 @@
         "start": "node dist/index.js",
         "scheduler": "node dist/scheduler.js",
         "scheduler-dev": "tsx watch --clear-screen=false src/scheduler.ts",
-        "test": "TZ=UTC jest",
-        "test-sequential": "TZ=UTC NODE_ENV=test jest --runInBand",
+        "test": "TZ=UTC jest --config jest.config.js",
+        "test-sequential": "TZ=UTC NODE_ENV=test jest --config jest.config.js --runInBand",
+        "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

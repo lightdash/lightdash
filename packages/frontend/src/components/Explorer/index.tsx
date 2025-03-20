@@ -31,6 +31,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
         const { projectUuid } = useParams<{ projectUuid: string }>();
 
+        const queryUuid = useExplorerContext(
+            (context) => context.queryResults?.data?.queryUuid,
+        );
+
         const { data: projects } = useProjects({ refetchOnMount: false });
         const isProjectPreview = !!projects?.find(
             (project) =>
@@ -44,6 +48,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 metricQuery={unsavedChartVersionMetricQuery}
                 tableName={unsavedChartVersionTableName}
                 explore={explore}
+                queryUuid={queryUuid}
             >
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && isEditMode && <ExplorerHeader />}

@@ -9286,6 +9286,10 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
+                    "authenticationType": {
+                        "type": "string",
+                        "enum": ["password", "private_key"]
+                    },
                     "database": {
                         "type": "string"
                     },
@@ -15121,37 +15125,13 @@
                 ],
                 "type": "string"
             },
-            "Partial_KnexPaginateArgs_": {
+            "CommonPaginatedQueryRequestParams": {
                 "properties": {
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "page": {
-                        "type": "number",
-                        "format": "double"
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "ResultsPaginationArgs": {
-                "$ref": "#/components/schemas/Partial_KnexPaginateArgs_"
-            },
-            "CommonPaginatedQueryRequestParams": {
-                "allOf": [
-                    {
-                        "properties": {
-                            "context": {
-                                "$ref": "#/components/schemas/QueryExecutionContext"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ResultsPaginationArgs"
-                    }
-                ]
+                "type": "object"
             },
             "Pick_CompiledDimension.name-or-label_": {
                 "properties": {},
@@ -15317,6 +15297,31 @@
                     }
                 ]
             },
+            "ExecuteAsyncUnderlyingDataRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "filters": {
+                                "$ref": "#/components/schemas/Filters"
+                            },
+                            "underlyingDataItemId": {
+                                "type": "string"
+                            },
+                            "underlyingDataSourceQueryUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "filters",
+                            "underlyingDataSourceQueryUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
             "ExecuteAsyncQueryRequestParams": {
                 "anyOf": [
                     {
@@ -15327,6 +15332,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams"
                     }
                 ]
             },
@@ -15724,7 +15732,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1540.0",
+        "version": "0.1548.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17964,6 +17972,7 @@
                 },
                 "description": "Run a query for underlying data results",
                 "tags": ["Exploring"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18026,6 +18035,7 @@
                 },
                 "description": "Run a query for explore",
                 "tags": ["Exploring"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18088,6 +18098,7 @@
                 },
                 "description": "Run a query for a chart",
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18143,6 +18154,7 @@
                     }
                 },
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -18312,6 +18324,7 @@
                 },
                 "description": "Run a query for a chart version",
                 "tags": ["Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {

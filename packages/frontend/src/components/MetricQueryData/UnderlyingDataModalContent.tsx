@@ -54,12 +54,21 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const modalHeaderElementSize = useElementSize();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { tableName, metricQuery, underlyingDataConfig } =
+    const { tableName, metricQuery, underlyingDataConfig, queryUuid } =
         useMetricQueryDataContext();
 
     const { user } = useApp();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
+
+    const underlyingDataItemId = useMemo(
+        () =>
+            underlyingDataConfig?.item !== undefined &&
+            isField(underlyingDataConfig.item)
+                ? getItemId(underlyingDataConfig.item)
+                : undefined,
+        [underlyingDataConfig?.item],
+    );
 
     const allFields = useMemo(
         () => (explore ? getFields(explore) : []),
@@ -308,7 +317,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         error,
         data: resultsData,
         isInitialLoading,
-    } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
+    } = useUnderlyingDataResults(
+        tableName,
+        underlyingDataMetricQuery,
+        queryUuid,
+        underlyingDataItemId,
+    );
 
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
         if (projectUuid) {

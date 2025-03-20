@@ -476,7 +476,10 @@ export class SchedulerService extends BaseService {
                 'You must give a name to this scheduled delivery',
             );
         }
-        if (scheduler.targets.length === 0) {
+        if (
+            scheduler.targets.length === 0 &&
+            scheduler.format !== SchedulerFormat.GSHEETS
+        ) {
             throw new ParameterError(
                 'You must specify at least 1 destination before sending a scheduled delivery',
             );

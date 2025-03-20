@@ -1,12 +1,11 @@
 import type { QueryExecutionContext } from '../analytics';
-import type { DashboardFilters } from '../filter';
+import type { DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
-import type { ResultsPaginationArgs } from '../paginateResults';
 import type { DateGranularity } from '../timeFrames';
 
 type CommonPaginatedQueryRequestParams = {
     context?: QueryExecutionContext;
-} & ResultsPaginationArgs;
+};
 
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonPaginatedQueryRequestParams & {
@@ -28,10 +27,18 @@ export type ExecuteAsyncDashboardChartRequestParams =
         granularity?: DateGranularity;
     };
 
+export type ExecuteAsyncUnderlyingDataRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        underlyingDataSourceQueryUuid: string;
+        underlyingDataItemId?: string;
+        filters: Filters;
+    };
+
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
-    | ExecuteAsyncDashboardChartRequestParams;
+    | ExecuteAsyncDashboardChartRequestParams
+    | ExecuteAsyncUnderlyingDataRequestParams;
 
 export function isExecuteAsyncMetricQueryRequest(
     query: ExecuteAsyncQueryRequestParams,
@@ -54,4 +61,10 @@ export function isExecuteAsyncSavedChartRequest(
     query: ExecuteAsyncQueryRequestParams,
 ): query is ExecuteAsyncSavedChartRequestParams {
     return 'chartUuid' in query && !isExecuteAsyncDashboardChartRequest(query);
+}
+
+export function isExecuteAsyncUnderlyingDataRequest(
+    query: ExecuteAsyncQueryRequestParams,
+): query is ExecuteAsyncUnderlyingDataRequestParams {
+    return 'underlyingDataSourceQueryUuid' in query && 'filters' in query;
 }

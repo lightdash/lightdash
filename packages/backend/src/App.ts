@@ -39,6 +39,7 @@ import {
     createAzureAdPassportStrategy,
     createGenericOidcPassportStrategy,
     googlePassportStrategy,
+    inviteLinkErrorHandler,
     isAzureAdPassportStrategyAvailableToUse,
     isGenericOidcPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
@@ -479,6 +480,9 @@ export default class App {
         expressApp.use(flash());
         expressApp.use(passport.initialize());
         expressApp.use(passport.session());
+
+        // Error handler for InvalidUser errors that occur when a user tries to access an invite link.
+        expressApp.use(inviteLinkErrorHandler);
 
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response

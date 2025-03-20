@@ -1,3 +1,92 @@
+## [0.1550.2](https://github.com/lightdash/lightdash/compare/0.1550.1...0.1550.2) (2025-03-20)
+
+
+### Bug Fixes
+
+* dashboard chart underlying data queryUuid ([#14147](https://github.com/lightdash/lightdash/issues/14147)) ([0d9a6c2](https://github.com/lightdash/lightdash/commit/0d9a6c27e0adeba8bdd71b4ce611f581a1dfb975))
+
+## [0.1550.1](https://github.com/lightdash/lightdash/compare/0.1550.0...0.1550.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* block access to settings routes hidden because of permissions ([#14125](https://github.com/lightdash/lightdash/issues/14125)) ([e96dc39](https://github.com/lightdash/lightdash/commit/e96dc39a0289683fa071130d964960806e030156))
+
+# [0.1550.0](https://github.com/lightdash/lightdash/compare/0.1549.0...0.1550.0) (2025-03-20)
+
+
+### Features
+
+* Sync Now button for Google Sheet Sync ([#14133](https://github.com/lightdash/lightdash/issues/14133)) ([87f8a64](https://github.com/lightdash/lightdash/commit/87f8a64993cb56ded5750e10d7407de7874e8b23))
+
+# [0.1549.0](https://github.com/lightdash/lightdash/compare/0.1548.1...0.1549.0) (2025-03-20)
+
+
+### Features
+
+* **preview:** display parent project name in output when creating a preview project ([#14144](https://github.com/lightdash/lightdash/issues/14144)) ([d7d1c2a](https://github.com/lightdash/lightdash/commit/d7d1c2af3c1a6121d003935a15fb035eff62485e))
+
+## [0.1548.1](https://github.com/lightdash/lightdash/compare/0.1548.0...0.1548.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* uppercase column trino ([#14111](https://github.com/lightdash/lightdash/issues/14111)) ([89fe715](https://github.com/lightdash/lightdash/commit/89fe715b9e6307c1584e36a3c4da38497b6847eb))
+
+# [0.1548.0](https://github.com/lightdash/lightdash/compare/0.1547.1...0.1548.0) (2025-03-19)
+
+
+### Features
+
+* add paginated underlying data query ([#14114](https://github.com/lightdash/lightdash/issues/14114)) ([608bdf8](https://github.com/lightdash/lightdash/commit/608bdf887fedcc592f9f30ec892fe64c0a062065))
+
+## [0.1547.1](https://github.com/lightdash/lightdash/compare/0.1547.0...0.1547.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* validate page against total pages ([#14118](https://github.com/lightdash/lightdash/issues/14118)) ([a9a1edc](https://github.com/lightdash/lightdash/commit/a9a1edcb1545e8de0efa0fe53405a089db950e7d))
+
+# [0.1547.0](https://github.com/lightdash/lightdash/compare/0.1546.3...0.1547.0) (2025-03-19)
+
+
+### Bug Fixes
+
+* sql chart tile loading state ([#14115](https://github.com/lightdash/lightdash/issues/14115)) ([b48947e](https://github.com/lightdash/lightdash/commit/b48947e3d1fa08a202bf91c31a8e12da7192179f))
+
+
+### Features
+
+* indicate when there are no dashboards avialable for embedding ([#14126](https://github.com/lightdash/lightdash/issues/14126)) ([8d8878c](https://github.com/lightdash/lightdash/commit/8d8878ca2be2fca49d4c3a631874f4bfc74c6137))
+
+## [0.1546.3](https://github.com/lightdash/lightdash/compare/0.1546.2...0.1546.3) (2025-03-19)
+
+
+### Bug Fixes
+
+* clear session on invalidUser error + invite link ([#14112](https://github.com/lightdash/lightdash/issues/14112)) ([15a87bd](https://github.com/lightdash/lightdash/commit/15a87bd0aa721c2f28f0edf56126867fb0585405))
+
+## [0.1546.2](https://github.com/lightdash/lightdash/compare/0.1546.1...0.1546.2) (2025-03-19)
+
+
+### Bug Fixes
+
+* handle missing authentication type in snowflake credentials check ([#14130](https://github.com/lightdash/lightdash/issues/14130)) ([81b97a6](https://github.com/lightdash/lightdash/commit/81b97a60c13e9156ecac422acb90b4854bdd3ca4))
+
+## [0.1546.1](https://github.com/lightdash/lightdash/compare/0.1546.0...0.1546.1) (2025-03-18)
+
+
+### Bug Fixes
+
+* include schema file name in the error message when parsing ([#14116](https://github.com/lightdash/lightdash/issues/14116)) ([e458993](https://github.com/lightdash/lightdash/commit/e4589937ad040e08744400c42d59b0d13939d09e))
+
+# [0.1546.0](https://github.com/lightdash/lightdash/compare/0.1545.0...0.1546.0) (2025-03-18)
+
+
+### Features
+
+* adjust helmet config for embed subroutes ([#14053](https://github.com/lightdash/lightdash/issues/14053)) ([a1ec5c1](https://github.com/lightdash/lightdash/commit/a1ec5c1f49cc2899fdcf3107c51ce214d0845e01))
+
 # [0.1545.0](https://github.com/lightdash/lightdash/compare/0.1544.2...0.1545.0) (2025-03-18)
 
 

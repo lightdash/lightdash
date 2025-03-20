@@ -6,6 +6,7 @@ import {
     isExecuteAsyncDashboardChartRequest,
     isExecuteAsyncMetricQueryRequest,
     isExecuteAsyncSavedChartRequest,
+    isExecuteAsyncUnderlyingDataRequest,
     type ApiExecuteAsyncQueryResults,
     type ExecuteAsyncQueryRequestParams,
     type MetricQuery,
@@ -95,8 +96,6 @@ export class V2ProjectController extends BaseController {
         const commonArgs = {
             user: req.user!,
             projectUuid,
-            page: body.page,
-            pageSize: body.pageSize,
         };
 
         if (isExecuteAsyncMetricQueryRequest(body)) {
@@ -164,7 +163,25 @@ export class V2ProjectController extends BaseController {
             };
         }
 
+        if (isExecuteAsyncUnderlyingDataRequest(body)) {
+            const results = await this.services
+                .getProjectService()
+                .executeAsyncUnderlyingDataQuery({
+                    ...commonArgs,
+                    underlyingDataSourceQueryUuid:
+                        body.underlyingDataSourceQueryUuid,
+                    filters: body.filters,
+                    underlyingDataItemId: body.underlyingDataItemId,
+                    context: context ?? QueryExecutionContext.API,
+                });
+
+            return {
+                status: 'ok',
+                results,
+            };
+        }
+
         this.setStatus(400);
-        throw new ParameterError('Invalid query');
+        throw new ParameterError('Invalid async query execution request');
     }
 }

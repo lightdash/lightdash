@@ -240,7 +240,7 @@ Affected charts:
             token,
         });
 
-        const yamlSchema = new DbtSchemaEditor(fileContent);
+        const yamlSchema = new DbtSchemaEditor(fileContent, fileName);
 
         if (!yamlSchema.hasModels()) {
             throw new Error(`No models found in ${fileName}`);

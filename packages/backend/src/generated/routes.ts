@@ -8272,6 +8272,14 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['password'] },
+                            { dataType: 'enum', enums: ['private_key'] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     database: { dataType: 'string', required: true },
                     warehouse: { dataType: 'string', required: true },
                     schema: { dataType: 'string', required: true },
@@ -14305,48 +14313,11 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Partial_KnexPaginateArgs_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pageSize: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                page: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResultsPaginationArgs: {
-        dataType: 'refAlias',
-        type: { ref: 'Partial_KnexPaginateArgs_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CommonPaginatedQueryRequestParams: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        context: { ref: 'QueryExecutionContext' },
-                    },
-                },
-                { ref: 'ResultsPaginationArgs' },
-            ],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { context: { ref: 'QueryExecutionContext' } },
             validators: {},
         },
     },
@@ -14537,6 +14508,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncUnderlyingDataRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        filters: { ref: 'Filters', required: true },
+                        underlyingDataItemId: { dataType: 'string' },
+                        underlyingDataSourceQueryUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncQueryRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -14545,6 +14538,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'ExecuteAsyncMetricQueryRequestParams' },
                 { ref: 'ExecuteAsyncSavedChartRequestParams' },
                 { ref: 'ExecuteAsyncDashboardChartRequestParams' },
+                { ref: 'ExecuteAsyncUnderlyingDataRequestParams' },
             ],
             validators: {},
         },
