@@ -95,9 +95,7 @@ export const useSqlRunnerShareUrl = (
         if (data?.params) {
             try {
                 const sqlRunnerParams = JSON.parse(data.params);
-                console.log('before', sqlRunnerParams);
                 if (isSqlRunnerShareParams(sqlRunnerParams)) {
-                    console.log('new');
                     sqlRunnerState = {
                         ...initialState,
                         ...sqlRunnerParams.sqlRunnerState,

@@ -82,8 +82,11 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const resultsMetricQuery = useExplorerContext(
+        (context) => context.query.data?.metricQuery,
+    );
+    const resultsFields = useExplorerContext(
+        (context) => context.query.data?.fields,
     );
 
     const { data: exploreData } = useExplore(tableName, {
@@ -100,11 +103,11 @@ export const useColumns = (): TableColumn[] => {
                     tableCalculations,
                     customDimensions,
                 ),
-                ...(resultsData?.fields || {}),
+                ...(resultsFields || {}),
             };
         }
     }, [
-        resultsData,
+        resultsFields,
         exploreData,
         additionalMetrics,
         tableCalculations,
@@ -145,10 +148,10 @@ export const useColumns = (): TableColumn[] => {
     }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({
-        metricQuery: resultsData?.metricQuery,
+        metricQuery: resultsMetricQuery,
         explore: exploreData?.baseTable,
-        fieldIds: resultsData
-            ? itemsInMetricQuery(resultsData.metricQuery)
+        fieldIds: resultsMetricQuery
+            ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,
         itemsMap: activeItemsMap,
     });
