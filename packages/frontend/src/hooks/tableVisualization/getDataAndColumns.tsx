@@ -3,7 +3,6 @@ import {
     getSubtotalKey,
     isCustomDimension,
     isField,
-    type ApiQueryResults,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
@@ -20,11 +19,12 @@ import {
     type TableHeader,
 } from '../../components/common/Table/types';
 import { getFormattedValueCell } from '../useColumns';
+import { type InfiniteQueryResults } from '../useQueryResults';
 
 type Args = {
     itemsMap: ItemsMap;
     selectedItemIds: string[];
-    resultsData: ApiQueryResults;
+    resultsData: InfiniteQueryResults;
     isColumnVisible: (key: string) => boolean;
     isColumnFrozen: (key: string) => boolean;
     showTableNames: boolean;

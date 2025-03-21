@@ -92,7 +92,7 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
-    const { chartRef, isLoading, onSeriesContextMenu, itemsMap } =
+    const { chartRef, isLoading, onSeriesContextMenu, itemsMap, resultsData } =
         useVisualizationContext();
 
     const [selectedLegends, setSelectedLegends] = useState({});
@@ -110,6 +110,12 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         selectedLegendsUpdated,
         props.isInDashboard,
     );
+
+    useEffect(() => {
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => resultsData?.setFetchAll(false);
+    }, [resultsData]);
 
     useEffect(() => {
         const listener = () => {

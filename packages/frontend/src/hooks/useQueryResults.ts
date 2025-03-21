@@ -135,7 +135,7 @@ export const getQueryPaginatedResults = async (
     };
 };
 
-const DEFAULT_PAGE_SIZE = 500;
+const DEFAULT_PAGE_SIZE = 20;
 
 /**
  * Run query & get first results page
@@ -356,11 +356,24 @@ const getResultsPage = async (
     }
 };
 
+export type InfiniteQueryResults = Partial<
+    Pick<
+        ReadyQueryResultsPage,
+        'metricQuery' | 'queryUuid' | 'totalResults' | 'fields'
+    >
+> & {
+    projectUuid?: string;
+    rows: ResultRow[];
+    isFetchingRows: boolean;
+    fetchMoreRows: () => void;
+    setFetchAll: (value: boolean) => void;
+};
+
 // This hook lazy load results has they are needed in the UI
 export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
-) => {
+): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',

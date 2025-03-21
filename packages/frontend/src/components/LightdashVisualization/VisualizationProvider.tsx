@@ -3,7 +3,6 @@ import {
     ChartType,
     FeatureFlags,
     isDimension,
-    type ApiQueryResults,
     type ChartConfig,
     type DashboardFilters,
     type PivotValue,
@@ -31,6 +30,7 @@ import {
 } from '../../hooks/useChartColorConfig/utils';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
+import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
@@ -45,7 +45,7 @@ type Props = {
     minimal?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
-    resultsData: ApiQueryResults | undefined;
+    resultsData: InfiniteQueryResults;
     isLoading: boolean;
     columnOrder: string[];
     onSeriesContextMenu?: (
@@ -96,7 +96,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             setEchartsRef(chartRef as RefObject<EChartsReact | null>);
     }, [chartRef, setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] =
-        useState<ApiQueryResults>();
+        useState<InfiniteQueryResults>();
 
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
