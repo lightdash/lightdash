@@ -153,10 +153,32 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: 'SNOWFLAKE',
             };
         } else if (credentials.privateKey) {
-            authenticationOptions = {
-                privateKey: credentials.privateKey,
-                authenticator: 'SNOWFLAKE_JWT',
-            };
+            if (!credentials.privateKeyPass) {
+                authenticationOptions = {
+                    privateKey: credentials.privateKey,
+                    authenticator: 'SNOWFLAKE_JWT',
+                };
+            } else {
+                /**
+                 * @ref https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-authenticate#use-key-pair-authentication-and-key-pair-rotation
+                 */
+                const privateKeyObject = crypto.createPrivateKey({
+                    key: credentials.privateKey,
+                    format: 'pem',
+                    passphrase: credentials.privateKeyPass,
+                });
+
+                // Extract the private key from the object as a PEM-encoded string.
+                const privateKey = privateKeyObject.export({
+                    format: 'pem',
+                    type: 'pkcs8',
+                });
+
+                authenticationOptions = {
+                    privateKey: privateKey.toString(),
+                    authenticator: 'SNOWFLAKE_JWT',
+                };
+            }
         }
 
         this.connectionOptions = {
