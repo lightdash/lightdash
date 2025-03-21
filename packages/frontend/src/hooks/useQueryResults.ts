@@ -418,10 +418,6 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchedPages]);
 
-    const fetchAllRows = useCallback(() => {
-        setFetchAll(true);
-    }, []);
-
     // Aggregate rows from all fetched pages
     const fetchedRows = useMemo(() => {
         const rows: ResultRow[] = [];
@@ -488,6 +484,6 @@ export const useInfiniteQueryResults = (
         totalRows: nextPage.data?.totalResults,
         isFetchingRows,
         fetchMoreRows,
-        fetchAllRows,
+        setFetchAll,
     };
 };

@@ -52,8 +52,8 @@ const VisualizationCard: FC<{
         (context) =>
             context.query.isFetching || context.queryResults.isFetchingRows,
     );
-    const fetchAllRows = useExplorerContext(
-        (context) => context.queryResults.fetchAllRows,
+    const setFetchAll = useExplorerContext(
+        (context) => context.queryResults.setFetchAll,
     );
     const queryResults = useExplorerContext(
         (context): ApiQueryResults | undefined => {
@@ -104,12 +104,10 @@ const VisualizationCard: FC<{
     );
 
     useEffect(() => {
-        if (isOpen) {
-            // TODO: next PR should support pagination for table viz
-            // Forcing to fetch all rows for now
-            fetchAllRows();
-        }
-    }, [fetchAllRows, isOpen]);
+        // TODO: next PR should support pagination for table viz
+        // Forcing to fetch all rows for now
+        setFetchAll(isOpen);
+    }, [setFetchAll, isOpen]);
 
     const toggleSection = useCallback(
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
