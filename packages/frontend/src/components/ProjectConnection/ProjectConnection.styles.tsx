@@ -1,13 +1,9 @@
-import styled from 'styled-components';
+import { Flex } from '@mantine/core';
 
-import Form from '../ReactHookForm/Form';
-
-const CARD_GAP = 20;
-
-export const FormContainer = styled(Form)`
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: ${CARD_GAP}px;
-    width: 100%;
-`;
+export const FormContainer = ({ children }: { children: React.ReactNode }) => {
+    return (
+        <Flex direction="column" gap={20} w="100%">
+            {children}
+        </Flex>
+    );
+};

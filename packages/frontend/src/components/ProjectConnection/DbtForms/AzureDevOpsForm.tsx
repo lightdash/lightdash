@@ -1,22 +1,21 @@
 import { DbtProjectType } from '@lightdash/common';
 import { Anchor, PasswordInput, TextInput } from '@mantine/core';
 import { type FC } from 'react';
-import { useFormContext } from 'react-hook-form';
-import {
-    hasNoWhiteSpaces,
-    startWithSlash,
-} from '../../../utils/fieldValidators';
+import { useFormContext } from '../formContext';
+import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
-import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
+import { azureDevopsDefaultValues } from './defaultValues';
 
 const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.AZURE_DEVOPS;
-    const { register } = useFormContext();
+    const form = useFormContext();
     return (
         <>
             <PasswordInput
+                name="dbt.personal_access_token"
+                {...form.getInputProps('dbt.personal_access_token')}
                 label="Personal access token"
                 description={
                     <>
@@ -42,48 +41,40 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required={requireSecrets}
-                {...register('dbt.personal_access_token')}
                 placeholder={
                     disabled || !requireSecrets ? '**************' : undefined
                 }
                 disabled={disabled}
             />
             <TextInput
+                name="dbt.organization"
+                {...form.getInputProps('dbt.organization')}
                 label="Organization"
                 description="This is the name of the organization that owns your repository"
-                {...register('dbt.organization', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
-                    },
-                })}
                 required
                 disabled={disabled}
             />
             <TextInput
+                name="dbt.project"
+                {...form.getInputProps('dbt.project')}
                 label="Project"
                 description="This is the name of the project that owns your repository"
                 required
-                {...register('dbt.project', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
-                    },
-                })}
                 disabled={disabled}
             />
             <TextInput
+                name="dbt.repository"
+                {...form.getInputProps('dbt.repository')}
                 label="Repository"
                 description="This is the name of the repository. For many projects, this is the same as your project name above."
                 required
-                {...register('dbt.repository', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
-                    },
-                })}
                 disabled={disabled}
             />
             <DbtVersionSelect disabled={disabled} />
 
             <TextInput
+                name="dbt.branch"
+                {...form.getInputProps('dbt.branch')}
                 label="Branch"
                 description={
                     <>
@@ -99,15 +90,12 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required
-                {...register('dbt.branch', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Branch'),
-                    },
-                })}
                 disabled={disabled}
-                defaultValue="main"
+                defaultValue={azureDevopsDefaultValues.branch}
             />
             <TextInput
+                name="dbt.project_sub_path"
+                {...form.getInputProps('dbt.project_sub_path')}
                 label="Project directory path"
                 description={
                     <>
@@ -137,18 +125,8 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required
-                {...register('dbt.project_sub_path', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces(
-                            'Project directory path',
-                        ),
-                        startWithSlash: startWithSlash(
-                            'Project directory path',
-                        ),
-                    },
-                })}
                 disabled={disabled}
-                defaultValue="/"
+                defaultValue={azureDevopsDefaultValues.project_sub_path}
             />
         </>
     );
