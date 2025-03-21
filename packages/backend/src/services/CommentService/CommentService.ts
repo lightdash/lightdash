@@ -6,8 +6,6 @@ import {
     ForbiddenError,
     LightdashUser,
     SessionUser,
-    SpaceShare,
-    SpaceSummary,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -18,7 +16,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {
     analytics: LightdashAnalytics;
@@ -63,22 +60,14 @@ export class CommentService extends BaseService {
         user: SessionUser,
         spaceUuid: string,
     ): Promise<boolean> {
-        let space: Omit<SpaceSummary, 'userAccess'>;
-        let spaceAccess: SpaceShare[];
-
         try {
-            space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-            );
+            const spaceAccess = await this.spaceModel.getSpaceAccess(spaceUuid);
+            return user.ability.can('view', subject('Space', spaceAccess));
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);
             return false;
         }
-
-        return hasViewAccessToSpace(user, space, spaceAccess);
     }
 
     private static async isFeatureEnabled(

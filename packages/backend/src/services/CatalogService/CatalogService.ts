@@ -643,26 +643,15 @@ export class CatalogService<
         projectUuid: string,
         chatSummaries: ChartSummary[],
     ) => {
-        // TODO move to space utils ?
-        const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess = await this.spaceModel.findSpaceAccess({
+            projectUuid,
+        });
 
-        const allowedSpaceUuids = spaces
-            .filter((space) =>
-                user.ability.can(
-                    'view',
-                    subject('Space', {
-                        organizationUuid: space.organizationUuid,
-                        projectUuid,
-                        isPrivate: space.isPrivate,
-                        access: spacesAccess[space.uuid] ?? [],
-                    }),
-                ),
+        const allowedSpaceUuids = spacesAccess
+            .filter((spaceAccess) =>
+                user.ability.can('view', subject('Space', spaceAccess)),
             )
-            .map(({ uuid }) => uuid);
+            .map(({ spaceUuid }) => spaceUuid);
 
         return chatSummaries.filter((chart) =>
             allowedSpaceUuids.includes(chart.spaceUuid),
