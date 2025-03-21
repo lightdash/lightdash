@@ -117,6 +117,7 @@ import {
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     type SemanticLayerConnectionUpdate,
+    SemanticLayerResultRow,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -1897,6 +1898,7 @@ export class ProjectService extends BaseService {
         });
     }
 
+    // get results
     async getAsyncQueryResults({
         user,
         projectUuid,
@@ -2367,6 +2369,7 @@ export class ProjectService extends BaseService {
         );
     }
 
+    // execute
     async executeAsyncMetricQuery({
         user,
         projectUuid,

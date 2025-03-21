@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { ReadStream } from 'fs';
+import * as readline from 'readline';
 import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -238,6 +239,21 @@ export class S3Client {
             );
 
             throw error;
+        }
+    }
+
+    async streamJsonObjects(
+        fileId: string,
+        writer: (row: Record<string, unknown>) => void,
+    ): Promise<void> {
+        const stream = await this.getS3FileStream(fileId);
+        const reader = readline.createInterface({
+            input: stream,
+            crlfDelay: Infinity,
+        });
+
+        for await (const line of reader) {
+            writer(JSON.parse(line));
         }
     }
 

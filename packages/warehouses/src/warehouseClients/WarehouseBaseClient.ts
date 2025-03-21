@@ -63,8 +63,28 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     async executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        // TODO: have a cache switch
+        const cacheEnabled = true;
+
+        let queryId: string | null = null;
+
+        if (cacheEnabled) {
+            queryId = args.queryHistoryId ?? null;
+
+            const { fields, rows } = await this.runQuery(
+                args.sql,
+                args.tags,
+                args.timezone,
+                args.values,
+            );
+
+            if (args.writeRows) {
+                await args.writeRows(rows);
+            }
+        }
+
         return {
-            queryId: null,
+            queryId,
             queryMetadata: null,
             durationMs: null,
             totalRows: null,
