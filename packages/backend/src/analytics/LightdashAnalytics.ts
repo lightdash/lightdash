@@ -1224,6 +1224,17 @@ export type CustomFieldsReplaced = BaseTrack & {
     };
 };
 
+export type DeprecatedRouteCalled = BaseTrack & {
+    event: 'deprecated_route.called';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        route: string;
+        context: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1307,7 +1318,8 @@ type TypedEvent =
     | CreateTagEvent
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
-    | SubtotalQueryEvent;
+    | SubtotalQueryEvent
+    | DeprecatedRouteCalled;
 
 type WrapTypedEvent = SemanticLayerView;
 

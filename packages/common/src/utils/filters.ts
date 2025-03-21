@@ -174,6 +174,20 @@ export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
     }
 };
 
+export const supportsSingleValue = (
+    filterType: FilterType,
+    filterOperator: FilterOperator,
+) =>
+    [FilterType.STRING, FilterType.NUMBER].includes(filterType) &&
+    [
+        FilterOperator.EQUALS,
+        FilterOperator.NOT_EQUALS,
+        FilterOperator.STARTS_WITH,
+        FilterOperator.ENDS_WITH,
+        FilterOperator.INCLUDE,
+        FilterOperator.NOT_INCLUDE,
+    ].includes(filterOperator);
+
 export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NULL &&
     filterOperator !== FilterOperator.NOT_NULL;

@@ -28,7 +28,6 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplor
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
-import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
@@ -55,16 +54,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const modalHeaderElementSize = useElementSize();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { tableName, metricQuery, underlyingDataConfig } =
+    const { tableName, metricQuery, underlyingDataConfig, queryUuid } =
         useMetricQueryDataContext();
 
     const { user } = useApp();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
-
-    const queryUuid = useExplorerContext(
-        (context) => context.queryResults.data?.queryUuid,
-    );
 
     const underlyingDataItemId = useMemo(
         () =>

@@ -1,3 +1,38 @@
+# [0.1552.0](https://github.com/lightdash/lightdash/compare/0.1551.1...0.1552.0) (2025-03-21)
+
+
+### Features
+
+* lazy load rows for results table ([#14142](https://github.com/lightdash/lightdash/issues/14142)) ([fcb2230](https://github.com/lightdash/lightdash/commit/fcb2230e0bc6728170232854c14d7e9bccaba16b))
+
+## [0.1551.1](https://github.com/lightdash/lightdash/compare/0.1551.0...0.1551.1) (2025-03-21)
+
+
+### Bug Fixes
+
+*  Snowflake warehouse authentication using private key with a passphrase ([#14160](https://github.com/lightdash/lightdash/issues/14160)) ([57b94d4](https://github.com/lightdash/lightdash/commit/57b94d482d82b6c204d4386a6c4da2e1b4219056))
+
+# [0.1551.0](https://github.com/lightdash/lightdash/compare/0.1550.3...0.1551.0) (2025-03-20)
+
+
+### Features
+
+* add single-select dashboard filters ([#14124](https://github.com/lightdash/lightdash/issues/14124)) ([8bdf93c](https://github.com/lightdash/lightdash/commit/8bdf93cccacae6d4b2ed7cbcb319651d88ff163a))
+
+## [0.1550.3](https://github.com/lightdash/lightdash/compare/0.1550.2...0.1550.3) (2025-03-20)
+
+
+### Bug Fixes
+
+* User completion modal blocking people from logging in ([#14150](https://github.com/lightdash/lightdash/issues/14150)) ([d21aaf9](https://github.com/lightdash/lightdash/commit/d21aaf957fabef0e0825e4d14667f7d989025e8d))
+
+## [0.1550.2](https://github.com/lightdash/lightdash/compare/0.1550.1...0.1550.2) (2025-03-20)
+
+
+### Bug Fixes
+
+* dashboard chart underlying data queryUuid ([#14147](https://github.com/lightdash/lightdash/issues/14147)) ([0d9a6c2](https://github.com/lightdash/lightdash/commit/0d9a6c27e0adeba8bdd71b4ce611f581a1dfb975))
+
 ## [0.1550.1](https://github.com/lightdash/lightdash/compare/0.1550.0...0.1550.1) (2025-03-20)
 
 

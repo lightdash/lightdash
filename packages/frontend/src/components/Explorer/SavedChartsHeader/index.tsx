@@ -132,16 +132,12 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const itemsMap = useExplorerContext(
+        (context) => context.query.data?.fields,
     );
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
-
-    const itemsMap = useMemo(() => {
-        return resultsData?.fields;
-    }, [resultsData]);
 
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
