@@ -204,6 +204,7 @@ const computeDashboardChartSeries = (
         isCompleteLayout(chart.chartConfig.config.layout)
     ) {
         const firstSerie = chart.chartConfig.config.eChartsConfig.series?.[0];
+
         const expectedSeriesMap = getExpectedSeriesMap({
             defaultSmooth: firstSerie?.smooth,
             defaultShowSymbol: firstSerie?.showSymbol,
