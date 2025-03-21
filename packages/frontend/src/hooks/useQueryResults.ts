@@ -481,7 +481,7 @@ export const useInfiniteQueryResults = (
 
     return {
         fetchedRows,
-        totalRows: nextPage.data?.totalResults,
+        totalRows: fetchedPages[0]?.totalResults,
         isFetchingRows,
         fetchMoreRows,
         setFetchAll,
