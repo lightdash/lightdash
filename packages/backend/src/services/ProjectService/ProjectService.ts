@@ -161,6 +161,7 @@ import {
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
@@ -245,6 +246,7 @@ type ProjectServiceArguments = {
     queryHistoryModel: QueryHistoryModel;
     encryptionUtil: EncryptionUtil;
     resultsCacheModel: ResultsCacheModel;
+    resultsCacheStorageClient: IResultsCacheStorageClient;
 };
 
 export class ProjectService extends BaseService {
@@ -302,6 +304,8 @@ export class ProjectService extends BaseService {
 
     resultsCacheModel: ResultsCacheModel;
 
+    resultsCacheStorageClient: IResultsCacheStorageClient;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -329,6 +333,7 @@ export class ProjectService extends BaseService {
         queryHistoryModel,
         resultsCacheModel,
         encryptionUtil,
+        resultsCacheStorageClient,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -358,6 +363,7 @@ export class ProjectService extends BaseService {
         this.queryHistoryModel = queryHistoryModel;
         this.encryptionUtil = encryptionUtil;
         this.resultsCacheModel = resultsCacheModel;
+        this.resultsCacheStorageClient = resultsCacheStorageClient;
     }
 
     static getMetricQueryExecutionProperties({
@@ -2260,6 +2266,7 @@ export class ProjectService extends BaseService {
                             sql: query,
                             timezone: metricQuery.timezone,
                         },
+                        this.resultsCacheStorageClient,
                     );
 
                     const { queryUuid: queryHistoryUuid } =

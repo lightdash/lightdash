@@ -14,20 +14,15 @@ export class ResultsCacheModel {
 
     protected lightdashConfig: LightdashConfig;
 
-    protected storageClient: IResultsCacheStorageClient;
-
     constructor({
         database,
         lightdashConfig,
-        storageClient,
     }: {
         database: Knex;
         lightdashConfig: LightdashConfig;
-        storageClient: IResultsCacheStorageClient;
     }) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
-        this.storageClient = storageClient;
     }
 
     static getCacheKey(
@@ -57,6 +52,7 @@ export class ResultsCacheModel {
             sql: string;
             timezone?: string;
         },
+        storageClient: IResultsCacheStorageClient,
     ): Promise<CreateCacheResult> {
         const cacheKey = ResultsCacheModel.getCacheKey(
             projectUuid,
@@ -66,7 +62,7 @@ export class ResultsCacheModel {
         const existingCache = await this.find(cacheKey, projectUuid);
 
         if (existingCache) {
-            if (existingCache.cache_expires_at > new Date()) {
+            if (existingCache.expires_at > new Date()) {
                 return {
                     cacheKey: existingCache.cache_key,
                     cacheHit: true,
@@ -81,20 +77,19 @@ export class ResultsCacheModel {
                 .delete();
         }
 
-        const { write, close } = this.storageClient.createUploadStream(
+        const { write, close } = storageClient.createUploadStream(
             cacheKey,
             DEFAULT_RESULTS_PAGE_SIZE,
         );
 
-        const createdCache = await this.database(ResultsCacheTableName)
+        const [createdCache] = await this.database(ResultsCacheTableName)
             .insert({
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
-                cache_expires_at: this.getCacheExpiresAt(),
+                expires_at: this.getCacheExpiresAt(),
                 total_row_count: null,
             })
-            .returning('cache_key')
-            .first();
+            .returning('cache_key');
 
         if (!createdCache) {
             await close();
@@ -133,6 +128,7 @@ export class ResultsCacheModel {
         projectUuid: string,
         page: number,
         pageSize: number,
+        storageClient: IResultsCacheStorageClient,
     ) {
         const cache = await this.find(cacheKey, projectUuid);
 
@@ -142,6 +138,6 @@ export class ResultsCacheModel {
             );
         }
 
-        return this.storageClient.download(cacheKey, page, pageSize);
+        return storageClient.download(cacheKey, page, pageSize);
     }
 }

@@ -5,7 +5,7 @@ export interface IResultsCacheStorageClient {
         cacheKey: string,
         pageSize: number,
     ): {
-        write: (rows: WarehouseResults['rows']) => void;
+        write: (rows: WarehouseResults['rows']) => Promise<void>;
         close: () => Promise<void>;
     };
     download(
