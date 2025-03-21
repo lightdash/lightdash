@@ -1,5 +1,5 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { type FC, useEffect, useMemo } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
@@ -20,30 +20,7 @@ const themeOverride: MantineThemeOverride = {
 };
 const MinimalExplorer: FC = () => {
     const { health } = useApp();
-    const setFetchAll = useExplorerContext(
-        (context) => context.queryResults.setFetchAll,
-    );
-    const queryResults = useExplorerContext((context) => context.queryResults);
-    const resultsData = useMemo(
-        () =>
-            queryResults.hasFetchedAllRows
-                ? {
-                      metricQuery: queryResults.metricQuery,
-                      cacheMetadata: {
-                          cacheHit: false,
-                      },
-                      rows: queryResults.rows,
-                      fields: queryResults.fields,
-                  }
-                : undefined,
-        [queryResults],
-    );
-
-    useEffect(() => {
-        // TODO: next PR should support pagination for table viz
-        // Forcing to fetch all rows for now
-        setFetchAll(true);
-    }, [setFetchAll]);
+    const resultsData = useExplorerContext((context) => context.queryResults);
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,

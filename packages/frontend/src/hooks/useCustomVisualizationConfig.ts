@@ -1,9 +1,6 @@
-import {
-    type ApiQueryResults,
-    type CustomVis,
-    type ResultRow,
-} from '@lightdash/common';
+import { type CustomVis, type ResultRow } from '@lightdash/common';
 import { useEffect, useMemo, useState } from 'react';
+import { type InfiniteQueryResults } from './useQueryResults';
 
 const convertRowsToSeries = (rows: ResultRow[]) => {
     return rows.map((row) => {
@@ -29,7 +26,7 @@ export interface CustomVisualizationConfigAndData {
 
 const useCustomVisualizationConfig = (
     chartConfig: CustomVis | undefined,
-    resultsData: ApiQueryResults | undefined,
+    resultsData: InfiniteQueryResults | undefined,
 ): CustomVisualizationConfigAndData => {
     const [visSpec, setVisSpec] = useState<string | undefined>();
     const [visSpecObject, setVisSpecObject] = useState();
