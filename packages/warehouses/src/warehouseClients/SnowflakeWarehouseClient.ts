@@ -155,6 +155,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } else if (credentials.privateKey) {
             authenticationOptions = {
                 privateKey: credentials.privateKey,
+                privateKeyPass: credentials.privateKeyPass,
                 authenticator: 'SNOWFLAKE_JWT',
             };
         }
