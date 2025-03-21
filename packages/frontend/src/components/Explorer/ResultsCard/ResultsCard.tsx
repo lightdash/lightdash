@@ -35,10 +35,7 @@ const ResultsCard: FC = memo(() => {
     );
 
     const rows = useExplorerContext(
-        (context) => context.queryResults.data?.rows,
-    );
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+        (context) => context.queryResults.fetchedRows,
     );
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
@@ -51,7 +48,7 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
 
-    const disabled = !resultsData || resultsData.rows.length <= 0;
+    const disabled = rows.length <= 0;
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {

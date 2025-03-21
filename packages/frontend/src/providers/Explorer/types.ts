@@ -23,7 +23,10 @@ import {
     type TableChartConfig,
     type TimeZone,
 } from '@lightdash/common';
-import { type useQueryResults } from '../../hooks/useQueryResults';
+import {
+    type useInfiniteQueryResults,
+    type useQueryResults,
+} from '../../hooks/useQueryResults';
 
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
@@ -270,7 +273,8 @@ export interface ExplorerState extends ExplorerReduceState {
 
 export interface ExplorerContextType {
     state: ExplorerState;
-    queryResults: ReturnType<typeof useQueryResults>;
+    query: ReturnType<typeof useQueryResults>;
+    queryResults: ReturnType<typeof useInfiniteQueryResults>;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;

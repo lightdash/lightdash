@@ -1,24 +1,24 @@
 import {
-    DimensionType,
     convertAdditionalMetric,
+    DimensionType,
     getItemId,
     getResultValueArray,
     getVisibleFields,
     isCustomSqlDimension,
     isFilterableField,
     type AdditionalMetric,
-    type ApiQueryResults,
     type CustomDimension,
     type Explore,
     type FilterableField,
     type Metric,
+    type ResultRow,
     type TableCalculation,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
 
 interface FieldsWithSuggestionsHookParams {
     exploreData: Explore | undefined;
-    queryResults: ApiQueryResults | undefined;
+    rows: ResultRow[] | undefined;
     customDimensions: CustomDimension[] | undefined;
     additionalMetrics: AdditionalMetric[] | undefined;
     tableCalculations: TableCalculation[] | undefined;
@@ -32,7 +32,7 @@ export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 
 export const useFieldsWithSuggestions = ({
     exploreData,
-    queryResults,
+    rows,
     customDimensions,
     additionalMetrics,
     tableCalculations,
@@ -73,9 +73,9 @@ export const useFieldsWithSuggestions = ({
                             const currentSuggestions =
                                 prev[getItemId(field)]?.suggestions || [];
                             const newSuggestions: string[] =
-                                (queryResults &&
+                                (rows &&
                                     getResultValueArray(
-                                        queryResults.rows,
+                                        rows,
                                         true,
                                     ).results.reduce<string[]>((acc, row) => {
                                         const value = row[getItemId(field)];
@@ -106,7 +106,7 @@ export const useFieldsWithSuggestions = ({
         }
     }, [
         exploreData,
-        queryResults,
+        rows,
         additionalMetrics,
         tableCalculations,
         customDimensions,

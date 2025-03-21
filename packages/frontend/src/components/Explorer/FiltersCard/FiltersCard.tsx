@@ -142,8 +142,8 @@ const FiltersCard: FC = memo(() => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
-    const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
+    const fetchedRows = useExplorerContext(
+        (context) => context.queryResults.fetchedRows,
     );
     const setFilters = useExplorerContext(
         (context) => context.actions.setFilters,
@@ -161,7 +161,7 @@ const FiltersCard: FC = memo(() => {
     );
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData: data,
-        queryResults,
+        rows: fetchedRows,
         customDimensions,
         additionalMetrics,
         tableCalculations,
