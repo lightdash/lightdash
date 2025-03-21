@@ -129,7 +129,12 @@ export class SchedulerWorker extends SchedulerTask {
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: getErrorMessage(e) },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
@@ -162,7 +167,12 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'slack',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: getErrorMessage(e) },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
@@ -195,7 +205,12 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'email',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: getErrorMessage(e) },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
@@ -222,7 +237,12 @@ export class SchedulerWorker extends SchedulerTask {
                             jobGroup: payload.jobGroup,
                             targetType: 'gsheets',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: getErrorMessage(e) },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
@@ -253,6 +273,8 @@ export class SchedulerWorker extends SchedulerTask {
                             details: {
                                 createdByUserUuid: payload.userUuid,
                                 error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
@@ -287,6 +309,8 @@ export class SchedulerWorker extends SchedulerTask {
                             details: {
                                 createdByUserUuid: payload.userUuid,
                                 error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
@@ -384,6 +408,8 @@ export class SchedulerWorker extends SchedulerTask {
                             details: {
                                 createdByUserUuid: payload.userUuid,
                                 error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
@@ -418,6 +444,8 @@ export class SchedulerWorker extends SchedulerTask {
                             details: {
                                 createdByUserUuid: payload.userUuid,
                                 error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
@@ -452,6 +480,8 @@ export class SchedulerWorker extends SchedulerTask {
                             details: {
                                 createdByUserUuid: payload.userUuid,
                                 error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
@@ -483,6 +513,8 @@ export class SchedulerWorker extends SchedulerTask {
                             details: {
                                 createdByUserUuid: payload.userUuid,
                                 error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
@@ -519,6 +551,7 @@ export class SchedulerWorker extends SchedulerTask {
                                 projectUuid: payload.projectUuid,
                                 organizationUuid: payload.organizationUuid,
                                 error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
                             },
                         });
                     },
@@ -555,6 +588,7 @@ export class SchedulerWorker extends SchedulerTask {
                                 projectUuid: payload.projectUuid,
                                 organizationUuid: payload.organizationUuid,
                                 error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
                             },
                         });
                     },
