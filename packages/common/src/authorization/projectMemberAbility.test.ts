@@ -404,7 +404,7 @@ describe('Project member permissions', () => {
                             isPrivate: false,
                         }),
                     ),
-                ).toEqual(false);
+                ).toEqual(true); // Editors can manage public dashboards
                 expect(
                     ability.can(
                         'view',
@@ -504,7 +504,7 @@ describe('Project member permissions', () => {
                             isPrivate: false,
                         }),
                     ),
-                ).toEqual(false);
+                ).toEqual(true); // Editors can manage public saved charts
                 expect(
                     ability.can(
                         'view',

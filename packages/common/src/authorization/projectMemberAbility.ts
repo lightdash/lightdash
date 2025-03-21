@@ -9,19 +9,99 @@ import { type MemberAbility } from './types';
 export const projectMemberAbilities: Record<
     ProjectMemberRole,
     (
-        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>,
+        member: Pick<ProjectMemberProfile, 'projectUuid' | 'userUuid'>,
         builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
+        groupMemberships?: { groupUuid: string }[],
     ) => void
 > = {
-    viewer(member, { can }) {
+    viewer(member, { can }, groupMemberships = []) {
+        // Dashboards
+
+        // Viewers can view dashboards in public spaces
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
             isPrivate: false,
         });
+
+        // Viewers can view dashboards in private spaces if they are invited
+        can('view', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            userSpaceAccess: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+
+        // Viewers can view dashboards in private spaces if their group is invited
+        can('view', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in: groupMemberships.map((group) => group.groupUuid),
+                    },
+                },
+            },
+        });
+
+        // Charts
+
+        // Viewers can view saved charts in public spaces
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
             isPrivate: false,
         });
+
+        // Viewers can view saved charts in private spaces if they are invited
+        can('view', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            userSpaceAccess: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
+
+        // Viewers can view saved charts in private spaces if their group is invited
+        can('view', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in: groupMemberships.map((group) => group.groupUuid),
+                    },
+                },
+            },
+        });
+
+        // Space
+
+        // Viewers can view public spaces
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        }).because('Viewers can view all public spaces');
+
+        // Viewers can view private spaces if they are invited
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            userSpaceAccess: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        }).because('Viewers can view private spaces they are invited to');
+
+        // Viewers can view private spaces if their group is invited
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in: groupMemberships.map((group) => group.groupUuid),
+                    },
+                },
+            },
+        }).because(
+            'Viewers can view private spaces their groups are invited to',
+        );
+
+        // old permissions for the deprecated access field
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
             access: {
@@ -36,14 +116,11 @@ export const projectMemberAbilities: Record<
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+
         can('view', 'Project', {
             projectUuid: member.projectUuid,
         });
@@ -66,8 +143,8 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
     },
-    interactive_viewer(member, { can }) {
-        projectMemberAbilities.viewer(member, { can });
+    interactive_viewer(member, { can }, groupMemberships = []) {
+        projectMemberAbilities.viewer(member, { can }, groupMemberships);
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });
@@ -86,16 +163,108 @@ export const projectMemberAbilities: Record<
         can('create', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
+
+        // Semantic viewer
+
+        // Can use the semantic viewer
+        can('view', 'SemanticViewer', {
+            projectUuid: member.projectUuid,
+        });
+
+        // Dashboards
+
+        // Interactive viewers can manage dashboards in private spaces if they are invited
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
-            access: {
+            userSpaceAccess: {
                 $elemMatch: {
                     userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
+                },
+            },
+        }).because(
+            'Interactive viewers can manage dashboards in private spaces if they are invited',
+        );
+
+        // Interactive viewers can manage dashboards in private spaces if their group is invited
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in: groupMemberships.map((group) => group.groupUuid),
+                    },
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
+                },
+            },
+        }).because(
+            'Interactive viewers can manage dashboards in private spaces if their groups are invited',
+        );
+
+        // Charts
+
+        // Interactive viewers can manage saved charts in private spaces if they are invited
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            userSpaceAccess: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
                 },
             },
         });
+
+        // Interactive viewers can manage saved charts in private spaces if their group is invited
         can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in: groupMemberships.map((group) => group.groupUuid),
+                    },
+                    role: {
+                        $in: [SpaceMemberRole.EDITOR, SpaceMemberRole.ADMIN],
+                    },
+                },
+            },
+        });
+
+        // Spaces
+
+        // Interactive viewers can manage private spaces if they are invited as admin
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            userSpaceAccess: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+
+        // Interactive viewers can manage private spaces if their group is invited as admin
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            groupSpaceAccess: {
+                $elemMatch: {
+                    groupUuid: {
+                        $in: groupMemberships.map((group) => group.groupUuid),
+                    },
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        }).because(
+            'Interactive viewers can manage private spaces if their groups are invited as admin',
+        );
+
+        // old permissions for the deprecated access field
+        can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
             access: {
                 $elemMatch: {
@@ -110,6 +279,15 @@ export const projectMemberAbilities: Record<
                 $elemMatch: {
                     userUuid: member.userUuid,
                     role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
                 },
             },
         });
@@ -134,15 +312,27 @@ export const projectMemberAbilities: Record<
             },
         });
     },
-    editor(member, { can }) {
-        projectMemberAbilities.interactive_viewer(member, { can });
+    editor(member, { can }, groupMemberships = []) {
+        projectMemberAbilities.interactive_viewer(
+            member,
+            { can },
+            groupMemberships,
+        );
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             isPrivate: false,
-        });
+        }).because('Project editors can manage public spaces');
+        can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        }).because('Project editors can manage dashboards in public spaces');
+        can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
+        }).because('Project editors can manage saved charts in public spaces');
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
             projectUuid: member.projectUuid,
@@ -160,8 +350,8 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
     },
-    developer(member, { can }) {
-        projectMemberAbilities.editor(member, { can });
+    developer(member, { can }, groupMemberships = []) {
+        projectMemberAbilities.editor(member, { can }, groupMemberships);
         can('manage', 'VirtualView', {
             projectUuid: member.projectUuid,
         });
@@ -199,8 +389,8 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
     },
-    admin(member, { can }) {
-        projectMemberAbilities.developer(member, { can });
+    admin(member, { can }, groupMemberships = []) {
+        projectMemberAbilities.developer(member, { can }, groupMemberships);
 
         can('delete', 'Project', {
             projectUuid: member.projectUuid,
@@ -210,6 +400,7 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
+        // Can manage all spaces, dashboards and charts
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
         });
