@@ -378,16 +378,26 @@ export const useInfiniteQueryResults = (
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
+    const [fetchArgs, setFetchArgs] = useState<{
+        queryUuid?: string;
+        projectUuid?: string;
+        page: number;
+        pageSize: number;
+    }>({
+        queryUuid: undefined,
+        projectUuid: undefined,
+        page: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+    });
     const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
         [],
     );
     const [fetchAll, setFetchAll] = useState(false);
-    const [pageToFetch, setPageToFetch] = useState<number>(1);
 
     const fetchMoreRows = useCallback(() => {
         const nextPageToFetch = fetchedPages[fetchedPages.length - 1]?.nextPage;
         if (nextPageToFetch) {
-            setPageToFetch(nextPageToFetch);
+            setFetchArgs((prev) => ({ ...prev, page: nextPageToFetch }));
         }
     }, [fetchedPages]);
 
@@ -401,25 +411,25 @@ export const useInfiniteQueryResults = (
     }, [fetchedPages]);
 
     const isFetchingRows = useMemo(() => {
-        const isFetchingPage = pageToFetch > fetchedPages.length;
+        const isFetchingPage = fetchArgs.page > fetchedPages.length;
         return !!projectUuid && !!queryUuid && isFetchingPage;
-    }, [fetchedPages, pageToFetch, projectUuid, queryUuid]);
+    }, [fetchedPages, fetchArgs.page, projectUuid, queryUuid]);
 
     const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
-        enabled: !!projectUuid && !!queryUuid,
+        enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
         queryKey: [
             'query-page',
-            projectUuid,
-            queryUuid,
-            pageToFetch,
-            DEFAULT_PAGE_SIZE,
+            fetchArgs.projectUuid,
+            fetchArgs.queryUuid,
+            fetchArgs.page,
+            fetchArgs.pageSize,
         ],
         queryFn: () => {
             return getResultsPage(
-                projectUuid!,
-                queryUuid!,
-                pageToFetch!,
-                DEFAULT_PAGE_SIZE,
+                fetchArgs.projectUuid!,
+                fetchArgs.queryUuid!,
+                fetchArgs.page,
+                fetchArgs.pageSize,
             );
         },
         staleTime: Infinity, // the data will never be considered stale
@@ -440,9 +450,14 @@ export const useInfiniteQueryResults = (
     }, [nextPage.data]);
 
     useEffect(() => {
-        // Reset pagination state
+        // Reset fetched pages before updating the fetch args
         setFetchedPages([]);
-        setPageToFetch(1);
+        setFetchArgs({
+            queryUuid,
+            projectUuid,
+            page: 1,
+            pageSize: DEFAULT_PAGE_SIZE,
+        });
     }, [projectUuid, queryUuid]);
 
     useEffect(() => {
