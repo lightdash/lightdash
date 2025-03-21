@@ -30,7 +30,6 @@ import {
     timeFrameConfigs,
     TimeFrames,
     XAxisSortType,
-    type ApiQueryResults,
     type CartesianChart,
     type CustomDimension,
     type Field,
@@ -57,6 +56,7 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
+import { type InfiniteQueryResults } from '../useQueryResults';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -421,11 +421,11 @@ const getMinAndMaxReferenceLines = (
     leftAxisFieldYIds: string[] | undefined,
     rightAxisYFieldIds: string[] | undefined,
     bottomAxisXFieldIds: string[] | undefined,
-    resultsData: ApiQueryResults | undefined,
+    rows: ResultRow[] | undefined,
     series: Series[] | undefined,
     items: ItemsMap,
 ) => {
-    if (resultsData === undefined || series === undefined) return {};
+    if (rows === undefined || series === undefined) return {};
     // Skip method if there are no reference lines
     const hasReferenceLines =
         series.find((serie) => {
@@ -535,15 +535,15 @@ const getMinAndMaxReferenceLines = (
 
     const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(
         leftAxisFieldYIds,
-        resultsData.rows,
+        rows,
     );
     const [minValueRightY, maxValueRightY] = getMinAndMaxValues(
         rightAxisYFieldIds,
-        resultsData.rows,
+        rows,
     );
     const [minValueX, maxValueX] = getMinAndMaxValues(
         bottomAxisXFieldIds,
-        resultsData.rows,
+        rows,
     );
 
     const [minReferenceLineX, maxReferenceLineX] =
@@ -819,15 +819,15 @@ const calculateWidthText = (text: string | undefined): number => {
 };
 
 const getLongestLabel = ({
-    resultsData,
+    rows = [],
     axisId,
 }: {
-    resultsData?: ApiQueryResults;
+    rows?: ResultRow[];
     axisId?: string;
 }): string | undefined => {
     return (
         axisId &&
-        resultsData?.rows
+        rows
             .map((row) => row[axisId]?.value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
@@ -873,7 +873,7 @@ const getEchartAxes = ({
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
     series: EChartSeries[];
-    resultsData: ApiQueryResults | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
@@ -1070,12 +1070,12 @@ const getEchartAxes = ({
     const bottomAxisXId = bottomAxisXFieldIds?.[0] || xAxisItemId;
 
     const longestValueXAxisTop: string | undefined = getLongestLabel({
-        resultsData,
+        rows: resultsData?.rows,
         axisId: topAxisXId,
     });
 
     const longestValueXAxisBottom: string | undefined = getLongestLabel({
-        resultsData,
+        rows: resultsData?.rows,
         axisId: bottomAxisXId,
     });
 
@@ -1098,13 +1098,13 @@ const getEchartAxes = ({
         rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
 
     const longestValueYAxisLeft: string | undefined = getLongestLabel({
-        resultsData,
+        rows: resultsData?.rows,
         axisId: leftAxisYId,
     });
     const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
 
     const longestValueYAxisRight: string | undefined = getLongestLabel({
-        resultsData,
+        rows: resultsData?.rows,
         axisId: rightAxisYId,
     });
     const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
@@ -1137,7 +1137,7 @@ const getEchartAxes = ({
         leftAxisYFieldIds,
         rightAxisYFieldIds,
         bottomAxisXFieldIds,
-        resultsData,
+        resultsData?.rows,
         validCartesianConfig.eChartsConfig.series,
         itemsMap,
     );
@@ -1722,7 +1722,7 @@ const useEchartsCartesianConfig = (
                 : results;
 
             const alreadySorted =
-                resultsData?.metricQuery.sorts?.[0]?.fieldId === xFieldId;
+                resultsData?.metricQuery?.sorts?.[0]?.fieldId === xFieldId;
             if (alreadySorted) return resultsInRange;
 
             const xField = itemsMap[xFieldId];
@@ -1785,7 +1785,7 @@ const useEchartsCartesianConfig = (
         resultsAndMinsAndMaxes.results,
         itemsMap,
         axes.xAxis,
-        resultsData?.metricQuery.sorts,
+        resultsData?.metricQuery?.sorts,
     ]);
 
     const tooltip = useMemo<TooltipOption>(

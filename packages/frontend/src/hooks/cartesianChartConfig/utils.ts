@@ -4,9 +4,9 @@ import {
     getItemId,
     getSeriesId,
     isDimension,
-    type ApiQueryResults,
     type CartesianSeriesType,
     type ItemsMap,
+    type ResultRow,
     type Series,
 } from '@lightdash/common';
 import { getPivotedData } from '../plottedData/getPlottedData';
@@ -17,7 +17,7 @@ export type GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
-    resultsData: ApiQueryResults;
+    rows: ResultRow[];
     pivotKeys: string[] | undefined;
     yFields: string[];
     xField: string;
@@ -31,7 +31,7 @@ export const getExpectedSeriesMap = ({
     defaultCartesianType,
     defaultAreaStyle,
     isStacked,
-    resultsData,
+    rows,
     pivotKeys,
     yFields,
     xField,
@@ -50,7 +50,7 @@ export const getExpectedSeriesMap = ({
     };
     if (pivotKeys && pivotKeys.length > 0) {
         const { rowKeyMap } = getPivotedData(
-            resultsData.rows,
+            rows,
             pivotKeys,
             yFields.filter((yField) => !availableDimensions.includes(yField)),
             yFields.filter((yField) => availableDimensions.includes(yField)),

@@ -396,11 +396,24 @@ const getResultsPage = async (
     }
 };
 
+export type InfiniteQueryResults = Partial<
+    Pick<
+        ReadyQueryResultsPage,
+        'metricQuery' | 'queryUuid' | 'totalResults' | 'fields'
+    >
+> & {
+    projectUuid?: string;
+    rows: ResultRow[];
+    isFetchingRows: boolean;
+    fetchMoreRows: () => void;
+    setFetchAll: (value: boolean) => void;
+};
+
 // This hook lazy load results has they are needed in the UI
 export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
-) => {
+): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
@@ -480,8 +493,12 @@ export const useInfiniteQueryResults = (
     }, [fetchAll, fetchMoreRows]);
 
     return {
-        fetchedRows,
-        totalRows: fetchedPages[0]?.totalResults,
+        projectUuid,
+        queryUuid,
+        metricQuery: fetchedPages[0]?.metricQuery,
+        fields: fetchedPages[0]?.fields,
+        totalResults: fetchedPages[0]?.totalResults,
+        rows: fetchedRows,
         isFetchingRows,
         fetchMoreRows,
         setFetchAll,

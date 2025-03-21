@@ -36,10 +36,10 @@ export const ExplorerResults = memo(() => {
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
     const fetchedRows = useExplorerContext(
-        (context) => context.queryResults.fetchedRows,
+        (context) => context.queryResults.rows,
     );
     const totalRows = useExplorerContext(
-        (context) => context.queryResults.totalRows,
+        (context) => context.queryResults.totalResults,
     );
     const isFetchingRows = useExplorerContext(
         (context) => context.queryResults.isFetchingRows,
