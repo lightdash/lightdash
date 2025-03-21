@@ -792,7 +792,11 @@ export default class SchedulerTask {
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: { createdByUserUuid: payload.createdByUserUuid },
+                details: {
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.createdByUserUuid,
+                },
                 status: SchedulerJobStatus.STARTED,
             });
 
