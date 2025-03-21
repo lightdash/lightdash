@@ -18,7 +18,11 @@ import { type ProviderProps, type TableColumn } from './types';
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     header: '#',
-    cell: (props) => props.row.index + 1,
+    cell: (props) => {
+        const { pageIndex, pageSize } = props.table.getState().pagination;
+        const pageStartIndex = pageIndex * pageSize;
+        return pageStartIndex + props.row.index + 1;
+    },
     footer: 'Total',
     meta: {
         width: 30,
