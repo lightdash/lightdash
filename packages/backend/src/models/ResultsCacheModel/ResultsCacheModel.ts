@@ -3,7 +3,11 @@ import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
-import { ResultsCacheTableName } from '../../database/entities/resultsCache';
+import {
+    ResultsCacheTableName,
+    type DbResultsCacheUpdate,
+} from '../../database/entities/resultsCache';
+import type { CreateCacheResult } from './types';
 
 export class ResultsCacheModel {
     readonly database: Knex;
@@ -49,12 +53,11 @@ export class ResultsCacheModel {
 
     async create(
         projectUuid: string,
-        resultsStream: ReadableStream,
         cacheIdentifiers: {
             sql: string;
             timezone?: string;
         },
-    ) {
+    ): Promise<CreateCacheResult> {
         const cacheKey = ResultsCacheModel.getCacheKey(
             projectUuid,
             cacheIdentifiers,
@@ -64,7 +67,13 @@ export class ResultsCacheModel {
 
         if (existingCache) {
             if (existingCache.cache_expires_at > new Date()) {
-                return existingCache.cache_key;
+                return {
+                    cacheKey: existingCache.cache_key,
+                    cacheHit: true,
+                    write: undefined,
+                    close: undefined,
+                    totalRowCount: existingCache.total_row_count ?? 0, // TODO cache: db types need to match the union
+                };
             }
 
             await this.database(ResultsCacheTableName)
@@ -72,19 +81,44 @@ export class ResultsCacheModel {
                 .delete();
         }
 
-        await this.storageClient.upload(
+        const { write, close } = this.storageClient.createUploadStream(
             cacheKey,
-            resultsStream,
             DEFAULT_RESULTS_PAGE_SIZE,
         );
 
-        return this.database(ResultsCacheTableName)
+        const createdCache = await this.database(ResultsCacheTableName)
             .insert({
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
                 cache_expires_at: this.getCacheExpiresAt(),
+                total_row_count: null,
             })
-            .returning('cache_key');
+            .returning('cache_key')
+            .first();
+
+        if (!createdCache) {
+            await close();
+            throw new Error('Failed to create cache');
+        }
+
+        return {
+            cacheKey: createdCache.cache_key,
+            write,
+            close,
+            cacheHit: false,
+            totalRowCount: null,
+        };
+    }
+
+    async update(
+        cacheKey: string,
+        projectUuid: string,
+        update: DbResultsCacheUpdate,
+    ) {
+        return this.database(ResultsCacheTableName)
+            .where('cache_key', cacheKey)
+            .andWhere('project_uuid', projectUuid)
+            .update(update);
     }
 
     async find(cacheKey: string, projectUuid: string) {

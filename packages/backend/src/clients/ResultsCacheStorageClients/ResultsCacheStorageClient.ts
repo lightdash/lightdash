@@ -1,9 +1,13 @@
+import type { WarehouseResults } from '@lightdash/common';
+
 export interface IResultsCacheStorageClient {
-    upload(
+    createUploadStream(
         cacheKey: string,
-        data: ReadableStream,
         pageSize: number,
-    ): Promise<void>;
+    ): {
+        write: (rows: WarehouseResults['rows']) => void;
+        close: () => Promise<void>;
+    };
     download(
         cacheKey: string,
         page: number,
