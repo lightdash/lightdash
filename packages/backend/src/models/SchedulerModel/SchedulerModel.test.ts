@@ -10,6 +10,11 @@ describe('Scheduler model test', () => {
             scheduledTime: new Date(2021, 0, 2),
             createdAt: new Date(2021, 0, 2),
             jobId: '1',
+            details: {
+                projectUuid: '1',
+                organizationUuid: '1',
+                createdByUserUuid: '1',
+            },
         };
 
         const logs = [
