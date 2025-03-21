@@ -5,8 +5,6 @@ import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
-import { type ResultRow } from './results';
-import { type SemanticLayerResultRow } from './semanticLayer';
 
 export type RunQueryTags = {
     project_uuid?: string;
@@ -60,8 +58,6 @@ export type WarehouseExecuteAsyncQueryArgs = {
     timezone?: string;
     values?: AnyType[];
     sql: string;
-    queryHistoryId?: string;
-    writeRows?: (data: Array<ResultRow | SemanticLayerResultRow>) => void;
 };
 
 export type WarehouseExecuteAsyncQuery = {
@@ -112,6 +108,7 @@ export interface WarehouseClient {
 
     executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery>;
 
     getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(

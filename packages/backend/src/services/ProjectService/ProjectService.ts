@@ -177,6 +177,7 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel';
+import { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -243,6 +244,7 @@ type ProjectServiceArguments = {
     contentModel: ContentModel;
     queryHistoryModel: QueryHistoryModel;
     encryptionUtil: EncryptionUtil;
+    resultsCacheModel: ResultsCacheModel;
 };
 
 export class ProjectService extends BaseService {
@@ -298,6 +300,8 @@ export class ProjectService extends BaseService {
 
     encryptionUtil: EncryptionUtil;
 
+    resultsCacheModel: ResultsCacheModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -323,6 +327,7 @@ export class ProjectService extends BaseService {
         catalogModel,
         contentModel,
         queryHistoryModel,
+        resultsCacheModel,
         encryptionUtil,
     }: ProjectServiceArguments) {
         super();
@@ -352,6 +357,7 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.queryHistoryModel = queryHistoryModel;
         this.encryptionUtil = encryptionUtil;
+        this.resultsCacheModel = resultsCacheModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -2285,12 +2291,27 @@ export class ProjectService extends BaseService {
                         },
                     });
 
+                    const { readable, writable } = new TransformStream();
+                    const writer = writable.getWriter();
+
+                    await this.resultsCacheModel.create(projectUuid, readable, {
+                        sql: query,
+                        timezone: metricQuery.timezone,
+                    });
+
                     // Trigger query in the background, update query history when complete
                     warehouseClient
-                        .executeAsyncQuery({
-                            sql: query,
-                            tags: queryTags,
-                        })
+                        .executeAsyncQuery(
+                            {
+                                sql: query,
+                                tags: queryTags,
+                            },
+                            (rows) => {
+                                rows.forEach((row) => {
+                                    void writer.write(row);
+                                });
+                            },
+                        )
                         .then(
                             ({
                                 queryId,
@@ -2351,7 +2372,10 @@ export class ProjectService extends BaseService {
                                 },
                             );
                         })
-                        .finally(() => sshTunnel.disconnect());
+                        .finally(() => {
+                            void sshTunnel.disconnect();
+                            void writer.close();
+                        });
 
                     return {
                         queryUuid: queryHistoryUuid,
