@@ -32,6 +32,7 @@ function convertDbQueryHistoryToQueryHistory(
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
+        cacheKey: queryHistory.cache_key,
     };
 }
 
@@ -73,6 +74,7 @@ export class QueryHistoryModel {
                 warehouse_execution_time_ms: null,
                 warehouse_query_metadata: null,
                 error: null,
+                cache_key: queryHistory.cacheKey,
             })
             .returning('query_uuid');
 
