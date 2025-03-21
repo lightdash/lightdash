@@ -20,7 +20,6 @@ import {
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
-    type ApiQueryResults,
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -81,6 +80,7 @@ import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
@@ -191,11 +191,12 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
  */
 const computeDashboardChartSeries = (
     chart: ApiChartAndResults['chart'],
-    resultData: ApiQueryResults | undefined,
+    resultData: InfiniteQueryResults | undefined,
 ) => {
     if (!resultData?.fields || !chart.chartConfig || !resultData) {
         return [];
     }
+
     if (
         isCartesianChartConfig(chart.chartConfig.config) &&
         isCompleteLayout(chart.chartConfig.config.layout)
@@ -209,7 +210,7 @@ const computeDashboardChartSeries = (
             availableDimensions: chart.metricQuery.dimensions,
             isStacked: false,
             pivotKeys: chart.pivotConfig?.columns,
-            resultsData: resultData,
+            rows: resultData.rows,
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
@@ -254,12 +255,16 @@ const ValidDashboardChartTile: FC<{
         addResultsCacheTime(cacheMetadata);
     }, [cacheMetadata, addResultsCacheTime]);
 
-    const resultData = useMemo(
+    const resultData = useMemo<InfiniteQueryResults>(
         () => ({
-            rows,
             metricQuery,
             cacheMetadata,
             fields,
+            rows,
+            totalResults: rows.length,
+            isFetchingRows: false,
+            fetchMoreRows: () => undefined,
+            setFetchAll: () => undefined,
         }),
         [rows, metricQuery, cacheMetadata, fields],
     );
@@ -313,8 +318,17 @@ const ValidDashboardChartTileMinimal: FC<{
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
 
-    const resultData = useMemo(
-        () => ({ rows, metricQuery, cacheMetadata, fields }),
+    const resultData = useMemo<InfiniteQueryResults>(
+        () => ({
+            metricQuery,
+            cacheMetadata,
+            fields,
+            rows,
+            totalResults: rows.length,
+            isFetchingRows: false,
+            fetchMoreRows: () => undefined,
+            setFetchAll: () => undefined,
+        }),
         [rows, metricQuery, cacheMetadata, fields],
     );
 

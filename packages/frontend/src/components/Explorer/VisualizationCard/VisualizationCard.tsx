@@ -5,14 +5,7 @@ import {
     NotFoundError,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
-import {
-    type FC,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
+import { type FC, memo, useCallback, useMemo, useState } from 'react';
 import { downloadCsv } from '../../../api/csv';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
@@ -51,25 +44,7 @@ const VisualizationCard: FC<{
         (context) =>
             context.query.isFetching || context.queryResults.isFetchingRows,
     );
-    const setFetchAll = useExplorerContext(
-        (context) => context.queryResults.setFetchAll,
-    );
-    const queryResults = useExplorerContext((context) => context.queryResults);
-
-    const resultsData = useMemo(
-        () =>
-            queryResults.hasFetchedAllRows
-                ? {
-                      metricQuery: queryResults.metricQuery,
-                      cacheMetadata: {
-                          cacheHit: false,
-                      },
-                      rows: queryResults.rows,
-                      fields: queryResults.fields,
-                  }
-                : undefined,
-        [queryResults],
-    );
+    const resultsData = useExplorerContext((context) => context.queryResults);
 
     const setPivotFields = useExplorerContext(
         (context) => context.actions.setPivotFields,
@@ -100,12 +75,6 @@ const VisualizationCard: FC<{
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
     );
-
-    useEffect(() => {
-        // TODO: next PR should support pagination for table viz
-        // Forcing to fetch all rows for now
-        setFetchAll(isOpen);
-    }, [setFetchAll, isOpen]);
 
     const toggleSection = useCallback(
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),

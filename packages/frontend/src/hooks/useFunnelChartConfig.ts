@@ -5,7 +5,6 @@ import {
     isField,
     isMetric,
     isTableCalculation,
-    type ApiQueryResults,
     type FunnelChart,
     type ItemsMap,
     type Metric,
@@ -15,6 +14,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type FunnelSeriesDataPoint } from './echarts/useEchartsFunnelConfig';
+import { type InfiniteQueryResults } from './useQueryResults';
 
 type FunnelChartConfig = {
     validConfig: FunnelChart;
@@ -47,7 +47,7 @@ type FunnelChartConfig = {
 };
 
 export type FunnelChartConfigFn = (
-    resultsData: ApiQueryResults | undefined,
+    resultsData: InfiniteQueryResults | undefined,
     funnelChartConfig: FunnelChart | undefined,
     itemsMap: ItemsMap | undefined,
     numericFields: Record<string, Metric | TableCalculation>,
