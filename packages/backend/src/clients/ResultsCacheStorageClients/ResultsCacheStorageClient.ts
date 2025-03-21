@@ -1,4 +1,4 @@
-export interface ResultsCacheStorageClient {
+export interface IResultsCacheStorageClient {
     upload(
         cacheKey: string,
         data: ReadableStream,

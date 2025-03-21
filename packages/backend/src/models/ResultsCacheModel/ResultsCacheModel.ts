@@ -1,16 +1,16 @@
 import { DEFAULT_RESULTS_PAGE_SIZE, NotFoundError } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { ResultsCacheTableName } from '../../database/entities/resultsCache';
-import { ResultsCacheStorageClient } from './ResultsCacheStorageClient';
 
 export class ResultsCacheModel {
     readonly database: Knex;
 
     protected lightdashConfig: LightdashConfig;
 
-    protected storageClient: ResultsCacheStorageClient;
+    protected storageClient: IResultsCacheStorageClient;
 
     constructor({
         database,
@@ -19,7 +19,7 @@ export class ResultsCacheModel {
     }: {
         database: Knex;
         lightdashConfig: LightdashConfig;
-        storageClient: ResultsCacheStorageClient;
+        storageClient: IResultsCacheStorageClient;
     }) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
