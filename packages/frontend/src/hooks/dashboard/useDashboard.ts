@@ -89,11 +89,12 @@ const exportDashboard = async (
     id: string,
     gridWidth: number | undefined,
     queryFilters: string,
+    selectedTabs?: string[],
 ) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/export`,
         method: 'POST',
-        body: JSON.stringify({ queryFilters, gridWidth }),
+        body: JSON.stringify({ queryFilters, gridWidth, selectedTabs }),
     });
 
 export const useDashboardsAvailableFilters = (
@@ -141,6 +142,7 @@ export const useExportDashboard = () => {
             gridWidth: number | undefined;
             queryFilters: string;
             isPreview?: boolean;
+            selectedTabs?: string[];
         }
     >(
         (data) =>
@@ -148,6 +150,7 @@ export const useExportDashboard = () => {
                 data.dashboard.uuid,
                 data.gridWidth,
                 data.queryFilters,
+                data.selectedTabs,
             ),
         {
             mutationKey: ['export_dashboard'],
