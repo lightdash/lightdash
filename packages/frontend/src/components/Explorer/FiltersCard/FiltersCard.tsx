@@ -143,7 +143,7 @@ const FiltersCard: FC = memo(() => {
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
     const fetchedRows = useExplorerContext(
-        (context) => context.queryResults.fetchedRows,
+        (context) => context.queryResults.rows,
     );
     const setFilters = useExplorerContext(
         (context) => context.actions.setFilters,
