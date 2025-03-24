@@ -1,3 +1,10 @@
+## [0.1552.2](https://github.com/lightdash/lightdash/compare/0.1552.1...0.1552.2) (2025-03-24)
+
+
+### Bug Fixes
+
+* infinite loop error on pivotted charts ([#14170](https://github.com/lightdash/lightdash/issues/14170)) ([f85d0d5](https://github.com/lightdash/lightdash/commit/f85d0d5be70130bd56de9f3be16d5209c65831dd))
+
 ## [0.1552.1](https://github.com/lightdash/lightdash/compare/0.1552.0...0.1552.1) (2025-03-21)
 
 
