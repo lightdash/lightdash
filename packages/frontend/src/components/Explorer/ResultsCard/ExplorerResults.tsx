@@ -35,11 +35,9 @@ export const ExplorerResults = memo(() => {
     const explorerColumnOrder = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
-    const fetchedRows = useExplorerContext(
-        (context) => context.queryResults.fetchedRows,
-    );
+    const rows = useExplorerContext((context) => context.queryResults.rows);
     const totalRows = useExplorerContext(
-        (context) => context.queryResults.totalRows,
+        (context) => context.queryResults.totalResults,
     );
     const isFetchingRows = useExplorerContext(
         (context) => context.queryResults.isFetchingRows,
@@ -163,7 +161,7 @@ export const ExplorerResults = memo(() => {
             <Box px="xs" py="lg">
                 <Table
                     status={status}
-                    data={fetchedRows || []}
+                    data={rows || []}
                     totalRowsCount={totalRows || 0}
                     isFetchingRows={isFetchingRows}
                     fetchMoreRows={fetchMoreRows}

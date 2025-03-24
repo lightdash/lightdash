@@ -479,11 +479,28 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
-    return {
-        fetchedRows,
-        totalRows: fetchedPages[0]?.totalResults,
-        isFetchingRows,
-        fetchMoreRows,
-        setFetchAll,
-    };
+    return useMemo(
+        () => ({
+            projectUuid,
+            queryUuid,
+            metricQuery: fetchedPages[0]?.metricQuery,
+            fields: fetchedPages[0]?.fields,
+            totalResults: fetchedPages[0]?.totalResults,
+            hasFetchedAllRows:
+                fetchedRows.length >= fetchedPages[0]?.totalResults,
+            rows: fetchedRows,
+            isFetchingRows,
+            fetchMoreRows,
+            setFetchAll,
+        }),
+        [
+            projectUuid,
+            queryUuid,
+            fetchedPages,
+            fetchedRows,
+            isFetchingRows,
+            fetchMoreRows,
+            setFetchAll,
+        ],
+    );
 };
