@@ -35,27 +35,6 @@ export type QueryResultsProps = {
     context?: string;
 };
 
-const getUnderlyingDataResults = async ({
-    projectUuid,
-    tableId,
-    query,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-}) => {
-    const timezoneFixQuery = {
-        ...query,
-        filters: convertDateFilters(query.filters),
-    };
-
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runUnderlyingDataQuery`,
-        method: 'POST',
-        body: JSON.stringify(timezoneFixQuery),
-    });
-};
-
 /**
  * Aggregates pagination results for a query
  */
@@ -286,46 +265,27 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
 };
 
 export const useUnderlyingDataResults = (
-    tableId: string,
-    query: MetricQuery,
+    filters: MetricQuery['filters'],
     underlyingDataSourceQueryUuid?: string,
     underlyingDataItemId?: string,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: queryPaginationEnabled } = useFeatureFlag(
-        FeatureFlags.QueryPagination,
-    );
-
-    const shouldUsePagination =
-        underlyingDataSourceQueryUuid && queryPaginationEnabled?.enabled;
-
-    const queryKey = shouldUsePagination
-        ? [
-              'underlyingDataResults',
-              projectUuid,
-              underlyingDataSourceQueryUuid,
-              underlyingDataItemId,
-              query.filters,
-          ]
-        : ['underlyingDataResults', projectUuid, JSON.stringify(query)];
 
     return useQuery<ApiQueryResults, ApiError>({
-        queryKey,
-        enabled: Boolean(projectUuid) && Boolean(queryPaginationEnabled),
+        queryKey: [
+            'underlyingDataResults',
+            projectUuid,
+            underlyingDataSourceQueryUuid,
+            underlyingDataItemId,
+            filters,
+        ],
+        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
         queryFn: () => {
-            if (shouldUsePagination) {
-                return getQueryPaginatedResults(projectUuid!, {
-                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                    underlyingDataSourceQueryUuid,
-                    underlyingDataItemId,
-                    filters: query.filters,
-                });
-            }
-
-            return getUnderlyingDataResults({
-                projectUuid: projectUuid!,
-                tableId,
-                query,
+            return getQueryPaginatedResults(projectUuid!, {
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
+                underlyingDataItemId,
+                filters: convertDateFilters(filters),
             });
         },
         retry: false,
