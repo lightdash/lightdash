@@ -133,6 +133,24 @@ const parseRow = (row: Record<string, AnyType>) =>
     );
 const parseRows = (rows: Record<string, AnyType>[]) => rows.map(parseRow);
 
+const addPemWrapping = (key: string, isEncrypted: boolean): string => {
+    if (key.includes('-----BEGIN')) {
+        return key;
+    }
+    const header = isEncrypted
+        ? '-----BEGIN ENCRYPTED PRIVATE KEY-----'
+        : '-----BEGIN PRIVATE KEY-----';
+    const footer = isEncrypted
+        ? '-----END ENCRYPTED PRIVATE KEY-----'
+        : '-----END PRIVATE KEY-----';
+
+    // Remove any existing line breaks and split into 64-character chunks
+    const cleanKey = key.replace(/[\r\n]/g, '');
+    const chunks = cleanKey.match(/.{1,64}/g) || [];
+
+    return [header, ...chunks, footer].join('\n');
+};
+
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
@@ -155,7 +173,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } else if (credentials.privateKey) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
-                    privateKey: credentials.privateKey,
+                    privateKey: addPemWrapping(credentials.privateKey, false),
                     authenticator: 'SNOWFLAKE_JWT',
                 };
             } else {
@@ -163,7 +181,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                  * @ref https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-authenticate#use-key-pair-authentication-and-key-pair-rotation
                  */
                 const privateKeyObject = crypto.createPrivateKey({
-                    key: credentials.privateKey,
+                    key: addPemWrapping(credentials.privateKey, true),
                     format: 'pem',
                     passphrase: credentials.privateKeyPass,
                 });
