@@ -34,9 +34,7 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
 
-    const rows = useExplorerContext(
-        (context) => context.queryResults.fetchedRows,
-    );
+    const rows = useExplorerContext((context) => context.queryResults.rows);
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );

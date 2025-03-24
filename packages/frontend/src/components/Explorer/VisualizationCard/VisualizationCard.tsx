@@ -1,5 +1,4 @@
 import {
-    type ApiQueryResults,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
     getPivotConfig,
@@ -55,24 +54,23 @@ const VisualizationCard: FC<{
     const setFetchAll = useExplorerContext(
         (context) => context.queryResults.setFetchAll,
     );
-    const queryResults = useExplorerContext(
-        (context): ApiQueryResults | undefined => {
-            const loadedAllRows =
-                context.query.data &&
-                context.queryResults.fetchedRows.length >=
-                    context.query.data?.totalResults;
-            if (context.query.data && loadedAllRows) {
-                return {
-                    metricQuery: context.query.data.metricQuery,
-                    cacheMetadata: {
-                        cacheHit: false,
-                    },
-                    rows: context.queryResults.fetchedRows,
-                    fields: context.query.data.fields,
-                };
-            }
-        },
+    const queryResults = useExplorerContext((context) => context.queryResults);
+
+    const resultsData = useMemo(
+        () =>
+            queryResults.hasFetchedAllRows
+                ? {
+                      metricQuery: queryResults.metricQuery,
+                      cacheMetadata: {
+                          cacheHit: false,
+                      },
+                      rows: queryResults.rows,
+                      fields: queryResults.fields,
+                  }
+                : undefined,
+        [queryResults],
     );
+
     const setPivotFields = useExplorerContext(
         (context) => context.actions.setPivotFields,
     );
@@ -200,7 +198,7 @@ const VisualizationCard: FC<{
                 initialPivotDimensions={
                     unsavedChartVersion.pivotConfig?.columns
                 }
-                resultsData={queryResults}
+                resultsData={resultsData}
                 isLoading={isLoadingQueryResults}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
