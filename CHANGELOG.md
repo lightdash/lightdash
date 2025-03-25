@@ -1,3 +1,10 @@
+## [0.1552.4](https://github.com/lightdash/lightdash/compare/0.1552.3...0.1552.4) (2025-03-25)
+
+
+### Bug Fixes
+
+* snowflake private key swap ([#14181](https://github.com/lightdash/lightdash/issues/14181)) ([6bd45c7](https://github.com/lightdash/lightdash/commit/6bd45c7ecac4e98e9aaf146e93896dc96534b380))
+
 ## [0.1552.3](https://github.com/lightdash/lightdash/compare/0.1552.2...0.1552.3) (2025-03-25)
 
 
