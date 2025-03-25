@@ -182,7 +182,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             };
         }
 
-        console.log('authenticationOptions', authenticationOptions);
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
