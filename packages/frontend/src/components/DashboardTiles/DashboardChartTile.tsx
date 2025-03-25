@@ -141,7 +141,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
         <ExportCSVModal
             projectUuid={projectUuid}
             opened
-            rows={rows}
+            totalResults={rows.length}
             getCsvLink={getCsvLink}
             onClose={onClose}
             onConfirm={onConfirm}
