@@ -111,7 +111,7 @@ const useToaster = () => {
                                     openSupportDrawer();
                                 }}
                             >
-                                Share with support
+                                Share with Lightdash
                             </Button>
                         </Stack>
                     ) : undefined,

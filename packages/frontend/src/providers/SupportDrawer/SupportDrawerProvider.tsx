@@ -26,7 +26,7 @@ export const SupportDrawerProvider = ({
             <Drawer
                 opened={opened}
                 onClose={closeSupportDrawer}
-                title="Share with Lightdash"
+                title="Share with Lightdash Support"
                 position="right"
                 size="md"
                 zIndex={1000}
