@@ -8037,7 +8037,22 @@
             "SchedulerLog": {
                 "properties": {
                     "details": {
-                        "$ref": "#/components/schemas/Record_string.AnyType_"
+                        "properties": {
+                            "createdByUserUuid": {
+                                "type": "string"
+                            },
+                            "organizationUuid": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
+                        "required": ["createdByUserUuid", "organizationUuid"],
+                        "type": "object"
                     },
                     "targetType": {
                         "type": "string",
@@ -8071,6 +8086,7 @@
                     }
                 },
                 "required": [
+                    "details",
                     "status",
                     "createdAt",
                     "scheduledTime",
@@ -14938,6 +14954,53 @@
                 "enum": ["ready"],
                 "type": "string"
             },
+            "ReadyQueryResultsPage": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
+                    },
+                    {
+                        "properties": {
+                            "status": {
+                                "$ref": "#/components/schemas/QueryHistoryStatus.READY"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            },
+                            "resultsPageExecutionMs": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "initialQueryExecutionMs": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "rows": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ResultRow"
+                                },
+                                "type": "array"
+                            },
+                            "queryUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "status",
+                            "metricQuery",
+                            "resultsPageExecutionMs",
+                            "initialQueryExecutionMs",
+                            "fields",
+                            "rows",
+                            "queryUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
             "QueryHistoryStatus.PENDING": {
                 "enum": ["pending"],
                 "type": "string"
@@ -14953,51 +15016,7 @@
             "ApiGetAsyncQueryResults": {
                 "anyOf": [
                     {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ResultsPaginationMetadata_ResultRow_"
-                            },
-                            {
-                                "properties": {
-                                    "status": {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.READY"
-                                    },
-                                    "metricQuery": {
-                                        "$ref": "#/components/schemas/MetricQuery"
-                                    },
-                                    "resultsPageExecutionMs": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "initialQueryExecutionMs": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "fields": {
-                                        "$ref": "#/components/schemas/ItemsMap"
-                                    },
-                                    "rows": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/ResultRow"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "queryUuid": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "status",
-                                    "metricQuery",
-                                    "resultsPageExecutionMs",
-                                    "initialQueryExecutionMs",
-                                    "fields",
-                                    "rows",
-                                    "queryUuid"
-                                ],
-                                "type": "object"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/ReadyQueryResultsPage"
                     },
                     {
                         "properties": {
@@ -15741,7 +15760,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1548.1",
+        "version": "0.1552.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17500,6 +17519,45 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/SlackAppCustomSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slack/share-support": {
+            "post": {
+                "operationId": "ReportError",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "image": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["image"],
+                                "type": "object"
                             }
                         }
                     }

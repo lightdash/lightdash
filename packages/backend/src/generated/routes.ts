@@ -7269,7 +7269,29 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                details: { ref: 'Record_string.AnyType_' },
+                details: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        createdByUserUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        organizationUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        projectUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                    additionalProperties: { ref: 'AnyType' },
+                    required: true,
+                },
                 targetType: {
                     dataType: 'union',
                     subSchemas: [
@@ -14147,6 +14169,42 @@ const models: TsoaRoute.Models = {
         enums: ['ready'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ReadyQueryResultsPage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ResultsPaginationMetadata_ResultRow_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        status: {
+                            ref: 'QueryHistoryStatus.READY',
+                            required: true,
+                        },
+                        metricQuery: { ref: 'MetricQuery', required: true },
+                        resultsPageExecutionMs: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                        initialQueryExecutionMs: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                        fields: { ref: 'ItemsMap', required: true },
+                        rows: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'ResultRow' },
+                            required: true,
+                        },
+                        queryUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'QueryHistoryStatus.PENDING': {
         dataType: 'refEnum',
         enums: ['pending'],
@@ -14167,46 +14225,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
-                {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'ResultsPaginationMetadata_ResultRow_' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                status: {
-                                    ref: 'QueryHistoryStatus.READY',
-                                    required: true,
-                                },
-                                metricQuery: {
-                                    ref: 'MetricQuery',
-                                    required: true,
-                                },
-                                resultsPageExecutionMs: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                                initialQueryExecutionMs: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                                fields: { ref: 'ItemsMap', required: true },
-                                rows: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'ResultRow',
-                                    },
-                                    required: true,
-                                },
-                                queryUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                },
+                { ref: 'ReadyQueryResultsPage' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -20243,6 +20262,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateCustomSettings',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSlackController_shareSupport: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { image: { dataType: 'string', required: true } },
+        },
+    };
+    app.post(
+        '/api/v1/slack/share-support',
+        ...fetchMiddlewares<RequestHandler>(SlackController),
+        ...fetchMiddlewares<RequestHandler>(
+            SlackController.prototype.shareSupport,
+        ),
+
+        async function SlackController_shareSupport(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSlackController_shareSupport,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<SlackController>(
+                    SlackController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'shareSupport',
                     controller,
                     response,
                     next,

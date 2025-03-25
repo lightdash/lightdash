@@ -1,6 +1,8 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
+import html2canvas from 'html2canvas';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { lightdashApi } from '../../api';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
 import Logo from '../../svgs/logo-icon.svg?react';
@@ -61,6 +63,34 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group sx={{ flexShrink: 0 }}>
                 <Button.Group>
+                    <Button
+                        onClick={async () => {
+                            console.log('button click');
+                            const element = document.querySelector('#root');
+                            console.log('element', element);
+                            if (element)
+                                await html2canvas(element).then(
+                                    async (canvas) => {
+                                        console.log('canvas', canvas);
+
+                                        const base64 =
+                                            canvas.toDataURL('image/png');
+                                        console.log('base64', base64);
+
+                                        await lightdashApi<null>({
+                                            url: `/slack/share-support`,
+                                            method: 'POST',
+                                            body: JSON.stringify({
+                                                image: base64,
+                                            }),
+                                        });
+                                    },
+                                );
+                        }}
+                    >
+                        {' '}
+                        Report{' '}
+                    </Button>
                     <SettingsMenu />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
