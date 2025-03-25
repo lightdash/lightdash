@@ -53,7 +53,12 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 mt="xs"
             />
             {screenshot ? (
-                <Image height={200} src={screenshot} alt="Screenshot" />
+                <Image
+                    height={200}
+                    src={screenshot}
+                    alt="Screenshot"
+                    fit="contain"
+                />
             ) : (
                 <Center>
                     <Loader height={200} w="100%" variant="dots" />
