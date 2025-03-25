@@ -1,11 +1,13 @@
 import { useContext } from 'react';
-import DrawerContext, { type DrawerContextType } from './context';
+import SupportDrawerContext, { type SupportDrawerContextType } from './context';
 
-const useGlobalDrawer = (): DrawerContextType => {
-    const context = useContext(DrawerContext);
+const useSupportDrawer = (): SupportDrawerContextType => {
+    const context = useContext(SupportDrawerContext);
     if (!context)
-        throw new Error('useGlobalDrawer must be used within DrawerProvider');
+        throw new Error(
+            'useSupportDrawer must be used within SupportDrawerProvider',
+        );
     return context;
 };
 
-export default useGlobalDrawer;
+export default useSupportDrawer;
