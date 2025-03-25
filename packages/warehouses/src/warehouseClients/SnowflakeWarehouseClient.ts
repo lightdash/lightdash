@@ -596,11 +596,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         schema: string,
         table: string,
     ) {
-        const sqlText = `SHOW COLUMNS IN TABLE ${table}`;
-        const connection = await this.getConnection({
-            schema,
-            database,
-        });
+        const sqlText = `SHOW COLUMNS IN TABLE ${database}.${schema}.${table}`;
+        const connection = await this.getConnection();
 
         try {
             return await this.executeStatements(connection, sqlText);
