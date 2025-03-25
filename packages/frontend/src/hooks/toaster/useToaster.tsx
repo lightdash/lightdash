@@ -1,5 +1,5 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import {
     IconAlertTriangleFilled,
@@ -141,6 +141,13 @@ const useToaster = () => {
                 bg: 'red',
                 icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
                 autoClose: 60000,
+                subtitle: <Text>Moo</Text>,
+                action: {
+                    label: 'Moo',
+                    onClick: () => {
+                        console.log('Moo');
+                    },
+                },
                 ...props,
             });
         },
