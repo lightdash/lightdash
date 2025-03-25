@@ -29,6 +29,9 @@
         {
             "path": "./packages/sdk-test-app"
         },
+        {
+            "path": "./packages/mcp"
+        }
     ],
     "exclude": [
         "dist",

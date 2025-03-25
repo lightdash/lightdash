@@ -1,0 +1,15 @@
+{
+    "name": "@lightdash/mcp",
+    "version": "0.1.0",
+    "type": "module",
+    "dependencies": {
+        "@ai-sdk/anthropic": "^1.2.1",
+        "hono": "^4.7.5",
+        "opencontrol": "^0.0.16",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@tsconfig/strictest": "^2.0.5",
+        "@types/bun": "^1.2.6"
+    }
+}
