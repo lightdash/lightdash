@@ -16,16 +16,11 @@ import {
     type DashboardFilters,
     type ItemsMap,
     type PivotData,
-    type ResultRow,
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { uniq } from 'lodash';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    type TableColumn,
-    type TableHeader,
-} from '../../components/common/Table/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -34,6 +29,30 @@ import getDataAndColumns from './getDataAndColumns';
 const createWorker = createWorkerFactory(
     () => import('@lightdash/common/src/pivotTable/pivotQueryResults'),
 );
+
+const useWhyDidYouUpdate = (name: string, props: any) => {
+    const previousProps = useRef<any>();
+
+    useEffect(() => {
+        if (previousProps.current) {
+            const changedProps: Record<string, { from: any; to: any }> = {};
+            Object.entries(props).forEach(([key, value]) => {
+                if (previousProps.current[key] !== value) {
+                    changedProps[key] = {
+                        from: previousProps.current[key],
+                        to: value,
+                    };
+                }
+            });
+
+            if (Object.keys(changedProps).length) {
+                console.log('[why-did-you-update]', name, changedProps);
+            }
+        }
+
+        previousProps.current = props;
+    });
+};
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -103,10 +122,10 @@ const useTableConfig = (
     >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
     const selectedItemIds = useMemo(() => {
-        return resultsData
+        return resultsData?.metricQuery
             ? itemsInMetricQuery(resultsData.metricQuery)
             : undefined;
-    }, [resultsData]);
+    }, [resultsData?.metricQuery]);
 
     const getFieldLabelDefault = useCallback(
         (fieldId: string | null | undefined) => {
@@ -227,29 +246,18 @@ const useTableConfig = (
         pivotDimensions,
     });
 
-    const { rows, columns, error } = useMemo<{
-        rows: ResultRow[];
-        columns: Array<TableColumn | TableHeader>;
-        error?: string;
-    }>(() => {
-        if (!resultsData || !selectedItemIds || !itemsMap) {
-            return {
-                rows: [],
-                columns: [],
-            };
+    const columns = useMemo(() => {
+        if (!selectedItemIds || !itemsMap) {
+            return [];
         }
 
         if (pivotDimensions && pivotDimensions.length > 0) {
-            return {
-                rows: [],
-                columns: [],
-            };
+            return [];
         }
 
         return getDataAndColumns({
             itemsMap,
             selectedItemIds,
-            resultsData,
             isColumnVisible,
             showTableNames,
             getFieldLabelOverride,
@@ -263,7 +271,6 @@ const useTableConfig = (
         selectedItemIds,
         pivotDimensions,
         itemsMap,
-        resultsData,
         isColumnVisible,
         showTableNames,
         isColumnFrozen,
@@ -289,11 +296,23 @@ const useTableConfig = (
             !resultsData?.metricQuery ||
             resultsData.rows.length === 0
         ) {
-            setPivotTableData({
-                loading: false,
-                data: undefined,
-                error: undefined,
+            setPivotTableData((prevState) => {
+                // Only update if values are different
+                if (
+                    prevState.loading !== false ||
+                    prevState.data !== undefined ||
+                    prevState.error !== undefined
+                ) {
+                    return {
+                        loading: false,
+                        data: undefined,
+                        error: undefined,
+                    };
+                }
+                // Return previous state if no changes needed
+                return prevState;
             });
+
             return;
         }
 
@@ -493,7 +512,7 @@ const useTableConfig = (
         ],
     );
 
-    return {
+    useWhyDidYouUpdate('useTableConfig', {
         selectedItemIds,
         columnOrder,
         validConfig,
@@ -512,8 +531,6 @@ const useTableConfig = (
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
-        rows,
-        error,
         columns,
         getFieldLabelOverride,
         getFieldLabelDefault,
@@ -523,14 +540,89 @@ const useTableConfig = (
         isColumnFrozen,
         minMaxMap,
         conditionalFormattings,
-        onSetConditionalFormattings: handleSetConditionalFormattings,
+        handleSetConditionalFormattings,
         pivotTableData,
         metricsAsRows,
         setMetricsAsRows,
         isPivotTableEnabled,
         canUseSubtotals,
         groupedSubtotals,
-    };
+    });
+
+    return useMemo(
+        () => ({
+            selectedItemIds,
+            columnOrder,
+            validConfig,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showRowCalculation,
+            setShowRowCalculation,
+            showTableNames,
+            setShowTableNames,
+            hideRowNumbers,
+            setHideRowNumbers,
+            showResultsTotal,
+            setShowResultsTotal,
+            showSubtotals,
+            setShowSubtotals,
+            columnProperties,
+            setColumnProperties,
+            updateColumnProperty,
+            columns,
+            getFieldLabelOverride,
+            getFieldLabelDefault,
+            getFieldLabel,
+            getField,
+            isColumnVisible,
+            isColumnFrozen,
+            minMaxMap,
+            conditionalFormattings,
+            onSetConditionalFormattings: handleSetConditionalFormattings,
+            pivotTableData,
+            metricsAsRows,
+            setMetricsAsRows,
+            isPivotTableEnabled,
+            canUseSubtotals,
+            groupedSubtotals,
+        }),
+        [
+            selectedItemIds,
+            columnOrder,
+            validConfig,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showRowCalculation,
+            setShowRowCalculation,
+            showTableNames,
+            setShowTableNames,
+            hideRowNumbers,
+            setHideRowNumbers,
+            showResultsTotal,
+            setShowResultsTotal,
+            showSubtotals,
+            setShowSubtotals,
+            columnProperties,
+            setColumnProperties,
+            updateColumnProperty,
+            columns,
+            getFieldLabelOverride,
+            getFieldLabelDefault,
+            getFieldLabel,
+            getField,
+            isColumnVisible,
+            isColumnFrozen,
+            minMaxMap,
+            conditionalFormattings,
+            handleSetConditionalFormattings,
+            pivotTableData,
+            metricsAsRows,
+            setMetricsAsRows,
+            isPivotTableEnabled,
+            canUseSubtotals,
+            groupedSubtotals,
+        ],
+    );
 };
 
 export default useTableConfig;
