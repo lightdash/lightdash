@@ -187,6 +187,7 @@ export const UpdateProjectConnection: FC<{
     const { isLoading: isSaving, mutateAsync, isIdle } = updateMutation;
 
     const isDisabled =
+        data?.type === ProjectType.PREVIEW ||
         isSaving ||
         ability.cannot(
             'update',
@@ -239,26 +240,6 @@ export const UpdateProjectConnection: FC<{
         }
     };
 
-    if (data?.type === ProjectType.PREVIEW) {
-        return (
-            <Alert
-                color="orange"
-                icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
-                title="Developer previews are temporary Lightdash projects where settings cannot be changed."
-            >
-                Read docs{' '}
-                <Anchor
-                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    here
-                </Anchor>{' '}
-                to know more.
-            </Alert>
-        );
-    }
-
     return (
         <FormContainer
             name="update_project"
@@ -266,6 +247,25 @@ export const UpdateProjectConnection: FC<{
             onSubmit={onSubmit}
             onError={onError}
         >
+            {data?.type === ProjectType.PREVIEW && (
+                <Alert
+                    color="orange"
+                    icon={
+                        <MantineIcon icon={IconExclamationCircle} size="lg" />
+                    }
+                    title="Developer previews are temporary Lightdash projects where settings cannot be changed."
+                >
+                    Read docs{' '}
+                    <Anchor
+                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        here
+                    </Anchor>{' '}
+                    to know more.
+                </Alert>
+            )}
             <ProjectFormProvider savedProject={data}>
                 <ProjectForm
                     showGeneralSettings

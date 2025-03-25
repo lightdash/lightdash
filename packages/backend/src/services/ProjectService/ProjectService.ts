@@ -37,6 +37,7 @@ import {
     DateGranularity,
     DbtExposure,
     DbtExposureType,
+    DbtProjectEnvironmentVariable,
     DbtProjectType,
     deepEqual,
     DEFAULT_RESULTS_PAGE_SIZE,
@@ -90,6 +91,8 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    maybeOverrideDbtConnection,
+    maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -5532,6 +5535,11 @@ export class ProjectService extends BaseService {
         data: {
             name: string;
             copyContent: boolean;
+            dbtConnectionOverrides?: {
+                branch?: string;
+                environment?: DbtProjectEnvironmentVariable[];
+            };
+            warehouseConnectionOverrides?: { schema?: string };
         },
         context: RequestMethod,
     ): Promise<string> {
@@ -5548,8 +5556,14 @@ export class ProjectService extends BaseService {
         const previewData: CreateProject = {
             name: data.name,
             type: ProjectType.PREVIEW,
-            warehouseConnection: project.warehouseConnection,
-            dbtConnection: project.dbtConnection,
+            warehouseConnection: maybeOverrideWarehouseConnection(
+                project.warehouseConnection,
+                data.warehouseConnectionOverrides ?? {},
+            ),
+            dbtConnection: maybeOverrideDbtConnection(
+                project.dbtConnection,
+                data.dbtConnectionOverrides ?? {},
+            ),
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
             dbtVersion: project.dbtVersion,
         };

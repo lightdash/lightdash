@@ -366,3 +366,39 @@ export const checkFileDoesNotExist = async ({
         throw error;
     }
 };
+
+export const getBranches = async ({
+    owner,
+    repo,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    installationId?: string;
+    token?: string;
+}) => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        console.log(
+            'owner',
+            owner,
+            'repo',
+            repo,
+            'installationId',
+            installationId,
+            'token',
+            token,
+        );
+        const branches = await octokit.paginate(octokit.repos.listBranches, {
+            owner,
+            repo,
+            headers,
+        });
+        return branches;
+    } catch (e) {
+        console.error(e);
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};

@@ -21,6 +21,7 @@ import {
     CreateProjectMember,
     DashboardAsCode,
     DbtExposure,
+    DbtProjectEnvironmentVariable,
     ParameterError,
     RequestMethod,
     UpdateMetadata,
@@ -677,6 +678,11 @@ export class ProjectController extends BaseController {
         body: {
             name: string;
             copyContent: boolean;
+            dbtConnectionOverrides?: {
+                branch?: string;
+                environment?: DbtProjectEnvironmentVariable[];
+            };
+            warehouseConnectionOverrides?: { schema?: string };
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: string }> {
