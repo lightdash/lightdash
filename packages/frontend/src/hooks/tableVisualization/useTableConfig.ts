@@ -20,7 +20,7 @@ import {
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { uniq } from 'lodash';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -29,30 +29,6 @@ import getDataAndColumns from './getDataAndColumns';
 const createWorker = createWorkerFactory(
     () => import('@lightdash/common/src/pivotTable/pivotQueryResults'),
 );
-
-const useWhyDidYouUpdate = (name: string, props: any) => {
-    const previousProps = useRef<any>();
-
-    useEffect(() => {
-        if (previousProps.current) {
-            const changedProps: Record<string, { from: any; to: any }> = {};
-            Object.entries(props).forEach(([key, value]) => {
-                if (previousProps.current[key] !== value) {
-                    changedProps[key] = {
-                        from: previousProps.current[key],
-                        to: value,
-                    };
-                }
-            });
-
-            if (Object.keys(changedProps).length) {
-                console.log('[why-did-you-update]', name, changedProps);
-            }
-        }
-
-        previousProps.current = props;
-    });
-};
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -511,43 +487,6 @@ const useTableConfig = (
             metricsAsRows,
         ],
     );
-
-    useWhyDidYouUpdate('useTableConfig', {
-        selectedItemIds,
-        columnOrder,
-        validConfig,
-        showColumnCalculation,
-        setShowColumnCalculation,
-        showRowCalculation,
-        setShowRowCalculation,
-        showTableNames,
-        setShowTableNames,
-        hideRowNumbers,
-        setHideRowNumbers,
-        showResultsTotal,
-        setShowResultsTotal,
-        showSubtotals,
-        setShowSubtotals,
-        columnProperties,
-        setColumnProperties,
-        updateColumnProperty,
-        columns,
-        getFieldLabelOverride,
-        getFieldLabelDefault,
-        getFieldLabel,
-        getField,
-        isColumnVisible,
-        isColumnFrozen,
-        minMaxMap,
-        conditionalFormattings,
-        handleSetConditionalFormattings,
-        pivotTableData,
-        metricsAsRows,
-        setMetricsAsRows,
-        isPivotTableEnabled,
-        canUseSubtotals,
-        groupedSubtotals,
-    });
 
     return useMemo(
         () => ({
