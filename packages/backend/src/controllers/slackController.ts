@@ -155,16 +155,15 @@ export class SlackController extends BaseController {
                 },
             ],
         };
-        const r = await fetch(
-            'https://hooks.slack.com/services/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',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(blocks),
+
+        const slackUrl = process.env.SLACK_SUPPORT_URL || '';
+        const r = await fetch(slackUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             },
-        );
+            body: JSON.stringify(blocks),
+        });
         console.log('r', r);
     }
 }
