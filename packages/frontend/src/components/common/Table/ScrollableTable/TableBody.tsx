@@ -7,19 +7,19 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
-import { Button, Group } from '@mantine/core';
+import { Button, Center, Group, Loader, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import React, { useMemo, type FC } from 'react';
+import React, { useEffect, useMemo, type FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
+import { SMALL_TEXT_LENGTH } from '../constants';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
 import { countSubRows } from '../utils';
-import { SMALL_TEXT_LENGTH } from './../constants';
 import BodyCell from './BodyCell';
 
 export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
@@ -216,8 +216,15 @@ const TableRow: FC<TableRowProps> = ({
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ tableContainerRef }) => {
-    const { table, cellContextMenu, conditionalFormattings, minMaxMap } =
-        useTableContext();
+    const {
+        table,
+        cellContextMenu,
+        conditionalFormattings,
+        minMaxMap,
+        isInfiniteScrollEnabled,
+        isFetchingRows,
+        fetchMoreRows,
+    } = useTableContext();
     const { rows } = table.getRowModel();
 
     const rowVirtualizer = useVirtualizer({
@@ -226,6 +233,26 @@ const VirtualizedTableBody: FC<{
         estimateSize: (_index) => ROW_HEIGHT_PX,
         overscan: 25,
     });
+
+    useEffect(() => {
+        const scrollElement = rowVirtualizer.scrollElement;
+        // Check if we're near the end of the list
+        const threshold = 100;
+        if (
+            isInfiniteScrollEnabled &&
+            scrollElement &&
+            rowVirtualizer.scrollOffset !== null &&
+            rowVirtualizer.scrollOffset + scrollElement.clientHeight >=
+                scrollElement.scrollHeight - threshold
+        ) {
+            fetchMoreRows();
+        }
+    }, [
+        rowVirtualizer.scrollOffset,
+        fetchMoreRows,
+        isInfiniteScrollEnabled,
+        rowVirtualizer.scrollElement,
+    ]);
 
     const virtualRows = rowVirtualizer.getVirtualItems();
     const paddingTop =
@@ -243,6 +270,29 @@ const VirtualizedTableBody: FC<{
                 <VirtualizedArea cellCount={cellsCount} padding={paddingTop} />
             )}
             {virtualRows.map(({ index }) => {
+                // If this is the last row and we're loading, show the loader
+                if (
+                    index + 1 === rows.length &&
+                    isInfiniteScrollEnabled &&
+                    isFetchingRows
+                ) {
+                    return (
+                        <tr key={index}>
+                            <td colSpan={table.getVisibleFlatColumns().length}>
+                                <Center>
+                                    <Tooltip
+                                        withinPortal
+                                        position="top"
+                                        label={`Loading more rows...`}
+                                    >
+                                        <Loader size="xs" color="gray" />
+                                    </Tooltip>
+                                </Center>
+                            </td>
+                        </tr>
+                    );
+                }
+
                 return (
                     <TableRow
                         key={index}

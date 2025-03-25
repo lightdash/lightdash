@@ -141,6 +141,7 @@ export const ExplorerResults = memo(() => {
     const pagination = useMemo(
         () => ({
             show: true,
+            showResultsTotal: true,
         }),
         [],
     );

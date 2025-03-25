@@ -19,12 +19,10 @@ import {
     type TableHeader,
 } from '../../components/common/Table/types';
 import { getFormattedValueCell } from '../useColumns';
-import { type InfiniteQueryResults } from '../useQueryResults';
 
 type Args = {
     itemsMap: ItemsMap;
     selectedItemIds: string[];
-    resultsData: InfiniteQueryResults;
     isColumnVisible: (key: string) => boolean;
     isColumnFrozen: (key: string) => boolean;
     showTableNames: boolean;
@@ -78,7 +76,6 @@ export function getSubtotalValueFromGroup(
 const getDataAndColumns = ({
     itemsMap,
     selectedItemIds,
-    resultsData,
     isColumnVisible,
     isColumnFrozen,
     showTableNames,
@@ -86,12 +83,8 @@ const getDataAndColumns = ({
     columnOrder,
     totals,
     groupedSubtotals,
-}: Args): {
-    rows: ResultRow[];
-    columns: Array<TableHeader | TableColumn>;
-    error?: string;
-} => {
-    const columns = selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
+}: Args): Array<TableHeader | TableColumn> => {
+    return selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
             const item = itemsMap[itemId] as
                 | typeof itemsMap[number]
@@ -210,10 +203,6 @@ const getDataAndColumns = ({
         },
         [],
     );
-    return {
-        rows: resultsData.rows,
-        columns,
-    };
 };
 
 export default getDataAndColumns;
