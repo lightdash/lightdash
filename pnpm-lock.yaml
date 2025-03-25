@@ -729,6 +729,9 @@ importers:
       '@mantine/hooks':
         specifier: ^6.0.21
         version: 6.0.21(react@19.0.0)
+      '@mantine/modals':
+        specifier: ^6.0.21
+        version: 6.0.22(@mantine/core@6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@mantine/notifications':
         specifier: ^6.0.20
         version: 6.0.21(@mantine/core@6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -2617,6 +2620,14 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
 
+  '@mantine/modals@6.0.22':
+    resolution: {integrity: sha512-1k4bc6eFBGwKLaySXqAFCxyAHKv+p5bOh06RaYx9S9KyospR61M8Nw6BE3q7CdQRH2MQp8vgVue+h6y7pcWFFQ==}
+    peerDependencies:
+      '@mantine/core': 6.0.22
+      '@mantine/hooks': 6.0.22
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   '@mantine/notifications@6.0.21':
     resolution: {integrity: sha512-qsrqxuJHK8b67sf9Pfk+xyhvpf9jMsivW8vchfnJfjv7yz1lLvezjytMFp4fMDoYhjHnDPOEc/YFockK4muhOw==}
     peerDependencies:
@@ -2652,6 +2663,11 @@ packages:
 
   '@mantine/utils@6.0.21':
     resolution: {integrity: sha512-33RVDRop5jiWFao3HKd3Yp7A9mEq4HAJxJPTuYm1NkdqX6aTKOQK7wT8v8itVodBp+sb4cJK6ZVdD1UurK/txQ==}
+    peerDependencies:
+      react: '>=16.8.0'
+
+  '@mantine/utils@6.0.22':
+    resolution: {integrity: sha512-RSKlNZvxhMCkOFZ6slbYvZYbWjHUM+PxDQnupIOxIdsTZQQjx/BFfrfJ7kQFOP+g7MtpOds8weAetEs5obwMOQ==}
     peerDependencies:
       react: '>=16.8.0'
 
@@ -15149,7 +15165,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -15221,6 +15237,14 @@ snapshots:
     dependencies:
       react: 19.0.0
 
+  '@mantine/modals@6.0.22(@mantine/core@6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      '@mantine/core': 6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@mantine/hooks': 6.0.21(react@19.0.0)
+      '@mantine/utils': 6.0.22(react@19.0.0)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+
   '@mantine/notifications@6.0.21(@mantine/core@6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@mantine/core': 6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -15258,6 +15282,10 @@ snapshots:
       react: 19.0.0
 
   '@mantine/utils@6.0.21(react@19.0.0)':
+    dependencies:
+      react: 19.0.0
+
+  '@mantine/utils@6.0.22(react@19.0.0)':
     dependencies:
       react: 19.0.0
 
@@ -18242,7 +18270,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -18259,7 +18287,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -19833,7 +19861,7 @@ snapshots:
       '@actions/core': 1.11.1
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
       fast-shuffle: 6.1.0
       find-cypress-specs: 1.43.4(@babel/core@7.26.0)
       globby: 11.1.0
@@ -19992,7 +20020,7 @@ snapshots:
       chalk: 2.4.2
       commander: 2.20.3
       core-js: 3.38.0
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
       fast-json-patch: 3.1.1
       get-stdin: 6.0.0
       http-proxy-agent: 5.0.0
@@ -21243,7 +21271,7 @@ snapshots:
       '@actions/core': 1.11.1
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
       find-test-names: 1.28.18(@babel/core@7.26.0)
       globby: 11.1.0
       minimatch: 3.1.2
@@ -24175,7 +24203,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -26138,7 +26166,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 

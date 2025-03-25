@@ -1,3 +1,4 @@
+import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
@@ -15,7 +16,6 @@ import AppProvider from './providers/App/AppProvider';
 import FullscreenProvider from './providers/Fullscreen/FullscreenProvider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
-import { SupportDrawerProvider } from './providers/SupportDrawer/SupportDrawerProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
@@ -69,9 +69,9 @@ const App = () => (
 
         <ReactQueryProvider>
             <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>
-                <SupportDrawerProvider>
+                <ModalsProvider>
                     <RouterProvider router={router} />
-                </SupportDrawerProvider>
+                </ModalsProvider>
             </MantineProvider>
             <ReactQueryDevtools initialIsOpen={false} />
         </ReactQueryProvider>

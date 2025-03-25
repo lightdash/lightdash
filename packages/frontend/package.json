@@ -56,6 +56,7 @@
         "@mantine/prism": "^6.0.21",
         "@mantine/tiptap": "6.0.21",
         "@mantine/utils": "6.0.21",
+        "@mantine/modals": "^6.0.21",
         "@monaco-editor/react": "^4.6.0",
         "@popsql/monaco-sql-languages": "^0.2.0",
         "@reduxjs/toolkit": "^2.2.6",
