@@ -1,3 +1,17 @@
+## [0.1552.4](https://github.com/lightdash/lightdash/compare/0.1552.3...0.1552.4) (2025-03-25)
+
+
+### Bug Fixes
+
+* snowflake private key swap ([#14181](https://github.com/lightdash/lightdash/issues/14181)) ([6bd45c7](https://github.com/lightdash/lightdash/commit/6bd45c7ecac4e98e9aaf146e93896dc96534b380))
+
+## [0.1552.3](https://github.com/lightdash/lightdash/compare/0.1552.2...0.1552.3) (2025-03-25)
+
+
+### Bug Fixes
+
+* support ENCRYPTED PRIVATE KEY format in profiles.yml ([#14168](https://github.com/lightdash/lightdash/issues/14168)) ([f2fa64c](https://github.com/lightdash/lightdash/commit/f2fa64cad1f5ec8e4486ffc663f1e39f5fc4bac8))
+
 ## [0.1552.2](https://github.com/lightdash/lightdash/compare/0.1552.1...0.1552.2) (2025-03-24)
 
 
