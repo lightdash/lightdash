@@ -129,6 +129,7 @@ export class SlackController extends BaseController {
             : undefined;
 
         const googleLogsUrl = 'https://console.cloud.google.com/logs/query';
+        const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
         const blocks = {
             channel: '#test-slackbot-3',
             text: `New error report from: *${user?.firstName} ${user?.lastName} - ${organization.name}*`,
@@ -162,7 +163,7 @@ export class SlackController extends BaseController {
 *URL:* <${headers.referer}|${headers.origin}>
 *Sentry trace ID:* <https://lightdash.sentry.io/traces/trace/${headers['sentry-trace']}|View trace> 
 *User agent:* ${headers['user-agent']}
-*Project ID:* ${project?.projectUuid}
+*Project ID:* <${analyticsUrl}|${project?.projectUuid}>
 *Project name:* ${project?.name}
 *Google logs:* <${googleLogsUrl}|View logs>`,
                         },
@@ -192,6 +193,10 @@ export class SlackController extends BaseController {
             body: JSON.stringify(blocks),
         });
         console.log('r', r);
-        console.log('r', await r.json());
+        if (r.status !== 200) {
+            console.error('Error sending slack message', await r.text());
+        } else {
+            console.log('Success sending slack message');
+        }
     }
 }
