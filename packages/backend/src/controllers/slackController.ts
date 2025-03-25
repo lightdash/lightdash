@@ -3,6 +3,7 @@ import {
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
     ForbiddenError,
+    SessionUser,
     SlackAppCustomSettings,
 } from '@lightdash/common';
 import {
@@ -101,7 +102,7 @@ export class SlackController extends BaseController {
     @OperationId('ReportError')
     async shareSupport(
         @Request() req: express.Request,
-        @Body() body: { image: string },
+        @Body() body: { image: string; description?: string },
     ): Promise<void> {
         this.setStatus(200);
         const base64Data = body.image.replace(/^data:image\/\w+;base64,/, '');
@@ -111,50 +112,76 @@ export class SlackController extends BaseController {
             .getS3Client()
             .uploadImage(buffer, nanoid());
         console.log('image uploaded', imageUrl);
+
+        const user = req.user as SessionUser;
+        const { headers } = req;
+        const organization = await this.services
+            .getOrganizationService()
+            .get(user);
+        // Extract /project/<uuid> from referer
+        const projectUuid = headers.referer
+            ?.split('/projects/')[1]
+            ?.split('/')[0];
+        const project = projectUuid
+            ? await this.services
+                  .getProjectService()
+                  .getProject(projectUuid, user)
+            : undefined;
+
+        const googleLogsUrl = 'https://console.cloud.google.com/logs/query';
         const blocks = {
-            // "channel": "#test-slackbot-3",
-            text: `${req.user?.firstName} ${req.user?.lastName} Shared an error`,
+            channel: '#test-slackbot-3',
+            text: `New error report from: *${user?.firstName} ${user?.lastName} - ${organization.name}*`,
             blocks: [
-                /* {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": `${JSON.stringify(req.headers)}`
-                    }
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `New error report from: *${user?.firstName} ${user?.lastName} - ${organization.name}*`,
+                    },
                 },
                 {
-                    "type": "section",
-                    "block_id": "section567",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "Error screenshot"
-                    },
-                    "accessory": {
-                        "type": "image",
-                        "image_url": imageUrl,
-                        "alt_text": "error screenshot"
-                    }
-                }, */
-                {
-                    type: 'image',
-                    title: {
-                        type: 'plain_text',
-                        text: 'Screenshot',
-                    },
-                    block_id: 'image4',
-                    image_url: imageUrl,
-                    alt_text: 'Error report.',
+                    type: 'divider',
                 },
                 {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        // "text": `${JSON.stringify(req.headers)}`
-                        text: `${req.user?.firstName} ${req.user?.lastName} Shared an error`,
+                        text: `*Description:* ${body.description}`,
                     },
+                },
+                {
+                    type: 'section',
+                    fields: [
+                        {
+                            type: 'mrkdwn',
+                            text: `*User ID:* ${user.userUuid}
+*Organization role:* ${user.role}
+*Organization ID:* ${organization.organizationUuid} 
+*Lightdash version:* ${headers['lightdash-version']}
+*URL:* <${headers.referer}|${headers.origin}>
+*Sentry trace ID:* <https://lightdash.sentry.io/traces/trace/${headers['sentry-trace']}|View trace> 
+*User agent:* ${headers['user-agent']}
+*Project ID:* ${project?.projectUuid}
+*Project name:* ${project?.name}
+*Google logs:* <${googleLogsUrl}|View logs>`,
+                        },
+                    ],
+                },
+                {
+                    type: 'image',
+                    title: {
+                        type: 'plain_text',
+                        text: 'Screenshot',
+                        emoji: false,
+                    },
+                    image_url: imageUrl,
+                    alt_text: 'screenshot',
                 },
             ],
         };
+
+        console.log('blocks', JSON.stringify(blocks, null, 2));
 
         const slackUrl = process.env.SLACK_SUPPORT_URL || '';
         const r = await fetch(slackUrl, {
@@ -165,5 +192,6 @@ export class SlackController extends BaseController {
             body: JSON.stringify(blocks),
         });
         console.log('r', r);
+        console.log('r', await r.json());
     }
 }
