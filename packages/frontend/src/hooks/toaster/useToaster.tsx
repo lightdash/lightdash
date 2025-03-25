@@ -5,12 +5,14 @@ import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
     IconInfoCircleFilled,
+    IconSos,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
+import useGlobalDrawer from '../../providers/SupportDrawer/useSupportDrawer';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import { type NotificationData } from './types';
@@ -18,6 +20,7 @@ import { type NotificationData } from './types';
 const useToaster = () => {
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
+    const { openDrawer } = useGlobalDrawer();
 
     const showToast = useCallback(
         ({
@@ -96,6 +99,20 @@ const useToaster = () => {
                                     }}
                                 />
                             )}
+                            <Button
+                                size="xs"
+                                variant="light"
+                                color={toastColor}
+                                leftIcon={<IconSos />}
+                                style={{
+                                    alignSelf: 'flex-end',
+                                }}
+                                onClick={() => {
+                                    openDrawer(<Text>Meow</Text>);
+                                }}
+                            >
+                                Share with support
+                            </Button>
                         </Stack>
                     ) : undefined,
                 onClose: (props: NotificationProps) => {
@@ -119,7 +136,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [],
+        [openDrawer],
     );
 
     const showToastSuccess = useCallback(
@@ -142,12 +159,6 @@ const useToaster = () => {
                 icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
                 autoClose: 60000,
                 subtitle: <Text>Moo</Text>,
-                action: {
-                    label: 'Moo',
-                    onClick: () => {
-                        console.log('Moo');
-                    },
-                },
                 ...props,
             });
         },
