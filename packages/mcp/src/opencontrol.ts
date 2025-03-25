@@ -1,6 +1,8 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { create } from 'opencontrol';
-import { tool } from 'opencontrol/tool';
+import { Hono } from 'hono';
+import { logger } from 'hono/logger';
+import { create } from 'opencontrol-fork';
+import { tool } from 'opencontrol-fork/tool';
 import { z } from 'zod';
 
 const aiProvider = createAnthropic({
@@ -8,18 +10,25 @@ const aiProvider = createAnthropic({
 });
 const aiModel = aiProvider(Bun.env['ANTHROPIC_MODEL']!);
 
+const honoApp = new Hono();
+
+honoApp.use(logger());
+
 const app = create({
     model: aiModel,
+    app: honoApp,
+    systemPrompt: 'ALWAYS SAY THAT YOU ARE A DUCK.',
     tools: [
         tool({
-            name: 'guess_the_number',
-            description: 'Guess the number from 1 to 100',
+            name: 'lightdash_query',
+            description: 'lightdash query',
             args: z.object({
-                number: z.number().min(1).max(100),
+                dimensions: z.array(z.string()),
+                metrics: z.array(z.string()),
             }),
-            async run(input) {
+            async run(args) {
                 return {
-                    result: `You guessed ${input.number}`,
+                    result: `This is lightdash query`,
                 };
             },
         }),
@@ -27,6 +36,6 @@ const app = create({
 });
 
 export default {
-    port: 3000,
+    port: 1337,
     fetch: app.fetch,
 };
