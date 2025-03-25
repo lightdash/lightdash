@@ -56,13 +56,20 @@ const SnowflakeForm: FC<{
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
     );
+
+    console.log('savedproject', savedProject);
+    const hasPrivateKey =
+        savedProject !== undefined
+            ? savedProject?.warehouseConnection?.type ===
+                  WarehouseTypes.SNOWFLAKE &&
+              savedProject?.warehouseConnection?.authenticationType ===
+                  'private_key'
+            : true;
+
+    console.log('hasPrivateKey');
     const authenticationType: string = useWatch({
         name: 'warehouse.authenticationType',
-        defaultValue:
-            (savedProject?.warehouseConnection?.type ===
-                WarehouseTypes.SNOWFLAKE &&
-                savedProject?.warehouseConnection?.authenticationType) ||
-            'private_key',
+        defaultValue: hasPrivateKey ? 'private_key' : 'password',
     });
     const [temporaryFile, setTemporaryFile] = useState<File>();
 
@@ -99,7 +106,7 @@ const SnowflakeForm: FC<{
                 />
                 <Controller
                     name="warehouse.authenticationType"
-                    defaultValue="private_key"
+                    defaultValue={hasPrivateKey ? 'private_key' : 'password'}
                     render={({ field }) => (
                         <Select
                             name={field.name}
