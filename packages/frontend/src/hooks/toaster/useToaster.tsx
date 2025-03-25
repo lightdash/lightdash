@@ -12,7 +12,7 @@ import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
-import useGlobalDrawer from '../../providers/SupportDrawer/useSupportDrawer';
+import useSupportDrawer from '../../providers/SupportDrawer/useSupportDrawer';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import { type NotificationData } from './types';
@@ -20,7 +20,7 @@ import { type NotificationData } from './types';
 const useToaster = () => {
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
-    const { openDrawer } = useGlobalDrawer();
+    const { openSupportDrawer } = useSupportDrawer();
 
     const showToast = useCallback(
         ({
@@ -108,7 +108,7 @@ const useToaster = () => {
                                     alignSelf: 'flex-end',
                                 }}
                                 onClick={() => {
-                                    openDrawer(<Text>Meow</Text>);
+                                    openSupportDrawer();
                                 }}
                             >
                                 Share with support
@@ -136,7 +136,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [openDrawer],
+        [openSupportDrawer],
     );
 
     const showToastSuccess = useCallback(

@@ -1,10 +1,9 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
-import html2canvas from 'html2canvas';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { lightdashApi } from '../../api';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
+import useSupportDrawer from '../../providers/SupportDrawer/useSupportDrawer';
 import Logo from '../../svgs/logo-icon.svg?react';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
@@ -32,6 +31,8 @@ export const MainNavBarContent: FC<Props> = ({
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid: activeProjectUuid,
     });
+
+    const { openSupportDrawer } = useSupportDrawer();
 
     return (
         <>
@@ -65,27 +66,7 @@ export const MainNavBarContent: FC<Props> = ({
                 <Button.Group>
                     <Button
                         onClick={async () => {
-                            console.log('button click');
-                            const element = document.querySelector('#root');
-                            console.log('element', element);
-                            if (element)
-                                await html2canvas(element).then(
-                                    async (canvas) => {
-                                        console.log('canvas', canvas);
-
-                                        const base64 =
-                                            canvas.toDataURL('image/png');
-                                        console.log('base64', base64);
-
-                                        await lightdashApi<null>({
-                                            url: `/slack/share-support`,
-                                            method: 'POST',
-                                            body: JSON.stringify({
-                                                image: base64,
-                                            }),
-                                        });
-                                    },
-                                );
+                            openSupportDrawer();
                         }}
                     >
                         {' '}

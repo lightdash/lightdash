@@ -1,38 +1,37 @@
 import { Drawer } from '@mantine/core';
 import React, { useState } from 'react';
+import SupportDrawerContent from './SupportDrawerContent';
 import DrawerContext from './context';
 
-export const DrawerProvider = ({ children }: { children: React.ReactNode }) => {
+export const SupportDrawerProvider = ({
+    children,
+}: {
+    children: React.ReactNode;
+}) => {
     const [opened, setOpened] = useState(false);
-    const [content, setContent] = useState<React.ReactNode>(null);
-    const [title, setTitle] = useState<string | undefined>(undefined);
 
-    const openDrawer = (
-        drawerContent: React.ReactNode,
-        drawerTitle?: string,
-    ) => {
-        setContent(drawerContent);
-        setTitle(drawerTitle);
+    const openSupportDrawer = () => {
         setOpened(true);
     };
 
-    const closeDrawer = () => {
+    const closeSupportDrawer = () => {
         setOpened(false);
-        setContent(null);
-        setTitle(undefined);
     };
 
     return (
-        <DrawerContext.Provider value={{ openDrawer, closeDrawer }}>
+        <DrawerContext.Provider
+            value={{ openSupportDrawer, closeSupportDrawer }}
+        >
             {children}
             <Drawer
                 opened={opened}
-                onClose={closeDrawer}
-                title={title}
+                onClose={closeSupportDrawer}
+                title="Share with Lightdash"
                 position="right"
                 size="md"
+                zIndex={1000}
             >
-                {content}
+                <SupportDrawerContent />
             </Drawer>
         </DrawerContext.Provider>
     );

@@ -1,10 +1,12 @@
 import { createContext } from 'react';
 
-export interface DrawerContextType {
-    openDrawer: (content: React.ReactNode, title?: string) => void;
-    closeDrawer: () => void;
+export interface SupportDrawerContextType {
+    openSupportDrawer: () => void;
+    closeSupportDrawer: () => void;
 }
 
-const DrawerContext = createContext<DrawerContextType | null>(null);
+const SupportDrawerContext = createContext<SupportDrawerContextType | null>(
+    null,
+);
 
-export default DrawerContext;
+export default SupportDrawerContext;
