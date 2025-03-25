@@ -57,7 +57,6 @@ const SnowflakeForm: FC<{
         FeatureFlags.PassthroughLogin,
     );
 
-    console.log('savedproject', savedProject);
     const hasPrivateKey =
         savedProject !== undefined
             ? savedProject?.warehouseConnection?.type ===
@@ -66,7 +65,6 @@ const SnowflakeForm: FC<{
                   'private_key'
             : true;
 
-    console.log('hasPrivateKey');
     const authenticationType: string = useWatch({
         name: 'warehouse.authenticationType',
         defaultValue: hasPrivateKey ? 'private_key' : 'password',
