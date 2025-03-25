@@ -77,4 +77,6 @@ export type ProviderProps = {
 
 export type TableContext = ProviderProps & {
     table: Table<ResultRow>;
+    isInfiniteScrollEnabled: boolean;
+    setIsInfiniteScrollEnabled: (value: boolean) => void;
 };

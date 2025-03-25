@@ -2,7 +2,7 @@ import { SegmentedControl, Text } from '@mantine/core';
 import { type FC } from 'react';
 import PaginateControl from '../../PaginateControl';
 import { TableFooter } from '../Table.styles';
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../constants';
+import { DEFAULT_PAGE_SIZE } from '../constants';
 import { useTableContext } from '../useTableContext';
 
 interface ResultCountProps {
@@ -16,7 +16,14 @@ export const ResultCount: FC<ResultCountProps> = ({ count }) => (
 );
 
 const TablePagination: FC = () => {
-    const { table, data, pagination } = useTableContext();
+    const {
+        table,
+        data,
+        pagination,
+        totalRowsCount,
+        isInfiniteScrollEnabled,
+        setIsInfiniteScrollEnabled,
+    } = useTableContext();
 
     return (
         <TableFooter>
@@ -26,23 +33,14 @@ const TablePagination: FC = () => {
                         { label: 'Pages', value: 'pages' },
                         { label: 'Scroll', value: 'scroll' },
                     ]}
-                    value={
-                        table.getState().pagination.pageSize ===
-                        DEFAULT_PAGE_SIZE
-                            ? 'pages'
-                            : 'scroll'
-                    }
+                    value={isInfiniteScrollEnabled ? 'scroll' : 'pages'}
                     onChange={(value) => {
-                        table.setPageSize(
-                            value === 'pages'
-                                ? DEFAULT_PAGE_SIZE
-                                : MAX_PAGE_SIZE,
-                        );
+                        setIsInfiniteScrollEnabled(value === 'scroll');
                     }}
                 />
             )}
 
-            {table.getPageCount() > 1 ? (
+            {!isInfiniteScrollEnabled && table.getPageCount() > 1 ? (
                 <PaginateControl
                     currentPage={table.getState().pagination.pageIndex + 1}
                     totalPages={table.getPageCount()}
@@ -52,9 +50,7 @@ const TablePagination: FC = () => {
                     hasNextPage={table.getCanNextPage()}
                 />
             ) : pagination?.showResultsTotal ? (
-                <ResultCount
-                    count={table.getPreGroupedRowModel().rows.length}
-                />
+                <ResultCount count={totalRowsCount} />
             ) : null}
         </TableFooter>
     );
