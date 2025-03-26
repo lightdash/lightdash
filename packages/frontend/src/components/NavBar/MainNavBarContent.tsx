@@ -1,10 +1,8 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
-import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import Logo from '../../svgs/logo-icon.svg?react';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
@@ -63,19 +61,6 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group sx={{ flexShrink: 0 }}>
                 <Button.Group>
-                    <Button
-                        onClick={async () => {
-                            modals.open({
-                                title: 'Share with Lightdash',
-                                size: 'lg',
-                                children: <SupportDrawerContent />,
-                                yOffset: 100,
-                            });
-                        }}
-                    >
-                        {' '}
-                        Report{' '}
-                    </Button>
                     <SettingsMenu />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
