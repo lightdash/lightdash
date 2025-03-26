@@ -4,9 +4,11 @@ import {
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
     ForbiddenError,
+    LightdashPage,
     SessionUser,
     SlackAppCustomSettings,
 } from '@lightdash/common';
+import { parseUrl } from '@sentry/core';
 import {
     Body,
     Get,
@@ -160,6 +162,11 @@ export class SlackController extends BaseController {
                   .getProject(projectUuid, user)
             : undefined;
 
+        const url = headers.referer;
+        const parsedUrl = url
+            ? await this.services.getUnfurlService().parseUrl(url)
+            : undefined;
+        console.log('parsedUrl', parsedUrl);
         console.log('headers', req.headers);
         const googleLogsUrl = 'https://console.cloud.google.com/logs/query';
         const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%22${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
@@ -244,6 +251,51 @@ export class SlackController extends BaseController {
                 image_url: imageUrl,
                 alt_text: 'screenshot',
             } as AnyType);
+        }
+        if (parsedUrl) {
+            switch (parsedUrl.lightdashPage) {
+                case LightdashPage.DASHBOARD:
+                    blocks.blocks.push({
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*Dashboard uuid:* ${parsedUrl.dashboardUuid}`.substring(
+                                0,
+                                3000,
+                            ),
+                        },
+                    });
+                    break;
+                case LightdashPage.CHART:
+                    if (parsedUrl.chartUuid) {
+                        const savedChart = await this.services
+                            .getSavedChartService()
+                            .get(parsedUrl.chartUuid, user);
+                        const chartkBuffer = Buffer.from(
+                            JSON.stringify(savedChart.chartConfig, null, 2),
+                            'utf-8',
+                        );
+                        const chartconfigS3Url = await req.clients
+                            .getS3Client()
+                            .uploadTxt(
+                                chartkBuffer,
+                                `support-chartconfig-${nanoid()}`,
+                            );
+
+                        blocks.blocks.push({
+                            type: 'section',
+                            text: {
+                                type: 'mrkdwn',
+                                text: `*Chart uuid:* ${parsedUrl.chartUuid}
+*Chart name:* ${savedChart.name}
+*Chart config:* <${chartconfigS3Url}|View chart config>`.substring(0, 3000),
+                            },
+                        });
+                    }
+
+                    break;
+                default:
+            }
         }
 
         console.log('blocks', JSON.stringify(blocks, null, 2));
