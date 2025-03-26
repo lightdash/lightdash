@@ -172,13 +172,14 @@ export class SlackController extends BaseController {
         const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%22${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
         const blocks = {
             channel: '#test-slackbot-3',
-            text: `New error report from: *${user?.firstName} ${user?.lastName} - ${organization.name}*`,
+            text: `New error report from: ${user?.firstName} ${user?.lastName} - ${organization.name}`,
             blocks: [
                 {
-                    type: 'section',
+                    type: 'header',
                     text: {
-                        type: 'mrkdwn',
-                        text: `New error report from: *${user?.firstName} ${user?.lastName} - ${organization.name}*`,
+                        type: 'plain_text',
+                        text: `:loudspeaker: New error report from: ${user?.firstName} ${user?.lastName} - ${organization.name}`,
+                        emoji: true,
                     },
                 },
                 {
