@@ -267,7 +267,7 @@ export class SlackController extends BaseController {
                     });
                     break;
                 case LightdashPage.CHART:
-                    if (parsedUrl.chartUuid) {
+                    if (parsedUrl.chartUuid && projectUuid) {
                         const savedChart = await this.services
                             .getSavedChartService()
                             .get(parsedUrl.chartUuid, user);
@@ -275,6 +275,7 @@ export class SlackController extends BaseController {
                             JSON.stringify(savedChart.chartConfig, null, 2),
                             'utf-8',
                         );
+
                         const chartconfigS3Url = await req.clients
                             .getS3Client()
                             .uploadTxt(
@@ -282,13 +283,26 @@ export class SlackController extends BaseController {
                                 `support-chartconfig-${nanoid()}`,
                             );
 
+                        const query = await this.services
+                            .getProjectService()
+                            .compileQuery(
+                                user,
+                                savedChart.metricQuery,
+                                projectUuid,
+                                savedChart.tableName,
+                            );
+                        const queryBuffer = Buffer.from(query.query, 'utf-8');
+                        const sqlS3Url = await req.clients
+                            .getS3Client()
+                            .uploadTxt(queryBuffer, `support-sql-${nanoid()}`);
                         blocks.blocks.push({
                             type: 'section',
                             text: {
                                 type: 'mrkdwn',
                                 text: `*Chart uuid:* ${parsedUrl.chartUuid}
 *Chart name:* ${savedChart.name}
-*Chart config:* <${chartconfigS3Url}|View chart config>`.substring(0, 3000),
+*Chart config:* <${chartconfigS3Url}|View chart config>
+*SQL:* <${sqlS3Url}|View SQL>`.substring(0, 3000),
                             },
                         });
                     }
