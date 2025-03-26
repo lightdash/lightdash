@@ -1,9 +1,10 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
-import useSupportDrawer from '../../providers/SupportDrawer/useSupportDrawer';
+import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import Logo from '../../svgs/logo-icon.svg?react';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
@@ -31,8 +32,6 @@ export const MainNavBarContent: FC<Props> = ({
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid: activeProjectUuid,
     });
-
-    const { openSupportDrawer } = useSupportDrawer();
 
     return (
         <>
@@ -66,7 +65,12 @@ export const MainNavBarContent: FC<Props> = ({
                 <Button.Group>
                     <Button
                         onClick={async () => {
-                            openSupportDrawer();
+                            modals.open({
+                                title: 'Share with Lightdash',
+                                size: 'lg',
+                                children: <SupportDrawerContent />,
+                                yOffset: 100,
+                            });
                         }}
                     >
                         {' '}

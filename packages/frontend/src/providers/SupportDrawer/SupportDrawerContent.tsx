@@ -93,7 +93,6 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
 
     return (
         <Stack spacing="xs">
-            <Text>Share details about your issue with Lightdash support.</Text>
             <Checkbox
                 label="Include this image"
                 checked={includeImage}
@@ -113,10 +112,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 </Center>
             )}
             <Text mt="sm">
-                Do you have and other details you'd like to share? For example:
-                What were you trying to do when the error occurred? Has this
-                error happened before? Is anyone else in your team experiencing
-                the same error?
+                Do you have and other details you'd like to share?
             </Text>
             <Textarea
                 placeholder="Enter more details"
@@ -125,14 +121,14 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 minRows={4}
             />
             <Checkbox
-                label="Allow Lightdash support to investigate on your instance"
+                label="Allow Lightdash support access to your instance"
                 checked={allowAccess}
                 onChange={(event) => setAllowAccess(event.target.checked)}
                 mt="xs"
             />
             <Text size="xs" color="dimmed">
-                By ticking this box, you agree to enable Lightdash Support
-                access to your organization for 12 hours.
+                By ticking this box, you agree to give Lightdash Support access
+                to your organization for 12 hours to investigate this issue.
             </Text>
             <Button
                 mt="xs"

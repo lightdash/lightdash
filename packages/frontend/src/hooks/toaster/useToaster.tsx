@@ -1,5 +1,6 @@
 import type { ApiErrorDetail } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import {
     IconAlertTriangleFilled,
@@ -12,7 +13,7 @@ import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
-import useSupportDrawer from '../../providers/SupportDrawer/useSupportDrawer';
+import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import { type NotificationData } from './types';
@@ -20,7 +21,6 @@ import { type NotificationData } from './types';
 const useToaster = () => {
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
-    const { openSupportDrawer } = useSupportDrawer();
 
     const showToast = useCallback(
         ({
@@ -108,10 +108,15 @@ const useToaster = () => {
                                     alignSelf: 'flex-end',
                                 }}
                                 onClick={() => {
-                                    openSupportDrawer();
+                                    modals.open({
+                                        title: 'Share with Lightdash',
+                                        size: 'lg',
+                                        children: <SupportDrawerContent />,
+                                        yOffset: 100,
+                                    });
                                 }}
                             >
-                                Share with support
+                                Share with Lightdash
                             </Button>
                         </Stack>
                     ) : undefined,
@@ -136,7 +141,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [openSupportDrawer],
+        [],
     );
 
     const showToastSuccess = useCallback(
