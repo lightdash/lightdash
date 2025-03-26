@@ -9,9 +9,11 @@ import {
     Text,
     Textarea,
 } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import html2canvas from 'html2canvas';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { lightdashApi, networkHistory } from '../../api';
+import useToaster from '../../hooks/toaster/useToaster';
 
 type SupportDrawerContentProps = {
     // Add props here
@@ -62,10 +64,9 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     const [allowAccess, setAllowAccess] = useState(true);
 
     const [screenshot, setScreenshot] = useState<string | null>(null);
-
+    const { showToastSuccess } = useToaster();
     useEffect(() => {
         const element = document.querySelector('body');
-        console.log('screenshot element', element);
         if (element)
             void html2canvas(element as HTMLElement).then((canvas) => {
                 const base64 = canvas.toDataURL('image/png');
@@ -74,9 +75,6 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     }, []);
 
     const handleShare = useCallback(async () => {
-        //  console.debug('returned logs', logHistory);
-        // console.debug('returned networkHistory', networkHistory);
-
         const body = JSON.stringify({
             image: includeImage ? screenshot : undefined,
             logs: JSON.stringify(logHistory),
@@ -84,12 +82,18 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
             canImpersonate: allowAccess,
             description: moreDetails,
         });
-        await lightdashApi<null>({
+        void lightdashApi<null>({
             url: `/slack/share-support`,
             method: 'POST',
             body,
+        }).then(() => {
+            showToastSuccess({
+                title: 'Success',
+                subtitle: 'Support request sent successfully',
+            });
         });
-    }, [screenshot, includeImage, moreDetails, allowAccess]);
+        modals.closeAll();
+    }, [includeImage, screenshot, allowAccess, moreDetails, showToastSuccess]);
 
     return (
         <Stack spacing="xs">

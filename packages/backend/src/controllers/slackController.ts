@@ -1,6 +1,7 @@
 import {
     AnyType,
     ApiErrorPayload,
+    ApiShareResponse,
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
     ForbiddenError,
@@ -113,7 +114,7 @@ export class SlackController extends BaseController {
             logs: AnyType[];
             network: AnyType[];
         },
-    ): Promise<void> {
+    ): Promise<{ status: 'ok' }> {
         this.setStatus(200);
 
         let imageUrl: string | undefined;
@@ -328,5 +329,8 @@ export class SlackController extends BaseController {
         } else {
             console.log('Success sending slack message');
         }
+        return {
+            status: 'ok',
+        };
     }
 }
