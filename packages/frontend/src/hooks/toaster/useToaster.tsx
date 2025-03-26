@@ -109,10 +109,12 @@ const useToaster = () => {
                                 }}
                                 onClick={() => {
                                     modals.open({
+                                        id: 'support-drawer',
                                         title: 'Share with Lightdash',
                                         size: 'lg',
                                         children: <SupportDrawerContent />,
                                         yOffset: 100,
+                                        zIndex: 1000,
                                     });
                                 }}
                             >

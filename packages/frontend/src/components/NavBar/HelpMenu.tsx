@@ -85,10 +85,12 @@ const HelpMenu: FC = () => {
                     component="a"
                     onClick={() => {
                         modals.open({
+                            id: 'support-drawer',
                             title: 'Share with Lightdash',
                             size: 'lg',
                             children: <SupportDrawerContent />,
                             yOffset: 100,
+                            zIndex: 1000,
                         });
                     }}
                     title="Report an issue to Lightdash Support"
