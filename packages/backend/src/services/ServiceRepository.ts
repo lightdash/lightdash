@@ -461,6 +461,7 @@ export class ServiceRepository
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

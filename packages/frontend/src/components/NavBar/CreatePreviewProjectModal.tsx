@@ -399,6 +399,15 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 </Tooltip>
                             }
                         />
+                        {/*<TextInput*/}
+                        {/*    label="Branch"*/}
+                        {/*    placeholder="Enter branch name"*/}
+                        {/*    value={selectedBranch}*/}
+                        {/*    disabled={isPreviewCreating}*/}
+                        {/*    onChange={(e) => {*/}
+                        {/*        setSelectedBranch(e.currentTarget.value);*/}
+                        {/*    }}*/}
+                        {/*/>*/}
                         {/* check if project dbt connection type has branch */}
                         <Select
                             withinPortal

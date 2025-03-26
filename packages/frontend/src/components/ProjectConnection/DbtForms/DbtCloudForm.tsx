@@ -1,8 +1,9 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Alert, Anchor, MultiSelect, Stack } from '@mantine/core';
+import { Alert, Anchor, MultiSelect, Stack, TextInput } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import { Controller } from 'react-hook-form';
+import useApp from '../../../providers/App/useApp';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import MantineIcon from '../../common/MantineIcon';
 import Input from '../../ReactHookForm/Input';
@@ -11,6 +12,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
 
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { health } = useApp();
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE;
@@ -78,6 +80,13 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 }}
                 disabled={disabled}
             />
+            {savedProject?.projectUuid && (
+                <TextInput
+                    label="Webhook for dbt"
+                    value={`${health?.data?.siteUrl}/api/v1/projects/${savedProject?.projectUuid}/dbt-cloud/webhook`}
+                    readOnly
+                />
+            )}
             <Input
                 name="dbt.discovery_api_endpoint"
                 label="Discovery API endpoint"
