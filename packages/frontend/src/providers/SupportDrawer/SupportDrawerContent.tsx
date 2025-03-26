@@ -64,7 +64,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     const [screenshot, setScreenshot] = useState<string | null>(null);
 
     useEffect(() => {
-        const element = document.querySelector('#root');
+        const element = document.querySelector('body');
         console.log('screenshot element', element);
         if (element)
             void html2canvas(element as HTMLElement).then((canvas) => {
@@ -74,8 +74,8 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     }, []);
 
     const handleShare = useCallback(async () => {
-        console.debug('returned logs', logHistory);
-        console.debug('returned networkHistory', networkHistory);
+        //  console.debug('returned logs', logHistory);
+        // console.debug('returned networkHistory', networkHistory);
 
         const body = JSON.stringify({
             image: includeImage ? screenshot : undefined,

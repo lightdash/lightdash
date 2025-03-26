@@ -124,7 +124,7 @@ export class SlackController extends BaseController {
 
             imageUrl = await req.clients
                 .getS3Client()
-                .uploadImage(buffer, nanoid());
+                .uploadImage(buffer, `support-screenshot-${nanoid()}`);
             console.log('image uploaded', imageUrl);
         }
 
@@ -133,7 +133,7 @@ export class SlackController extends BaseController {
             const logsBuffer = Buffer.from(body.logs.join('\n'), 'utf-8');
             logsS3Url = await req.clients
                 .getS3Client()
-                .uploadTxt(logsBuffer, nanoid());
+                .uploadTxt(logsBuffer, `support-logs-${nanoid()}`);
             console.log('logs uploaded', logsS3Url);
         }
         let networkS3Url: string | undefined;
@@ -141,7 +141,7 @@ export class SlackController extends BaseController {
             const networkBuffer = Buffer.from(body.network.join('\n'), 'utf-8');
             networkS3Url = await req.clients
                 .getS3Client()
-                .uploadTxt(networkBuffer, nanoid());
+                .uploadTxt(networkBuffer, `support-network-${nanoid()}`);
             console.log('networkS3Url uploaded', networkS3Url);
         }
 
@@ -162,7 +162,7 @@ export class SlackController extends BaseController {
 
         console.log('headers', req.headers);
         const googleLogsUrl = 'https://console.cloud.google.com/logs/query';
-        const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
+        const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%22${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
         const blocks = {
             channel: '#test-slackbot-3',
             text: `New error report from: *${user?.firstName} ${user?.lastName} - ${organization.name}*`,
