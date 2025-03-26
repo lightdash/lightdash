@@ -20284,7 +20284,21 @@ export function RegisterRoutes(app: Router) {
             name: 'body',
             required: true,
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { image: { dataType: 'string', required: true } },
+            nestedProperties: {
+                network: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AnyType' },
+                    required: true,
+                },
+                logs: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AnyType' },
+                    required: true,
+                },
+                canImpersonate: { dataType: 'boolean', required: true },
+                description: { dataType: 'string' },
+                image: { dataType: 'string' },
+            },
         },
     };
     app.post(

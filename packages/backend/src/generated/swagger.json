@@ -17552,11 +17552,33 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "network": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AnyType"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "logs": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AnyType"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "canImpersonate": {
+                                        "type": "boolean"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
                                     "image": {
                                         "type": "string"
                                     }
                                 },
-                                "required": ["image"],
+                                "required": [
+                                    "network",
+                                    "logs",
+                                    "canImpersonate"
+                                ],
                                 "type": "object"
                             }
                         }

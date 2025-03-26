@@ -1,3 +1,4 @@
+import { type AnyType } from '@lightdash/common';
 import {
     Button,
     Center,
@@ -10,11 +11,50 @@ import {
 } from '@mantine/core';
 import html2canvas from 'html2canvas';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { lightdashApi } from '../../api';
+import { lightdashApi, networkHistory } from '../../api';
 
 type SupportDrawerContentProps = {
     // Add props here
 };
+
+let logHistory: AnyType[] = [];
+
+/** This method will capture all the logs, and store it on memory
+ * they will be shared when the user clicks on the share button
+ * We only store the last 50 logs
+ */
+(function () {
+    // const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const originalInfo = console.info;
+
+    function storeAndLog(type: AnyType, args: AnyType) {
+        const message = { type, args, timestamp: new Date().toISOString() };
+        logHistory.push(message);
+        if (logHistory.length > 50) logHistory.shift(); // keep last 50
+    }
+    /*
+  console.log = function(...args) {
+    storeAndLog('log', args);
+    originalLog.apply(console, args);
+  };
+*/
+    console.error = function (...args) {
+        storeAndLog('error', args);
+        originalError.apply(console, args);
+    };
+
+    console.warn = function (...args) {
+        storeAndLog('warn', args);
+        originalWarn.apply(console, args);
+    };
+
+    console.info = function (...args) {
+        storeAndLog('info', args);
+        originalInfo.apply(console, args);
+    };
+})();
 
 const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     const [includeImage, setIncludeImage] = useState(true);
@@ -34,14 +74,22 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     }, []);
 
     const handleShare = useCallback(async () => {
+        console.debug('returned logs', logHistory);
+        console.debug('returned networkHistory', networkHistory);
+
+        const body = JSON.stringify({
+            image: includeImage ? screenshot : undefined,
+            logs: JSON.stringify(logHistory),
+            network: JSON.stringify(networkHistory),
+            canImpersonate: allowAccess,
+            description: moreDetails,
+        });
         await lightdashApi<null>({
             url: `/slack/share-support`,
             method: 'POST',
-            body: JSON.stringify({
-                image: screenshot,
-            }),
+            body,
         });
-    }, [screenshot]);
+    }, [screenshot, includeImage, moreDetails, allowAccess]);
 
     return (
         <Stack spacing="xs">

@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiErrorPayload,
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
@@ -102,16 +103,47 @@ export class SlackController extends BaseController {
     @OperationId('ReportError')
     async shareSupport(
         @Request() req: express.Request,
-        @Body() body: { image: string; description?: string },
+        @Body()
+        body: {
+            image?: string;
+            description?: string;
+            canImpersonate: boolean;
+            logs: AnyType[];
+            network: AnyType[];
+        },
     ): Promise<void> {
         this.setStatus(200);
-        const base64Data = body.image.replace(/^data:image\/\w+;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
 
-        const imageUrl = await req.clients
-            .getS3Client()
-            .uploadImage(buffer, nanoid());
-        console.log('image uploaded', imageUrl);
+        let imageUrl: string | undefined;
+        if (body.image) {
+            const base64Data = body.image.replace(
+                /^data:image\/\w+;base64,/,
+                '',
+            );
+            const buffer = Buffer.from(base64Data, 'base64');
+
+            imageUrl = await req.clients
+                .getS3Client()
+                .uploadImage(buffer, nanoid());
+            console.log('image uploaded', imageUrl);
+        }
+
+        let logsS3Url: string | undefined;
+        if (body.logs && body.logs.length > 0) {
+            const logsBuffer = Buffer.from(body.logs.join('\n'), 'utf-8');
+            logsS3Url = await req.clients
+                .getS3Client()
+                .uploadTxt(logsBuffer, nanoid());
+            console.log('logs uploaded', logsS3Url);
+        }
+        let networkS3Url: string | undefined;
+        if (body.logs && body.logs.length > 0) {
+            const networkBuffer = Buffer.from(body.network.join('\n'), 'utf-8');
+            networkS3Url = await req.clients
+                .getS3Client()
+                .uploadTxt(networkBuffer, nanoid());
+            console.log('networkS3Url uploaded', networkS3Url);
+        }
 
         const user = req.user as SessionUser;
         const { headers } = req;
@@ -128,6 +160,7 @@ export class SlackController extends BaseController {
                   .getProject(projectUuid, user)
             : undefined;
 
+        console.log('headers', req.headers);
         const googleLogsUrl = 'https://console.cloud.google.com/logs/query';
         const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
         const blocks = {
@@ -153,34 +186,65 @@ export class SlackController extends BaseController {
                 },
                 {
                     type: 'section',
-                    fields: [
-                        {
-                            type: 'mrkdwn',
-                            text: `*User ID:* ${user.userUuid}
+                    text: {
+                        type: 'mrkdwn',
+                        text: `*User ID:* ${user.userUuid}
 *Organization role:* ${user.role}
 *Organization ID:* ${organization.organizationUuid} 
 *Lightdash version:* ${headers['lightdash-version']}
-*URL:* <${headers.referer}|${headers.origin}>
-*Sentry trace ID:* <https://lightdash.sentry.io/traces/trace/${headers['sentry-trace']}|View trace> 
+*Sentry trace ID:* <https://lightdash.sentry.io/traces/trace/${
+                            headers['sentry-trace']
+                        }|View trace> 
 *User agent:* ${headers['user-agent']}
 *Project ID:* <${analyticsUrl}|${project?.projectUuid}>
 *Project name:* ${project?.name}
-*Google logs:* <${googleLogsUrl}|View logs>`,
-                        },
-                    ],
+*Host name:* ${process.env.HOSTNAME || 'unknown'}
+*Posthog session:* <https://posthog.com|View replay>
+`.substring(0, 3000),
+                        // *URL:* <${headers.referer}|${headers.origin}>
+                    },
                 },
                 {
-                    type: 'image',
-                    title: {
-                        type: 'plain_text',
-                        text: 'Screenshot',
-                        emoji: false,
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `*Google logs:* <${googleLogsUrl}|View logs>
+*JS logs:* <${logsS3Url}|View logs>
+*Network logs:* <${networkS3Url}|View logs>`.substring(0, 3000),
+                        // *URL:* <${headers.referer}|${headers.origin}>
                     },
-                    image_url: imageUrl,
-                    alt_text: 'screenshot',
+                },
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `*URL:* <${headers.referer}|${headers.origin}>`.substring(
+                            0,
+                            3000,
+                        ),
+                    },
+                },
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `Can impersonate: :white_check_mark:`,
+                    },
                 },
             ],
         };
+
+        if (imageUrl) {
+            blocks.blocks.push({
+                type: 'image',
+                title: {
+                    type: 'plain_text',
+                    text: 'Screenshot',
+                },
+                image_url: imageUrl,
+                alt_text: 'screenshot',
+            } as AnyType);
+        }
 
         console.log('blocks', JSON.stringify(blocks, null, 2));
 
