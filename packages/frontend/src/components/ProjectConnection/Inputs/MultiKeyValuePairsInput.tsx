@@ -7,10 +7,12 @@ import {
     TextInput,
 } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
-import DocumentationHelpButton from '../DocumentationHelpButton';
-import MantineIcon from '../common/MantineIcon';
+import { v4 as uuidv4 } from 'uuid';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
+import MantineIcon from '../../common/MantineIcon';
+import { useFormContext } from '../formContext';
 
 type Props = {
     name: string;
@@ -26,8 +28,21 @@ export const MultiKeyValuePairsInput = ({
     documentationUrl,
     labelHelp,
 }: Props) => {
-    const { control } = useFormContext();
-    const { fields, remove, append } = useFieldArray({ name, control });
+    const form = useFormContext();
+
+    const values: { id: string; key: string; value: string }[] =
+        get(form.values, name) ?? [];
+
+    const addValue = () => {
+        form.insertListItem(name, {
+            id: uuidv4(),
+            key: '',
+            value: '',
+        });
+    };
+    const removeValue = (index: number) => {
+        form.removeListItem(name, index);
+    };
 
     const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
 
@@ -66,22 +81,22 @@ export const MultiKeyValuePairsInput = ({
             description={isLabelInfoOpen && labelHelp}
         >
             <Stack>
-                {fields.map((field, index) => (
-                    <Flex key={field.id} gap="xs" align="center">
+                {values.map((value, index) => (
+                    <Flex key={value.id} gap="xs" align="center">
                         <TextInput
-                            {...control.register(`${name}.${index}.key`)}
+                            {...form.getInputProps(`${name}.${index}.key`)}
                             placeholder="Key"
                             disabled={disabled}
                         />
 
                         <TextInput
-                            {...control.register(`${name}.${index}.value`)}
+                            {...form.getInputProps(`${name}.${index}.value`)}
                             placeholder="Value"
                             disabled={disabled}
                         />
 
                         <ActionIcon
-                            onClick={() => remove(index)}
+                            onClick={() => removeValue(index)}
                             disabled={disabled}
                         >
                             <MantineIcon icon={IconTrash} />
@@ -91,7 +106,7 @@ export const MultiKeyValuePairsInput = ({
 
                 <Button
                     size="sm"
-                    onClick={() => append({ key: '', value: '' })}
+                    onClick={addValue}
                     leftIcon={<MantineIcon icon={IconPlus} />}
                     disabled={disabled}
                 >
