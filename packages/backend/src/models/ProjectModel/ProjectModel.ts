@@ -1756,29 +1756,51 @@ export class ProjectModel {
 
                 if (content.length === 0) return undefined;
 
-                const newContent = await trx(table)
-                    .insert(
-                        content.map((d) => {
-                            const createContent = {
-                                ...d,
-                                saved_queries_version_id:
-                                    chartVersionMapping.find(
-                                        (m) =>
-                                            m.id === d.saved_queries_version_id,
-                                    )?.newId,
-                            };
-                            excludedFields.forEach((fieldId) => {
-                                delete createContent[fieldId];
-                            });
-                            Object.keys(fieldPreprocess).forEach((fieldId) => {
-                                createContent[fieldId] = fieldPreprocess[
-                                    fieldId
-                                ](createContent[fieldId]);
-                            });
-                            return createContent;
-                        }),
-                    )
-                    .returning('*');
+                Logger.debug(
+                    `Copying ${content.length} chart content on ${table} table`,
+                );
+                const batchSize = 1000;
+                const newContent = await content.reduce(
+                    async (accPromise, _, index) => {
+                        const acc = await accPromise;
+                        if (index % batchSize === 0) {
+                            const batch = content.slice(
+                                index,
+                                index + batchSize,
+                            );
+                            const insertedBatch = await trx(table)
+                                .insert(
+                                    batch.map((d) => {
+                                        const createContent = {
+                                            ...d,
+                                            saved_queries_version_id:
+                                                chartVersionMapping.find(
+                                                    (m) =>
+                                                        m.id ===
+                                                        d.saved_queries_version_id,
+                                                )?.newId,
+                                        };
+                                        excludedFields.forEach((fieldId) => {
+                                            delete createContent[fieldId];
+                                        });
+                                        Object.keys(fieldPreprocess).forEach(
+                                            (fieldId) => {
+                                                createContent[fieldId] =
+                                                    fieldPreprocess[fieldId](
+                                                        createContent[fieldId],
+                                                    );
+                                            },
+                                        );
+                                        return createContent;
+                                    }),
+                                )
+                                .returning('*');
+                            acc.push(...insertedBatch);
+                        }
+                        return acc;
+                    },
+                    Promise.resolve([]),
+                );
 
                 return newContent;
             };
