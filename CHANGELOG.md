@@ -1,3 +1,10 @@
+## [0.1552.9](https://github.com/lightdash/lightdash/compare/0.1552.8...0.1552.9) (2025-03-28)
+
+
+### Bug Fixes
+
+* snowflake auth cli ([#14208](https://github.com/lightdash/lightdash/issues/14208)) ([65f5906](https://github.com/lightdash/lightdash/commit/65f5906e36def8830e0257e1126e5d17fb75bc05))
+
 ## [0.1552.8](https://github.com/lightdash/lightdash/compare/0.1552.7...0.1552.8) (2025-03-28)
 
 
