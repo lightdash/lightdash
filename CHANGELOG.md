@@ -1,3 +1,10 @@
+## [0.1552.11](https://github.com/lightdash/lightdash/compare/0.1552.10...0.1552.11) (2025-03-28)
+
+
+### Bug Fixes
+
+* Revert "fix: simplify color on pivots, unify logic with pie charts ([#14152](https://github.com/lightdash/lightdash/issues/14152))" ([#14213](https://github.com/lightdash/lightdash/issues/14213)) ([f099a28](https://github.com/lightdash/lightdash/commit/f099a28e96d55c579ede751419fd940d8a080d73))
+
 ## [0.1552.10](https://github.com/lightdash/lightdash/compare/0.1552.9...0.1552.10) (2025-03-28)
 
 
