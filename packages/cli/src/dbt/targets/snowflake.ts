@@ -133,7 +133,7 @@ export const convertSnowflakeSchema = async (
             password: target.password,
             privateKey,
             privateKeyPass: target.private_key_passphrase,
-            authenticationType: keyfilePath ? 'private_key' : 'password',
+            authenticationType: privateKey ? 'private_key' : 'password',
             role: target.role,
             warehouse: target.warehouse,
             database: target.database,
