@@ -1,16 +1,19 @@
 import type { ApiErrorDetail } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
+import { modals } from '@mantine/modals';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
     IconInfoCircleFilled,
+    IconSos,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
+import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import { type NotificationData } from './types';
@@ -26,6 +29,7 @@ const useToaster = () => {
             action,
             color: toastColor,
             autoClose = 5000,
+            isError = false,
             ...rest
         }: NotificationData) => {
             const commonProps = {
@@ -96,6 +100,29 @@ const useToaster = () => {
                                     }}
                                 />
                             )}
+                            {isError && (
+                                <Button
+                                    size="xs"
+                                    variant="light"
+                                    color={toastColor}
+                                    leftIcon={<IconSos />}
+                                    style={{
+                                        alignSelf: 'flex-end',
+                                    }}
+                                    onClick={() => {
+                                        modals.open({
+                                            id: 'support-drawer',
+                                            title: 'Share with Lightdash Support',
+                                            size: 'lg',
+                                            children: <SupportDrawerContent />,
+                                            yOffset: 100,
+                                            zIndex: 1000,
+                                        });
+                                    }}
+                                >
+                                    Share with Lightdash
+                                </Button>
+                            )}
                         </Stack>
                     ) : undefined,
                 onClose: (props: NotificationProps) => {
@@ -141,6 +168,7 @@ const useToaster = () => {
                 bg: 'red',
                 icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
                 autoClose: 60000,
+                isError: true,
                 ...props,
             });
         },
