@@ -81,6 +81,7 @@ import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
@@ -191,6 +192,7 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
  */
 const computeDashboardChartSeries = (
     chart: ApiChartAndResults['chart'],
+    validPivotDimensions: string[] | undefined,
     resultData: ApiQueryResults | undefined,
 ) => {
     if (!resultData?.fields || !chart.chartConfig || !resultData) {
@@ -208,7 +210,7 @@ const computeDashboardChartSeries = (
             defaultCartesianType: CartesianSeriesType.BAR,
             availableDimensions: chart.metricQuery.dimensions,
             isStacked: false,
-            pivotKeys: chart.pivotConfig?.columns,
+            pivotKeys: validPivotDimensions,
             resultsData: resultData,
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
@@ -264,9 +266,18 @@ const ValidDashboardChartTile: FC<{
         [rows, metricQuery, cacheMetadata, fields],
     );
 
+    const { validPivotDimensions } = usePivotDimensions(
+        chart.pivotConfig?.columns,
+        resultData,
+    );
+
     const computedSeries: Series[] = useMemo(() => {
-        return computeDashboardChartSeries(chart, resultData);
-    }, [resultData, chart]);
+        return computeDashboardChartSeries(
+            chart,
+            validPivotDimensions,
+            resultData,
+        );
+    }, [resultData, chart, validPivotDimensions]);
 
     if (health.isInitialLoading || !health.data) {
         return null;
@@ -318,9 +329,18 @@ const ValidDashboardChartTileMinimal: FC<{
         [rows, metricQuery, cacheMetadata, fields],
     );
 
+    const { validPivotDimensions } = usePivotDimensions(
+        chart.pivotConfig?.columns,
+        resultData,
+    );
+
     const computedSeries: Series[] = useMemo(() => {
-        return computeDashboardChartSeries(chart, resultData);
-    }, [resultData, chart]);
+        return computeDashboardChartSeries(
+            chart,
+            validPivotDimensions,
+            resultData,
+        );
+    }, [resultData, chart, validPivotDimensions]);
 
     if (health.isInitialLoading || !health.data) {
         return null;
