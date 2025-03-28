@@ -467,6 +467,14 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
+    const hasFetchedAllRows = useMemo(() => {
+        if (fetchedPages.length === 0) {
+            return false;
+        }
+
+        return fetchedRows.length >= fetchedPages[0].totalResults;
+    }, [fetchedRows, fetchedPages]);
+
     return useMemo(
         () => ({
             projectUuid,
@@ -474,8 +482,7 @@ export const useInfiniteQueryResults = (
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
-            hasFetchedAllRows:
-                fetchedRows.length >= fetchedPages[0]?.totalResults,
+            hasFetchedAllRows,
             rows: fetchedRows,
             isFetchingRows,
             fetchMoreRows,
@@ -485,10 +492,10 @@ export const useInfiniteQueryResults = (
             projectUuid,
             queryUuid,
             fetchedPages,
+            hasFetchedAllRows,
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
-            setFetchAll,
         ],
     );
 };
