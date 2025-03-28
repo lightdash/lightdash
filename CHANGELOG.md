@@ -1,3 +1,10 @@
+## [0.1552.12](https://github.com/lightdash/lightdash/compare/0.1552.11...0.1552.12) (2025-03-28)
+
+
+### Bug Fixes
+
+* unmount dashboard if uuid changes ([#14211](https://github.com/lightdash/lightdash/issues/14211)) ([861de91](https://github.com/lightdash/lightdash/commit/861de911f2ce1c65dc30ad1865d6a23591a036f2))
+
 ## [0.1552.11](https://github.com/lightdash/lightdash/compare/0.1552.10...0.1552.11) (2025-03-28)
 
 
