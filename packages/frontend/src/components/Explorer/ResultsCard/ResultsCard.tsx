@@ -48,7 +48,7 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
 
-    const disabled = totalResults <= 0;
+    const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
