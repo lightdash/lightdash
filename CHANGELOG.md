@@ -1,3 +1,10 @@
+## [0.1552.10](https://github.com/lightdash/lightdash/compare/0.1552.9...0.1552.10) (2025-03-28)
+
+
+### Bug Fixes
+
+* make query history error column text type ([#14210](https://github.com/lightdash/lightdash/issues/14210)) ([172d1aa](https://github.com/lightdash/lightdash/commit/172d1aaa9aec9f36406c74369016ccc1fd4646cd))
+
 ## [0.1552.9](https://github.com/lightdash/lightdash/compare/0.1552.8...0.1552.9) (2025-03-28)
 
 
