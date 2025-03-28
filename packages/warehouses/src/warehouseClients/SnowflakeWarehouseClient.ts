@@ -148,15 +148,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         let authenticationOptions: Partial<ConnectionOptions> = {};
 
+        // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
         if (
-            credentials.password &&
-            credentials.authenticationType === 'password'
+            credentials.privateKey &&
+            credentials.authenticationType === 'private_key'
         ) {
-            authenticationOptions = {
-                password: credentials.password,
-                authenticator: 'SNOWFLAKE',
-            };
-        } else if (credentials.privateKey) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
                     privateKey: credentials.privateKey,
@@ -183,6 +179,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     authenticator: 'SNOWFLAKE_JWT',
                 };
             }
+        } else if (credentials.password) {
+            authenticationOptions = {
+                password: credentials.password,
+                authenticator: 'SNOWFLAKE',
+            };
         }
 
         this.connectionOptions = {
