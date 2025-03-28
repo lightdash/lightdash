@@ -24,7 +24,7 @@ type S3CacheClientArguments = {
 export class S3CacheClient {
     configuration: LightdashConfig['resultsCache']['s3'];
 
-    private readonly s3?: S3;
+    protected readonly s3?: S3;
 
     constructor({ lightdashConfig }: S3CacheClientArguments) {
         const endpoint = lightdashConfig.s3?.endpoint;

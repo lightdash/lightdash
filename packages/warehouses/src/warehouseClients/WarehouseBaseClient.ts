@@ -61,8 +61,21 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     }
 
     async executeAsyncQuery(
-        args: WarehouseExecuteAsyncQueryArgs,
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        await this.streamQuery(
+            sql,
+            ({ rows }) => {
+                resultsStreamCallback(rows);
+            },
+            {
+                values,
+                tags,
+                timezone,
+            },
+        );
+
         return {
             queryId: null,
             queryMetadata: null,
